@@ -1,0 +1,52 @@
+{
+  "name": "@web-native-js/navigator",
+  "title": "navigator",
+  "description": "An awesome NodeJS serverside framework.",
+  "keywords": [
+    "SSR"
+  ],
+  "homepage": "https://web-native.dev",
+  "icon": "https://web-native.dev/icon.svg",
+  "author": {
+    "name": "Oxford Harrison",
+    "email": "oxharris.dev@gmail.com"
+  },
+  "version": "0.0.2",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/web-native/navigator.git"
+  },
+  "funding": {
+    "type": "patreon",
+    "url": "https://patreon.com/ox_harris"
+  },
+  "main": "index.js",
+  "dependencies": {
+    "@octokit/auth-basic": "^1.4.4",
+    "@octokit/rest": "^17.11.0",
+    "@web-native-js/chtml": "^1.0.6",
+    "@web-native-js/commons": "^0.5.1",
+    "@web-native-js/dom": "^0.0.1",
+    "@web-native-js/observer": "^1.0.1",
+    "chalk": "^4.1.0",
+    "clear": "^0.1.0",
+    "clui": "^0.3.6",
+    "configstore": "^5.0.1",
+    "figlet": "^1.4.0",
+    "inquirer": "^7.1.0",
+    "minimist": "^1.2.5",
+    "simple-git": "^2.6.0",
+    "touch": "^3.1.0"
+  },
+  "devDependencies": {
+    "webpack": "file:../site/node_modules/webpack"
+  },
+  "bugs": {
+    "url": "https://github.com/web-native/navigator/issues"
+  },
+  "bin": {
+    "nav": "./index.js"
+  }
+}
