@@ -2,9 +2,8 @@
 /**
  * @imports
  */
-import fs from 'fs';
-import Url from 'url';
-import path from 'path';
+import Fs from 'fs';
+import Path from 'path';
 import _isString from '@web-native-js/commons/js/isString.js';
 
 export default class Router {
@@ -40,9 +39,9 @@ export default class Router {
                 routeHandlerFile = 'index.js';
             } else if (pathSplit[index - 1]) {
                 var routeSlice = pathSplit.slice(0, index).join('/');
-                routeHandlerFile = path.join(routeSlice, './index.js');
+                routeHandlerFile = Path.join(routeSlice, './index.js');
             }
-            if (routeHandlerFile && fs.existsSync(routeHandlerFile = path.join(params.appDir, routeHandlerFile))) {
+            if (routeHandlerFile && Fs.existsSync(routeHandlerFile = Path.join(params.appDir, routeHandlerFile))) {
                 // -------------
                 // Dynamic response
                 // -------------
@@ -74,11 +73,11 @@ export default class Router {
      * @return Promise
      */
     async fetch(filename, options) {
-        var _filename = path.join(this.params.publicDir, '.', filename);
+        var _filename = Path.join(this.params.publicDir, '.', filename);
         var autoIndex;
-        if (fs.existsSync(_filename)) {
+        if (Fs.existsSync(_filename)) {
             // based on the URL path, extract the file extention. e.g. .js, .doc, ...
-            var ext = path.parse(filename).ext;
+            var ext = Path.parse(filename).ext;
             // read file from file system
             return new Promise((resolve, reject) => {
                 // if is a directory search for index file matching the extention
@@ -86,12 +85,12 @@ export default class Router {
                     ext = '.html';
                     _filename += '/index' + ext;
                     autoIndex = 'index.html';
-                    if (!fs.existsSync(_filename)) {
+                    if (!Fs.existsSync(_filename)) {
                         resolve();
                         return;
                     }
                 }
-                fs.readFile(_filename, function(err, data){
+                Fs.readFile(_filename, function(err, data){
                     if (err) {
                         // To be thrown by caller
                         reject({

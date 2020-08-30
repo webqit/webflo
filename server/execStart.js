@@ -3,12 +3,12 @@
  * imports
  */
 import Url from 'url';
-import http from 'http';
-import chalk from 'chalk';
+import Http from 'http';
+import Chalk from 'chalk';
 import _isObject from '@web-native-js/commons/js/isObject.js';
 import _promise from '@web-native-js/commons/js/promise.js';
-import Router from './Router.js';
 import createBrowser from './createBrowser.js';
+import Router from './Router.js';
 
 /**
  * Initializes a server on the given working directory.
@@ -19,11 +19,9 @@ import createBrowser from './createBrowser.js';
  */
 export default function(params) {
 
-    console.log('');
-    console.log(chalk.greenBright('Server running!'));
     if (params.showRequestLog) {
+        console.log(Chalk.whiteBright('Request log:'));
         console.log('');
-        console.log(chalk.whiteBright('Request log:'));
     }
 
     // -------------------
@@ -56,7 +54,7 @@ export default function(params) {
                             contentType: 'text/html',
                             content: jsdomInstance.serialize(),
                         });
-                    }, 5);
+                    }, 10);
                 });
                 
             });
@@ -69,7 +67,7 @@ export default function(params) {
     // Create server
     // -------------------
 
-    http.createServer(async function (request, response) {
+    Http.createServer(async function (request, response) {
 
         var fatal, data;
         var url = Url.parse(request.url), fatal;
@@ -100,10 +98,10 @@ export default function(params) {
 
         if (params.showRequestLog) {
             console.log(
-                chalk.green(request.method) + ' '
-                + request.url + (data && data.autoIndex ? chalk.gray((!request.url.endsWith('/') ? '/' : '') + data.autoIndex) : '') + ' '
+                Chalk.green(request.method) + ' '
+                + request.url + (data && data.autoIndex ? Chalk.gray((!request.url.endsWith('/') ? '/' : '') + data.autoIndex) : '') + ' '
                 + (data ? ' (' + data.contentType + ') ' : '')
-                + ([404, 500].includes(response.statusCode) ? chalk.red(response.statusCode + (fatal ? ` [ERROR]: ${fatal.error || fatal.toString()}` : ``)) : chalk.green(200))
+                + ([404, 500].includes(response.statusCode) ? Chalk.redBright(response.statusCode + (fatal ? ` [ERROR]: ${fatal.error || fatal.toString()}` : ``)) : Chalk.green(200))
             );
         }
 

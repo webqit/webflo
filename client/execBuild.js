@@ -4,7 +4,8 @@
  */
 import Fs from 'fs';
 import Path from 'path';
-import chalk from 'chalk';
+import Chalk from 'chalk';
+import Clui from 'clui';
 import webpack from 'webpack';
 import _beforeLast from '@web-native-js/commons/str/beforeLast.js';
 import createJSFile from './createJSFile.js';
@@ -58,7 +59,7 @@ export default function(params) {
     clientDefinition.code.push(`const routes = {};`);
 
     console.log('');
-    console.log(chalk.whiteBright('Registering routes:'));
+    console.log(Chalk.whiteBright('Registering routes:'));
     var appDirSplit = params.appDir.replace(/\\/g, '/').split('/');
     var clientDefinitionFile = appDirSplit.join('/') + '/intermediate-build.js';
     
@@ -74,7 +75,7 @@ export default function(params) {
             var routePath = _beforeLast('/' + relativePath, '/index.js');
             clientDefinition.code.push(`routes['${routePath || '/'}'] = ${routeName};`);
             // Show
-            console.log(chalk.greenBright(' .' + relativePath));
+            console.log(Chalk.greenBright(' .' + relativePath));
         }
     });
 
@@ -92,9 +93,8 @@ export default function(params) {
     // -------------------
     
     console.log('');
-    console.log(chalk.whiteBright('Writing the client entry file: ' + chalk.greenBright(clientDefinitionFile)));
+    console.log(Chalk.whiteBright('Writing the client entry file: ') + Chalk.greenBright(clientDefinitionFile));
     createJSFile(clientDefinition, clientDefinitionFile, 'App bootstrap file');
-
 
     // -------------------
     // Run webpack
@@ -113,19 +113,20 @@ export default function(params) {
             };
         }
 
-        console.log('');
-        console.log(chalk.whiteBright('Bundling files') + chalk.blueBright('...'));
+        let spnnr = new Clui.Spinner(Chalk.whiteBright('Bundling files') + Chalk.blueBright('...'));
+        spnnr.start();
 
         // Run
         var compiler = webpack(webpackConfig);
         compiler.run((err, stats) => {
             if (err) {
-                console.log(chalk.yellowBright('Errors!'));
+                console.log(Chalk.yellowBright('Errors!'));
                 console.log(err);
             }
             console.log(stats.toString({
                 colors: true,
             }));
+            spnnr.stop();
         });
     }
 

@@ -4,10 +4,10 @@
  */
 import Fs from 'fs';
 import Path from 'path';
-import clear from 'clear';
-import chalk from 'chalk';
-import figlet from 'figlet';
-import inquirer from 'inquirer';
+import Clear from 'clear';
+import Chalk from 'chalk';
+import Figlet from 'figlet';
+import Inquirer from 'inquirer';
 import _merge from '@web-native-js/commons/obj/merge.js';
 import _isTypeObject from '@web-native-js/commons/js/isTypeObject.js';
 import _isFunction from '@web-native-js/commons/js/isFunction.js';
@@ -23,23 +23,24 @@ import _isFunction from '@web-native-js/commons/js/isFunction.js';
  * @return Promise
  */
 export default async function(root, flags, ellipsis, version) {
+    
     // -------------------
     // Splash screen
     // -------------------
-    clear();
-    console.log(chalk.cyan(
-        figlet.textSync('Navigator', {horizontalLayout: 'full'}) + chalk.bgGray(chalk.black(version))
+    Clear();
+    console.log(Chalk.cyan(
+        Figlet.textSync('Navigator', {horizontalLayout: 'full'}) + Chalk.bgGray(Chalk.black(version))
     ));
     // -------------------
     // Create server parameters
     // -------------------
-    var params = {
+    var params = _merge({
         port: process.env.PORT || flags['p'] || flags['port'] || 4200,
         root,
         appDir: './server',
         publicDir: './public',
         showRequestLog: true,
-    }, serverParams;
+    }, flags), serverParams;
     // Merge parameters from a JSON file
     if (Fs.existsSync(serverParams = Path.join(root, flags['config'] || './navigator.config.js'))) {
         var params2 = await import('file:///' + serverParams);
@@ -94,20 +95,21 @@ export default async function(root, flags, ellipsis, version) {
             },
         ];
         console.log('');
-        console.log(chalk.whiteBright(`Enter parameters:`));
-        _merge(params, await inquirer.prompt(questions));
+        console.log(Chalk.whiteBright(`Enter parameters:`));
+        _merge(params, await Inquirer.prompt(questions));
     } else {
         // Valiate
         Object.keys(params).forEach(k => {
             var msg;
             if (validation[k] && (msg = validation[k]('!')(params[k])) !== true) {
                 console.log('');
-                console.log(chalk.red('[' + k + ']: ' + msg));
-                console.log(chalk.red('Exiting...'));
+                console.log(Chalk.redBright('[' + k + ']: ' + msg));
+                console.log(Chalk.redBright('Exiting...'));
                 process.exit();
             }
         });
     }
+    console.log('');
 
     // Resolve paths
     ['appDir', 'publicDir'].forEach(name => {
@@ -116,13 +118,13 @@ export default async function(root, flags, ellipsis, version) {
         }
     });
 
-    console.log('');
-    console.log(chalk.whiteBright(`Starting server with the following params:`));
+    console.log(Chalk.whiteBright(`Starting server with the following params:`));
     Object.keys(params).forEach(prop => {
-        console.log(chalk.blueBright('> ') + prop + ': ' + (
-            _isFunction(params[prop]) ? '(function)' + params[prop].name : (_isTypeObject(params[prop]) ? '(object)' : chalk.blueBright(params[prop]))
+        console.log(Chalk.blueBright('> ') + prop + ': ' + (
+            _isFunction(params[prop]) ? '(function)' + params[prop].name : (_isTypeObject(params[prop]) ? '(object)' : Chalk.blueBright(params[prop]))
         ));
     });
+    console.log('');
 
     return params;
 };

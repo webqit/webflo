@@ -4,8 +4,8 @@
  */
 import Fs from 'fs';
 import Path from 'path';
-import chalk from 'chalk';
-import inquirer from 'inquirer';
+import Chalk from 'chalk';
+import Inquirer from 'inquirer';
 import _merge from '@web-native-js/commons/obj/merge.js';
 import _isTypeObject from '@web-native-js/commons/js/isTypeObject.js';
 import _isFunction from '@web-native-js/commons/js/isFunction.js';
@@ -24,11 +24,11 @@ export default async function(root, flags, ellipsis, version) {
     // -------------------
     // Create server parameters
     // -------------------
-    var params = {
+    var params = _merge({
         root,
         appDir: './client',
         publicDir: './public',
-    }, serverParams;
+    }, flags), serverParams;
     // Merge parameters from a JSON file
     if (Fs.existsSync(serverParams = Path.join(root, flags['config'] || './navigator.config.js'))) {
         var params2 = await import('file:///' + serverParams);
@@ -63,16 +63,16 @@ export default async function(root, flags, ellipsis, version) {
             },
         ];
         console.log('');
-        console.log(chalk.whiteBright(`Enter parameters:`));
-        _merge(params, await inquirer.prompt(questions));
+        console.log(Chalk.whiteBright(`Enter parameters:`));
+        _merge(params, await Inquirer.prompt(questions));
     } else {
         // Valiate
         Object.keys(params).forEach(k => {
             var msg;
             if (validation[k] && (msg = validation[k]('!')(params[k])) !== true) {
                 console.log('');
-                console.log(chalk.red('[' + k + ']: ' + msg));
-                console.log(chalk.red('Exiting...'));
+                console.log(Chalk.redBright('[' + k + ']: ' + msg));
+                console.log(Chalk.redBright('Exiting...'));
                 process.exit();
             }
         });
@@ -86,10 +86,10 @@ export default async function(root, flags, ellipsis, version) {
     });
 
     console.log('');
-    console.log(chalk.whiteBright(`Creating a build with the following params:`));
+    console.log(Chalk.whiteBright(`Creating a build with the following params:`));
     Object.keys(params).forEach(prop => {
-        console.log(chalk.blueBright('> ') + prop + ': ' + (
-            _isFunction(params[prop]) ? '(function)' + params[prop].name : (_isTypeObject(params[prop]) ? '(object)' : chalk.blueBright(params[prop]))
+        console.log(Chalk.blueBright('> ') + prop + ': ' + (
+            _isFunction(params[prop]) ? '(function)' + params[prop].name : (_isTypeObject(params[prop]) ? '(object)' : Chalk.blueBright(params[prop]))
         ));
     });
 

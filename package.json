@@ -11,7 +11,7 @@
     "name": "Oxford Harrison",
     "email": "oxharris.dev@gmail.com"
   },
-  "version": "0.0.2",
+  "version": "0.0.6",
   "license": "MIT",
   "type": "module",
   "repository": {
@@ -29,7 +29,7 @@
     "@web-native-js/chtml": "^1.0.6",
     "@web-native-js/commons": "^0.5.1",
     "@web-native-js/dom": "^0.0.1",
-    "@web-native-js/observer": "^1.0.1",
+    "@web-native-js/observer": "^1.0.2",
     "chalk": "^4.1.0",
     "clear": "^0.1.0",
     "clui": "^0.3.6",
@@ -38,7 +38,8 @@
     "inquirer": "^7.1.0",
     "minimist": "^1.2.5",
     "simple-git": "^2.6.0",
-    "touch": "^3.1.0"
+    "touch": "^3.1.0",
+    "pm2": "^4.4.0"
   },
   "devDependencies": {
     "webpack": "file:../site/node_modules/webpack"
