@@ -121,7 +121,7 @@ switch(command) {
                             } else {
                                 console.log(Chalk.greenBright('Server running forever; ' + (autorestart ? 'will' : 'wo\'nt') + ' autorestart!'));
                                 console.log(Chalk.greenBright('> Process name: ' + Chalk.bold(name)));
-                                console.log(Chalk.greenBright('> Stop anytime: ' + Chalk.bold('nav stop-server ' + name)));
+                                console.log(Chalk.greenBright('> Stop anytime: `' + Chalk.bold('nav stop-server ' + name) + '`'));
                             }
                             Pm2.disconnect(() => {});
                         });
