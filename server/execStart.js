@@ -2,7 +2,6 @@
 /**
  * imports
  */
-import Url from 'url';
 import Http from 'http';
 import Chalk from 'chalk';
 import _isObject from '@web-native-js/commons/js/isObject.js';
@@ -29,13 +28,19 @@ export default function(params) {
     // -------------------
 
     const router = new Router(params);
-    const route = async request => {
+    const route = async (request, response) => {
 
-        var { document, jsdomInstance } = await createBrowser(params, request);
-        var data = await router.route(request);
+        try {
+            // Makes a global window available, even for route handlers
+            // But will throw on static serve mode where an actual HTML file is not
+            // in params
+            var { document, jsdomInstance } = await createBrowser(params, request);
+        } catch(e) {}
+        var data = await router.route(request, response);
         
         if (_isObject(data) && !data.static && !request.headers.json) {
-                
+            
+
             // Rendering setup
             return await _promise(resolve => {
 
@@ -46,15 +51,16 @@ export default function(params) {
                         document.addEventListener('templatesreadystatechange', resolve);
                     }
                 })).then(async () => {
-                    document.body.setAttribute('template', (params.templateRoutePath || 'app') + (request.url.pathname));
-                    document.bind(data, false);
-                    // Allow the import to be detected
+                    var requestPath = request.url.split('?')[0];
+                    document.body.setAttribute('template', (params.templateRoutePath || 'app') + (requestPath));
+                    document.bind(data, {update:true});
+                    // Allow common async tasks to complete
                     setTimeout(() => {
                         resolve({
                             contentType: 'text/html',
                             content: jsdomInstance.serialize(),
                         });
-                    }, 10);
+                    }, params.renderDuration || 100);
                 });
                 
             });
@@ -70,24 +76,25 @@ export default function(params) {
     Http.createServer(async function (request, response) {
 
         var fatal, data;
-        var url = Url.parse(request.url), fatal;
-
         try {
-            data = await route({url, headers:request.headers,});
-            if (data) {
-                response.setHeader('Content-type', data.contentType);
-                response.end(
-                    data.contentType === 'application/json' && _isObject(data.content) 
-                        ? JSON.stringify(data.content) 
-                        : data.content
-                );    
-            } else {
-                if (url.pathname.lastIndexOf('.') < url.pathname.lastIndexOf('/')) {
-                    response.statusCode = 500;
-                    response.end(`Internal server error!`);
+            data = await route(request, response);
+            if (!response.headersSent) {
+                if (data) {
+                    response.setHeader('Content-type', data.contentType);
+                    response.end(
+                        data.contentType === 'application/json' && _isObject(data.content) 
+                            ? JSON.stringify(data.content) 
+                            : data.content
+                    );    
                 } else {
-                    response.statusCode = 404;
-                    response.end(`${request.url} not found!`);
+                    var requestPath = request.url.split('?')[0];
+                    if (requestPath.lastIndexOf('.') < requestPath.lastIndexOf('/')) {
+                        response.statusCode = 500;
+                        response.end(`Internal server error!`);
+                    } else {
+                        response.statusCode = 404;
+                        response.end(`${request.url} not found!`);
+                    }
                 }
             }
         } catch(e) {
@@ -101,7 +108,11 @@ export default function(params) {
                 Chalk.green(request.method) + ' '
                 + request.url + (data && data.autoIndex ? Chalk.gray((!request.url.endsWith('/') ? '/' : '') + data.autoIndex) : '') + ' '
                 + (data ? ' (' + data.contentType + ') ' : '')
-                + ([404, 500].includes(response.statusCode) ? Chalk.redBright(response.statusCode + (fatal ? ` [ERROR]: ${fatal.error || fatal.toString()}` : ``)) : Chalk.green(200))
+                + (
+                    [404, 500].includes(response.statusCode) 
+                    ? Chalk.redBright(response.statusCode + (fatal ? ` [ERROR]: ${fatal.error || fatal.toString()}` : ``)) 
+                    : Chalk.green(response.statusCode) + ((response.statusCode + '').startsWith('3') ? ' - ' + response.getHeader('location') : '')
+                )
             );
         }
 

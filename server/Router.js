@@ -17,23 +17,28 @@ export default class Router {
      */
     constructor(params) {
         this.params = params;
+        this.middlewareStacks = {};
     }
 
     /**
      * Performs dynamic routing.
      * 
      * @param object            request
+     * @param object            response
      * 
      * @return object
      */
-    async route(request) {
+    async route(request, response) {
+
         var params = this.params;
         var localFetch = this.fetch.bind(this);
         // ----------------
         // ROUTER
         // ----------------
-        var pathSplit = request.url.pathname.split('/').filter(a => a);
+        var pathSplit = request.url.split('?')[0].split('/').filter(a => a);
+
         const next = async function(index, recieved) {
+
             var routeHandlerFile;
             if (index === 0) {
                 routeHandlerFile = 'index.js';
@@ -41,26 +46,41 @@ export default class Router {
                 var routeSlice = pathSplit.slice(0, index).join('/');
                 routeHandlerFile = Path.join(routeSlice, './index.js');
             }
+
             if (routeHandlerFile && Fs.existsSync(routeHandlerFile = Path.join(params.appDir, routeHandlerFile))) {
+                var pathHandlers = await import('file:///' + routeHandlerFile);
+                var middlewareStack = (pathHandlers.middlewares || []).slice();
+                var pipe = async function() {
+                    // -------------
+                    // Until we call the last middleware
+                    // -------------
+                    var middleware = middlewareStack.shift();
+                    if (middleware) {
+                        return await middleware(request, response, pipe);
+                    }
+                };
+                await pipe();
+
                 // -------------
-                // Dynamic response
+                // Then we can call the handler
                 // -------------
-                var pathHandler = await import('file:///' + routeHandlerFile + '?_r=' + Date.now());
-                var _next = (...args) => next(index + 1, ...args);
-                _next.path = pathSplit.slice(index).join('/');
-                return await pathHandler.default(request, recieved, _next/*next*/);
+                var _next = (...args) => next(index + 1, ...args); _next.path = pathSplit.slice(index).join('/');
+                return await pathHandlers.default(request, recieved, _next/*next*/);
             }
+
             if (arguments.length === 1) {
                 // -------------
                 // Local file
                 // -------------
-                return await localFetch(request.url.href, request);
+                return await localFetch(request.url, request);
             }
+
             // -------------
             // Recieved response or undefined
             // -------------
             return recieved;
         };
+
         return next(0);
     }
 

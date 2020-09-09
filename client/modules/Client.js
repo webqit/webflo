@@ -103,7 +103,7 @@ export default class Client {
 					}
 				})).then(async () => {
 					document.body.setAttribute('template', (params.templateRoutePath || 'app') + request.url.pathname);
-					document.bind(data, false);
+					document.bind(data, {update:true});
 					resolve(data);
 				});
 			});

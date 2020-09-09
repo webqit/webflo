@@ -1,7 +1,7 @@
 {
   "name": "@web-native-js/navigator",
   "title": "navigator",
-  "description": "An awesome NodeJS serverside framework.",
+  "description": "An awesome fullstack router.",
   "keywords": [
     "SSR"
   ],
@@ -11,7 +11,7 @@
     "name": "Oxford Harrison",
     "email": "oxharris.dev@gmail.com"
   },
-  "version": "0.0.6",
+  "version": "0.0.9",
   "license": "MIT",
   "type": "module",
   "repository": {
@@ -30,6 +30,7 @@
     "@web-native-js/commons": "^0.5.1",
     "@web-native-js/dom": "^0.0.1",
     "@web-native-js/observer": "^1.0.2",
+    "@web-native-js/pm2": "^4.4.0",
     "chalk": "^4.1.0",
     "clear": "^0.1.0",
     "clui": "^0.3.6",
@@ -37,9 +38,9 @@
     "figlet": "^1.4.0",
     "inquirer": "^7.1.0",
     "minimist": "^1.2.5",
+    "pm2": "^4.4.1",
     "simple-git": "^2.6.0",
-    "touch": "^3.1.0",
-    "pm2": "^4.4.0"
+    "touch": "^3.1.0"
   },
   "devDependencies": {
     "webpack": "file:../site/node_modules/webpack"
