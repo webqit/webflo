@@ -3,15 +3,15 @@
  * @imports
  */
 import Observer from '@web-native-js/observer';
-import _sort from '@web-native-js/commons/arr/sort.js';
-import _difference from '@web-native-js/commons/arr/difference.js';
-import _isArray from '@web-native-js/commons/js/isArray.js';
-import _isObject from '@web-native-js/commons/js/isObject.js';
-import _isTypeObject from '@web-native-js/commons/js/isTypeObject.js';
-import _isString from '@web-native-js/commons/js/isString.js';
-import _isEmpty from '@web-native-js/commons/js/isEmpty.js';
-import _copy from '@web-native-js/commons/obj/copy.js';
-import _with from '@web-native-js/commons/obj/with.js';
+import _sort from '@onephrase/util/arr/sort.js';
+import _difference from '@onephrase/util/arr/difference.js';
+import _isArray from '@onephrase/util/js/isArray.js';
+import _isObject from '@onephrase/util/js/isObject.js';
+import _isTypeObject from '@onephrase/util/js/isTypeObject.js';
+import _isString from '@onephrase/util/js/isString.js';
+import _isEmpty from '@onephrase/util/js/isEmpty.js';
+import _copy from '@onephrase/util/obj/copy.js';
+import _with from '@onephrase/util/obj/with.js';
 
 /**
  * ---------------------------

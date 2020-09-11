@@ -1,20 +1,19 @@
 {
-  "name": "@web-native-js/navigator",
+  "name": "@onephrase/navigator",
   "title": "navigator",
   "description": "An awesome fullstack router.",
   "keywords": [
     "SSR"
   ],
-  "homepage": "https://web-native.dev",
-  "icon": "https://web-native.dev/icon.svg",
-  "version": "0.1.0",
+  "homepage": "https://onephrase.dev/package/navigator",
+  "version": "0.1.1",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/web-native/navigator.git"
+    "url": "git+https://github.com/onephrase/navigator.git"
   },
   "bugs": {
-    "url": "https://github.com/web-native/navigator/issues"
+    "url": "https://github.com/onephrase/navigator/issues"
   },
   "type": "module",
   "main": "index.js",
@@ -24,11 +23,11 @@
   "dependencies": {
     "@octokit/auth-basic": "^1.4.6",
     "@octokit/rest": "^17.11.2",
-    "@web-native-js/chtml": "^1.2.3",
-    "@web-native-js/commons": "^0.5.2",
-    "@web-native-js/dom": "^0.0.1",
-    "@web-native-js/observer": "^1.0.4",
-    "@web-native-js/pm2": "^4.4.0",
+    "@onephrase/pm2": "^4.4.1",
+    "@onephrase/util": "^0.5.5",
+    "@web-native-js/browser-pie": "^0.0.2",
+    "@web-native-js/chtml": "^1.2.6",
+    "@web-native-js/observer": "^1.0.7",
     "chalk": "^4.1.0",
     "clear": "^0.1.0",
     "clui": "^0.3.6",
@@ -57,10 +56,10 @@
     ],
     "config": {
       "patreonUsername": "ox_harris",
-      "githubUsername": "web-native",
+      "githubUsername": "onephrase",
       "githubRepository": "navigator",
-      "githubSlug": "web-native/navigator",
-      "npmPackageName": "@web-native-js/observables"
+      "githubSlug": "onephrase/navigator",
+      "npmPackageName": "@onephrase/navigator"
     }
   }
 }

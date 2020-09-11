@@ -3,9 +3,9 @@
  * @imports
  */
 import Observer from '@web-native-js/observer';
-import _isFunction from '@web-native-js/commons/js/isFunction.js';
-import _isObject from '@web-native-js/commons/js/isObject.js';
-import _promise from '@web-native-js/commons/js/promise.js';
+import _isFunction from '@onephrase/util/js/isFunction.js';
+import _isObject from '@onephrase/util/js/isObject.js';
+import _promise from '@onephrase/util/js/promise.js';
 import Router from './Router.js';
 import Url from './Url.js';
 

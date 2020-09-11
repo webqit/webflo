@@ -4,8 +4,8 @@
  */
 import Fs from 'fs';
 import Path from 'path';
-import _isArray from '@web-native-js/commons/js/isArray.js'
-import _each from '@web-native-js/commons/obj/each.js'
+import _isArray from '@onephrase/util/js/isArray.js'
+import _each from '@onephrase/util/obj/each.js'
 
 /**
  * Generates a JavaScript source file

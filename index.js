@@ -4,10 +4,10 @@
  * imports
  */
 import Fs from 'fs';
-import Pm2 from '@web-native-js/pm2';
 import Chalk from 'chalk';
 import Path from 'path';
-import _arrLast from '@web-native-js/commons/arr/last.js';
+import Pm2 from '@onephrase/pm2';
+import _arrLast from '@onephrase/util/arr/last.js';
 import { createParams as createDeployParams, execDeploy } from './repo/index.js';
 import { createParams as createBuildParams, execBuild } from './client/index.js';
 import { createParams as createServerParams, execStart } from './server/index.js';

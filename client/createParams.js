@@ -6,9 +6,9 @@ import Fs from 'fs';
 import Path from 'path';
 import Chalk from 'chalk';
 import Inquirer from 'inquirer';
-import _merge from '@web-native-js/commons/obj/merge.js';
-import _isTypeObject from '@web-native-js/commons/js/isTypeObject.js';
-import _isFunction from '@web-native-js/commons/js/isFunction.js';
+import _merge from '@onephrase/util/obj/merge.js';
+import _isTypeObject from '@onephrase/util/js/isTypeObject.js';
+import _isFunction from '@onephrase/util/js/isFunction.js';
 
 /**
  * Obtains parameters for initializing a server.

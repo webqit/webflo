@@ -2,7 +2,7 @@
 /**
  * @imports
  */
-import _isString from '@web-native-js/commons/js/isString.js';
+import _isString from '@onephrase/util/js/isString.js';
 import Url from './Url.js';
 
 /**

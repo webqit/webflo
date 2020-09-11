@@ -4,9 +4,9 @@
  */
 import Fs from 'fs';
 import Path from 'path';
-import Lexer from '@web-native-js/commons/str/Lexer.js';
-import _wrapped from '@web-native-js/commons/str/wrapped.js';
-import _isObject from '@web-native-js/commons/js/isObject.js';
+import Lexer from '@onephrase/util/str/Lexer.js';
+import _wrapped from '@onephrase/util/str/wrapped.js';
+import _isObject from '@onephrase/util/js/isObject.js';
 
 /**
  * Reads contents of the .env file as an object.

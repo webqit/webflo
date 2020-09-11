@@ -7,7 +7,7 @@ import Path from 'path';
 import Chalk from 'chalk';
 import Clui from 'clui';
 import webpack from 'webpack';
-import _beforeLast from '@web-native-js/commons/str/beforeLast.js';
+import _beforeLast from '@onephrase/util/str/beforeLast.js';
 import createJSFile from './createJSFile.js';
 
 /**

@@ -4,7 +4,7 @@
  */
 import Fs from 'fs';
 import Path from 'path';
-import _isString from '@web-native-js/commons/js/isString.js';
+import _isString from '@onephrase/util/js/isString.js';
 
 export default class Router {
 

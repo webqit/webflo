@@ -4,7 +4,7 @@
  */
 import Path from 'path';
 import QueryString from 'querystring';
-import _isFunction from '@web-native-js/commons/js/isFunction.js';
+import _isFunction from '@onephrase/util/js/isFunction.js';
 
 /**
  * Dynamically creates a DOM
@@ -31,14 +31,12 @@ export default function(params, request) {
             g: ssr.globalWindow,
         });
         
-        const { document, window, jsdomInstance } = await import('@web-native-js/dom/instance.js?' + instanceParams);
-        const { default: chtml, ENV } = await import('@web-native-js/chtml');
+        const { document, window, jsdomInstance } = await import('@web-native-js/browser-pie/instance.js?' + instanceParams);
+        const { init, ENV } = await import('@web-native-js/chtml');
         
         // This window might be coming from the import cache
-        if (!document.chtml) {
-            ENV.params.SCOPED_JS.errorLevel = ssr.errorLevel;
-            ENV.params.SCOPED_JS.keepAlive = params.isomorphic;
-            ENV.window = window; chtml();
+        if (!ENV.window) {
+            init({}, jsdomInstance.window);
             if (ssr.bindingsCallback) {
                 window.newBindings = await ssr.bindingsCallback(jsdomInstance.window, 'server') || {};
             } else {

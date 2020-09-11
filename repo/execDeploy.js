@@ -2,7 +2,7 @@
 /**
  * imports
  */
-import _any from '@web-native-js/commons/arr/any.js';
+import _any from '@onephrase/util/arr/any.js';
 import SimpleGit from 'simple-git';
 import Chalk from 'chalk';
 import Clui from 'clui';
