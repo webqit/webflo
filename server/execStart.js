@@ -103,8 +103,9 @@ export default function(params) {
         }
 
         if (params.showRequestLog) {
-            console.log(
-                Chalk.green(request.method) + ' '
+            console.log(''
+                + '[' + Chalk.gray((new Date).toUTCString()) + '] '
+                + Chalk.green(request.method) + ' '
                 + request.url + (data && data.autoIndex ? Chalk.gray((!request.url.endsWith('/') ? '/' : '') + data.autoIndex) : '') + ' '
                 + (data ? ' (' + data.contentType + ') ' : '')
                 + (

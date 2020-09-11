@@ -2,9 +2,11 @@
 /**
  * @imports
  */
+import Fs from 'fs';
 import Path from 'path';
 import QueryString from 'querystring';
 import _isFunction from '@onephrase/util/js/isFunction.js';
+import { fstat } from 'fs';
 
 /**
  * Dynamically creates a DOM
@@ -21,8 +23,13 @@ export default function(params, request) {
     return new Promise(async (resolve, reject) => {
 
         var ssr = (_isFunction(params.ssr) ? await params.ssr() : params.ssr) || {};
+        var renderingDocument = ssr.document, defaultRenderingDocument;
+        if (!renderingDocument && renderingDocument !== false 
+        && (defaultRenderingDocument = Path.join(params.publicDir, './index.html')) && Fs.existsSync(defaultRenderingDocument)) {
+            renderingDocument = defaultRenderingDocument;
+        }
         const instanceParams = QueryString.stringify({
-            document: ssr.document || Path.join(params.publicDir, './index.html'),
+            document: renderingDocument,
             'pretend-to-be-visual': 'pretendToBeVisual' in ssr ? ssr.pretendToBeVisual : 1,
             resources: ssr.resources || params.publicDir,
             'show-fetch-log': ssr.showFetchLog,
@@ -49,5 +56,6 @@ export default function(params, request) {
             window,
             jsdomInstance,
         });
+        
     });
 };
