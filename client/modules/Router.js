@@ -39,20 +39,24 @@ export default class Router {
         // ----------------
         var pathSplit = request.url.pathname.split('/').filter(a => a);
         const next = async function(index, recieved) {
-            var currentHandler;
+            var currentHandler, wildcardRouteHandlerFile;
             if (index === 0) {
                 currentHandler = routeTree['/'];
             } else if (pathSplit[index - 1]) {
                 var currentHandlerPath = '/' + pathSplit.slice(0, index).join('/');
-                currentHandler = routeTree[currentHandlerPath];
+                var wildcardCurrentHandlerPath = pathSplit.slice(0, index - 1).concat('_').join('/');
+                currentHandler = routeTree[currentHandlerPath] || routeTree[wildcardCurrentHandlerPath];
             }
             if (currentHandler) {
                 // -------------
                 // Dynamic response
                 // -------------
                 var _next = (...args) => next(index + 1, ...args);
-                _next.path = pathSplit.slice(index).join('/');
-                return await currentHandler(request, recieved, _next);
+                _next.id = pathSplit.slice(index).join('/');
+                // ------------------------
+                var handlerThis = currentHandler;
+                handlerThis.id = pathSplit[index - 1];
+                return await currentHandler.bind(handlerThis)(request, recieved, _next);
             }
             if (arguments.length === 1) {
                 // -------------

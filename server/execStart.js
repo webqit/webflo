@@ -86,11 +86,11 @@ export default function(params) {
                             : data.content
                     );    
                 } else {
-                    var requestPath = request.url.split('?')[0];
+                    /*var requestPath = request.url.split('?')[0];
                     if (requestPath.lastIndexOf('.') < requestPath.lastIndexOf('/')) {
                         response.statusCode = 500;
                         response.end(`Internal server error!`);
-                    } else {
+                    } else*/ {
                         response.statusCode = 404;
                         response.end(`${request.url} not found!`);
                     }

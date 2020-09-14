@@ -8,13 +8,14 @@ import Chalk from 'chalk';
 import Path from 'path';
 import Pm2 from '@onephrase/pm2';
 import _arrLast from '@onephrase/util/arr/last.js';
+import _arrFrom from '@onephrase/util/arr/from.js';
 import { createParams as createDeployParams, execDeploy } from './repo/index.js';
 import { createParams as createBuildParams, execBuild } from './client/index.js';
 import { createParams as createServerParams, execStart } from './server/index.js';
 import * as Dotenv from './env/index.js';
 
-// Commands list
 var version = 'v0.0.1';
+// Commands list
 var commands = {
     'add-env': 'Adds a new environmental variable.',
     'del-env': 'Deletes an environmental variable.',
@@ -28,19 +29,27 @@ var commands = {
 };
 
 // Mine parameters
+// ------------------------------------------
 var command = process.argv[2], _flags = process.argv.slice(3), flags = {}, ellipsis;
 if (_arrLast(_flags) === '...') {
     _flags.pop();
     ellipsis = true;
 }
 _flags.forEach(flag => {
-    if (flag.indexOf('=') > -1 || flag.startsWith('#')) {
-        flag = flag.split('=');
-        flags[flag[0]] = flag[1];
+    if (flag.indexOf('+=') > -1 || flag.indexOf('=') > -1 || flag.startsWith('#')) {
+        if (flag.indexOf('+=') > -1) {
+            flag = flag.split('+=');
+            flags[flag[0]] = _arrFrom(flags[flag[0]]);
+            flags[flag[0]].push(flag[1]);
+        } else {
+            flag = flag.split('=');
+            flags[flag[0]] = flag[1];
+        }
     } else if (flag.startsWith('--')) {
         flags[flag.substr(2)] = true;
     }
 });
+// ------------------------------------------
 
 // Exec
 switch(command) {

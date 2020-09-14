@@ -39,15 +39,18 @@ export default class Router {
 
         const next = async function(index, recieved) {
 
-            var routeHandlerFile;
+            var routeHandlerFile, wildcardRouteHandlerFile;
             if (index === 0) {
                 routeHandlerFile = 'index.js';
             } else if (pathSplit[index - 1]) {
                 var routeSlice = pathSplit.slice(0, index).join('/');
+                var wildcardRouteSlice = pathSplit.slice(0, index - 1).concat('_').join('/');
                 routeHandlerFile = Path.join(routeSlice, './index.js');
+                wildcardRouteHandlerFile = Path.join(wildcardRouteSlice, './index.js');
             }
 
-            if (routeHandlerFile && Fs.existsSync(routeHandlerFile = Path.join(params.appDir, routeHandlerFile))) {
+            if ((routeHandlerFile && Fs.existsSync(routeHandlerFile = Path.join(params.appDir, routeHandlerFile)))
+            || (wildcardRouteHandlerFile && Fs.existsSync(routeHandlerFile = Path.join(params.appDir, wildcardRouteHandlerFile)))) {
                 var pathHandlers = await import('file:///' + routeHandlerFile);
                 var middlewareStack = (pathHandlers.middlewares || []).slice();
                 var pipe = async function() {
@@ -64,8 +67,12 @@ export default class Router {
                 // -------------
                 // Then we can call the handler
                 // -------------
-                var _next = (...args) => next(index + 1, ...args); _next.path = pathSplit.slice(index).join('/');
-                return await pathHandlers.default(request, recieved, _next/*next*/);
+                var _next = (...args) => next(index + 1, ...args);
+                _next.id = pathSplit.slice(index).join('/');
+                // ---------------
+                var handlerThis = pathHandlers.default;
+                handlerThis.id = pathSplit[index - 1];
+                return await pathHandlers.default.bind(handlerThis)(request, recieved, _next/*next*/);
             }
 
             if (arguments.length === 1) {
