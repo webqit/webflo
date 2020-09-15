@@ -79,7 +79,7 @@ export default class Router {
                 // -------------
                 // Local file
                 // -------------
-                return await localFetch(request.url, request);
+                return await localFetch(request.url.split('?')[0], request);
             }
 
             // -------------

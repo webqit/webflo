@@ -2,10 +2,18 @@
 /**
  * imports
  */
+import Url from 'url';
 import Http from 'http';
+import Cookie from 'cookie';
 import Chalk from 'chalk';
+import Formidable from 'formidable';
+import _isArray from '@onephrase/util/js/isArray.js';
 import _isObject from '@onephrase/util/js/isObject.js';
 import _promise from '@onephrase/util/js/promise.js';
+import _beforeLast from '@onephrase/util/str/beforeLast.js';
+import _wrapped from '@onephrase/util/str/wrapped.js';
+import _each from '@onephrase/util/obj/each.js';
+import _set from '@onephrase/util/obj/set.js';
 import createBrowser from './createBrowser.js';
 import Router from './Router.js';
 
@@ -74,6 +82,81 @@ export default function(params) {
 
     Http.createServer(async function (request, response) {
 
+        // --------
+        // Request parsing
+        // --------
+
+        const setToPath = (target, name, value, indexes) => {
+            if (name.endsWith('[]')) {
+                if (!indexes[name]) {
+                    indexes[name] = 0;
+                }
+                name = _beforeLast(name, '[]') + '[' + (indexes[name] ++) + ']';
+            }
+            var pathArray = name.split('[').map(seg => _beforeLast(seg, ']'));
+            _set(target, pathArray, value);
+        };
+
+        // Query
+        request.query = {}; var queryIndexes = {};
+        _each(Url.parse(request.url, true, true).query, (name, value) => {
+            var _name = name.endsWith('[]') && _isArray(value) ? _beforeLast(name, '[]') : name;
+            var _value = typeof value === 'string' && (_wrapped(value, '{', '}') || _wrapped(value, '[', ']')) ? JSON.parse(value) : value;
+            setToPath(request.query, _name, _value, queryIndexes);
+        });
+
+        // Cookies
+        request.cookies = {}; var cookiesIndexes = {};
+        _each(Cookie.parse(request.headers.cookie || ''), (name, value) => {
+            var _value = _wrapped(value, '{', '}') || _wrapped(value, '[', ']') ? JSON.parse(value) : value;
+            setToPath(request.cookies, name, _value, cookiesIndexes);
+        });
+
+        // Inputs
+        request.inputs = () => request.body().then(body => body.inputs);
+
+        // Files
+        request.files = () => request.body().then(body => body.files);
+
+        // Body
+        request.body = () => {
+            var formidable, contentType = request.headers['content-type'], body = {
+                inputs: {},
+                files: {},
+                type: contentType === 'application/x-www-form-urlencoded' ? 'form' 
+                    : (contentType === 'application/json' ? 'json' : (contentType.startsWith('multipart/') ? 'multipart' : contentType)),
+            };
+            return new Promise((resolve, reject) => {
+                if (!formidable) {
+                    formidable = new Formidable.IncomingForm({multiples: true});
+                    formidable.parse(request, function(error, inputs, files) {
+                        if (error) {
+                            reject(error);
+                            return;
+                        }
+                        var inputsIndexes = {};
+                        Object.keys(inputs).forEach(name => {
+                            var _name = name.endsWith('[]') && _isArray(inputs[name]/* not _value */) ? _beforeLast(name, '[]') : name;
+                            var _value = typeof inputs[name] === 'string' && (_wrapped(inputs[name], '{', '}') || _wrapped(inputs[name], '[', ']')) ? JSON.parse(inputs[name]) : inputs[name];
+                            setToPath(body.inputs, _name, _value, inputsIndexes);
+                        });
+                        var filesIndexes = {};
+                        Object.keys(files).forEach(name => {
+                            var _name = name.endsWith('[]') && _isArray(files[name]) ? _beforeLast(name, '[]') : name;
+                            setToPath(body.files, _name, files[name], filesIndexes);
+                        });
+                        resolve(body);
+                    });
+                } else {
+                    resolve(body);
+                }
+            });
+        };
+
+        // --------
+        // Request handling
+        // --------
+
         var fatal, data;
         try {
             data = await route(request, response);
@@ -101,6 +184,10 @@ export default function(params) {
             response.statusCode = e.errorCode || 500;
             response.end(`Internal server error!`);
         }
+
+        // --------
+        // Request log
+        // --------
 
         if (params.showRequestLog) {
             console.log(''

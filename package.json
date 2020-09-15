@@ -6,7 +6,7 @@
     "SSR"
   ],
   "homepage": "https://onephrase.dev/package/navigator",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -24,7 +24,7 @@
     "@octokit/auth-basic": "^1.4.6",
     "@octokit/rest": "^17.11.2",
     "@onephrase/pm2": "^4.4.1",
-    "@onephrase/util": "^0.5.5",
+    "@onephrase/util": "^0.5.8",
     "@web-native-js/browser-pie": "^0.0.2",
     "@web-native-js/chtml": "^1.2.6",
     "@web-native-js/observer": "^1.0.7",
@@ -32,7 +32,9 @@
     "clear": "^0.1.0",
     "clui": "^0.3.6",
     "configstore": "^5.0.1",
+    "cookie": "^0.4.1",
     "figlet": "^1.5.0",
+    "formidable": "^2.0.0-canary.20200504.1",
     "inquirer": "^7.3.3",
     "minimist": "^1.2.5",
     "simple-git": "^2.20.1",
