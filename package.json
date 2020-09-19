@@ -6,7 +6,7 @@
     "SSR"
   ],
   "homepage": "https://onephrase.dev/package/navigator",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -26,7 +26,7 @@
     "@onephrase/pm2": "^4.4.1",
     "@onephrase/util": "^0.5.8",
     "@web-native-js/browser-pie": "^0.0.2",
-    "@web-native-js/chtml": "^1.2.6",
+    "@web-native-js/chtml": "^1.2.9",
     "@web-native-js/observer": "^1.0.7",
     "chalk": "^4.1.0",
     "clear": "^0.1.0",

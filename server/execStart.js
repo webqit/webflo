@@ -46,7 +46,7 @@ export default function(params) {
         } catch(e) {}
         var data = await router.route(request, response);
         
-        if (_isObject(data) && !data.static && !request.headers.json) {
+        if (_isObject(data) && !data.contentType) {
             
             // Rendering setup
             return await _promise(resolve => {
@@ -60,14 +60,14 @@ export default function(params) {
                 })).then(async () => {
                     var requestPath = request.url.split('?')[0];
                     document.body.setAttribute('template', (params.templateRoutePath || 'app') + (requestPath));
-                    document.bind(data, {update:true});
+                    document.bind(data, {update: true});
                     // Allow common async tasks to complete
                     setTimeout(() => {
                         resolve({
                             contentType: 'text/html',
                             content: jsdomInstance.serialize(),
                         });
-                    }, params.renderDuration || 100);
+                    }, params.renderDuration || 1000);
                 });
                 
             });
@@ -136,8 +136,8 @@ export default function(params) {
                         }
                         var inputsIndexes = {};
                         Object.keys(inputs).forEach(name => {
-                            var _name = name.endsWith('[]') && _isArray(inputs[name]/* not _value */) ? _beforeLast(name, '[]') : name;
-                            var _value = typeof inputs[name] === 'string' && (_wrapped(inputs[name], '{', '}') || _wrapped(inputs[name], '[', ']')) ? JSON.parse(inputs[name]) : inputs[name];
+                            var _name = name; // name.endsWith('[]') && _isArray(inputs[name]/* not _value */) ? _beforeLast(name, '[]') : name;
+                            var _value = inputs[name]; // typeof inputs[name] === 'string' && (_wrapped(inputs[name], '{', '}') || _wrapped(inputs[name], '[', ']')) ? JSON.parse(inputs[name]) : inputs[name];
                             setToPath(body.inputs, _name, _value, inputsIndexes);
                         });
                         var filesIndexes = {};
@@ -163,6 +163,9 @@ export default function(params) {
             if (!response.headersSent) {
                 if (data) {
                     response.setHeader('Content-type', data.contentType);
+                    if (data.cors) {
+                        response.setHeader('Access-Control-Allow-Origin', data.cors === true ? '*' : data.cors);
+                    }
                     response.end(
                         data.contentType === 'application/json' && _isObject(data.content) 
                             ? JSON.stringify(data.content) 
