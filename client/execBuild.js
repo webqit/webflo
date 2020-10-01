@@ -8,7 +8,7 @@ import Chalk from 'chalk';
 import Clui from 'clui';
 import webpack from 'webpack';
 import _beforeLast from '@onephrase/util/str/beforeLast.js';
-import createJSFile from './createJSFile.js';
+import DotJs from '../util/DotJs.js';
 
 /**
  * Initializes a server on the given working directory.
@@ -38,6 +38,8 @@ export default function(params) {
         });
     };
 
+    let spnnr;
+
     // -------------------
     // Register routes
     // -------------------
@@ -48,20 +50,18 @@ export default function(params) {
     };
 
     var importURL = forwardSlash(import.meta.url.replace('file:///', ''));
-    // Import CHTML from the cclient entry
-    clientDefinition.imports[forwardSlash(Path.join(Path.dirname(importURL) + '../../node_modules/@web-native-js/chtml/src/browser-entry.js'))] = null;
     // >> Import the Navigator Client file
     var navigatorClient = Path.dirname(importURL) + '/modules/Client.js';
-    clientDefinition.imports[navigatorClient] = 'Navigator';
+    clientDefinition.imports[navigatorClient] = 'Client';
 
     // >> Routes mapping
-    clientDefinition.code.push(`// Route definition`);
+    clientDefinition.code.push(`// >> Route definition`);
     clientDefinition.code.push(`const routes = {};`);
 
     console.log('');
-    console.log(Chalk.whiteBright('Registering routes:'));
+    console.log(Chalk.bold(Chalk.yellowBright('Routes definition:')));
     var appDirSplit = params.appDir.replace(/\\/g, '/').split('/');
-    var clientDefinitionFile = appDirSplit.join('/') + '/intermediate-build.js';
+    var clientDefinitionFile = appDirSplit.join('/') + '/app.js';
     
     var indexCount = 0;
     walk(params.appDir, (file, ext) => {
@@ -70,7 +70,7 @@ export default function(params) {
             var relativePath = Path.relative(params.appDir, file).replace(/\\/g, '/');
             // Import code
             var routeName = 'index' + (++ indexCount);
-            clientDefinition.imports['./' + relativePath] = routeName;
+            clientDefinition.imports['./' + relativePath] = '* as ' + routeName;
             // Definition code
             var routePath = _beforeLast('/' + relativePath, '/index.js');
             clientDefinition.code.push(`routes['${routePath || '/'}'] = ${routeName};`);
@@ -79,22 +79,29 @@ export default function(params) {
         }
     });
 
-    // >> Application instantiation
-    clientDefinition.code.push(``);
-    clientDefinition.code.push(`// App instance`);
-    clientDefinition.code.push(`export const app = new Navigator({`);
-    clientDefinition.code.push(`    routes,`);
-    clientDefinition.code.push(`    templateRoutePath: '${params.templateRoutePath}',`);
-    clientDefinition.code.push(`    isomorphic: ${params.isomorphic ? 'true' : 'false'},`);
-    clientDefinition.code.push(`});`);
+    clientDefinition.code.push(`
+// >> Parameters gathering
+const params = typeof Navigator_Params !== 'undefined' ? {...Navigator_Params} : {};
+params.routes = routes;`
+    );
+
+    clientDefinition.code.push(`
+// >> Application instantiation
+Client(params);`
+    );
 
     // -------------------
     // Create the entry file
     // -------------------
     
+
     console.log('');
-    console.log(Chalk.whiteBright('Writing the client entry file: ') + Chalk.greenBright(clientDefinitionFile));
-    createJSFile(clientDefinition, clientDefinitionFile, 'App bootstrap file');
+
+    spnnr = new Clui.Spinner(Chalk.whiteBright('Writing the client entry file: ') + Chalk.greenBright(clientDefinitionFile));
+    spnnr.start();
+
+    // Write
+    DotJs(clientDefinition, clientDefinitionFile, 'App bootstrap file');
 
     // -------------------
     // Run webpack
@@ -113,12 +120,15 @@ export default function(params) {
             };
         }
 
-        let spnnr = new Clui.Spinner(Chalk.whiteBright('Bundling files') + Chalk.blueBright('...'));
+        spnnr.stop();
+        spnnr = new Clui.Spinner(Chalk.whiteBright('Bundling files') + Chalk.blueBright('...'));
         spnnr.start();
 
         // Run
         var compiler = webpack(webpackConfig);
         compiler.run((err, stats) => {
+            spnnr.stop();
+            console.log(Chalk.bold(Chalk.yellowBright('Bundle details:')));
             if (err) {
                 console.log(Chalk.yellowBright('Errors!'));
                 console.log(err);
@@ -126,7 +136,6 @@ export default function(params) {
             console.log(stats.toString({
                 colors: true,
             }));
-            spnnr.stop();
         });
     }
 

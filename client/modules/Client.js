@@ -2,12 +2,9 @@
 /**
  * @imports
  */
-import Observer from '@web-native-js/observer';
-import _isFunction from '@onephrase/util/js/isFunction.js';
-import _isObject from '@onephrase/util/js/isObject.js';
 import _promise from '@onephrase/util/js/promise.js';
 import Router from './Router.js';
-import Url from './Url.js';
+import Http from './Http.js';
 
 /**
  * ---------------------------
@@ -15,130 +12,80 @@ import Url from './Url.js';
  * ---------------------------
  */
 			
-export default class Client {
+export default function(params) {
+
+	params = {...params};
 
 	/**
-	 * Constructs a new Client instance. Typically,
-	 * only one instance would be needed app-wide. So an should
-	 * be used as a singleton.
-	 * 
-	 * @param object 	params
-	 *
-	 * @return void
-	 */
-	constructor(params) {
-		/**
-		 * ----------------
-		 * Client.location
-		 * ----------------
-		 */
-		Observer.set(this, 'location', new Url(window.document.location, params.pathnamingScheme));
-		// -----------------------
-		// This event is triggered by
-		// either the browser back button,
-		// the window.history.back(),
-		// the window.history.forward(),
-		// or the window.history.go() action.
-		window.addEventListener('popstate', e => {
-			// Needed to alow window.document.location
-			// to update to window.location
-			window.setTimeout(() => {
-				Observer.set(this.location, Url.copy(window.document.location), {
-					src: window.document.location
-				});
-			}, 0);
-		});
-		// -----------------------
-		// Capture all link-clicks
-		// and fire to this router.
-		window.addEventListener('click', e => {
-			var anchor, href, target;
-			if ((anchor = e.target.closest('a')) 
-			&& (href = anchor.href)
-			&& (!anchor.origin || anchor.origin === this.location.origin)
-			&& !anchor.getAttribute('target')) {
-				e.preventDefault();
-				var e2 = Observer.set(this.location, 'href', href, {
-					src: anchor
-				});
-				if (e2 && e2.defaultPrevented) {
+	 * ----------------
+	 * Apply routing
+	 * ----------------
+	 */	
+	Http.createClient(async request => {
+
+        // -------------------
+        // Resolve canonicity
+        // -------------------
+		
+		// The app router
+		const requestPath = request.url.split('?')[0];
+		const router = new Router(requestPath, params);
+
+		// The srvice object
+		const service = {
+			offsetUrl: params.offsetUrl,
+			request,
+		}
+
+		var data;
+		try {
+
+			// --------
+			// ROUTE FOR DATA
+			// --------
+			data = await router.route([service], 'default', async function(output) {
+				if (arguments.length) {
+					return output;
 				}
-			}
-		});
-		/**
-		 * ----------------
-		 * Client.history
-		 * ----------------
-		 */
-		this.history = window.history;
-		// -----------------------
-		// Syndicate changes to
-		// the browser;s location bar
-		Observer.observe(this.location, 'href', delta => {
-			if (delta.value === window.document.location.href) {
-				this.history.replaceState(this.history.state, '', delta.value);
-			} else {
-				this.history.pushState(this.history.state, '', delta.value);
-			}
-		});
-		/**
-		 * ----------------
-		 * Apply routing
-		 * ----------------
-		 */
-		const router = new Router(params.routes);
-		const route = async request => {
-			// ------------------------
-			// Route...
-			var data = await router.route(request);
-			
-			// ------------------------
+				return window.fetch(requestPath, {
+					headers: {
+						accept: 'application/json'
+					}
+				}).then(response => response.json()).catch(() => {});
+			});
+
+			// --------
+			// Render
+			// --------
+			const _window = await router.route([data], 'render', async function(_window) {
+				if (arguments.length) {
+					return _window;
+				}
+				// --------
+				window.document.bind(data, {update: Object.keys(window.document.bindings).length !== 0});
+				window.document.body.setAttribute('template', 'app' + requestPath);
+				return window;
+			});
+
+			// --------
 			// Render...
-			return await _promise(resolve => {
+			// --------
+			data = await _promise(resolve => {
 				(new Promise(resolve => {
-					if (document.templatesReadyState === 'complete') {
+					if (_window.document.templatesReadyState === 'complete') {
 						resolve();
 					} else {
-						document.addEventListener('templatesreadystatechange', resolve);
+						_window.document.addEventListener('templatesreadystatechange', resolve);
 					}
 				})).then(async () => {
-					document.body.setAttribute('template', (params.templateRoutePath || 'app') + request.url.pathname);
-					document.bind(data, {update:true});
 					resolve(data);
 				});
 			});
-		};
 
-		// Observe location and route
-		Observer.observe(this.location, 'href', async delta => {
-			var data = await route({
-				url:this.location,
-				headers: delta.detail || {},
-			});
-		});
+			return data;
+
+		} catch(e) {throw e}
 		
-		// Startup route?
-		if (!params.isomorphic) {
-			route({
-				url:this.location,
-				headers:{},
-			});
-		}
-	}
-	
-	/**
-	 * Performs a request.
-	 *
-	 * @param string 	href
-	 * @param object 	request
-	 * @param object 	src
-	 *
-	 * @return UserEvent
-	 */
-	go(href, request = {}, src = null) {
-		return Observer.set(this.location, 'href', href, {
-			request,
-			src,
-		});
-	}
+	});
+
 };

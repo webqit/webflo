@@ -3,91 +3,94 @@
  * @imports
  */
 import Fs from 'fs';
+import Url from 'url';
 import Path from 'path';
 import _isString from '@onephrase/util/js/isString.js';
+import _isArray from '@onephrase/util/js/isArray.js';
+import _arrFrom from '@onephrase/util/arr/from.js';
 
 export default class Router {
 
     /**
      * Instantiates a new Router.
      * 
+     * @param string|array      path
      * @param object            params
      * 
      * @return void
      */
-    constructor(params) {
+    constructor(path, params) {
+        this.offsetUrl = _isArray(params.offsetUrl) ? params.offsetUrl : ((params.offsetUrl || '') + '').split('/').filter(a => a);
+        this.clientPath = _isArray(path) ? path : (path + '').split('/').filter(a => a);
+        this.path = this.offsetUrl.concat(this.clientPath);
         this.params = params;
-        this.middlewareStacks = {};
     }
 
     /**
      * Performs dynamic routing.
      * 
-     * @param object            request
-     * @param object            response
+     * @param array             args
+     * @param array|string      target
+     * @param function          _default
      * 
      * @return object
      */
-    async route(request, response) {
-
+    async route(args, target, _default) {
+        
+        target = _arrFrom(target);
+        var path = this.path;
+        var clientPath = this.clientPath;
         var params = this.params;
-        var localFetch = this.fetch.bind(this);
+
         // ----------------
         // ROUTER
         // ----------------
-        var pathSplit = request.url.split('?')[0].split('/').filter(a => a);
-
-        const next = async function(index, recieved) {
-
-            var routeHandlerFile, wildcardRouteHandlerFile;
+        const next = async function(index, output) {
+    
+            var exports, routeHandlerFile, wildcardRouteHandlerFile;
             if (index === 0) {
                 routeHandlerFile = 'index.js';
-            } else if (pathSplit[index - 1]) {
-                var routeSlice = pathSplit.slice(0, index).join('/');
-                var wildcardRouteSlice = pathSplit.slice(0, index - 1).concat('_').join('/');
+            } else if (path[index - 1]) {
+                var routeSlice = path.slice(0, index).join('/');
+                var wildcardRouteSlice = path.slice(0, index - 1).concat('_').join('/');
                 routeHandlerFile = Path.join(routeSlice, './index.js');
                 wildcardRouteHandlerFile = Path.join(wildcardRouteSlice, './index.js');
             }
-
+    
             if ((routeHandlerFile && Fs.existsSync(routeHandlerFile = Path.join(params.appDir, routeHandlerFile)))
             || (wildcardRouteHandlerFile && Fs.existsSync(routeHandlerFile = Path.join(params.appDir, wildcardRouteHandlerFile)))) {
-                var pathHandlers = await import('file:///' + routeHandlerFile);
-                var middlewareStack = (pathHandlers.middlewares || []).slice();
-                var pipe = async function() {
-                    // -------------
-                    // Until we call the last middleware
-                    // -------------
-                    var middleware = middlewareStack.shift();
-                    if (middleware) {
-                        return await middleware(request, response, pipe);
-                    }
-                };
-                await pipe();
-
-                // -------------
-                // Then we can call the handler
-                // -------------
-                var _next = (...args) => next(index + 1, ...args);
-                _next.id = pathSplit.slice(index).join('/');
+                exports = await import(Url.pathToFileURL(routeHandlerFile));
                 // ---------------
-                var handlerThis = pathHandlers.default;
-                handlerThis.id = pathSplit[index - 1];
-                return await pathHandlers.default.bind(handlerThis)(request, recieved, _next/*next*/);
+                var func = target.reduce((func, name) => func || exports[name], null);
+                if (func) {
+                    // -------------
+                    // Then we can call the handler
+                    // -------------
+                    var _next = (..._args) => next(index + 1, ..._args);
+                    _next.pathname = path.slice(index).join('/');
+                    _next.clientPathname = clientPath.slice(index).join('/');
+                    // -------------
+                    var _this = {};
+                    _this.pathname = '/' + path.slice(0, index).join('/');
+                    _this.clientPathname = '/' + clientPath.slice(0, index).join('/');
+                    // -------------
+                    return await func.bind(_this)(...args.concat([output, _next/*next*/]));
+                }
             }
-
-            if (arguments.length === 1) {
+    
+            if (_default) {
                 // -------------
                 // Local file
                 // -------------
-                return await localFetch(request.url.split('?')[0], request);
+                return await (arguments.length === 2 ? _default(output) : _default());
             }
-
+    
             // -------------
             // Recieved response or undefined
             // -------------
-            return recieved;
+            return output;
         };
-
+    
         return next(0);
     }
 
@@ -95,11 +98,10 @@ export default class Router {
      * Performs dynamic routing.
      * 
      * @param object filename
-     * @param object options
      * 
      * @return Promise
      */
-    async fetch(filename, options) {
+    fetch(filename) {
         var _filename = Path.join(this.params.publicDir, '.', filename);
         var autoIndex;
         if (Fs.existsSync(_filename)) {
@@ -126,7 +128,7 @@ export default class Router {
                         });
                     } else {
                         // if the file is found, set Content-type and send data
-                        resolve(new StaticResponse(data, mimeTypes[ext] || 'text/plain', autoIndex));
+                        resolve(new FixedResponse(data, mimeTypes[ext] || 'text/plain', autoIndex));
                     }
                 });
             });
@@ -153,7 +155,7 @@ const mimeTypes = {
 export { mimeTypes };
 
 // Static response
-export class StaticResponse {
+export class FixedResponse {
     // construct
     constructor(content, contentType, autoIndex) {
         this.content = content;

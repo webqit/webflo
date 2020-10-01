@@ -33,6 +33,10 @@ export function read(file) {
  */
 export function write(vars, file) {
     file = Path.resolve(file);
+    var dir = Path.dirname(file);
+    if (!Fs.existsSync(dir)) {
+        Fs.mkdirSync(dir, {recursive:true});
+    }
     return Fs.writeFileSync(file, stringify(vars));
 };
 

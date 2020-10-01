@@ -3,33 +3,49 @@
 /**
  * imports
  */
-import Fs from 'fs';
 import Chalk from 'chalk';
-import Path from 'path';
-import Pm2 from '@onephrase/pm2';
 import _arrLast from '@onephrase/util/arr/last.js';
 import _arrFrom from '@onephrase/util/arr/from.js';
-import { createParams as createDeployParams, execDeploy } from './repo/index.js';
-import { createParams as createBuildParams, execBuild } from './client/index.js';
-import { createParams as createServerParams, execStart } from './server/index.js';
-import * as Dotenv from './env/index.js';
+import * as Repo from './repo/cmd.js';
+import createRepoParams from './repo/createParams.js';
+import * as Client from './client/cmd.js';
+import createClientParams from './client/createParams.js';
+import * as Server from './server/cmd.js';
+import createServerParams from './server/createParams.js';
+import * as Directives from './directives/cmd.js';
 
+// Version
 var version = 'v0.0.1';
+
 // Commands list
 var commands = {
-    'add-env': 'Adds a new environmental variable.',
-    'del-env': 'Deletes an environmental variable.',
-    'deploy-repo | deploy': 'Deploys a remote repo into the current working directory.',
-    'build-client | build': 'Creates the application Client Build.',
-    'start-server | start': 'Starts the Navigator server. (--production or --prod to serve in production.)',
-    'stop-server | stop': 'Stops a Navigator server.',
-    'restart-server | restart': 'Restarts a Navigator server that has been stopped.',
-    'kill-server | kill': 'Kills a Navigator server.',
-    'list-servers | list': 'Lists all active Navigator servers.',
+    'deploy-repo | deploy': Repo.desc.deploy,
+    // --------------------------
+    'build-client | build': Client.desc.build,
+    // --------------------------
+    'start-server | start': Server.desc.start,
+    'stop-server | stop': Server.desc.stop,
+    'restart-server | restart': Server.desc.restart,
+    'kill-server | kill': Server.desc.kill,
+    'list-servers | list': Server.desc.list,
+    // --------------------------
+    'add-env': 'Adds a new ENV variable.',
+    'del-env': 'Deletes an ENV variable.',
+    'list-envs': 'Lists all ENV variables.',
+    // --------------------------
+    'add-cname': 'Adds a new CNAME variable.',
+    'del-cname': 'Deletes an CNAME variable.',
+    'list-cnames': 'Lists all CNAME variables.',
+    // --------------------------
+    'add-redirect': 'Adds a new REDIRECT directive.',
+    'del-redirect': 'Deletes a REDIRECT directive.',
+    'list-redirects': 'Lists all REDIRECT directives.',
 };
 
 // Mine parameters
+
 // ------------------------------------------
+
 var command = process.argv[2], _flags = process.argv.slice(3), flags = {}, ellipsis;
 if (_arrLast(_flags) === '...') {
     _flags.pop();
@@ -49,153 +65,102 @@ _flags.forEach(flag => {
         flags[flag.substr(2)] = true;
     }
 });
+
 // ------------------------------------------
 
 // Exec
 switch(command) {
 
-    case 'add-env':
-        // Parse
-        var vars = Dotenv.read('.env') || {};
-        // Add...
-        var added = [];
-        Object.keys(flags).forEach(k => {
-            // Exclude commad flags themselves
-            if (typeof flags[k] !== 'bool') {
-                vars[k] = flags[k];
-                added.push(k);
-            }
-        });
-        // Serialize
-        Dotenv.write(vars, '.env');
-        // Show
-        console.log(Chalk.yellowBright('Environmental variable' + (added.length > 1 ? 's' : '') + ' added: (' + added.length + ') ' + added.join(' ')));
-    break;
-
-    case 'del-env':
-        if (!_flags[0]) {
-            console.log(Chalk.yellowBright('Please enter an ENV variable name!'));
-        } else {
-            // Parse
-            var vars = Dotenv.read('.env') || {};
-            _flags.forEach(name => {
-                // Remove...
-                delete vars[name];
-            });
-            // Serialize
-            Dotenv.write(vars, '.env');
-            console.log(Chalk.yellowBright('Environmental variable' + (_flags.length > 1 ? 's' : '') + ' deleted: (' + _flags.length + ') ' + _flags.join(' ')));
-        }
-    break;
+    // --------------------------
 
     case 'deploy-repo':
     case 'deploy':
-        createDeployParams(process.cwd(), flags, ellipsis, version).then(params => {
-            execDeploy(params);
+        createRepoParams(process.cwd(), flags, ellipsis, version).then(params => {
+            Repo.deploy(params, flags);
         });
     break;
 
+    // --------------------------
+
     case 'build-client':
     case 'build':
-            createBuildParams(process.cwd(), flags, ellipsis, version).then(params => {
-            execBuild(params);
+        createClientParams(process.cwd(), flags, ellipsis, version).then(params => {
+            Client.build(params, flags);
         });
     break;
+
+    // --------------------------
 
     case 'start-server':
     case 'start':
         createServerParams(process.cwd(), flags, ellipsis, version).then(params => {
-            if (!flags.production && !flags.prod) {
-                console.log(Chalk.greenBright('Server running!'));
-                console.log('');
-                execStart(params);
-            } else {
-                Pm2.connect(err => {
-                    if (err) {
-                        console.log(Chalk.redBright(err));
-                    } else {
-                        var paramsFile = Path.resolve('./.process/params.json');
-                        Fs.mkdirSync(Path.dirname(paramsFile), {recursive:true});
-                        Fs.writeFileSync(paramsFile, JSON.stringify(params));
-                        var script = Path.resolve(Path.dirname(import.meta.url.replace('file:///', '')), './server/pm2starter.js'),
-                            args = paramsFile,
-                            name = flags.name || Path.basename(process.cwd()),
-                            autorestart = 'autorestart' in flags ? flags.autorestart === '1' : true,
-                            merge_logs = 'merge_logs' in flags ? flags.merge_logs === '1' : true,
-                            output = Path.resolve('./.process/output.log'),
-                            error = Path.resolve('./.process/error.log');
-                        Pm2.start({script, name, args, autorestart, merge_logs, output, error, force: true}, err => {
-                            if (err) {
-                                console.log(Chalk.redBright(err));
-                            } else {
-                                console.log(Chalk.greenBright('Server running forever; ' + (autorestart ? 'will' : 'wo\'nt') + ' autorestart!'));
-                                console.log(Chalk.greenBright('> Process name: ' + Chalk.bold(name)));
-                                console.log(Chalk.greenBright('> Stop anytime: `' + Chalk.bold('nav stop-server ' + name) + '`'));
-                            }
-                            Pm2.disconnect(() => {});
-                        });
-                    }
-                });        
-            }
+            Server.start(params, flags);
         });
     break;
 
     case 'stop-server':
     case 'stop':
-        var name = _flags[0] || Path.basename(process.cwd());
-        Pm2.stop(name, err => {
-            if (err) {
-                console.log(Chalk.redBright(err));
-            } else {
-                console.log('');
-                console.log(Chalk.yellowBright('Server stopped: ' + Chalk.bold(name)));
-            }
-            process.exit();
-        });
+        Server.stop(_flags);
     break;
 
     case 'restart-server':
     case 'restart':
-            var name = _flags[0] || Path.basename(process.cwd());
-        Pm2.restart(name, err => {
-            if (err) {
-                console.log(Chalk.redBright(err));
-            } else {
-                console.log('');
-                console.log(Chalk.yellowBright('Server restarted: ' + Chalk.bold(name)));
-            }
-            process.exit();
-        });
+        Server.restart(_flags);
     break;
 
     case 'kill-server':
     case 'kill':
-        var name = _flags[0] || Path.basename(process.cwd());
-        Pm2.delete(name, err => {
-            if (err) {
-                console.log(Chalk.redBright(err));
-            } else {
-                console.log('');
-                console.log(Chalk.yellowBright('Server killed: ' + Chalk.bold(name)));
-            }
-            process.exit();
-        });
+        Server.kill(_flags);
     break;
 
     case 'list-servers':
     case 'list':
-        var name = _flags[0] || Path.basename(process.cwd());
-        Pm2.list((err, list) => {
-            if (err) {
-                console.log(Chalk.redBright(err));
-            } else {
-                console.log('');
-                console.log(Chalk.yellowBright('Servers list:'));
-                console.log(list.map(p => p.name + ' (' + p.pm2_env.status + ')'));
-            }
-            process.exit();
-        });
+        Server.list(_flags);
     break;
+
+    // --------------------------
+
+    case 'add-env':
+        Directives.add(flags, 'env', '.env');
+    break;
+
+    case 'del-env':
+        Directives.del(_flags, 'env', '.env');
+    break;
+
+    case 'list-envs':
+        Directives.list('env', '.env');
+    break;
+
+    // --------------------------
+
+    case 'add-cname':
+        Directives.add(flags, 'cname', 'cnames.json', 'directive');
+    break;
+
+    case 'del-cname':
+        Directives.del(_flags, 'cname', 'cnames.json', 'directive');
+    break;
+
+    case 'list-cnames':
+        Directives.list('cname', 'cnames.json', 'directive');
+    break;
+
+    // --------------------------
+
+    case 'add-redirect':
+        Directives.add(flags, 'redirect', 'redirects.json', 'directive');
+    break;
+
+    case 'del-redirect':
+        Directives.del(_flags, 'redirect', 'redirects.json', 'directive');
+    break;
+
+    case 'list-redirects':
+        Directives.list('redirect', 'redirects.json', 'directive');
+    break;
+
+    // --------------------------
 
     case 'help':
     default:
