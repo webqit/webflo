@@ -25,7 +25,7 @@ export default function(params) {
         console.log('');
         const spnnr = new Clui.Spinner(Chalk.whiteBright('Deploying site') + Chalk.blueBright('...'));
         spnnr.start();
-        git.pull(params.name, params.branch)
+        git.pull(params.NAME, params.BRANCH)
             .then(() => {
                 spnnr.stop();
                 console.log(Chalk.blueBright('Successfully deployed!'));
@@ -40,12 +40,12 @@ export default function(params) {
         var hosts = {
             github: 'https://github.com',
         };
-        if (!_any(remotes, remote => remote.name === params.name)) {
-            var url = hosts[params.host] + '/' + params.account + '/' + params.repo + '.git';
-            git.addRemote(params.name, url)
+        if (!_any(remotes, remote => remote.name === params.NAME)) {
+            var url = hosts[params.HOST] + '/' + params.ACCOUNT + '/' + params.REPO + '.git';
+            git.addRemote(params.NAME, url)
                 .then(() => {
                     console.log('');
-                    console.log('Added ' + params.name + ': ' + Chalk.greenBright(url));
+                    console.log('Added ' + params.NAME + ': ' + Chalk.greenBright(url));
                     pull();
                 })
                 .catch(err => console.log(err));

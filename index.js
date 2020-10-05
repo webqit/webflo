@@ -3,25 +3,33 @@
 /**
  * imports
  */
+import Url from 'url';
+import Path from 'path';
 import Chalk from 'chalk';
-import _arrLast from '@onephrase/util/arr/last.js';
-import _arrFrom from '@onephrase/util/arr/from.js';
-import * as Repo from './repo/cmd.js';
+import _parseArgs from '@onephrase/util/cli/parseArgs.js';
+import * as DotJson from '@onephrase/util/src/DotJson.js';
 import createRepoParams from './repo/createParams.js';
-import * as Client from './client/cmd.js';
-import createClientParams from './client/createParams.js';
-import * as Server from './server/cmd.js';
+import * as Repo from './repo/cmd.js';
+import createClientParams from './client/app/createParams.js';
+import * as Client from './client/app/cmd.js';
+import createPwaParams from './client/pwa/createParams.js';
+import * as Pwa from './client/pwa/cmd.js';
 import createServerParams from './server/createParams.js';
+import * as Server from './server/cmd.js';
 import * as Directives from './directives/cmd.js';
 
-// Version
-var version = 'v0.0.1';
+// ------------------------------------------
 
-// Commands list
+var pkg = DotJson.read('./package.json');
+
+// ------------------------------------------
+
 var commands = {
     'deploy-repo | deploy': Repo.desc.deploy,
     // --------------------------
     'build-client | build': Client.desc.build,
+    // --------------------------
+    'build-pwa | build': Pwa.desc.build,
     // --------------------------
     'start-server | start': Server.desc.start,
     'stop-server | stop': Server.desc.stop,
@@ -29,53 +37,37 @@ var commands = {
     'kill-server | kill': Server.desc.kill,
     'list-servers | list': Server.desc.list,
     // --------------------------
+    'add-preurl': 'Adds a new URL for pre-rendering.',
+    'del-preurl': 'Deletes an URL for pre-rendering.',
+    'list-preurls': 'Lists all URLs for pre-rendering.',
+    // --------------------------
     'add-env': 'Adds a new ENV variable.',
     'del-env': 'Deletes an ENV variable.',
     'list-envs': 'Lists all ENV variables.',
     // --------------------------
-    'add-cname': 'Adds a new CNAME variable.',
-    'del-cname': 'Deletes an CNAME variable.',
-    'list-cnames': 'Lists all CNAME variables.',
+    'add-rdr': 'Adds a new REDIRECT directive.',
+    'del-rdr': 'Deletes a REDIRECT directive.',
+    'list-rdrs': 'Lists all REDIRECT directives.',
     // --------------------------
-    'add-redirect': 'Adds a new REDIRECT directive.',
-    'del-redirect': 'Deletes a REDIRECT directive.',
-    'list-redirects': 'Lists all REDIRECT directives.',
+    'add-vhost': 'Adds a new VHOST variable.',
+    'del-vhost': 'Deletes an VHOST variable.',
+    'list-vhosts': 'Lists all VHOST variables.',
 };
 
-// Mine parameters
+// ------------------------------------------
+
+const { command, flags, _flags, ellipsis } = _parseArgs(process.argv);
 
 // ------------------------------------------
 
-var command = process.argv[2], _flags = process.argv.slice(3), flags = {}, ellipsis;
-if (_arrLast(_flags) === '...') {
-    _flags.pop();
-    ellipsis = true;
-}
-_flags.forEach(flag => {
-    if (flag.indexOf('+=') > -1 || flag.indexOf('=') > -1 || flag.startsWith('#')) {
-        if (flag.indexOf('+=') > -1) {
-            flag = flag.split('+=');
-            flags[flag[0]] = _arrFrom(flags[flag[0]]);
-            flags[flag[0]].push(flag[1]);
-        } else {
-            flag = flag.split('=');
-            flags[flag[0]] = flag[1];
-        }
-    } else if (flag.startsWith('--')) {
-        flags[flag.substr(2)] = true;
-    }
-});
-
-// ------------------------------------------
-
-// Exec
+console.log('');
 switch(command) {
 
     // --------------------------
 
     case 'deploy-repo':
     case 'deploy':
-        createRepoParams(process.cwd(), flags, ellipsis, version).then(params => {
+        createRepoParams(process.cwd(), flags, ellipsis, pkg).then(params => {
             Repo.deploy(params, flags);
         });
     break;
@@ -84,8 +76,16 @@ switch(command) {
 
     case 'build-client':
     case 'build':
-        createClientParams(process.cwd(), flags, ellipsis, version).then(params => {
+        createClientParams(process.cwd(), flags, ellipsis, pkg).then(params => {
             Client.build(params, flags);
+        });
+    break;
+
+    // --------------------------
+
+    case 'build-pwa':
+        createPwaParams(process.cwd(), flags, ellipsis, pkg).then(params => {
+            Pwa.build(params, flags);
         });
     break;
 
@@ -93,29 +93,54 @@ switch(command) {
 
     case 'start-server':
     case 'start':
-        createServerParams(process.cwd(), flags, ellipsis, version).then(params => {
+        var lib = DotJson.read(Path.dirname(Url.fileURLToPath(import.meta.url)) + '/package.json');
+        createServerParams(process.cwd(), flags, ellipsis, pkg, lib).then(params => {
             Server.start(params, flags);
         });
     break;
 
     case 'stop-server':
     case 'stop':
-        Server.stop(_flags);
+        Server.stop(_flags, pkg).then(() => {
+            process.exit();
+        });
     break;
 
     case 'restart-server':
     case 'restart':
-        Server.restart(_flags);
+        Server.restart(_flags, pkg).then(() => {
+            process.exit();
+        });
     break;
 
     case 'kill-server':
     case 'kill':
-        Server.kill(_flags);
+        Server.kill(_flags, pkg).then(() => {
+            process.exit();
+        });
     break;
 
     case 'list-servers':
     case 'list':
-        Server.list(_flags);
+        Server.list(_flags, pkg).then(() => {
+            process.exit();
+        });
+    break;
+
+    // --------------------------
+
+    case 'add-preurl':
+        Directives.add(flags, 'url', 'preurls.json', 'entry');
+    break;
+
+    case 'del-preurl':
+        Directives.del(_flags, 'url', 'preurls.json', 'entry');
+    break;
+
+    case 'list-preurls':
+        Directives.list(_flags, 'url', 'preurls.json', 'entry').then(() => {
+            process.exit();
+        });
     break;
 
     // --------------------------
@@ -129,42 +154,47 @@ switch(command) {
     break;
 
     case 'list-envs':
-        Directives.list('env', '.env');
+        Directives.list(_flags, 'env', '.env').then(() => {
+            process.exit();
+        });
     break;
 
     // --------------------------
 
-    case 'add-cname':
-        Directives.add(flags, 'cname', 'cnames.json', 'directive');
-    break;
-
-    case 'del-cname':
-        Directives.del(_flags, 'cname', 'cnames.json', 'directive');
-    break;
-
-    case 'list-cnames':
-        Directives.list('cname', 'cnames.json', 'directive');
-    break;
-
-    // --------------------------
-
-    case 'add-redirect':
+    case 'add-rdr':
         Directives.add(flags, 'redirect', 'redirects.json', 'directive');
     break;
 
-    case 'del-redirect':
+    case 'del-rdr':
         Directives.del(_flags, 'redirect', 'redirects.json', 'directive');
     break;
 
-    case 'list-redirects':
-        Directives.list('redirect', 'redirects.json', 'directive');
+    case 'list-rdrs':
+        Directives.list(_flags, 'redirect', 'redirects.json', 'directive').then(() => {
+            process.exit();
+        });
+    break;
+
+    // --------------------------
+
+    case 'add-vhost':
+        Directives.add(flags, 'vhost', 'vhosts.json', 'entry');
+    break;
+
+    case 'del-vhost':
+        Directives.del(_flags, 'vhost', 'vhosts.json', 'entry');
+    break;
+
+    case 'list-vhosts':
+        Directives.list(_flags, 'vhost', 'vhosts.json', 'entry').then(() => {
+            process.exit();
+        });
     break;
 
     // --------------------------
 
     case 'help':
     default:
-        console.log('');
         console.log(Chalk.bgYellowBright(Chalk.black(' NAVIGATOR HELP ')));
         console.log('');
         console.log('Say ' + Chalk.bold(Chalk.yellowBright('nav')) + ' <command> <args>');

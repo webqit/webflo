@@ -53,7 +53,7 @@ export default class Http {
 		 * instance.location
 		 * ----------------
 		 */
-		Observer.set(instance, 'location', new Url(window.document.location, params.pathnamingScheme));
+		Observer.set(instance, 'location', new Url(window.document.location, params.PATH_NAMING_SCHEME));
 		// -----------------------
 		// This event is triggered by
 		// either the browser back button,

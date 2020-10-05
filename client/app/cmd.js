@@ -2,7 +2,7 @@
 /**
  * imports
  */
-import execBuild from './execBuild.js';
+import runBuild from './runBuild.js';
 
 /**
  * ----------
@@ -10,7 +10,7 @@ import execBuild from './execBuild.js';
  * ----------
  */
 export function build(params) {
-    execBuild(params);
+    runBuild(params);
 };
 
 /**

@@ -20,9 +20,9 @@ export default class Router {
      * @return void
      */
     constructor(path, params) {
-        this.offsetUrl = _isArray(params.offsetUrl) ? params.offsetUrl : ((params.offsetUrl || '') + '').split('/').filter(a => a);
+        this.HOST_PATH = _isArray(params.HOST_PATH) ? params.HOST_PATH : ((params.HOST_PATH || '') + '').split('/').filter(a => a);
         this.clientPath = _isArray(path) ? path : (path + '').split('/').filter(a => a);
-        this.path = this.offsetUrl.concat(this.clientPath);
+        this.path = this.HOST_PATH.concat(this.clientPath);
         this.params = params;
     }
 
@@ -57,8 +57,8 @@ export default class Router {
                 wildcardRouteHandlerFile = Path.join(wildcardRouteSlice, './index.js');
             }
     
-            if ((routeHandlerFile && Fs.existsSync(routeHandlerFile = Path.join(params.appDir, routeHandlerFile)))
-            || (wildcardRouteHandlerFile && Fs.existsSync(routeHandlerFile = Path.join(params.appDir, wildcardRouteHandlerFile)))) {
+            if ((routeHandlerFile && Fs.existsSync(routeHandlerFile = Path.join(params.SERVER_DIR, routeHandlerFile)))
+            || (wildcardRouteHandlerFile && Fs.existsSync(routeHandlerFile = Path.join(params.SERVER_DIR, wildcardRouteHandlerFile)))) {
                 exports = await import(Url.pathToFileURL(routeHandlerFile));
                 // ---------------
                 var func = target.reduce((func, name) => func || exports[name], null);
@@ -102,7 +102,7 @@ export default class Router {
      * @return Promise
      */
     fetch(filename) {
-        var _filename = Path.join(this.params.publicDir, '.', filename);
+        var _filename = Path.join(this.params.PUBLIC_DIR, '.', filename);
         var autoIndex;
         if (Fs.existsSync(_filename)) {
             // based on the URL path, extract the file extention. e.g. .js, .doc, ...

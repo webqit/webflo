@@ -18,7 +18,7 @@ import _beforeLast from '@onephrase/util/str/beforeLast.js';
 import _wrapped from '@onephrase/util/str/wrapped.js';
 import _each from '@onephrase/util/obj/each.js';
 import _set from '@onephrase/util/obj/set.js';
-import * as DotJson from '../../util/DotJson.js';
+import * as DotJson from '@onephrase/util/src/DotJson.js';
 import Router, { FixedResponse } from './Router.js';
 
 /**
@@ -30,15 +30,15 @@ import Router, { FixedResponse } from './Router.js';
  */
 export default function(params) {
 
-    if (params.showRequestLog) {
+    console.log('');
+    if (params.SHOW_REQUEST_LOG) {
         console.log(Chalk.whiteBright('Request log:'));
-        console.log('');
     }
 
     // --------
     // Cnames
     // --------
-    const cnames = DotJson.read('cnames.json');
+    const vhosts = DotJson.read('vhosts.json');
 
     // -------------------
     // Create server
@@ -52,7 +52,7 @@ export default function(params) {
         // Resolve canonicity
         // -------------------
 
-        params.offsetUrl = cnames[request.headers.host] ? '/' +  cnames[request.headers.host].split('/').filter(seg => seg).join('/') : '';
+        params.HOST_PATH = vhosts[request.headers.host] ? '/' +  vhosts[request.headers.host].split('/').filter(seg => seg).join('/') : '';
 
         // --------
         // request parsing
@@ -134,7 +134,7 @@ export default function(params) {
 
         // The service object
         const service = {
-            offsetUrl: params.offsetUrl,
+            params,
             // Request
             request,
             // Response
@@ -169,7 +169,11 @@ export default function(params) {
                 if (arguments.length) {
                     return output;
                 }
-                return router.fetch(params.offsetUrl + service.request.url);
+                // JSON request should ignore static files
+                if (service.request.accepts.type('application/json') && service.request.accepts.types().length === 1) {
+                    return;
+                }
+                return router.fetch(params.HOST_PATH + service.request.url);
             });
             // --------
             // ROUTE FOR RENDERING?
@@ -193,10 +197,10 @@ export default function(params) {
                         }
                         // --------
                         const instanceParams = QueryString.stringify({
-                            source: Path.join(params.publicDir, './index.html'),
-                            host: params.subresourceHost || service.request.headers['host'],
-                            uri: params.offsetUrl + service.request.url,
-                            g: 'globalServersideWindow' in params ? params.globalServersideWindow : 0,
+                            source: Path.join(params.PUBLIC_DIR, './index.html'),
+                            host: params.SUB_RESOURCE_HOST || service.request.headers['host'],
+                            uri: params.HOST_PATH + service.request.url,
+                            g: 'globalServersideWindow' in params ? params.GLOBAL_SSR_WINDOW : 0,
                         });
                         const { window } = await import('@web-native-js/browser-pie/instance.js?' + instanceParams);
                         // --------
@@ -222,7 +226,7 @@ export default function(params) {
                                         contentType: 'text/html',
                                         content: window.print(),
                                     });
-                                }, params.renderDuration || 1000);
+                                }, params.RENDER_DURATION || 1000);
                             });
                         });
                     } else {
@@ -271,11 +275,11 @@ export default function(params) {
         // service.request log
         // --------
 
-        if (params.showRequestLog) {
+        if (params.SHOW_REQUEST_LOG) {
             console.log(''
                 + '[' + Chalk.gray((new Date).toUTCString()) + '] '
                 + Chalk.green(service.request.method) + ' '
-                + params.offsetUrl + service.request.url + (data && data.autoIndex ? Chalk.gray((!service.request.url.endsWith('/') ? '/' : '') + data.autoIndex) : '') + ' '
+                + params.HOST_PATH + service.request.url + (data && data.autoIndex ? Chalk.gray((!service.request.url.endsWith('/') ? '/' : '') + data.autoIndex) : '') + ' '
                 + (data ? ' (' + data.contentType + ') ' : '')
                 + (
                     [404, 500].includes(service.response.statusCode) 
@@ -287,9 +291,8 @@ export default function(params) {
 
         if (fatal) {
             throw fatal;
-            //process.exit();
         }
 
-    }).listen(parseInt(params.port));
+    }).listen(parseInt(params.P || params.PORT));
 
 };

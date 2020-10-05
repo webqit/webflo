@@ -25,9 +25,9 @@ export default class Router {
 	 * @return void
 	 */
 	constructor(path, params) {
-        this.offsetUrl = _isArray(params.offsetUrl) ? params.offsetUrl : ((params.offsetUrl || '') + '').split('/').filter(a => a);
+        this.HOST_PATH = _isArray(params.HOST_PATH) ? params.HOST_PATH : ((params.HOST_PATH || '') + '').split('/').filter(a => a);
         this.clientPath = _isArray(path) ? path : (path + '').split('/').filter(a => a);
-        this.path = this.offsetUrl.concat(this.clientPath);
+        this.path = this.HOST_PATH.concat(this.clientPath);
         this.params = params;
     }
 
@@ -45,7 +45,7 @@ export default class Router {
         target = _arrFrom(target);
         var path = this.path;
         var clientPath = this.clientPath;
-        var routeTree = this.params.routes;
+        var routeTree = this.params.ROUTES;
 
         // ----------------
         // The loop

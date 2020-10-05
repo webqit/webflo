@@ -3,17 +3,18 @@
  * @imports
  */
 import _promise from '@onephrase/util/js/promise.js';
-import Router from './Router.js';
+import Router from '../Router.js';
 import Http from './Http.js';
 
 /**
  * ---------------------------
- * The Client class
+ * The Client Initializer
  * ---------------------------
  */
 			
 export default function(params) {
 
+	// Copy..
 	params = {...params};
 
 	/**
@@ -33,7 +34,7 @@ export default function(params) {
 
 		// The srvice object
 		const service = {
-			offsetUrl: params.offsetUrl,
+			params,
 			request,
 		}
 
