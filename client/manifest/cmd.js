@@ -17,5 +17,5 @@ export function build(params) {
  * @description
  */
 export const desc = {
-    build: 'Creates the application PWA files.',
+    build: 'Creates the application manifest file.',
 };

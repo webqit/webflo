@@ -12,8 +12,8 @@ import createRepoParams from './repo/createParams.js';
 import * as Repo from './repo/cmd.js';
 import createClientParams from './client/app/createParams.js';
 import * as Client from './client/app/cmd.js';
-import createPwaParams from './client/pwa/createParams.js';
-import * as Pwa from './client/pwa/cmd.js';
+import createManifestParams from './client/manifest/createParams.js';
+import * as Manifest from './client/manifest/cmd.js';
 import createServerParams from './server/createParams.js';
 import * as Server from './server/cmd.js';
 import * as Directives from './directives/cmd.js';
@@ -29,7 +29,7 @@ var commands = {
     // --------------------------
     'build-client | build': Client.desc.build,
     // --------------------------
-    'build-pwa | build': Pwa.desc.build,
+    'build-manifest': Manifest.desc.build,
     // --------------------------
     'start-server | start': Server.desc.start,
     'stop-server | stop': Server.desc.stop,
@@ -83,9 +83,9 @@ switch(command) {
 
     // --------------------------
 
-    case 'build-pwa':
-        createPwaParams(process.cwd(), flags, ellipsis, pkg).then(params => {
-            Pwa.build(params, flags);
+    case 'build-manifest':
+        createManifestParams(process.cwd(), flags, ellipsis, pkg).then(params => {
+            Manifest.build(params, flags);
         });
     break;
 

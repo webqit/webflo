@@ -47,6 +47,7 @@ export default async function(ROOT, flags, ellipsis, pkg, lib) {
         PUBLIC_DIR: './public',
         SERVER_DIR: './server',
         PRODUCTION: false,
+        HOST: '127.0.0.1',
         SHOW_REQUEST_LOG: true,
     }, _params, flags);
     
@@ -82,6 +83,13 @@ export default async function(ROOT, flags, ellipsis, pkg, lib) {
                 active: 'YES',
                 inactive: 'NO',
                 initial: params.PRODUCTION,
+            },
+            {
+                name: 'HOST',
+                type: (prev, answers) => answers.PRODUCTION ? 'text' : null,
+                message: 'Enter the production server hostname:',
+                initial: params.HOST,
+                validate: validateAs(['input', 'important']),
             },
             {
                 name: 'SHOW_REQUEST_LOG',

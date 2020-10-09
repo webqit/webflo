@@ -9,7 +9,7 @@ import Chalk from 'chalk';
 import _promise from '@onephrase/util/js/promise.js';
 import Promptx from '@onephrase/util/cli/Promptx.js';
 import * as DotJson from '@onephrase/util/src/DotJson.js';
-import Serve from './modules/Server.js';
+import Serve from './Server.js';
 
 /**
  * ----------

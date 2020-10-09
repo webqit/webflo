@@ -6,6 +6,7 @@ import Chalk from 'chalk';
 import * as DotJson from '@onephrase/util/src/DotJson.js';
 import * as DotEnv from '@onephrase/util/src/DotEnv.js';
 import Promptx from '@onephrase/util/cli/Promptx.js';
+import _isBoolean  from '@onephrase/util/js/isBoolean.js';
 
 /**
  * ----------
@@ -57,6 +58,8 @@ export async function list(_flags, title, file, type = 'variable') {
     var action;
     if (_flags[0] === '--d' || _flags[0] === '--del') {
         action = 'delete';
+    } else if (_flags[0] === '--e' || _flags[0] === '--edit') {
+        action = 'edit';
     }
 
     var types = type.endsWith('y') ? type.substr(0, type.length - 1) + 'ies' : type + 's';
@@ -69,31 +72,69 @@ export async function list(_flags, title, file, type = 'variable') {
 
     } else {
 
-        var _list = Object.keys(directives).map(name => {
-            return {value: name, description: directives[name]};
-        });
-        await Promptx([{
-            name: 'selection',
-            type: 'multiselect',
-            message: 'Select ' + types + ' to ' + action,
-            choices: _list,
-        }, {
-            name: 'confirmation',
-            type: prev => prev.length ? 'toggle' : null,
-            message: action.substr(0,1).toUpperCase() + action.substr(1) + ' selected ' + types + '?',
-            active: 'YES',
-            inactive: 'NO',
-        }]).then(answers => {
+        if (action === 'edit') {
+
+            var questions = Object.keys(directives).map(name => {
+                return {
+                    name: name, 
+                    type: _isBoolean(directives[name]) ? 'toggle' : 'text', 
+                    message: name,
+                    initial: directives[name],
+                };
+            });
+
+            directives = await Promptx(questions).then(async answers => {
+                return await Promptx({
+                    name: 'confirmation',
+                    type: 'toggle',
+                    message: 'Save changes?',
+                    active: 'YES',
+                    inactive: 'NO',
+                }).then(_answers => {
+                    if (_answers.confirmation) {
+                        return answers;
+                    }
+                });
+            }) || directives;
 
             console.log('');
-            return !answers.confirmation ? null : Promise.all(answers.selection.map(name => {
-                if (action === 'delete') {
-                    return del([name], title, file, type);
+            console.log(Chalk.greenBright(`> ${title.toUpperCase()} ${types} saved!`));
+
+        } else if (action === 'delete') {
+
+            var _list = Object.keys(directives).map(name => {
+                return {value: name, description: directives[name]};
+            });
+
+            await Promptx([{
+                name: 'selection',
+                type: 'multiselect',
+                message: 'Select ' + types + ' to ' + action,
+                choices: _list,
+            }, {
+                name: 'confirmation',
+                type: prev => prev.length ? 'toggle' : null,
+                message: action.substr(0,1).toUpperCase() + action.substr(1) + ' selected ' + types + '?',
+                active: 'YES',
+                inactive: 'NO',
+            }]).then(answers => {
+
+                if (answers.confirmation) {
+                    console.log('');
+                    answers.selection.forEach(name => {
+                        if (action === 'delete') {
+                            delete directives[name.toLowerCase()];
+                            console.log(Chalk.greenBright(`> ${title.toUpperCase()} ${type} deleted: ${name}`));
+                        }
+                    })
                 }
-            }));
 
-        });
+            });
 
+        }
+
+        // Serialize
+        Driver.write(directives, file);
     }
 
 };

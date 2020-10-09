@@ -5,11 +5,9 @@
 import Fs from 'fs';
 import Path from 'path';
 import Chalk from 'chalk';
-import _before from '@onephrase/util/str/before.js';
-import _after from '@onephrase/util/str/after.js';
+import Clear from 'clear';
 import _merge from '@onephrase/util/obj/merge.js';
 import _all from '@onephrase/util/arr/all.js';
-import _arrFrom from '@onephrase/util/arr/from.js';
 import _isNumeric from '@onephrase/util/js/isNumeric.js';
 import Promptx, { initialGetIndex, validateAs, transformAs } from '@onephrase/util/cli/Promptx.js';
 import * as DotJson from '@onephrase/util/src/DotJson.js';
@@ -26,8 +24,9 @@ import printArgs from '@onephrase/util/cli/printArgs.js';
  * @return Promise
  */
 export default async function(ROOT, flags, ellipsis, pkg) {
+    Clear();
     var _params = {}, _paramsFile;
-    if (Fs.existsSync(_paramsFile = Path.join(ROOT, flags['CONFIG'] || './.navigator/pwa.config.json'))) {
+    if (Fs.existsSync(_paramsFile = Path.join(ROOT, flags['CONFIG'] || './.navigator/manifest.config.json'))) {
         _params = DotJson.read(_paramsFile);
     }
     // -------------------
@@ -37,7 +36,6 @@ export default async function(ROOT, flags, ellipsis, pkg) {
         ROOT,
         PUBLIC_DIR: './public',
         // -----------------
-        CREATE_MANIFEST: false,
         MANIFEST_NAME: pkg.value,
         MANIFEST_SHORT_NAME: pkg.value,
         MANIFEST_DESCRIPTION: pkg.description,
@@ -56,13 +54,6 @@ export default async function(ROOT, flags, ellipsis, pkg) {
         MANIFEST_DIR: 'ltr',
         MANIFEST_RELATED_APPLICATIONS: '',
         MANIFEST_PREFER_RELATED_APPLICATIONS: false,
-        // -----------------
-        CREATE_WORKER: false,
-        WORKER_DIR: './worker',
-        WORKER_CACHE_NAME: 'cache_v0',
-        WORKER_FETCHING_STRATEGY: 'network_first',
-        WORKER_CACHING_STRATEGY: 'static',
-        WORKER_CACHING_LIST: [],
     }, _params, flags);
 
     // Choices hash...
@@ -85,17 +76,6 @@ export default async function(ROOT, flags, ellipsis, pkg) {
             {value: 'portrait-primary',},
             {value: 'portrait-secondary',},
         ],
-        fetching_strategy: [
-            {value: 'network_first',},
-            {value: 'cache_first',},
-            {value: 'auto',},
-        ],
-        cahing_strategy:[
-            {value: 'dynamic',},
-            {value: 'static',},
-            {value: 'none',},
-        ],
-
     };
     // Gets index...
     const getSize = src => Path.basename(src).split(/[_\.\-]/g).reduce((size, chunk) => size || (_all(chunk.split('x'), c => _isNumeric(c)) ? chunk : ''), null);
@@ -118,63 +98,51 @@ export default async function(ROOT, flags, ellipsis, pkg) {
                 format: transformAs(['path']),
                 validate: validateAs(['input', 'important']),
             },
-            // -----------------
-            // MANIFEST
-            // -----------------
-            {
-                name: 'CREATE_MANIFEST',
-                type: 'toggle',
-                message: 'Create a Progressive Web App (PWA) manifest file:',
-                active: 'YES',
-                inactive: 'NO',
-                initial: params.CREATE_MANIFEST,
-                validate: validateAs(['confirm']),
-            },
             {
                 name: 'MANIFEST_NAME',
-                type: (prev, answers) => answers.CREATE_MANIFEST ? 'text' : null,
+                type: 'text',
                 message: 'Enter the application name:',
                 initial: params.MANIFEST_NAME,
                 validate: validateAs(['input', 'important']),
             },
             {
                 name: 'MANIFEST_SHORT_NAME',
-                type: (prev, answers) => answers.CREATE_MANIFEST ? 'text' : null,
+                type: 'text',
                 message: 'Enter the application short name:',
                 initial: prev => params.MANIFEST_SHORT_NAME || prev,
                 validate: validateAs(['input', 'important']),
             },
             {
                 name: 'MANIFEST_DESCRIPTION',
-                type: (prev, answers) => answers.CREATE_MANIFEST ? 'text' : null,
+                type: 'text',
                 message: 'Enter the application description:',
                 initial: params.MANIFEST_DESCRIPTION,
                 validate: validateAs(['input', 'important']),
             },
             {
                 name: 'MANIFEST_CATEGORIES',
-                type: (prev, answers) => answers.CREATE_MANIFEST ? 'list' : null,
+                type: 'list',
                 message: 'Specify applications categories (comma-separated):',
-                initial: _arrFrom(params.MANIFEST_CATEGORIES).join(', '),
+                initial: (params.MANIFEST_CATEGORIES || []).join(', '),
                 validate: validateAs(['input']),
             },
             {
                 name: 'MANIFEST_THEME_COLOR',
-                type: (prev, answers) => answers.CREATE_MANIFEST ? 'text' : null,
+                type: 'text',
                 message: 'Enter the application theme color:',
                 initial: params.MANIFEST_THEME_COLOR,
                 validate: validateAs(['input']),
             },
             {
                 name: 'MANIFEST_BACKGROUND_COLOR',
-                type: (prev, answers) => answers.CREATE_MANIFEST ? 'text' : null,
+                type: 'text',
                 message: 'Enter the application background color:',
                 initial: params.MANIFEST_BACKGROUND_COLOR,
                 validate: validateAs(['input']),
             },
             {
                 name: 'MANIFEST_ICONS',
-                type: (prev, answers) => answers.CREATE_MANIFEST ? 'toggle' : null,
+                type: 'toggle',
                 message: 'Add application icons?',
                 active: 'YES',
                 inactive: 'NO',
@@ -208,7 +176,7 @@ export default async function(ROOT, flags, ellipsis, pkg) {
             },
             {
                 name: 'MANIFEST_DISPLAY',
-                type: (prev, answers) => answers.CREATE_MANIFEST ? 'select' : null,
+                type: 'select',
                 message: 'Enter the application display mode:',
                 choices: choices.display,
                 initial: initialGetIndex(choices.display, params.MANIFEST_DISPLAY),
@@ -216,7 +184,7 @@ export default async function(ROOT, flags, ellipsis, pkg) {
             },
             {
                 name: 'MANIFEST_ORIENTATION',
-                type: (prev, answers) => answers.CREATE_MANIFEST ? 'select' : null,
+                type: 'select',
                 message: 'Enter the application orientation mode:',
                 choices: choices.orientation,
                 initial: initialGetIndex(choices.orientation, params.MANIFEST_ORIENTATION),
@@ -224,17 +192,17 @@ export default async function(ROOT, flags, ellipsis, pkg) {
             },
             // ------------- advanced --------------
             {
-                name: '__manifest_advanced',
-                type: (prev, answers) => answers.CREATE_MANIFEST ? 'toggle' : null,
+                name: '__advanced',
+                type: 'toggle',
                 message: 'Show advanced options?',
                 active: 'YES',
                 inactive: 'NO',
-                initial: false,
+                initial: params.__advanced,
             },
             // ------------- advanced --------------
             {
                 name: 'MANIFEST_SCREENSHOTS',
-                type: (prev, answers) => answers.CREATE_MANIFEST && answers.__manifest_advanced ? 'toggle' : null,
+                type: (prev, answers) => answers.__advanced ? 'toggle' : null,
                 message: 'Add application screenshots?',
                 active: 'YES',
                 inactive: 'NO',
@@ -268,7 +236,7 @@ export default async function(ROOT, flags, ellipsis, pkg) {
             },
             {
                 name: 'MANIFEST_SHORTCUTS',
-                type: (prev, answers) => answers.CREATE_MANIFEST && answers.__manifest_advanced ? 'toggle' : null,
+                type: (prev, answers) => answers.__advanced ? 'toggle' : null,
                 message: 'Add application shortcuts?',
                 active: 'YES',
                 inactive: 'NO',
@@ -338,109 +306,47 @@ export default async function(ROOT, flags, ellipsis, pkg) {
             },
             {
                 name: 'MANIFEST_SCOPE',
-                type: (prev, answers) => answers.CREATE_MANIFEST && answers.__manifest_advanced ? 'text' : null,
+                type: (prev, answers) => answers.__advanced ? 'text' : null,
                 message: 'Specify the manifest scope:',
                 initial: params.MANIFEST_SCOPE,
                 validate: validateAs(['input']),
             },
             {
                 name: 'MANIFEST_START_URL',
-                type: (prev, answers) => answers.CREATE_MANIFEST && answers.__manifest_advanced ? 'text' : null,
+                type: (prev, answers) => answers.__advanced ? 'text' : null,
                 message: 'Specify the application start URL:',
                 initial: params.MANIFEST_START_URL,
                 validate: validateAs(['input']),
             },
             {
                 name: 'MANIFEST_LANG',
-                type: (prev, answers) => answers.CREATE_MANIFEST && answers.__manifest_advanced ? 'text' : null,
+                type: (prev, answers) => answers.__advanced ? 'text' : null,
                 message: 'Specify the application language:',
                 initial: params.MANIFEST_LANG,
                 validate: validateAs(['input']),
             },
             {
                 name: 'MANIFEST_DIR',
-                type: (prev, answers) => answers.CREATE_MANIFEST && answers.__manifest_advanced ? 'text' : null,
+                type: (prev, answers) => answers.__advanced ? 'text' : null,
                 message: 'Specify the application writing mode:',
                 initial: params.MANIFEST_DIR,
                 validate: validateAs(['input']),
             },
             {
                 name: 'MANIFEST_RELATED_APPLICATIONS',
-                type: (prev, answers) => answers.CREATE_MANIFEST && answers.__manifest_advanced ? 'list' : null,
+                type: (prev, answers) => answers.__advanced ? 'list' : null,
                 message: 'Specify related applications (comma-separated):',
-                initial: _arrFrom(params.MANIFEST_RELATED_APPLICATIONS).join(', '),
+                initial: (params.MANIFEST_RELATED_APPLICATIONS || []).join(', '),
                 validate: validateAs(['input']),
             },
             {
                 name: 'MANIFEST_PREFER_RELATED_APPLICATIONS',
-                type: (prev, answers) => answers.CREATE_MANIFEST && answers.__manifest_advanced ? 'toggle' : null,
+                type: (prev, answers) => answers.MANIFEST_RELATED_APPLICATIONS ? 'toggle' : null,
                 message: 'Specify whether to "prefer" related applications:',
                 active: 'YES',
                 inactive: 'NO',
                 initial: params.MANIFEST_PREFER_RELATED_APPLICATIONS,
                 validate: validateAs(['confirm']),
-            },
-            // -----------------
-            // SERVICE WORKER
-            // -----------------
-            {
-                name: 'CREATE_WORKER',
-                type: 'toggle',
-                message: 'Create a Progressive Web App (PWA) Service Worker:',
-                active: 'YES',
-                inactive: 'NO',
-                initial: params.CREATE_WORKER,
-                validate: validateAs(['confirm']),
-            },
-            // ------------- advanced --------------
-            {
-                name: '__worker_advanced',
-                type: (prev, answers) => answers.CREATE_WORKER ? 'toggle' : null,
-                message: 'Show advanced options?',
-                active: 'YES',
-                inactive: 'NO',
-                initial: false,
-            },
-            // ------------- advanced --------------
-            {
-                name: 'WORKER_CACHE_NAME',
-                type: (prev, answers) => answers.CREATE_WORKER && answers.__worker_advanced ? 'text' : null,
-                message: 'Enter the Service Worker cache name:',
-                initial: params.WORKER_CACHE_NAME.indexOf('_v') > -1 && _isNumeric(_after(params.WORKER_CACHE_NAME, '_v')) 
-                    ? _before(params.WORKER_CACHE_NAME, '_v') + '_v' + (parseInt(_after(params.WORKER_CACHE_NAME, '_v')) + 1) 
-                    : params.WORKER_CACHE_NAME,
-                validate: validateAs(['input']),
-            },
-            {
-                name: 'WORKER_FETCHING_STRATEGY',
-                type: (prev, answers) => answers.CREATE_WORKER && answers.__worker_advanced ? 'select' : null,
-                message: 'Select the Service Worker fetching strategy:',
-                choices: choices.fetching_strategy,
-                initial: initialGetIndex(choices.fetching_strategy, params.WORKER_FETCHING_STRATEGY),
-                validate: validateAs(['input']),
-            },
-            {
-                name: 'WORKER_CACHING_STRATEGY',
-                type: (prev, answers) => answers.CREATE_WORKER && answers.__worker_advanced ? 'select' : null,
-                message: 'Select the Service Worker caching strategy:',
-                choices: choices.cahing_strategy,
-                initial: initialGetIndex(choices.cahing_strategy, params.WORKER_CACHING_STRATEGY),
-                validate: validateAs(['input']),
-            },
-            {
-                name: 'WORKER_CACHING_LIST',
-                type: (prev, answers) => answers.CREATE_WORKER && answers.__worker_advanced ? 'list' : null,
-                message: 'Specify files to cache (comma-separated):',
-                initial: _arrFrom(params.WORKER_CACHING_LIST).join(', '),
-                validate: validateAs(['input']),
-            },
-            {
-                name: 'WORKER_DIR',
-                type: (prev, answers) => answers.CREATE_WORKER && answers.__worker_advanced ? 'text' : null,
-                message: 'Enter the application\'s worker-level routing directory:',
-                initial: params.WORKER_DIR,
-                format: transformAs(['path']),
-                validate: validateAs(['input']),
             },
 
         ];

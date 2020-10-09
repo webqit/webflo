@@ -3,7 +3,7 @@
  * @imports
  */
 import _promise from '@onephrase/util/js/promise.js';
-import Router from '../Router.js';
+import Router from './Router.js';
 import Http from './Http.js';
 
 /**

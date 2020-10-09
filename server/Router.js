@@ -95,7 +95,7 @@ export default class Router {
     }
 
     /**
-     * Performs dynamic routing.
+     * Reads a static file from the public directory.
      * 
      * @param object filename
      * 
@@ -128,11 +128,42 @@ export default class Router {
                         });
                     } else {
                         // if the file is found, set Content-type and send data
-                        resolve(new FixedResponse(data, mimeTypes[ext] || 'text/plain', autoIndex));
+                        resolve(new FixedResponse(data.toString(), mimeTypes[ext] || 'text/plain', _filename, autoIndex));
                     }
                 });
             });
         }
+    }
+
+    /**
+     * Writes a file to the public directory.
+     * 
+     * @param object filename
+     * @param string content
+     * 
+     * @return bool
+     */
+    putPreRendered(filename, content) {
+        var _filename = Path.join(this.params.PUBLIC_DIR, '.', filename);
+        if (!Path.parse(filename).ext && filename.lastIndexOf('.') < filename.lastIndexOf('/')) {
+            _filename = Path.join(_filename, '/index.html');
+        }
+        var dir = Path.dirname(_filename);
+        if (!Fs.existsSync(dir)) {
+            Fs.mkdirSync(dir, {recursive:true});
+        }
+        return Fs.writeFileSync(_filename, content);
+    }
+
+    /**
+     * Deletes a file from the public directory.
+     * 
+     * @param object filename
+     * 
+     * @return bool
+     */
+    deletePreRendered(filename) {
+        return Fs.unlinkSync(filename);
     }
 };
 
@@ -157,9 +188,10 @@ export { mimeTypes };
 // Static response
 export class FixedResponse {
     // construct
-    constructor(content, contentType, autoIndex) {
+    constructor(content, contentType, filename, autoIndex) {
         this.content = content;
         this.contentType = contentType;
+        this.filename = filename;
         this.autoIndex = autoIndex;
         this.static = true;
     }
