@@ -27,7 +27,7 @@ import printArgs from '@onephrase/util/cli/printArgs.js';
 export default async function(ROOT, flags, ellipsis, pkg) {
     Clear();
     var _params = {}, _paramsFile;
-    if (Fs.existsSync(_paramsFile = Path.join(ROOT, flags['CONFIG'] || './.navigator/client.config.json'))) {
+    if (Fs.existsSync(_paramsFile = Path.join(ROOT, flags['CONFIG'] || './.webflo/config/build.json'))) {
         _params = DotJson.read(_paramsFile);
     }
     // Increment cache

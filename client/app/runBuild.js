@@ -48,9 +48,9 @@ export default async function(params) {
             code: [],
         };
 
-        // >> Import the Navigator Client file
-        var navigatorWorker = Path.dirname(importURL) + '/Worker.js';
-        workerBuild.imports[navigatorWorker] = 'Worker';
+        // >> Import the Webflo Client file
+        var webfloWorker = Path.dirname(importURL) + '/Worker.js';
+        workerBuild.imports[webfloWorker] = 'Worker';
 
         console.log('');
         console.log(Chalk.bgYellow(Chalk.black(' SERVICE WORKER BUILD ')));
@@ -112,7 +112,7 @@ export default async function(params) {
     // >> Routes mapping
     buildRoutes(params.CLIENT_DIR, clientBuild, 'Client-Side Routing:');
 
-    // >> Import the Navigator Client file
+    // >> Import the Webflo Client file
     clientBuild.imports[importDir + '/Client.js'] = 'Client';
 
     // >> Client Params
@@ -140,9 +140,9 @@ export default async function(params) {
         clientBuild.code.push(...[
             ``,
             `// >> Service Worker Registration`,
-            `if ('serviceWorker' in navigator) {`,
+            `if ('serviceWorker' in webflo) {`,
             `    window.addEventListener('load', () => {`,
-            `        navigator.serviceWorker.register('/${workerBundlingConfig.output.filename}', {scope: '${params.WORKER_SCOPE}'}).then(async registration => {`,
+            `        webflo.serviceWorker.register('/${workerBundlingConfig.output.filename}', {scope: '${params.WORKER_SCOPE}'}).then(async registration => {`,
             `            console.log('Service worker registered.');`,
             `            await /*SUPPORT_PUSH*/${params.WORKER_SUPPORT_PUSH} ? new Push(registration, {`,
             `                REGISTRATION_URL: '${params.WORKER_PUSH_REGISTRATION_URL}',`,
@@ -154,7 +154,7 @@ export default async function(params) {
             `}`,
             ``,
             `/**`,
-            `navigator.serviceWorker.addEventListener('message', event => {`,
+            `webflo.serviceWorker.addEventListener('message', event => {`,
             `    if (event.data.isNotificationTargetEvent) {`,
             `        // NotificationClick event for this client`,
             `        console.log('NotificationClick event for this client', event.data);`,

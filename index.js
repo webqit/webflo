@@ -197,7 +197,7 @@ switch(command) {
     default:
         console.log(Chalk.bgYellowBright(Chalk.black(' NAVIGATOR HELP ')));
         console.log('');
-        console.log('Say ' + Chalk.bold(Chalk.yellowBright('nav')) + ' <command> <args>');
+        console.log('Say ' + Chalk.bold(Chalk.yellowBright('webflo')) + ' <command> <args>');
         console.log('');
         console.log('Where <command> is one of:');
         Object.keys(commands).forEach(name => {
@@ -206,5 +206,5 @@ switch(command) {
         console.log('');
         console.log('Where <args> is zero or more arguments. (Use an ellipsis [' + Chalk.bold(Chalk.yellowBright('...')) + '] for a walkthrough.)');
         console.log('');
-        console.log('Example: ' + Chalk.bold(Chalk.yellowBright('nav serve ...')));
+        console.log('Example: ' + Chalk.bold(Chalk.yellowBright('webflo serve ...')));
 }

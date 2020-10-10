@@ -35,7 +35,7 @@ export default async function(ROOT, flags, ellipsis, pkg, lib) {
     ));
     // --------------------------------
     var _params = {}, _paramsFile;
-    if (Fs.existsSync(_paramsFile = Path.join(ROOT, flags['CONFIG'] || './.navigator/server.config.json'))) {
+    if (Fs.existsSync(_paramsFile = Path.join(ROOT, flags['CONFIG'] || './.webflo/config/server.json'))) {
         _params = DotJson.read(_paramsFile);
     }
     // -------------------

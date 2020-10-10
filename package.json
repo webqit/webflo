@@ -1,24 +1,24 @@
 {
-  "name": "@onephrase/navigator",
-  "title": "Navigator",
+  "name": "@onephrase/webflo",
+  "title": "Webflo",
   "description": "An awesome fullstack router.",
   "keywords": [
     "SSR"
   ],
-  "homepage": "https://onephrase.dev/package/navigator",
+  "homepage": "https://onephrase.dev/package/webflo",
   "version": "0.1.8",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/onephrase/navigator.git"
+    "url": "git+https://github.com/onephrase/webflo.git"
   },
   "bugs": {
-    "url": "https://github.com/onephrase/navigator/issues"
+    "url": "https://github.com/onephrase/webflo/issues"
   },
   "type": "module",
   "main": "index.js",
   "bin": {
-    "nav": "./index.js"
+    "webflo": "./index.js"
   },
   "dependencies": {
     "@octokit/auth-basic": "^1.4.6",
@@ -59,9 +59,9 @@
     "config": {
       "patreonUsername": "ox_harris",
       "githubUsername": "onephrase",
-      "githubRepository": "navigator",
-      "githubSlug": "onephrase/navigator",
-      "npmPackageName": "@onephrase/navigator"
+      "githubRepository": "webflo",
+      "githubSlug": "onephrase/webflo",
+      "npmPackageName": "@onephrase/webflo"
     }
   }
 }

@@ -29,15 +29,15 @@ export async function start(params, flags) {
                     resolve();
                 } else {
 
-                    var paramsFile = Path.resolve('./.process/params.json');
+                    var paramsFile = Path.resolve('./.webflo/runtime/params.json');
                     DotJson.write(params, paramsFile);
                     var script = Path.resolve(Path.dirname(Url.fileURLToPath(import.meta.url)), './pm2starter.js'),
                         args = paramsFile,
                         name = flags.NAME || Path.basename(process.cwd()),
                         autorestart = 'AUTO_RESTART' in flags ? flags.AUTO_RESTART === '1' : true,
                         merge_logs = 'MERGE_LOGS' in flags ? flags.MERGE_LOGS === '1' : true,
-                        output = Path.resolve('./.process/output.log'),
-                        error = Path.resolve('./.process/error.log');
+                        output = Path.resolve('./.webflo/runtime/output.log'),
+                        error = Path.resolve('./.webflo/runtime/error.log');
                     Pm2.start({script, name, args, autorestart, merge_logs, output, error, force: true}, err => {
                         if (err) {
                             console.log(Chalk.redBright(err));
@@ -189,9 +189,9 @@ export async function list(_flags, pkg) {
  * @description
  */
 export const desc = {
-    start: 'Starts the Navigator server. (--production or --prod to serve in production.)',
-    stop: 'Stops a Navigator server.',
-    restart: 'Restarts a Navigator server that has been stopped.',
-    kill: 'Kills a Navigator server.',
-    list: 'Lists all active Navigator servers.',
+    start: 'Starts the Webflo server. (--production or --prod to serve in production.)',
+    stop: 'Stops a Webflo server.',
+    restart: 'Restarts a Webflo server that has been stopped.',
+    kill: 'Kills a Webflo server.',
+    list: 'Lists all active Webflo servers.',
 };

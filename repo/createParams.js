@@ -26,7 +26,7 @@ import printArgs from '@onephrase/util/cli/printArgs.js';
  */
 export default async function(ROOT, flags, ellipsis, pkg) {
     var _params = {}, _paramsFile;
-    if (Fs.existsSync(_paramsFile = Path.join(ROOT, flags['CONFIG'] || './.navigator/deploy.config.json'))) {
+    if (Fs.existsSync(_paramsFile = Path.join(ROOT, flags['CONFIG'] || './.webflo/config/deploy.json'))) {
         _params = DotJson.read(_paramsFile);
     }
     // -------------------
