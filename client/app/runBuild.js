@@ -49,8 +49,8 @@ export default async function(params) {
         };
 
         // >> Import the Webflo Client file
-        var webfloWorker = Path.dirname(importURL) + '/Worker.js';
-        workerBuild.imports[webfloWorker] = 'Worker';
+        var navigatorWorker = Path.dirname(importURL) + '/Worker.js';
+        workerBuild.imports[navigatorWorker] = 'Worker';
 
         console.log('');
         console.log(Chalk.bgYellow(Chalk.black(' SERVICE WORKER BUILD ')));
@@ -140,9 +140,9 @@ export default async function(params) {
         clientBuild.code.push(...[
             ``,
             `// >> Service Worker Registration`,
-            `if ('serviceWorker' in webflo) {`,
+            `if ('serviceWorker' in navigator) {`,
             `    window.addEventListener('load', () => {`,
-            `        webflo.serviceWorker.register('/${workerBundlingConfig.output.filename}', {scope: '${params.WORKER_SCOPE}'}).then(async registration => {`,
+            `        navigator.serviceWorker.register('/${workerBundlingConfig.output.filename}', {scope: '${params.WORKER_SCOPE}'}).then(async registration => {`,
             `            console.log('Service worker registered.');`,
             `            await /*SUPPORT_PUSH*/${params.WORKER_SUPPORT_PUSH} ? new Push(registration, {`,
             `                REGISTRATION_URL: '${params.WORKER_PUSH_REGISTRATION_URL}',`,
@@ -154,7 +154,7 @@ export default async function(params) {
             `}`,
             ``,
             `/**`,
-            `webflo.serviceWorker.addEventListener('message', event => {`,
+            `navigator.serviceWorker.addEventListener('message', event => {`,
             `    if (event.data.isNotificationTargetEvent) {`,
             `        // NotificationClick event for this client`,
             `        console.log('NotificationClick event for this client', event.data);`,

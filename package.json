@@ -6,7 +6,7 @@
     "SSR"
   ],
   "homepage": "https://onephrase.dev/package/webflo",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -23,7 +23,7 @@
   "dependencies": {
     "@octokit/auth-basic": "^1.4.6",
     "@octokit/rest": "^17.11.2",
-    "@onephrase/util": "^0.6.2",
+    "@onephrase/util": "^0.6.3",
     "@web-native-js/browser-pie": "^0.0.3",
     "@web-native-js/observer": "^1.0.7",
     "accepts": "^1.3.7",

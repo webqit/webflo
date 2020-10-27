@@ -128,7 +128,7 @@ export default class Router {
                         });
                     } else {
                         // if the file is found, set Content-type and send data
-                        resolve(new FixedResponse(data.toString(), mimeTypes[ext] || 'text/plain', _filename, autoIndex));
+                        resolve(new FixedResponse(ext === '.json' ? data + '' : data, mimeTypes[ext] || 'text/plain', _filename, autoIndex));
                     }
                 });
             });
@@ -169,18 +169,18 @@ export default class Router {
 
 // maps file extention to MIME typere
 const mimeTypes = {
-    '.ico': 'image/x-icon',
-    '.html': 'text/html',
-    '.js': 'text/javascript',
-    '.json': 'application/json',
-    '.css': 'text/css',
-    '.png': 'image/png',
-    '.jpg': 'image/jpeg',
-    '.wav': 'audio/wav',
-    '.mp3': 'audio/mpeg',
-    '.svg': 'image/svg+xml',
-    '.pdf': 'application/pdf',
-    '.doc': 'application/msword'
+    '.ico':     'image/x-icon',
+    '.html':    'text/html',
+    '.js':      'text/javascript',
+    '.json':    'application/json',
+    '.css':     'text/css',
+    '.png':     'image/png',
+    '.jpg':     'image/jpeg',
+    '.wav':     'audio/wav',
+    '.mp3':     'audio/mpeg',
+    '.svg':     'image/svg+xml',
+    '.pdf':     'application/pdf',
+    '.doc':     'application/msword'
 };
 
 export { mimeTypes };
