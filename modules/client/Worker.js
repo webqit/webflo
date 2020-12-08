@@ -4,7 +4,7 @@
  */
 import Router from './Router.js';
 import Minimatch from 'minimatch';
-import _after from '@onephrase/util/str/after.js';
+import _after from '@webqit/util/str/after.js';
 
 /**
  * ---------------------------

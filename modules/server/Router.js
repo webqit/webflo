@@ -5,9 +5,9 @@
 import Fs from 'fs';
 import Url from 'url';
 import Path from 'path';
-import _isString from '@onephrase/util/js/isString.js';
-import _isArray from '@onephrase/util/js/isArray.js';
-import _arrFrom from '@onephrase/util/arr/from.js';
+import _isString from '@webqit/util/js/isString.js';
+import _isArray from '@webqit/util/js/isArray.js';
+import _arrFrom from '@webqit/util/arr/from.js';
 
 export default class Router {
 
@@ -20,9 +20,7 @@ export default class Router {
      * @return void
      */
     constructor(path, params) {
-        this.HOST_PATH = _isArray(params.HOST_PATH) ? params.HOST_PATH : ((params.HOST_PATH || '') + '').split('/').filter(a => a);
-        this.clientPath = _isArray(path) ? path : (path + '').split('/').filter(a => a);
-        this.path = this.HOST_PATH.concat(this.clientPath);
+        this.path = _isArray(path) ? path : (path + '').split('/').filter(a => a);
         this.params = params;
     }
 
@@ -39,7 +37,6 @@ export default class Router {
         
         target = _arrFrom(target);
         var path = this.path;
-        var clientPath = this.clientPath;
         var params = this.params;
 
         // ----------------
@@ -57,8 +54,8 @@ export default class Router {
                 wildcardRouteHandlerFile = Path.join(wildcardRouteSlice, './index.js');
             }
     
-            if ((routeHandlerFile && Fs.existsSync(routeHandlerFile = Path.join(params.SERVER_DIR, routeHandlerFile)))
-            || (wildcardRouteHandlerFile && Fs.existsSync(routeHandlerFile = Path.join(params.SERVER_DIR, wildcardRouteHandlerFile)))) {
+            if ((routeHandlerFile && Fs.existsSync(routeHandlerFile = Path.join(params.ROOT, params.SERVER_DIR, routeHandlerFile)))
+            || (wildcardRouteHandlerFile && Fs.existsSync(routeHandlerFile = Path.join(params.ROOT, params.SERVER_DIR, wildcardRouteHandlerFile)))) {
                 exports = await import(Url.pathToFileURL(routeHandlerFile));
                 // ---------------
                 var func = target.reduce((func, name) => func || exports[name], null);
@@ -68,11 +65,9 @@ export default class Router {
                     // -------------
                     var _next = (..._args) => next(index + 1, ..._args);
                     _next.pathname = path.slice(index).join('/');
-                    _next.clientPathname = clientPath.slice(index).join('/');
                     // -------------
                     var _this = {};
                     _this.pathname = '/' + path.slice(0, index).join('/');
-                    _this.clientPathname = '/' + clientPath.slice(0, index).join('/');
                     // -------------
                     return await func.bind(_this)(...args.concat([output, _next/*next*/]));
                 }
@@ -102,7 +97,7 @@ export default class Router {
      * @return Promise
      */
     fetch(filename) {
-        var _filename = Path.join(this.params.PUBLIC_DIR, '.', filename);
+        var _filename = Path.join(this.params.ROOT, this.params.PUBLIC_DIR, filename);
         var autoIndex;
         if (Fs.existsSync(_filename)) {
             // based on the URL path, extract the file extention. e.g. .js, .doc, ...

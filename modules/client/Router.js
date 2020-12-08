@@ -2,10 +2,10 @@
 /**
  * @imports
  */
-import _isString from '@onephrase/util/js/isString.js';
-import _isFunction from '@onephrase/util/js/isFunction.js';
-import _isArray from '@onephrase/util/js/isArray.js';
-import _arrFrom from '@onephrase/util/arr/from.js';
+import _isString from '@webqit/util/js/isString.js';
+import _isFunction from '@webqit/util/js/isFunction.js';
+import _isArray from '@webqit/util/js/isArray.js';
+import _arrFrom from '@webqit/util/arr/from.js';
 
 /**
  * ---------------------------
@@ -25,9 +25,7 @@ export default class Router {
 	 * @return void
 	 */
 	constructor(path, params) {
-        this.HOST_PATH = _isArray(params.HOST_PATH) ? params.HOST_PATH : ((params.HOST_PATH || '') + '').split('/').filter(a => a);
-        this.clientPath = _isArray(path) ? path : (path + '').split('/').filter(a => a);
-        this.path = this.HOST_PATH.concat(this.clientPath);
+        this.path = _isArray(path) ? path : (path + '').split('/').filter(a => a);
         this.params = params;
     }
 
@@ -44,7 +42,6 @@ export default class Router {
 
         target = _arrFrom(target);
         var path = this.path;
-        var clientPath = this.clientPath;
         var routeTree = this.params.ROUTES;
 
         // ----------------
@@ -69,11 +66,9 @@ export default class Router {
                     // -------------
                     var _next = (..._args) => next(index + 1, ..._args);
                     _next.pathname = path.slice(index).join('/');
-                    _next.clientPathname = clientPath.slice(index).join('/');
                     // -------------
                     var _this = {};
                     _this.pathname = '/' + path.slice(0, index).join('/');
-                    _this.clientPathname = '/' + clientPath.slice(0, index).join('/');
                     // -------------
                     return await func.bind(_this)(...args.concat([output, _next/*next*/]));
                 }

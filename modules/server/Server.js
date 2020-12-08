@@ -7,44 +7,34 @@ import Http from 'http';
 import Path from 'path';
 import Cookie from 'cookie';
 import Accepts from 'accepts';
-import Chalk from 'chalk';
-import Minimatch from 'minimatch';
 import Formidable from 'formidable';
 import QueryString from 'querystring';
-import _isArray from '@onephrase/util/js/isArray.js';
-import _isFunction from '@onephrase/util/js/isFunction.js';
-import _isObject from '@onephrase/util/js/isObject.js';
-import _promise from '@onephrase/util/js/promise.js';
-import _after from '@onephrase/util/str/after.js';
-import _beforeLast from '@onephrase/util/str/beforeLast.js';
-import _wrapped from '@onephrase/util/str/wrapped.js';
-import _each from '@onephrase/util/obj/each.js';
-import _set from '@onephrase/util/obj/set.js';
-import * as DotJson from '@onephrase/util/src/DotJson.js';
+import _set from '@webqit/util/obj/set.js';
+import _each from '@webqit/util/obj/each.js';
+import _isArray from '@webqit/util/js/isArray.js';
+import _isObject from '@webqit/util/js/isObject.js';
+import _promise from '@webqit/util/js/promise.js';
+import _wrapped from '@webqit/util/str/wrapped.js';
+import _beforeLast from '@webqit/util/str/beforeLast.js';
+import { restart as serverRestart } from '../../cmd/server.js';
 import Router, { FixedResponse } from './Router.js';
+import * as prerendering from '../../config/prerendering.js';
+import * as redirects from '../../config/redirects.js';
+import * as repos from '../../cmd/repos.js';
+import * as vhosts from '../../config/vhosts.js';
 
 /**
  * Initializes a server on the given working directory.
  * 
- * @param object params
+ * @param object $config
  * 
  * @return void
  */
-export default function(params) {
+export default function(Ui, config) {
 
-    console.log('');
-    if (params.SHOW_REQUEST_LOG) {
-        console.log(Chalk.whiteBright('Request log:'));
-    }
-
-    // --------
-    // Directives
-    // --------
-
-    const vhosts = DotJson.read('vhosts.json');
-    const redirects = DotJson.read('redirects.json');
-    const preurls = DotJson.read('preurls.json');
-    const matchPreurl = url => Object.keys(preurls).reduce((match, preurl) => match || Minimatch(url, preurl, {dot: true}) ? preurl : null, null);
+    const modules = { prerendering, redirects, repos, vhosts, };
+    const PORT = parseInt(config.P || config.PORT);
+    const PROTOCOL = PORT === 443 ? 'https' : 'http';
 
     // -------------------
     // Create server
@@ -52,60 +42,50 @@ export default function(params) {
 
     Http.createServer(async function (request, response) {
 
-        params = {...params};
-        const [ requestPathname, requestQuery ] = request.url.split('?');
+        const location = Url.parse(PROTOCOL + '://' + request.headers.host + request.url, true, true);
+        const vhosts = (!modules.vhosts ? null : await modules.vhosts.match(location, config/* the root-level config */)) || [];
+        const $config = {...config};
         var data, fatal;
 
         // -------------------
         // Resolve canonicity
         // -------------------
 
-        params.HOST_PATH = vhosts[request.headers.host] ? '/' +  vhosts[request.headers.host].split('/').filter(seg => seg).join('/') : '';
+        if ($config.VHOSTS_MODE && vhosts.length) {
+            $config.VHOST = vhosts[0];
+            $config.ROOT = Path.join($config.ROOT, vhosts[0].PATH);
+        }
+        
+        // -------------------
+        // Handle autodeploy events
+        // -------------------
+
+        if (modules.repos) {
+            modules.repos.hook(Ui, request, response, $config).then(async () => {
+                await serverRestart(Ui, $config.RUNTIME_NAME);
+                process.exit();
+            }).catch(e => { fatal = e; });
+        }
 
         // -------------------
-        // Resolve redirects
+        // Handle redirects
         // -------------------
 
-        var resolvedRequestPathname = params.HOST_PATH + requestPathname;
-        var rdr = Object.keys(redirects).reduce((match, pattern) => {
-
-            if (match) {
-                return match;
+        var rdr;
+        if (modules.redirects) {
+            rdr = await modules.redirects.match(location, $config);
+            if (rdr) {
+                response.statusCode = rdr.code;
+                response.setHeader('Location', rdr.target);
+                response.end();
             }
-            var matcher = Minimatch.Minimatch(pattern, {dot: true});
-            var regex = matcher.makeRe();
-            var _leastMatch = resolvedRequestPathname.split('/').filter(seg => seg).map(seg => seg.trim()).reduce((str, seg) => str.endsWith(' ') ? str : ((str = str + '/' + seg) && str.match(regex) ? str + ' ' : str), '');
-            if (_leastMatch.endsWith(' ')) {
-                _leastMatch = _leastMatch.trim();
-                var _afterMatch = _after(resolvedRequestPathname, _leastMatch);
-                var [ _rdr, _rdrCode ] = redirects[pattern].split(' ').map(str => str.trim());
-                var [ _rdrPath, _rdrQuery ] = _rdr.split('?');
-                // ---------------
-                return {
-                    path: _rdrPath + _afterMatch,
-                    query: [requestQuery, _rdrQuery].filter(str => str).join('&'),
-                    code: _rdrCode || 302,
-                };
-            }
+        }
+        
+        // -------------------
+        // Handle request
+        // -------------------
 
-        }, null);
-
-        if (rdr) {
-
-            // if rdr falls within another virtual host, use the hostname
-            rdr.resolvedPath = Object.keys(vhosts).reduce((match, host) => match || ((rdr.path + '/').startsWith(vhosts[host] + '/') ? '//' + host + _after(rdr.path, vhosts[host]) : null), null);
-            // If rdr does not resolve to a virtual host and current request is from a virtual host,
-            // prevent rdr from resolving to the current request's host name
-            if (!rdr.resolvedPath && params.HOST_PATH) {
-                rdr.resolvedPath = '//' + params.HOST + ':' + params.PORT + rdr.path;
-            } else {
-                rdr.resolvedPath = rdr.path;
-            }
-            response.statusCode = rdr.code;
-            response.setHeader('Location', rdr.resolvedPath);
-            response.end();
-
-        } else {
+        if (!fatal && !rdr) {
 
             // --------
             // Request parsing
@@ -124,7 +104,7 @@ export default function(params) {
 
             // Query
             request.query = {}; var queryIndexes = {};
-            _each(Url.parse(request.url, true, true).query, (name, value) => {
+            _each(location.query, (name, value) => {
                 var _name = name.endsWith('[]') && _isArray(value) ? _beforeLast(name, '[]') : name;
                 var _value = typeof value === 'string' && (_wrapped(value, '{', '}') || _wrapped(value, '[', ']')) ? JSON.parse(value) : value;
                 setToPath(request.query, _name, _value, queryIndexes);
@@ -182,17 +162,17 @@ export default function(params) {
             request.accepts = Accepts(request);
 
             // The app router
-            const router = new Router(requestPathname, params);
+            const router = new Router(location.pathname, $config);
 
             // The service object
             const service = {
-                params,
+                config: $config,
                 // Request
                 request,
                 // Response
                 response,
                 // Piping utility
-                pipe: async (...stack) => {
+                route: async (...stack) => {
                     var val;
                     var pipe = async function() {
                         var middleware = stack.shift();
@@ -219,7 +199,7 @@ export default function(params) {
                     if (arguments.length) {
                         return output;
                     }
-                    var file = await router.fetch(params.HOST_PATH + service.request.url);
+                    var file = await router.fetch(service.request.url);
                     // JSON request should ignore static files
                     if (file && !service.request.accepts.type(file.contentType)) {
                         return;
@@ -228,7 +208,8 @@ export default function(params) {
                     // PRE-RENDERING
                     // ----------------
                     if (file && file.contentType === 'text/html' && (file.content + '').startsWith(`<!-- PRE-RENDERED -->`)) {
-                        if (!matchPreurl(resolvedRequestPathname)) {
+                        var prerenderMatch = modules.prerendering ? await !modules.prerendering.match(location.pathname, $config) : null;
+                        if (!prerenderMatch) {
                             router.deletePreRendered(file.filename);
                             return;
                         }
@@ -249,37 +230,36 @@ export default function(params) {
                             }
                             // --------
                             const instanceParams = QueryString.stringify({
-                                source: Path.join(params.PUBLIC_DIR, './index.html'),
-                                host: params.SUB_RESOURCE_HOST || service.request.headers['host'],
-                                uri: params.HOST_PATH + service.request.url,
-                                g: 'globalServersideWindow' in params ? params.GLOBAL_SSR_WINDOW : 0,
+                                source: Path.join($config.ROOT, $config.PUBLIC_DIR, './index.html'),
+                                url: location.href,
+                                root: $config.ROOT,
+                                g: 'GLOBAL_SSR_WINDOW' in $config ? $config.GLOBAL_SSR_WINDOW : 0,
                             });
-                            const { window } = await import('@web-native-js/browser-pie/instance.js?' + instanceParams);
+                            const { window } = await import('@webqit/pseudo-browser/instance.js?' + instanceParams);
                             // --------
-                            window.document.bind(data, {update: Object.keys(window.document.bindings).length !== 0});
-                            window.document.body.setAttribute('template', 'app' + requestPathname);
+                            var bindings = {app: data, location};
+                            if (window.document.bindings.env) {
+                                window.document.bind(bindings, {update: true});
+                            } else {
+                                bindings = {env: 'server', ...bindings};
+                                window.document.bind(bindings);
+                            }
+                            window.document.body.setAttribute('template', 'app' + location.pathname);
+                            await window.WQ.DOM.ready;
                             return window;
                         });
                         // --------
                         // Serialize rendering?
                         // --------
                         if (_isObject(window) && window.document && window.print) {
+                            await window.WQ.DOM.templatesReady;
                             data = await _promise(resolve => {
-                                (new Promise(resolve => {
-                                    if (window.document.templatesReadyState === 'complete') {
-                                        resolve();
-                                    } else {
-                                        window.document.addEventListener('templatesreadystatechange', resolve);
-                                    }
-                                })).then(async () => {
-                                    // Allow common async tasks to complete
-                                    setTimeout(() => {
-                                        resolve({
-                                            contentType: 'text/html',
-                                            content: window.print(),
-                                        });
-                                    }, params.RENDER_DURATION || 1000);
-                                });
+                                setTimeout(() => {
+                                    resolve({
+                                        contentType: 'text/html',
+                                        content: window.print(),
+                                    });
+                                }, $config.RENDER_DURATION || 1000);
                             });
                         } else {
                             data = window;
@@ -291,7 +271,7 @@ export default function(params) {
                         data = {
                             contentType: 'application/json',
                             content: data,
-                        }
+                        };
                     }
                 }
 
@@ -314,9 +294,9 @@ export default function(params) {
                         // PRE-RENDERING
                         // ----------------
                         if (!data.filename && data.contentType === 'text/html') {
-                            var prerenderMatch = matchPreurl(resolvedRequestPathname);
+                            var prerenderMatch = modules.prerendering ? await !modules.prerendering.match(location.pathname, $config) : null;
                             if (prerenderMatch) {
-                                router.putPreRendered(resolvedRequestPathname, `<!-- PRE-RENDERED -->\r\n` + data.content);
+                                router.putPreRendered(location.pathname, `<!-- PRE-RENDERED -->\r\n` + data.content);
                             }
                         }
                     } else {
@@ -339,24 +319,28 @@ export default function(params) {
         // service.request log
         // --------
 
-        if (params.SHOW_REQUEST_LOG) {
-            console.log(''
-                + '[' + Chalk.gray((new Date).toUTCString()) + '] '
-                + Chalk.green(request.method) + ' '
-                + (params.HOST_PATH || '') + request.url + (data && data.autoIndex ? Chalk.gray((!request.url.endsWith('/') ? '/' : '') + data.autoIndex) : '') + ' '
-                + (data ? ' (' + data.contentType + ') ' : '')
+        if ($config.SHOW_REQUEST_LOG) {
+            Ui.log(''
+                + '[' + ($config.VHOST ? Ui.style.keyword($config.VHOST.HOST) + '][' : '') + Ui.style.comment((new Date).toUTCString()) + '] '
+                + Ui.style.keyword(request.method) + ' '
+                + Ui.style.url(request.url) + (data && data.autoIndex ? Ui.style.comment((!request.url.endsWith('/') ? '/' : '') + data.autoIndex) : '') + ' '
+                + (data ? ' (' + Ui.style.comment(data.contentType) + ') ' : '')
                 + (
                     [404, 500].includes(response.statusCode) 
-                    ? Chalk.redBright(response.statusCode + (fatal ? ` [ERROR]: ${fatal.error || fatal.toString()}` : ``)) 
-                    : Chalk.green(response.statusCode) + ((response.statusCode + '').startsWith('3') ? ' - ' + response.getHeader('location') : '')
+                    ? Ui.style.err(response.statusCode + (fatal ? ` [ERROR]: ${fatal.error || fatal.toString()}` : ``)) 
+                    : Ui.style.val(response.statusCode) + ((response.statusCode + '').startsWith('3') ? ' - ' + Ui.style.val(response.getHeader('location')) : '')
                 )
             );
         }
 
         if (fatal) {
+            if ($config.RUNTIME_MODE !== 'production') {
+                Ui.error(fatal);
+                process.exit();
+            }
             throw fatal;
         }
 
-    }).listen(parseInt(params.P || params.PORT));
+    }).listen(PORT);
 
 };

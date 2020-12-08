@@ -3,15 +3,15 @@
  * @imports
  */
 import Observer from '@web-native-js/observer';
-import _sort from '@onephrase/util/arr/sort.js';
-import _difference from '@onephrase/util/arr/difference.js';
-import _isArray from '@onephrase/util/js/isArray.js';
-import _isObject from '@onephrase/util/js/isObject.js';
-import _isTypeObject from '@onephrase/util/js/isTypeObject.js';
-import _isString from '@onephrase/util/js/isString.js';
-import _isEmpty from '@onephrase/util/js/isEmpty.js';
-import _copy from '@onephrase/util/obj/copy.js';
-import _with from '@onephrase/util/obj/with.js';
+import _sort from '@webqit/util/arr/sort.js';
+import _difference from '@webqit/util/arr/difference.js';
+import _isArray from '@webqit/util/js/isArray.js';
+import _isObject from '@webqit/util/js/isObject.js';
+import _isTypeObject from '@webqit/util/js/isTypeObject.js';
+import _isString from '@webqit/util/js/isString.js';
+import _isEmpty from '@webqit/util/js/isEmpty.js';
+import _copy from '@webqit/util/obj/copy.js';
+import _with from '@webqit/util/obj/with.js';
 
 /**
  * ---------------------------
@@ -58,7 +58,7 @@ export default class Url {
 		// -----------------------
 		// When any one of these properties change,
 		// the others are automatically derived
-		Observer.observe(this, ['search', 'searchmap', 'pathname', 'pathmap', 'pathsplit', 'href'], changes => {
+		Observer.observe(this, [['search'], ['searchmap'], ['pathname'], ['pathmap'], ['pathsplit'], ['href']], changes => {
 			var [search, searchmap, pathname, pathmap, pathsplit, href] = changes.map(delta => delta.value);
 			var [_search, _searchmap, _pathname, _pathmap, _pathsplit, _href] = changes.map(delta => delta.oldValue);
 			if (changes[1]/*searchmap*/.type === 'set' && !changes[1]/*searchmap*/.isUpdate) {
@@ -121,7 +121,7 @@ export default class Url {
 			if (!_isEmpty(urlObj)) {
 				return Observer.set(this, urlObj);
 			}
-		}, {subtree:true/*for pathmap/pathsplit/searchmap updates*/});
+		}, {subtree:true/*for pathmap/pathsplit/searchmap updates*/, diff: true});
 		// -----------------------
 		// Validate e.details
 		Observer.observe(this, changes => {
@@ -135,7 +135,7 @@ export default class Url {
 					}
 				}
 			});
-		});
+		}, {diff: true});
 		// -----------------------
 		// Startup properties
         Observer.set(this, Url.copy(input));

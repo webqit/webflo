@@ -3,8 +3,8 @@
  * @imports
  */
 import Observer from '@web-native-js/observer';
-import _before from '@onephrase/util/str/before.js';
-import _after from '@onephrase/util/str/after.js';
+import _before from '@webqit/util/str/before.js';
+import _after from '@webqit/util/str/after.js';
 import Url from './Url.js';
 
 /**
@@ -43,11 +43,11 @@ export default class Http {
 			 */
 			go(href, request = {}, src = null) {
 				return Observer.set(this.location, 'href', href, {
-					request,
-					src,
+					detail: {request, src,},
 				});
 			}
 		};
+
 		/**
 		 * ----------------
 		 * instance.location
@@ -64,9 +64,13 @@ export default class Http {
 			// Needed to alow window.document.location
 			// to update to window.location
 			window.setTimeout(() => {
-				Observer.set(instance.location, Url.copy(window.document.location), {
-					src: window.document.location
-				});
+				// Only on "href" change or on same "href" but no "hash"
+				// In other words, same "href" "hash"-based navigation should be natural
+				if ((_before(window.document.location.href, '#') !== _before(instance.location.href, '#')) || !window.document.location.href.includes('#')) {
+					Observer.set(instance.location, Url.copy(window.document.location), {
+						detail: {src: window.document.location},
+					});
+				}
 			}, 0);
 		});
 		// -----------------------
@@ -78,14 +82,20 @@ export default class Http {
 			&& (href = anchor.href)
 			// Same origin... but...
 			&& (!anchor.origin || anchor.origin === instance.location.origin)
-			// Not same href
-			&& (_before(href, '#') !== _before(instance.location.href, '#'))
 			// And not towards any target
 			&& !anchor.getAttribute('target')) {
-				e.preventDefault();
-				var e2 = Observer.set(instance.location, 'href', href, {
-					src: anchor
-				});
+				// Only on "href" change or on same "href" but no "hash"
+				// In other words, same "href" "hash"-based navigation should be natural
+				var sameHref = _before(href, '#') === _before(window.document.location.href, '#');
+				if (!sameHref || !href.includes('#')) {
+					e.preventDefault();
+					if (!sameHref) {
+						var eventObject = Observer.set(instance.location, 'href', href, {
+							detail: {src: anchor,},
+							eventObject: true,
+						});
+					}
+				}
 			}
 		});
 		/**
@@ -103,29 +113,28 @@ export default class Http {
 			} else {
 				instance.history.pushState(instance.history.state, '', delta.value);
 			}
-		});
+		}, {diff: true});
 
 		// ----------------------------------
-		const createRequest = () => {
-			var url = _after(instance.location.href, instance.location.origin);
-			return {
-				url: _before(url, '#'),
-				headers:{
-					host: instance.location.host,
-				},
+		const createRequest = referrer => {
+			var url = instance.location.href;
+			var options = {
+				headers: {host: instance.location.host,},
+				referrer,
 			};
+			if (typeof Request !== 'undefined') {
+				return new Request(url, options);
+			}
+			return {url, ...options};
 		};
 		// ----------------------------------
 
 		// Observe location and route
 		Observer.observe(instance.location, 'href', async delta => {
-			return await client.call(null, createRequest());
-		});
-		
-		// Startup route?
-		if (!window.Chtml || !window.Chtml.meta('isomorphic')) {
-			client.call(null, createRequest());
-		}
+			return await client.call(null, createRequest(delta.oldValue));
+		}, {diff: true});
+		// Startup route
+		client.call(null, createRequest(document.referrer), true/* initCall */);
 
 		return instance;
 	}
