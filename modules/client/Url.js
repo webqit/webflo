@@ -2,7 +2,7 @@
 /**
  * @imports
  */
-import Observer from '@web-native-js/observer';
+import Observer from '@webqit/observer';
 import _sort from '@webqit/util/arr/sort.js';
 import _difference from '@webqit/util/arr/difference.js';
 import _isArray from '@webqit/util/js/isArray.js';

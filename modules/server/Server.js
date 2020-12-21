@@ -237,15 +237,17 @@ export default function(Ui, config) {
                             });
                             const { window } = await import('@webqit/pseudo-browser/instance.js?' + instanceParams);
                             // --------
-                            var bindings = {app: data, location};
-                            if (window.document.bindings.env) {
-                                window.document.bind(bindings, {update: true});
+                            
+                            // OOHTML would waiting for DOM-ready to be initialized
+                            await window.WQ.OOHTML.ready;
+                            var state = {app: data, location};
+                            if (window.document.state.env) {
+                                window.document.setState(state, {update: true});
                             } else {
-                                bindings = {env: 'server', ...bindings};
-                                window.document.bind(bindings);
+                                state = {env: 'server', ...state};
+                                window.document.setState(state);
                             }
                             window.document.body.setAttribute('template', 'app' + location.pathname);
-                            await window.WQ.DOM.ready;
                             return window;
                         });
                         // --------
@@ -335,7 +337,8 @@ export default function(Ui, config) {
 
         if (fatal) {
             if ($config.RUNTIME_MODE !== 'production') {
-                Ui.error(fatal);
+                console.trace(fatal);
+                //Ui.error(fatal);
                 process.exit();
             }
             throw fatal;

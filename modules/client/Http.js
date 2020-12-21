@@ -2,7 +2,7 @@
 /**
  * @imports
  */
-import Observer from '@web-native-js/observer';
+import Observer from '@webqit/observer';
 import _before from '@webqit/util/str/before.js';
 import _after from '@webqit/util/str/after.js';
 import Url from './Url.js';

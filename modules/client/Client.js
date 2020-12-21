@@ -3,17 +3,27 @@
  * @imports
  */
 import _fetch from '@webqit/browser-pie/src/apis/fetch.js';
-import Observer from '@web-native-js/observer';
+import Observer from '@webqit/observer';
+import { oohtml } from '@webqit/pseudo-browser/index2.js';
 import Router from './Router.js';
 import Http from './Http.js';
 import Url from './Url.js';
+
+
+/**
+ * ---------------------------
+ * OOHTML
+ * ---------------------------
+ */
+
+oohtml(window);
 
 /**
  * ---------------------------
  * The Client Initializer
  * ---------------------------
  */
-			
+
 export default function(params) {
 
 	// Copy..
@@ -37,7 +47,7 @@ export default function(params) {
 		const location = Url.parseUrl(request.url);
 		const requestPath = location.pathname;
 		const router = new Router(requestPath, params);
-		const onHydration = initCall && window.WQ.DOM.meta('isomorphic');
+		const onHydration = initCall && (await window.WQ.OOHTML.meta('isomorphic'));
 		if (networkProgressOngoing) {
 			networkProgressOngoing.setActive(false);
 			networkProgressOngoing = null;
@@ -87,12 +97,12 @@ export default function(params) {
 					return _window;
 				}
 				// --------
-				var bindings = {app: state, onHydration};
-				if (window.document.bindings.env) {
-					window.document.bind(bindings, {update: true});
+				var _state = {app: state, onHydration};
+				if (window.document.state.env) {
+					window.document.setState(_state, {update: true});
 				} else {
-					bindings = {env: 'client', location, network: networkWatch, ...bindings};
-					window.document.bind(bindings);
+					_state = {env: 'client', location, network: networkWatch, ..._state};
+					window.document.setState(_state);
 				}
 				window.document.body.setAttribute('template', 'app' + requestPath);
 				await window.WQ.DOM.ready;

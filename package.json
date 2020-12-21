@@ -3,10 +3,16 @@
   "title": "Webflo",
   "description": "The universal JavaScript framework.",
   "keywords": [
-    "SSR"
+    "git-workflow",
+    "self-hosting",
+    "automatic-deployment",
+    "command-line-interface",
+    "progressive-web-apps",
+    "single-page-apps",
+    "vanila-javascript"
   ],
-  "homepage": "https://webqit.dev/tooling/webflo",
-  "version": "0.2.0",
+  "homepage": "https://webqit.io/tooling/webflo",
+  "version": "0.2.2",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -25,8 +31,9 @@
     "@octokit/rest": "^17.11.2",
     "@octokit/webhooks": "^7.15.1",
     "@webqit/backpack": "0.0.3",
-    "@webqit/browser-pie": "0.0.3",
-    "@webqit/pseudo-browser": "0.0.4",
+    "@webqit/browser-pie": "0.0.4",
+    "@webqit/observer": "^1.2.3",
+    "@webqit/pseudo-browser": "0.0.8",
     "@webqit/util": "^0.7.0",
     "accepts": "^1.3.7",
     "cookie": "^0.4.1",
