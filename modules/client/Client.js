@@ -3,12 +3,10 @@
  * @imports
  */
 import _fetch from '@webqit/browser-pie/src/apis/fetch.js';
-import Observer from '@webqit/observer';
-import { oohtml } from '@webqit/pseudo-browser/index2.js';
+import { OOHTML, Observer } from '@webqit/pseudo-browser/index2.js';
 import Router from './Router.js';
 import Http from './Http.js';
 import Url from './Url.js';
-
 
 /**
  * ---------------------------
@@ -16,7 +14,7 @@ import Url from './Url.js';
  * ---------------------------
  */
 
-oohtml(window);
+OOHTML(window);
 
 /**
  * ---------------------------
@@ -60,13 +58,13 @@ export default function(params) {
 			request,
 		}
 
-		var state;
+		var data;
 		try {
 
 			// --------
 			// ROUTE FOR DATA
 			// --------
-			state = await router.route([service], 'default', async function(output) {
+			data = await router.route([service], 'default', async function(output) {
 				if (arguments.length) {
 					return output;
 				}
@@ -92,20 +90,22 @@ export default function(params) {
 			// Render
 			// --------
 			await window.WQ.DOM.ready;
-			const _window = await router.route([state], 'render', async function(_window) {
+			const _window = await router.route([data], 'render', async function(_window) {
 				if (arguments.length) {
 					return _window;
 				}
 				// --------
-				var _state = {app: state, onHydration};
-				if (window.document.state.env) {
-					window.document.setState(_state, {update: true});
-				} else {
-					_state = {env: 'client', location, network: networkWatch, ..._state};
-					window.document.setState(_state);
+				if (!window.document.state.env) {
+					window.document.setState({
+						env: 'client',
+						onHydration,
+						network: 
+						networkWatch,
+					}, {update: true});
 				}
-				window.document.body.setAttribute('template', 'app' + requestPath);
-				await window.WQ.DOM.ready;
+				window.document.setState({page: data, location}, {update: true});
+				window.document.body.setAttribute('template', 'page' + requestPath);
+
 				return window;
 			});
 
@@ -117,7 +117,7 @@ export default function(params) {
 
 			await window.WQ.DOM.templatesReady;
 
-			return state;
+			return data;
 
 		} catch(e) { throw e }
 		

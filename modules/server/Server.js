@@ -238,22 +238,21 @@ export default function(Ui, config) {
                             const { window } = await import('@webqit/pseudo-browser/instance.js?' + instanceParams);
                             // --------
                             
-                            // OOHTML would waiting for DOM-ready to be initialized
+                            // OOHTML would waiting for DOM-ready in order to be initialized
                             await window.WQ.OOHTML.ready;
-                            var state = {app: data, location};
-                            if (window.document.state.env) {
-                                window.document.setState(state, {update: true});
-                            } else {
-                                state = {env: 'server', ...state};
-                                window.document.setState(state);
+                            if (!window.document.state.env) {
+                                window.document.setState({
+                                    env: 'server',
+                                }, {update: true});
                             }
-                            window.document.body.setAttribute('template', 'app' + location.pathname);
+                            window.document.setState({page: data, location}, {update: true});
+                            window.document.body.setAttribute('template', 'page' + location.pathname);
                             return window;
                         });
                         // --------
                         // Serialize rendering?
                         // --------
-                        if (_isObject(window) && window.document && window.print) {
+                        if (_isObject(window) && window.document) {
                             await window.WQ.DOM.templatesReady;
                             data = await _promise(resolve => {
                                 setTimeout(() => {

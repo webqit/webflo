@@ -2,7 +2,7 @@
 /**
  * @imports
  */
-import Observer from '@webqit/observer';
+import { Observer } from '@webqit/pseudo-browser/index2.js';
 import _sort from '@webqit/util/arr/sort.js';
 import _difference from '@webqit/util/arr/difference.js';
 import _isArray from '@webqit/util/js/isArray.js';

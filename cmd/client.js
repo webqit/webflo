@@ -95,11 +95,11 @@ export async function build(Ui, params = {}) {
 
     var clientBundlingConfig = config.CLIENT_BUNDLING || {};
     if (!clientBundlingConfig.entry) {
-        clientBundlingConfig.entry = clientDirSplit.join('/') + '/app.js';
+        clientBundlingConfig.entry = clientDirSplit.join('/') + '/bundle.js';
     }
     if (!clientBundlingConfig.output) {
         clientBundlingConfig.output = {
-            filename: 'app.js',
+            filename: 'bundle.js',
             path: Path.resolve(config.PUBLIC_DIR),
         };
     }

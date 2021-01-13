@@ -68,6 +68,7 @@ export default class Router {
                     // -------------
                     var _this = {};
                     _this.pathname = '/' + path.slice(0, index).join('/');
+                    _this.dirname = Path.dirname(routeHandlerFile);
                     // -------------
                     return await func.bind(_this)(...args.concat([output, _next/*next*/]));
                 }
