@@ -53,7 +53,7 @@ export async function start(Ui, flags, params = {}) {
                 } else {
 
                     var configFile = Path.resolve('./.webflo/config/server.json');
-                    var script = Path.resolve(Url.fileURLToPath(currentDir), '../modules/server/pm2starter.js'),
+                    var script = Path.resolve(currentDir, '../modules/server/pm2starter.js'),
                         args = configFile,
                         name = config.RUNTIME_NAME,
                         autorestart = 'AUTO_RESTART' in config ? config.AUTO_RESTART : true,
