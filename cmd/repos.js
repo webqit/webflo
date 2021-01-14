@@ -47,6 +47,9 @@ export async function deploy(Ui, repo, params = {}) {
     // Must come after git.cwd()
     git.init();
 
+    const hosts = {
+        github: 'https://github.com',
+    };
     const url = hosts[repo.HOST] + '/' + repo.REPO + '.git';
 
     // Deployment
@@ -70,9 +73,6 @@ export async function deploy(Ui, repo, params = {}) {
 
     // Remote setup
     return git.getRemotes().then(remotes => {
-        var hosts = {
-            github: 'https://github.com',
-        };
         if (!_any(remotes, remote => remote.name === repo.TAG)
         // But if the folder was deleted and created anew,
         // the above would still hold true, so we detect that here
