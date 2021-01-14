@@ -230,10 +230,10 @@ export default function(Ui, config) {
                             }
                             // --------
                             const instanceParams = QueryString.stringify({
-                                source: Path.join($config.ROOT, $config.PUBLIC_DIR, './index.html'),
-                                url: location.href,
-                                root: $config.ROOT,
-                                g: 'GLOBAL_SSR_WINDOW' in $config ? $config.GLOBAL_SSR_WINDOW : 0,
+                                SOURCE: Path.join($config.ROOT, $config.PUBLIC_DIR, './index.html'),
+                                URL: location.href,
+                                ROOT: $config.ROOT,
+                                G: 'GLOBAL_SSR_WINDOW' in $config ? $config.GLOBAL_SSR_WINDOW : 0,
                             });
                             const { window } = await import('@webqit/pseudo-browser/instance.js?' + instanceParams);
                             // --------
