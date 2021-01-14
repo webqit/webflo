@@ -92,7 +92,7 @@ export async function deploy(Ui, repo, params = {}) {
  * @hook
  */
 export function hook(Ui, request, response, params = {}) {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
         const eventHandler = Webhooks.createEventHandler();
         eventHandler.on('push', async ({ name, payload }) => {
             const matches = await repos.match(payload.repository.full_name, params);
@@ -123,7 +123,7 @@ export function hook(Ui, request, response, params = {}) {
             eventHandler.receive({
                 id: request.headers['x-github-delivery'],
                 name: request.headers['x-github-event'],
-                payload: request.body,
+                payload: await request.body(),
             }).catch(reject);
         }
     });
