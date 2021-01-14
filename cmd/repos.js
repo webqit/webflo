@@ -47,18 +47,21 @@ export async function deploy(Ui, repo, params = {}) {
     // Must come after git.cwd()
     git.init();
 
+    const url = hosts[repo.HOST] + '/' + repo.REPO + '.git';
+
     // Deployment
-    const pull = () => {
+    const pull = async () => {
         Ui.log('');
         const waiting = Ui.waiting(Ui.f`Deploying ${repo.TAG}`);
         const completed = () => {
             waiting.stop();
         };
         waiting.start();
+        await git.reset('hard');
         return git.pull(repo.TAG, repo.BRANCH)
             .then(() => {
                 completed();
-                Ui.success(Ui.f`${repo.TAG} successfully deployed!`);
+                Ui.success(Ui.f`Successfully deployed ${repo.TAG + '@' + repo.BRANCH} - ${url} to ${repo.DEPLOY_PATH}!`);
             }).catch(err => {
                 completed();
                 Ui.error(err);
@@ -74,7 +77,6 @@ export async function deploy(Ui, repo, params = {}) {
         // But if the folder was deleted and created anew,
         // the above would still hold true, so we detect that here
         || isNewDeployPath) {
-            var url = hosts[repo.HOST] + '/' + repo.REPO + '.git';
             return git.addRemote(repo.TAG, url)
                 .then(() => {
                     Ui.log('');
@@ -99,7 +101,8 @@ export function hook(Ui, request, response, params = {}) {
             if (matches.length > 1) {
                 throw new Error(`Failed deploy attempt (${payload.repository.full_name}): Multiple deploy settings found.`);
             }
-            if (!(deployParams = deployParams[0])) {
+            var deployParams;
+            if (!(deployParams = matches[0])) {
                 throw new Error(`Failed deploy attempt (${payload.repository.full_name}): No deploy settings found.`);
             }
             if (!deployParams.AUTO_DEPLOY) {
@@ -116,6 +119,7 @@ export function hook(Ui, request, response, params = {}) {
             }
             Ui.log('---------------------------');
             await deploy(Ui, deployParams);
+            Ui.log('');
             Ui.log('---------------------------');
             resolve();
         });
@@ -123,7 +127,7 @@ export function hook(Ui, request, response, params = {}) {
             eventHandler.receive({
                 id: request.headers['x-github-delivery'],
                 name: request.headers['x-github-event'],
-                payload: await request.body(),
+                payload: await request.inputs(),
             }).catch(reject);
         }
     });

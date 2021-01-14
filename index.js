@@ -170,6 +170,6 @@ console.log('');
             Ui.log(Ui.f`Where <${'command'}> is one of:`);
             Ui.log(Ui.f`${commands}`);
             Ui.log('');
-            Ui.log(Ui.f`You may also refer to the Webflo DOCS as ${'https://webqit.dev/tooling/webflo'}`);
+            Ui.log(Ui.f`You may also refer to the Webflo DOCS as ${'https://webqit.io/tooling/webflo'}`);
     }    
 })();

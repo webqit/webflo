@@ -55,17 +55,6 @@ export default function(Ui, config) {
             $config.VHOST = vhosts[0];
             $config.ROOT = Path.join($config.ROOT, vhosts[0].PATH);
         }
-        
-        // -------------------
-        // Handle autodeploy events
-        // -------------------
-
-        if (modules.repos) {
-            modules.repos.hook(Ui, request, response, $config).then(async () => {
-                await serverRestart(Ui, $config.RUNTIME_NAME);
-                process.exit();
-            }).catch(e => { fatal = e; });
-        }
 
         // -------------------
         // Handle redirects
@@ -160,37 +149,48 @@ export default function(Ui, config) {
 
             // Accept Headers
             request.accepts = Accepts(request);
-
-            // The app router
-            const router = new Router(location.pathname, $config);
-
-            // The service object
-            const service = {
-                config: $config,
-                // Request
-                request,
-                // Response
-                response,
-                // Piping utility
-                route: async (...stack) => {
-                    var val;
-                    var pipe = async function() {
-                        var middleware = stack.shift();
-                        if (middleware) {
-                            val = await middleware(request, response, pipe);
-                            return val;
-                        }
-                    };
-                    await pipe();
-                    return val;
-                },
-            };
-
+        
             // --------
             // service.request handling
             // --------
 
             try {
+   
+                // -------------------
+                // Handle autodeploy events
+                // -------------------
+
+                if (modules.repos) {
+                    modules.repos.hook(Ui, request, response, $config).then(async () => {
+                        await serverRestart(Ui, $config.RUNTIME_NAME);
+                        process.exit();
+                    }).catch(e => { throw e; });
+                }
+
+                // The app router
+                const router = new Router(location.pathname, $config);
+
+                // The service object
+                const service = {
+                    config: $config,
+                    // Request
+                    request,
+                    // Response
+                    response,
+                    // Piping utility
+                    route: async (...stack) => {
+                        var val;
+                        var pipe = async function() {
+                            var middleware = stack.shift();
+                            if (middleware) {
+                                val = await middleware(request, response, pipe);
+                                return val;
+                            }
+                        };
+                        await pipe();
+                        return val;
+                    },
+                };
 
                 // --------
                 // ROUTE FOR DATA
