@@ -10,37 +10,38 @@ import _isTypeObject from '@webqit/util/js/isTypeObject.js';
 import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
 
 /**
- * Reads REPOS from file.
+ * Reads ORIGINS from file.
  * 
  * @param object    params
  * 
  * @return object
  */
 export async function read(params = {}) {
-    const config = DotJson.read(Path.join(params.ROOT || '', './.webflo/config/repos.json'));
+    const config = DotJson.read(Path.join(params.ROOT || '', './.webflo/config/origins.json'));
     
-    var hostname = '', repo = '';
+    var hostname = '', origin = '';
     if (params.PKG && params.PKG.repository) {
         var inferredRepo = Url.parse(_isTypeObject(params.PKG.repository) ? params.PKG.repository.url : params.PKG.repository);
         hostname = _before(inferredRepo.hostname, '.');
-        repo = _before(inferredRepo.pathname, '.');
+        origin = _before(inferredRepo.pathname, '.');
     }
 
     // Params
     return _merge({
-        REPOS: [{
+        ORIGINS: [{
             HOST: hostname,
-            REPO: repo,
+            REPO: origin,
             BRANCH: 'master',
             TAG: 'origin',
             DEPLOY_PATH: '.',
+            ONDEPLOY: '',
         }],
     }, config);
 
 };
 
 /**
- * Writes REPOS to file.
+ * Writes ORIGINS to file.
  * 
  * @param object    config
  * @param object    params
@@ -48,18 +49,18 @@ export async function read(params = {}) {
  * @return void
  */
 export async function write(config, params = {}) {
-    DotJson.write(config, Path.join(params.ROOT || '', './.webflo/config/repos.json'));
+    DotJson.write(config, Path.join(params.ROOT || '', './.webflo/config/origins.json'));
 };
 
 /**
  * @match
  */
-export async function match(repo, params = {}) {
-    return ((await read(params)).REPOS || []).filter(_repo => _repo.TAG.toLowerCase() === repo.toLowerCase() || _repo.REPO.toLowerCase() === repo.toLowerCase());
+export async function match(origin, params = {}) {
+    return ((await read(params)).ORIGINS || []).filter(_origin => _origin.TAG.toLowerCase() === origin.toLowerCase() || _origin.REPO.toLowerCase() === origin.toLowerCase());
 };
 
 /**
- * Configures REPOS.
+ * Configures ORIGINS.
  * 
  * @param object    config
  * @param object    choices
@@ -79,12 +80,12 @@ export async function questions(config, choices = {}, params = {}) {
     // Questions
     return [
         {
-            name: 'REPOS',
+            name: 'ORIGINS',
             type: 'recursive',
             controls: {
                 name: 'repository',
             },
-            initial: config.REPOS,
+            initial: config.ORIGINS,
             questions: [
                 {
                     name: 'HOST',
@@ -96,7 +97,7 @@ export async function questions(config, choices = {}, params = {}) {
                 {
                     name: 'REPO',
                     type: 'text',
-                    message: 'Enter a repository name (in the format: user-or-org/repo)',
+                    message: 'Enter a repository name (in the format: user-or-org/origin)',
                     validation: ['input', 'important'],
                 },
                 {
@@ -108,19 +109,19 @@ export async function questions(config, choices = {}, params = {}) {
                 {
                     name: 'TAG',
                     type: 'text',
-                    message: 'Enter a local name for this repo',
+                    message: 'Enter a local name for this origin',
                     validation: ['input', 'important'],
                 },
                 {
                     name: 'DEPLOY_PATH',
                     type: 'text',
-                    message: 'Enter the relative local path that this repo deploys to',
+                    message: 'Enter the relative local path that this origin deploys to',
                     validation: ['path-relative'],
                 },
                 {
                     name: 'AUTO_DEPLOY',
                     type: 'toggle',
-                    message: 'Auto-deploy this repo on every push to branch?',
+                    message: 'Auto-deploy this origin on every push to branch?',
                     active: 'YES',
                     inactive: 'NO',
                 },
@@ -128,6 +129,12 @@ export async function questions(config, choices = {}, params = {}) {
                     name: 'AUTO_DEPLOY_SECRET',
                     type: (prev, ans) => ans.AUTO_DEPLOY ? 'text' : null,
                     message: 'Enter the "secret" for validating the auto-deploy webhook event',
+                    validation: ['input', 'important'],
+                },
+                {
+                    name: 'ONDEPLOY',
+                    type: 'text',
+                    message: 'Enter an optional "command" to run on deploy',
                     validation: ['input', 'important'],
                 },
             ],

@@ -13,12 +13,12 @@ import * as client from './config/client.js';
 import * as manifest from './config/manifest.js';
 import * as prerendering from './config/prerendering.js';
 import * as redirects from './config/redirects.js';
-import * as repos from './config/repos.js';
+import * as origins from './config/origins.js';
 import * as server from './config/server.js';
 import * as variables from './config/variables.js';
 import * as vhosts from './config/vhosts.js';
 import * as CMDclient from './cmd/client.js';
-import * as CMDrepos from './cmd/repos.js';
+import * as CMDorigins from './cmd/origins.js';
 import * as CMDserver from './cmd/server.js';
 
 // ------------------------------------------
@@ -34,7 +34,7 @@ const params = {
 const commands = {
     config: 'Starts a configuration processes.',
     build: CMDclient.desc.build,
-    deploy: CMDrepos.desc.deploy,
+    deploy: CMDorigins.desc.deploy,
     ...CMDserver.desc,
 };
 
@@ -58,27 +58,27 @@ console.log('');
         // --------------------------
 
         case 'deploy':
-            var repo = Object.keys(keywords)[0],
+            var origin = Object.keys(keywords)[0],
                 options;
             // ----------------
-            if (!repo && ellipsis) {
-                if (!(options = (await repos.read(params)).REPOS) || _isEmpty(options)) {
-                    Ui.log(Ui.f`Please configure a repository (${'webflo config ...'}) to use the ${'deploy'} command.`);
+            if (!origin && ellipsis) {
+                if (!(options = (await origins.read(params)).REPOS) || _isEmpty(options)) {
+                    Ui.log(Ui.f`Please configure an origin (${'webflo config ...'}) to use the ${'deploy'} command.`);
                     return;
                 }
-                repo = await Promptx({
-                    name: 'repo',
+                origin = await Promptx({
+                    name: 'origin',
                     type: 'select',
                     choices: options.map(r => ({value: r.TAG})),
-                    message: 'Please select a repo',
-                }).then(d => d.repo);
+                    message: 'Please select a origin',
+                }).then(d => d.origin);
             }
-            if (!repo) {
-                Ui.log(Ui.f`Please add a repository name to the ${command} command. For options, use the ellipsis ${'...'}`);
+            if (!origin) {
+                Ui.log(Ui.f`Please add an origin name to the ${command} command. For options, use the ellipsis ${'...'}`);
                 return;
             }
             // ----------------
-            CMDrepos.deploy(Ui, repo, params);
+            CMDorigins.deploy(Ui, origin, params);
         break;
 
         // --------------------------
@@ -132,8 +132,8 @@ console.log('');
                 prerendering,
                 redirects,
                 rdr: redirects,
-                repos,
-                repos: repos,
+                origins,
+                origins: origins,
                 server,
                 variables,
                 vars: variables,

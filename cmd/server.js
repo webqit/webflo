@@ -30,9 +30,8 @@ export async function start(Ui, flags, params = {}) {
      // -------------------
     // Splash screen
     // -------------------
-    if (config.RUNTIME_MODE !== 'production' && !flags.prod && !flags.p) {
-        await Server.call(null, Ui, config);
-    // -------------------
+    const showRunning = (processName = null, processAutoRestart = false) => {
+        // -------------------
         // Splash screen
         // -------------------
         const WEBFLO = DotJson.read(Path.join(currentDir, '../package.json'));
@@ -44,29 +43,40 @@ export async function start(Ui, flags, params = {}) {
         Ui.log('');
         Ui.log(Ui.f`${'-------------------------------'}`);
         Ui.log('');
-    } else {
-        await _promise(resolve => {
+        if (processName) {
+            Ui.success(`Server running in ${Ui.style.keyword('production')}; ${(processAutoRestart ? 'will' : 'wo\'nt')} autorestart on crash!`);
+            Ui.info(Ui.f`Process name: ${processName}`);
+            Ui.log('');
+            Ui.log(Ui.f`${'-------------------------------'}`);
+        }
+
+    };
+    const runtimeMode = flags.prod ? 'prod' : (flags.dev ? 'dev' : config.RUNTIME_MODE);
+    if (config.RUNTIME_MODE !== runtimeMode) {
+        config.RUNTIME_MODE = runtimeMode;
+    }
+    if (runtimeMode === 'prod') {
+        return new Promise(resolve => {
             Pm2.connect(err => {
                 if (err) {
                     Ui.error(err);
                     resolve();
                 } else {
 
-                    var configFile = Path.resolve('./.webflo/config/server.json');
-                    var script = Path.resolve(currentDir, '../modules/server/pm2starter.js'),
-                        args = configFile,
+                    var script = Path.resolve(currentDir, '../modules/server/start.mjs'),
                         name = config.RUNTIME_NAME,
+                        args = Object.keys(flags).map(f => '--' + f),
+                        exec_mode = 'fork',
                         autorestart = 'AUTO_RESTART' in config ? config.AUTO_RESTART : true,
                         merge_logs = 'MERGE_LOGS' in config ? config.MERGE_LOGS : true,
                         output = Path.resolve('./.webflo/runtime/output.log'),
                         error = Path.resolve('./.webflo/runtime/error.log');
-                    Pm2.start({script, name, args, autorestart, merge_logs, output, error, force: true}, err => {
+                    Pm2.start({script, name, args, exec_mode, autorestart, merge_logs, output, error, force: true}, err => {
                         if (err) {
                             Ui.error(err);
                         } else {
                             Ui.log('');
-                            Ui.success(`Server running in ${Ui.style.keyword('production')}; ${(autorestart ? 'will' : 'wo\'nt')} autorestart on crash!`);
-                            Ui.info(Ui.f`Instance name: ${name}`);
+                            showRunning(name, autorestart);
                         }
                         Pm2.disconnect(resolve);
                     });
@@ -74,6 +84,8 @@ export async function start(Ui, flags, params = {}) {
             });
         });    
     }
+    await Server.call(null, Ui, config);
+    showRunning();
 };
 
 /**

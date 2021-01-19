@@ -20,7 +20,7 @@ import { restart as serverRestart } from '../../cmd/server.js';
 import Router, { FixedResponse } from './Router.js';
 import * as prerendering from '../../config/prerendering.js';
 import * as redirects from '../../config/redirects.js';
-import * as repos from '../../cmd/repos.js';
+import * as origins from '../../cmd/origins.js';
 import * as vhosts from '../../config/vhosts.js';
 
 /**
@@ -32,7 +32,7 @@ import * as vhosts from '../../config/vhosts.js';
  */
 export default function(Ui, config) {
 
-    const modules = { prerendering, redirects, repos, vhosts, };
+    const modules = { prerendering, redirects, origins, vhosts, };
     const PORT = parseInt(config.P || config.PORT);
     const PROTOCOL = PORT === 443 ? 'https' : 'http';
 
@@ -154,14 +154,36 @@ export default function(Ui, config) {
             // service.request handling
             // --------
 
+            // The service object
+            const service = {
+                config: $config,
+                // Request
+                request,
+                // Response
+                response,
+                // Piping utility
+                route: async (...stack) => {
+                    var val;
+                    var pipe = async function() {
+                        var middleware = stack.shift();
+                        if (middleware) {
+                            val = await middleware(request, response, pipe);
+                            return val;
+                        }
+                    };
+                    await pipe();
+                    return val;
+                },
+            };
+
             try {
    
                 // -------------------
                 // Handle autodeploy events
                 // -------------------
 
-                if (modules.repos) {
-                    modules.repos.hook(Ui, request, response, $config).then(async () => {
+                if (modules.origins) {
+                    modules.origins.hook(Ui, request, response, $config).then(async () => {
                         await serverRestart(Ui, $config.RUNTIME_NAME);
                         process.exit();
                     }).catch(e => { throw e; });
@@ -169,28 +191,6 @@ export default function(Ui, config) {
 
                 // The app router
                 const router = new Router(location.pathname, $config);
-
-                // The service object
-                const service = {
-                    config: $config,
-                    // Request
-                    request,
-                    // Response
-                    response,
-                    // Piping utility
-                    route: async (...stack) => {
-                        var val;
-                        var pipe = async function() {
-                            var middleware = stack.shift();
-                            if (middleware) {
-                                val = await middleware(request, response, pipe);
-                                return val;
-                            }
-                        };
-                        await pipe();
-                        return val;
-                    },
-                };
 
                 // --------
                 // ROUTE FOR DATA
@@ -335,7 +335,7 @@ export default function(Ui, config) {
         }
 
         if (fatal) {
-            if ($config.RUNTIME_MODE !== 'production') {
+            if ($config.RUNTIME_MODE !== 'prod') {
                 console.trace(fatal);
                 //Ui.error(fatal);
                 process.exit();

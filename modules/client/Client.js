@@ -109,7 +109,12 @@ export default function(params) {
 				return window;
 			});
 
-			window.scroll({top: 0, left: 0, behavior: 'auto'});
+			var urlTarget;
+			if (location.hash && (urlTarget = document.querySelector(location.hash))) {
+				urlTarget.scrollIntoView(true);
+			} else {
+				window.scroll({top: 0, left: 0, behavior: 'auto'});
+			}
 
 			// --------
 			// Render...
