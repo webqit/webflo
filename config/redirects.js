@@ -11,65 +11,65 @@ import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
 import Minimatch from 'minimatch';
 
 /**
- * Reads REDIRECTS from file.
+ * Reads entries from file.
  * 
- * @param object    params
+ * @param object    setup
  * 
  * @return object
  */
-export async function read(params = {}) {
-    return DotJson.read(Path.join(params.ROOT || '', './.webflo/config/redirects.json'));
+export async function read(setup = {}) {
+    return DotJson.read(Path.join(setup.ROOT || '', './.webflo/config/redirects.json'));
 };
 
 /**
- * Writes REDIRECTS to file.
+ * Writes entries to file.
  * 
  * @param object    config
- * @param object    params
+ * @param object    setup
  * 
  * @return void
  */
-export async function write(config, params = {}) {
-    DotJson.write(config, Path.join(params.ROOT || '', './.webflo/config/redirects.json'));
+export async function write(config, setup = {}) {
+    DotJson.write(config, Path.join(setup.ROOT || '', './.webflo/config/redirects.json'));
 };
 
 /**
  * @match
  */
-export async function match(url, params = {}) {
+export async function match(url, setup = {}) {
     if (!_isObject(url)) {
         url = Url.parse(url);
     }
-    return ((await read(params)).REDIRECTS || []).reduce((match, rdr) => {
+    return ((await read(setup)).entries || []).reduce((match, rdr) => {
         if (match) {
             return match;
         }
-        var matcher = Minimatch.Minimatch(rdr.FROM, {dot: true});
+        var matcher = Minimatch.Minimatch(rdr.to, {dot: true});
         var regex = matcher.makeRe();
         var rootMatch = url.pathname.split('/').filter(seg => seg).map(seg => seg.trim()).reduce((str, seg) => str.endsWith(' ') ? str : ((str = str + '/' + seg) && str.match(regex) ? str + ' ' : str), '');
         if (rootMatch.endsWith(' ')) {
             var leaf = _after(url.pathname, rootMatch.trim());
-            var [ target, query ] = rdr.TO.split('?');
+            var [ target, query ] = rdr.to.split('?');
             // ---------------
             return {
                 target: target + leaf,
                 query: [(url.search || '').substr(1), query].filter(str => str).join('&'),
-                code: rdr.CODE,
+                code: rdr.code,
             };
         }
     }, null);
 };
 
 /**
- * Configures REDIRECTS.
+ * Configures entries.
  * 
  * @param object    config
  * @param object    choices
- * @param object    params
+ * @param object    setup
  * 
  * @return Array
  */
-export async function questions(config, choices = {}, params = {}) {
+export async function questions(config, choices = {}, setup = {}) {
 
     // Choices
     const CHOICES = _merge({
@@ -82,27 +82,27 @@ export async function questions(config, choices = {}, params = {}) {
     // Questions
     return [
         {
-            name: 'REDIRECTS',
+            name: 'entries',
             type: 'recursive',
             controls: {
                 name: 'redirect',
             },
-            initial: config.REDIRECTS,
+            initial: config.entries,
             questions: [
                 {
-                    name: 'FROM',
+                    name: 'from',
                     type: 'text',
                     message: 'Enter "from" URL',
                     validation: ['important'],
                 },
                 {
-                    name: 'TO',
+                    name: 'to',
                     type: 'text',
                     message: 'Enter "to" URL',
                     validation: ['important'],
                 },
                 {
-                    name: 'CODE',
+                    name: 'code',
                     type: 'select',
                     choices: CHOICES.code,
                     message: 'Enter redirect code',

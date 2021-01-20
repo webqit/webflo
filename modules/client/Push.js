@@ -43,12 +43,12 @@ export default class Push {
         if (!subscription) {
             subscription = await this.registration.pushManager.subscribe({
                 userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(this.params.PUBLIC_KEY),
+                applicationServerKey: urlBase64ToUint8Array(this.params.public_key),
             }).then(subscription => {
                 console.log('Subscribed to', subscription.endpoint);
                 return subscription;
             });
-            return await fetch(this.params.REGISTRATION_URL, {
+            return await fetch(this.params.registration_url, {
                 method: 'post',
                 headers: {'Content-type': 'application/json', Accept: 'application/json'},
                 body: JSON.stringify({subscription,}),
@@ -71,7 +71,7 @@ export default class Push {
                 console.log('Unsubscribed', subscription.endpoint);
                 return subscription;
             });
-            return await fetch(this.params.UNREGISTRATION_URL, {
+            return await fetch(this.params.deregistration_url, {
                 method: 'post',
                 headers: {'Content-type': 'application/json', Accept: 'application/json'},
                 body: JSON.stringify({subscription,}),

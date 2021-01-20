@@ -40,31 +40,30 @@ export default function(params) {
         // -------------------
         // Resolve canonicity
         // -------------------
+
+		// The srvice object
+		const flow = {
+			onHydration: initCall && (await window.WQ.OOHTML.meta('isomorphic')),
+			location: Url.parseUrl(request.url),
+			params,
+			request,
+			data: null,
+		}
 		
 		// The app router
-		const location = Url.parseUrl(request.url);
-		const requestPath = location.pathname;
+		const requestPath = flow.location.pathname;
 		const router = new Router(requestPath, params);
-		const onHydration = initCall && (await window.WQ.OOHTML.meta('isomorphic'));
 		if (networkProgressOngoing) {
 			networkProgressOngoing.setActive(false);
 			networkProgressOngoing = null;
 		}
 
-		// The srvice object
-		const service = {
-			onHydration,
-			params,
-			request,
-		}
-
-		var data;
 		try {
 
 			// --------
 			// ROUTE FOR DATA
 			// --------
-			data = await router.route([service], 'default', async function(output) {
+			flow.data = await router.route([flow], 'default', async function(output) {
 				if (arguments.length) {
 					return output;
 				}
@@ -90,7 +89,7 @@ export default function(params) {
 			// Render
 			// --------
 			await window.WQ.DOM.ready;
-			const _window = await router.route([data], 'render', async function(_window) {
+			const _window = await router.route([flow.data || {}], 'render', async function(_window) {
 				if (arguments.length) {
 					return _window;
 				}
@@ -98,19 +97,19 @@ export default function(params) {
 				if (!window.document.state.env) {
 					window.document.setState({
 						env: 'client',
-						onHydration,
+						onHydration: flow.onHydration,
 						network: 
 						networkWatch,
 					}, {update: true});
 				}
-				window.document.setState({page: data, location}, {update: true});
+				window.document.setState({page: flow.data, location: flow.location}, {update: true});
 				window.document.body.setAttribute('template', 'page' + requestPath);
 
 				return window;
 			});
 
 			var urlTarget;
-			if (location.hash && (urlTarget = document.querySelector(location.hash))) {
+			if (flow.location.hash && (urlTarget = document.querySelector(flow.location.hash))) {
 				urlTarget.scrollIntoView(true);
 			} else {
 				window.scroll({top: 0, left: 0, behavior: 'auto'});
@@ -122,7 +121,7 @@ export default function(params) {
 
 			await window.WQ.DOM.templatesReady;
 
-			return data;
+			return flow.data;
 
 		} catch(e) { throw e }
 		

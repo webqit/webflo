@@ -23,9 +23,8 @@ export const desc = {
 /**
  * @start
  */
-export async function start(Ui, flags, params = {}) {
-    const config = await server.read(params);
-    config.ROOT = process.cwd();
+export async function start(Ui, flags, setup = {}) {
+    const config = await server.read(setup);
     const currentDir = Path.dirname(Url.fileURLToPath(import.meta.url));
      // -------------------
     // Splash screen
@@ -39,7 +38,7 @@ export async function start(Ui, flags, params = {}) {
         Ui.log('');
         Ui.log(Ui.f`${'-------------------------------'}`);
         Ui.log('');
-        Ui.log(Ui.f`${{PORT: config.PORT, PUBLIC_DIR: config.PUBLIC_DIR, SERVER_DIR: config.SERVER_DIR, }}`);
+        Ui.log(Ui.f`${{HTTP: config.port, HTTPS: config.https.port || 0, PUBLIC_DIR: setup.PUBLIC_DIR, SERVER_DIR: setup.SERVER_DIR, }}`);
         Ui.log('');
         Ui.log(Ui.f`${'-------------------------------'}`);
         Ui.log('');
@@ -47,15 +46,11 @@ export async function start(Ui, flags, params = {}) {
             Ui.success(`Server running in ${Ui.style.keyword('production')}; ${(processAutoRestart ? 'will' : 'wo\'nt')} autorestart on crash!`);
             Ui.info(Ui.f`Process name: ${processName}`);
             Ui.log('');
-            Ui.log(Ui.f`${'-------------------------------'}`);
         }
 
     };
-    const runtimeMode = flags.prod ? 'prod' : (flags.dev ? 'dev' : config.RUNTIME_MODE);
-    if (config.RUNTIME_MODE !== runtimeMode) {
-        config.RUNTIME_MODE = runtimeMode;
-    }
-    if (runtimeMode === 'prod') {
+
+    if (flags.live) {
         return new Promise(resolve => {
             Pm2.connect(err => {
                 if (err) {
@@ -64,13 +59,13 @@ export async function start(Ui, flags, params = {}) {
                 } else {
 
                     var script = Path.resolve(currentDir, '../modules/server/start.mjs'),
-                        name = config.RUNTIME_NAME,
+                        name = config.process.name,
                         args = Object.keys(flags).map(f => '--' + f),
-                        exec_mode = 'fork',
-                        autorestart = 'AUTO_RESTART' in config ? config.AUTO_RESTART : true,
-                        merge_logs = 'MERGE_LOGS' in config ? config.MERGE_LOGS : true,
-                        output = Path.resolve('./.webflo/runtime/output.log'),
-                        error = Path.resolve('./.webflo/runtime/error.log');
+                        exec_mode = config.process.exec_mode || 'fork',
+                        autorestart = 'AUTO_RESTART' in config ? config.process.autorestart : true,
+                        merge_logs = 'merge_logs' in config.process ? config.process.merge_logs : true,
+                        output = config.process.outfile || Path.resolve('./.webflo/runtime/output.log'),
+                        error = config.process.errfile || Path.resolve('./.webflo/runtime/error.log');
                     Pm2.start({script, name, args, exec_mode, autorestart, merge_logs, output, error, force: true}, err => {
                         if (err) {
                             Ui.error(err);
@@ -84,7 +79,7 @@ export async function start(Ui, flags, params = {}) {
             });
         });    
     }
-    await Server.call(null, Ui, config);
+    await Server.call(null, Ui, flags);
     showRunning();
 };
 

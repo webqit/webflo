@@ -9,79 +9,79 @@ import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
 import Minimatch from 'minimatch';
 
 /**
- * Reads PRERENDERING from file.
+ * Reads entries from file.
  * 
- * @param object    params
+ * @param object    setup
  * 
  * @return object
  */
-export async function read(params = {}) {
-    const config = DotJson.read(Path.join(params.ROOT || '', './.webflo/config/prerendering.json'));
+export async function read(setup = {}) {
+    const config = DotJson.read(Path.join(setup.ROOT || '', './.webflo/config/prerendering.json'));
     return _merge({
-        PRERENDERING: [{
-            PAGE: '',
+        entries: [{
+            page: '',
         }],
     }, config);
 };
 
 /**
- * Writes PRERENDERING to file.
+ * Writes entries to file.
  * 
  * @param object    config
- * @param object    params
+ * @param object    setup
  * 
  * @return void
  */
-export async function write(config, params = {}) {
-    DotJson.write(config, Path.join(params.ROOT || '', './.webflo/config/prerendering.json'));
+export async function write(config, setup = {}) {
+    DotJson.write(config, Path.join(setup.ROOT || '', './.webflo/config/prerendering.json'));
 };
 
 /**
  * @match
  */
-export async function match(url, params = {}) {
+export async function match(url, setup = {}) {
     var pathname = url;
     if (_isObject(url)) {
         pathname = url.pathname;
     }
-    return ((await read(params)).PRERENDERING || []).reduce((match, prerend) => {
+    return ((await read(setup)).entries || []).reduce((match, prerend) => {
         if (match) {
             return match;
         }
-        var matcher = Minimatch.Minimatch(prerend.PAGE, {dot: true});
+        var matcher = Minimatch.Minimatch(prerend.page, {dot: true});
         var regex = matcher.makeRe();
         var rootMatch = pathname.split('/').filter(seg => seg).map(seg => seg.trim()).reduce((str, seg) => str.endsWith(' ') ? str : ((str = str + '/' + seg) && str.match(regex) ? str + ' ' : str), '');
         if (rootMatch.endsWith(' ')) {
             return {
-                url: prerend.PAGE,
+                url: prerend.page,
             };
         }
     }, null);
 };
 
 /**
- * Configures PRERENDERING.
+ * Configures entries.
  * 
  * @param object    config
  * @param object    choices
- * @param object    params
+ * @param object    setup
  * 
  * @return Array
  */
-export async function questions(config, choices = {}, params = {}) {
+export async function questions(config, choices = {}, setup = {}) {
 
     // Questions
     return [
         {
-            name: 'PRERENDERING',
+            name: 'entries',
             type: 'recursive',
             controls: {
                 name: 'page',
             },
-            initial: config.PRERENDERING,
+            initial: config.entries,
             questions: [
                 {
-                    name: 'PAGE',
+                    name: 'page',
                     type: 'text',
                     message: 'Page URL',
                     validation: ['important'],

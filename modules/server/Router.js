@@ -15,13 +15,13 @@ export default class Router {
      * Instantiates a new Router.
      * 
      * @param string|array      path
-     * @param object            params
+     * @param object            setup
      * 
      * @return void
      */
-    constructor(path, params) {
+    constructor(path, setup) {
         this.path = _isArray(path) ? path : (path + '').split('/').filter(a => a);
-        this.params = params;
+        this.setup = setup;
     }
 
     /**
@@ -37,7 +37,7 @@ export default class Router {
         
         target = _arrFrom(target);
         var path = this.path;
-        var params = this.params;
+        var setup = this.setup;
 
         // ----------------
         // ROUTER
@@ -54,8 +54,8 @@ export default class Router {
                 wildcardRouteHandlerFile = Path.join(wildcardRouteSlice, './index.js');
             }
     
-            if ((routeHandlerFile && Fs.existsSync(routeHandlerFile = Path.join(params.ROOT, params.SERVER_DIR, routeHandlerFile)))
-            || (wildcardRouteHandlerFile && Fs.existsSync(routeHandlerFile = Path.join(params.ROOT, params.SERVER_DIR, wildcardRouteHandlerFile)))) {
+            if ((routeHandlerFile && Fs.existsSync(routeHandlerFile = Path.join(setup.ROOT, setup.SERVER_DIR, routeHandlerFile)))
+            || (wildcardRouteHandlerFile && Fs.existsSync(routeHandlerFile = Path.join(setup.ROOT, setup.SERVER_DIR, wildcardRouteHandlerFile)))) {
                 exports = await import(Url.pathToFileURL(routeHandlerFile));
                 // ---------------
                 var func = target.reduce((func, name) => func || exports[name], null);
@@ -98,7 +98,7 @@ export default class Router {
      * @return Promise
      */
     fetch(filename) {
-        var _filename = Path.join(this.params.ROOT, this.params.PUBLIC_DIR, filename);
+        var _filename = Path.join(this.setup.ROOT, this.setup.PUBLIC_DIR, filename);
         var autoIndex;
         if (Fs.existsSync(_filename)) {
             // based on the URL path, extract the file extention. e.g. .js, .doc, ...
@@ -140,7 +140,7 @@ export default class Router {
      * @return bool
      */
     putPreRendered(filename, content) {
-        var _filename = Path.join(this.params.PUBLIC_DIR, '.', filename);
+        var _filename = Path.join(this.setup.PUBLIC_DIR, '.', filename);
         if (!Path.parse(filename).ext && filename.lastIndexOf('.') < filename.lastIndexOf('/')) {
             _filename = Path.join(_filename, '/index.html');
         }

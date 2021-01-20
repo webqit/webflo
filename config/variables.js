@@ -7,49 +7,49 @@ import _merge from '@webqit/util/obj/merge.js';
 import * as DotEnv from '@webqit/backpack/src/dotfiles/DotEnv.js';
 
 /**
- * Reads VARIABLES from file.
+ * Reads entries from file.
  * 
- * @param object    params
+ * @param object    setup
  * 
  * @return object
  */
-export async function read(params = {}) {
-    return {VARIABLES: DotEnv.read(Path.join(params.ROOT || '', './.env')),};
+export async function read(setup = {}) {
+    return {entries: DotEnv.read(Path.join(setup.ROOT || '', './.env')),};
 };
 
 /**
- * Writes VARIABLES to file.
+ * Writes entries to file.
  * 
  * @param object    config
- * @param object    params
+ * @param object    setup
  * 
  * @return void
  */
-export async function write(config, params = {}) {
-    DotEnv.write(config.VARIABLES, Path.join(params.ROOT || '', './.env'));
+export async function write(config, setup = {}) {
+    DotEnv.write(config.entries, Path.join(setup.ROOT || '', './.env'));
 };
 
 /**
- * Configures VARIABLES.
+ * Configures entries.
  * 
  * @param object    config
  * @param object    CHOICES
- * @param object    params
+ * @param object    setup
  * 
  * @return Array
  */
-export async function questions(config, choices = {}, params = {}) {
+export async function questions(config, choices = {}, setup = {}) {
 
     // Questions
     return [
         {
-            name: 'VARIABLES',
+            name: 'entries',
             type: 'recursive',
             controls: {
                 name: 'variable',
                 combomode: true,
             },
-            initial: config.VARIABLES,
+            initial: config.entries,
             questions: [
                 {
                     name: 'name',

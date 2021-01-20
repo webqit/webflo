@@ -10,65 +10,67 @@ import _isTypeObject from '@webqit/util/js/isTypeObject.js';
 import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
 
 /**
- * Reads ORIGINS from file.
+ * Reads entries from file.
  * 
- * @param object    params
+ * @param object    setup
  * 
  * @return object
  */
-export async function read(params = {}) {
-    const config = DotJson.read(Path.join(params.ROOT || '', './.webflo/config/origins.json'));
+export async function read(setup = {}) {
+    const config = DotJson.read(Path.join(setup.ROOT || '', './.webflo/config/origins.json'));
     
     var hostname = '', origin = '';
-    if (params.PKG && params.PKG.repository) {
-        var inferredRepo = Url.parse(_isTypeObject(params.PKG.repository) ? params.PKG.repository.url : params.PKG.repository);
+    if (setup.PKG && setup.PKG.repository) {
+        var inferredRepo = Url.parse(_isTypeObject(setup.PKG.repository) ? setup.PKG.repository.url : setup.PKG.repository);
         hostname = _before(inferredRepo.hostname, '.');
         origin = _before(inferredRepo.pathname, '.');
     }
 
     // Params
     return _merge({
-        ORIGINS: [{
-            HOST: hostname,
-            REPO: origin,
-            BRANCH: 'master',
-            TAG: 'origin',
-            DEPLOY_PATH: '.',
-            ONDEPLOY: '',
+        entries: [{
+            host: hostname,
+            repo: origin,
+            branch: 'master',
+            tag: 'origin',
+            deploy_path: '.',
+            autodeploy: true,
+            autodeploy_secret: '',
+            ondeploy: '',
         }],
     }, config);
 
 };
 
 /**
- * Writes ORIGINS to file.
+ * Writes entries to file.
  * 
  * @param object    config
- * @param object    params
+ * @param object    setup
  * 
  * @return void
  */
-export async function write(config, params = {}) {
-    DotJson.write(config, Path.join(params.ROOT || '', './.webflo/config/origins.json'));
+export async function write(config, setup = {}) {
+    DotJson.write(config, Path.join(setup.ROOT || '', './.webflo/config/origins.json'));
 };
 
 /**
  * @match
  */
-export async function match(origin, params = {}) {
-    return ((await read(params)).ORIGINS || []).filter(_origin => _origin.TAG.toLowerCase() === origin.toLowerCase() || _origin.REPO.toLowerCase() === origin.toLowerCase());
+export async function match(origin, setup = {}) {
+    return ((await read(setup)).entries || []).filter(_origin => _origin.tag.toLowerCase() === origin.toLowerCase() || _origin.repo.toLowerCase() === origin.toLowerCase());
 };
 
 /**
- * Configures ORIGINS.
+ * Configures entries.
  * 
  * @param object    config
  * @param object    choices
- * @param object    params
+ * @param object    setup
  * 
  * @return Array
  */
-export async function questions(config, choices = {}, params = {}) {
+export async function questions(config, choices = {}, setup = {}) {
 
     // Choices
     const CHOICES = _merge({
@@ -80,59 +82,59 @@ export async function questions(config, choices = {}, params = {}) {
     // Questions
     return [
         {
-            name: 'ORIGINS',
+            name: 'entries',
             type: 'recursive',
             controls: {
                 name: 'repository',
             },
-            initial: config.ORIGINS,
+            initial: config.entries,
             questions: [
                 {
-                    name: 'HOST',
+                    name: 'host',
                     type: 'select',
                     message: 'Host name',
                     choices: CHOICES.host,
                     validation: ['input', 'important'],
                 },
                 {
-                    name: 'REPO',
+                    name: 'repo',
                     type: 'text',
                     message: 'Enter a repository name (in the format: user-or-org/origin)',
                     validation: ['input', 'important'],
                 },
                 {
-                    name: 'BRANCH',
+                    name: 'branch',
                     type: 'text',
                     message: 'Specifiy the git branch within the given repository',
                     validation: ['input', 'important'],
                 },
                 {
-                    name: 'TAG',
+                    name: 'tag',
                     type: 'text',
                     message: 'Enter a local name for this origin',
                     validation: ['input', 'important'],
                 },
                 {
-                    name: 'DEPLOY_PATH',
+                    name: 'deploy_path',
                     type: 'text',
                     message: 'Enter the relative local path that this origin deploys to',
                     validation: ['path-relative'],
                 },
                 {
-                    name: 'AUTO_DEPLOY',
+                    name: 'autodeploy',
                     type: 'toggle',
                     message: 'Auto-deploy this origin on every push to branch?',
                     active: 'YES',
                     inactive: 'NO',
                 },
                 {
-                    name: 'AUTO_DEPLOY_SECRET',
-                    type: (prev, ans) => ans.AUTO_DEPLOY ? 'text' : null,
+                    name: 'autodeploy_secret',
+                    type: (prev, ans) => ans.autodeploy ? 'text' : null,
                     message: 'Enter the "secret" for validating the auto-deploy webhook event',
                     validation: ['input', 'important'],
                 },
                 {
-                    name: 'ONDEPLOY',
+                    name: 'ondeploy',
                     type: 'text',
                     message: 'Enter an optional "command" to run on deploy',
                     validation: ['input', 'important'],

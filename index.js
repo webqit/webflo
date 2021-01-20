@@ -9,6 +9,7 @@ import parseArgs from '@webqit/backpack/src/cli/parseArgs.js';
 import Ui from '@webqit/backpack/src/cli/Ui.js';
 import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
 import { Promptx } from '@webqit/backpack/src/cli/Promptx.js';
+import * as _setup from './config/setup.js';
 import * as client from './config/client.js';
 import * as manifest from './config/manifest.js';
 import * as prerendering from './config/prerendering.js';
@@ -23,19 +24,16 @@ import * as CMDserver from './cmd/server.js';
 
 // ------------------------------------------
 
-const PKG = DotJson.read('./package.json');
-const params = {
-    ROOT: process.cwd(),
-    PKG,
-};
+const config = { client, manifest, prerendering, redirects, origins, server, variables, vhosts, };
+const cmd = { client: CMDclient, origins: CMDorigins, server: CMDserver, };
 
 // ------------------------------------------
 
 const commands = {
     config: 'Starts a configuration processes.',
-    build: CMDclient.desc.build,
-    deploy: CMDorigins.desc.deploy,
-    ...CMDserver.desc,
+    build: cmd.client.desc.build,
+    deploy: cmd.origins.desc.deploy,
+    ...cmd.server.desc,
 };
 
 // ------------------------------------------
@@ -47,12 +45,14 @@ const { command, keywords, flags, options, ellipsis } = parseArgs(process.argv);
 console.log('');
 
 (async function() {
+    const setup = await _setup.read({});
+    setup.PKG = DotJson.read('./package.json');
     switch(command) {
 
         // --------------------------
 
         case 'build':
-            CMDclient.build(Ui, params);
+            cmd.client.build(Ui, setup);
         break;
 
         // --------------------------
@@ -62,7 +62,7 @@ console.log('');
                 options;
             // ----------------
             if (!origin && ellipsis) {
-                if (!(options = (await origins.read(params)).REPOS) || _isEmpty(options)) {
+                if (!(options = (await config.origins.read(setup)).REPOS) || _isEmpty(options)) {
                     Ui.log(Ui.f`Please configure an origin (${'webflo config ...'}) to use the ${'deploy'} command.`);
                     return;
                 }
@@ -78,13 +78,13 @@ console.log('');
                 return;
             }
             // ----------------
-            CMDorigins.deploy(Ui, origin, params);
+            cmd.origins.deploy(Ui, origin, setup);
         break;
 
         // --------------------------
 
         case 'start':
-            CMDserver.start(Ui, flags, params);
+           cmd.server.start(Ui, flags, setup);
         break;
         
         case 'stop':
@@ -95,7 +95,7 @@ console.log('');
                 runtime = await Promptx({
                     name: 'runtime',
                     type: 'select',
-                    choices: (await CMDserver.processes(Ui)).map(r => ({title: r.name, description: r.status, value: r.name})).concat({description: 'All of the above', value: 'all'}),
+                    choices: (await cmd.server.processes(Ui)).map(r => ({title: r.name, description: r.status, value: r.name})).concat({description: 'All of the above', value: 'all'}),
                     message: 'Please select a runtime name',
                 }).then(d => d.runtime);
             }
@@ -104,12 +104,12 @@ console.log('');
                 return;
             }
             // ----------------
-            await CMDserver[command](Ui, runtime, flags);
+            await cmd.server[command](Ui, runtime, flags);
             process.exit();
         break;
 
         case 'processes':
-            const processes = await CMDserver.processes(Ui, flags);
+            const processes = await cmd.server.processes(Ui, flags);
             Ui.title(`SERVERS`);
             if (processes.length) {
                 processes.forEach(service => {
@@ -125,20 +125,6 @@ console.log('');
 
         case 'config':
             
-            // config
-            const config = {
-                client,
-                manifest,
-                prerendering,
-                redirects,
-                rdr: redirects,
-                origins,
-                origins: origins,
-                server,
-                variables,
-                vars: variables,
-                vhosts,
-            };
             var domain = Object.keys(keywords)[0];
             // ----------------
             if (!domain && ellipsis) {
@@ -154,9 +140,9 @@ console.log('');
                 return;
             }
             // ----------------
-            const data = await config[domain].read(params);
-            Promptx(await config[domain].questions(data, {}, params)).then(async _data => {
-                await config[domain].write(_merge(data, _data), params);
+            const data = await config[domain].read(setup);
+            Promptx(await config[domain].questions(data, {}, setup)).then(async _data => {
+                await config[domain].write(_merge(data, _data), setup);
             });
 
         break;

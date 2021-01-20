@@ -6,6 +6,7 @@ import Fs from 'fs';
 import Url from 'url';
 import Path from 'path';
 import Webpack from 'webpack';
+import _isEmpty from '@webqit/util/js/isEmpty.js';
 import _beforeLast from '@webqit/util/str/beforeLast.js';
 import * as DotJs from '@webqit/backpack/src/dotfiles/DotJs.js';
 import * as client from '../config/client.js'
@@ -21,28 +22,29 @@ export const desc = {
 /**
  * @build
  */
-export async function build(Ui, params = {}) {
-    const config = await client.read(params);
+export async function build(Ui, setup = {}) {
+    const config = await client.read(setup);
     // Consistent forward slashing
     const forwardSlash = str => str.replace(/\\/g, '/');
     let clientModulesDir = forwardSlash(Url.fileURLToPath(Path.join(import.meta.url, '../../modules/client')));
-    var clientDirSplit = Path.resolve(config.CLIENT_DIR).replace(/\\/g, '/').split('/');
+    var clientDirSplit = Path.resolve(setup.CLIENT_DIR).replace(/\\/g, '/').split('/');
+    var createWorker = !_isEmpty(config.worker);
     let waiting;
 
     // -------------------
     // Create the Service Worker file
     // -------------------
 
-    if (config.CREATE_WORKER) {
+    if (createWorker) {
 
-        var workerBundlingConfig = config.WORKER_BUNDLING || {};
+        var workerBundlingConfig = config.BUNDLING || {};
         if (!workerBundlingConfig.entry) {
             workerBundlingConfig.entry = clientDirSplit.join('/') + '/worker.js';
         }
         if (!workerBundlingConfig.output) {
             workerBundlingConfig.output = {
                 filename: 'worker.js',
-                path: Path.resolve(config.PUBLIC_DIR),
+                path: Path.resolve(setup.PUBLIC_DIR),
             };
         }
 
@@ -58,16 +60,14 @@ export async function build(Ui, params = {}) {
         Ui.log('');
         Ui.title(`SERVICE WORKER BUILD`);
         // >> Routes mapping
-        buildRoutes(Ui, Path.resolve(config.WORKER_DIR), workerBuild, 'Worker-Side Routing:');
+        buildRoutes(Ui, Path.resolve(setup.WORKER_DIR), workerBuild, 'Worker-Side Routing:');
 
         // >> Params
         workerBuild.code.push(``);
         workerBuild.code.push(`// >> Worker Params`);
         workerBuild.code.push(`const params = {`);
-        Object.keys(config).forEach(name => {
-            if (name.startsWith('WORKER_') && name !== 'WORKER_DIR') {
-                workerBuild.code.push(`   ${name.replace('WORKER_', '')}: ${['boolean', 'number'].includes(typeof config[name]) ? config[name] : `'${config[name]}'`},`);
-            }
+        Object.keys(config.worker).forEach(name => {
+            workerBuild.code.push(`   ${name}: ${['boolean', 'number'].includes(typeof config.worker[name]) ? config.worker[name] : `'${config.worker[name]}'`},`);
         });
         workerBuild.code.push(`   ROUTES: routes,`);
         workerBuild.code.push(`};`);
@@ -93,14 +93,14 @@ export async function build(Ui, params = {}) {
     // Create the Client file
     // -------------------
 
-    var clientBundlingConfig = config.CLIENT_BUNDLING || {};
+    var clientBundlingConfig = config.BUNDLING || {};
     if (!clientBundlingConfig.entry) {
         clientBundlingConfig.entry = clientDirSplit.join('/') + '/bundle.js';
     }
     if (!clientBundlingConfig.output) {
         clientBundlingConfig.output = {
             filename: 'bundle.js',
-            path: Path.resolve(config.PUBLIC_DIR),
+            path: Path.resolve(setup.PUBLIC_DIR),
         };
     }
 
@@ -112,7 +112,7 @@ export async function build(Ui, params = {}) {
     Ui.log('');
     Ui.title(`CLIENT BUILD`);
     // >> Routes mapping
-    buildRoutes(Ui, Path.resolve(config.CLIENT_DIR), clientBuild, 'Client-Side Routing:');
+    buildRoutes(Ui, Path.resolve(setup.CLIENT_DIR), clientBuild, 'Client-Side Routing:');
 
     // >> Import the Webflo Client file
     clientBuild.imports[clientModulesDir + '/Client.js'] = 'Client';
@@ -121,11 +121,6 @@ export async function build(Ui, params = {}) {
     clientBuild.code.push(``);
     clientBuild.code.push(`// >> Client Params`);
     clientBuild.code.push(`const params = {`);
-    Object.keys(config).forEach(name => {
-        if (name.startsWith('CLIENT_') && name !== 'CLIENT_DIR') {
-            clientBuild.code.push(`   ${name.replace('CLIENT_', '')}: typeof ${name} !== 'undefined' ? ${name} : ${['boolean', 'number'].includes(typeof config[name]) ? config[name] : `'${config[name]}'`},`);
-        }
-    });
     clientBuild.code.push(`   ROUTES: routes,`);
     clientBuild.code.push(`};`);
 
@@ -135,8 +130,8 @@ export async function build(Ui, params = {}) {
     clientBuild.code.push(`Client.call(null, params);`);
 
     // Service Worker registration code?
-    if (config.CREATE_WORKER) {
-        if (config.WORKER_SUPPORT_PUSH) {
+    if (createWorker) {
+        if (config.worker.support_push) {
             clientBuild.imports[clientModulesDir + '/Push.js'] = 'Push';
         }
         clientBuild.code.push(...[
@@ -144,12 +139,12 @@ export async function build(Ui, params = {}) {
             `// >> Service Worker Registration`,
             `if ('serviceWorker' in navigator) {`,
             `    window.addEventListener('load', () => {`,
-            `        navigator.serviceWorker.register('/${workerBundlingConfig.output.filename}', {scope: '${config.WORKER_SCOPE}'}).then(async registration => {`,
+            `        navigator.serviceWorker.register('/${workerBundlingConfig.output.filename}', {scope: '${config.worker.scope}'}).then(async registration => {`,
             `            console.log('Service worker registered.');`,
-            `            await /*SUPPORT_PUSH*/${config.WORKER_SUPPORT_PUSH} ? new Push(registration, {`,
-            `                REGISTRATION_URL: '${config.WORKER_PUSH_REGISTRATION_URL}',`,
-            `                UNREGISTRATION_URL: '${config.WORKER_PUSH_UNREGISTRATION_URL}',`,
-            `                PUBLIC_KEY: '${config.WORKER_PUSH_PUBLIC_KEY}',`,
+            `            await /*SUPPORT_PUSH*/${config.worker.support_push} ? new Push(registration, {`,
+            `                REGISTRATION_URL: '${config.worker.push_registration_url}',`,
+            `                UNREGISTRATION_URL: '${config.worker.push_registration_url}',`,
+            `                PUBLIC_KEY: '${config.worker.push_public_key}',`,
             `            }) : null;`,
             `        });`,
             `    });`,
@@ -187,14 +182,14 @@ export async function build(Ui, params = {}) {
     // Run webpack
     // -------------------
     
-    if (config.CLIENT_BUNDLING !== false || config.WORKER_BUNDLING !== false) {
+    if (config.BUNDLING !== false) {
         Ui.log('');
         Ui.title(`BUNDLES`);
     }
-    if (config.CREATE_WORKER && config.WORKER_BUNDLING !== false) {
+    if (createWorker) {
         await createBundle(Ui, workerBundlingConfig, 'Bundling the Service Worker Build file');
     }
-    if (config.CLIENT_BUNDLING !== false) {
+    if (config.BUNDLING !== false) {
         await createBundle(Ui, clientBundlingConfig, 'Bundling the Client Build file');
     }
     

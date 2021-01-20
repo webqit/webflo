@@ -20,12 +20,12 @@ export const desc = {
 /**
  * @deploy
  */
-export async function deploy(Ui, origin, params = {}) {
+export async function deploy(Ui, origin, setup = {}) {
     if (!_isObject(origin)) {
         if (!origin) {
             throw new Error(`Please provide a repository name.`);
         }
-        const matches = await origins.match(origin, params);
+        const matches = await origins.match(origin, setup);
         if (matches.length > 1) {
             throw new Error(`Cannot deploy ${origin}: Multiple deploy settings found.`);
         }
@@ -38,12 +38,12 @@ export async function deploy(Ui, origin, params = {}) {
     // Instance
     const git = SimpleGit();
     // Before calling git.init()
-    var isNewDeployPath = !Fs.existsSync((origin.DEPLOY_PATH || '') + '/.git');
-    if (origin.DEPLOY_PATH) {
-        if (!Fs.existsSync(origin.DEPLOY_PATH)) {
-            Fs.mkdirSync(origin.DEPLOY_PATH, {recursive: true});
+    var isNewDeployPath = !Fs.existsSync((origin.deploy_path || '') + '/.git');
+    if (origin.deploy_path) {
+        if (!Fs.existsSync(origin.deploy_path)) {
+            Fs.mkdirSync(origin.deploy_path, {recursive: true});
         }
-        git.cwd(origin.DEPLOY_PATH);
+        git.cwd(origin.deploy_path);
     }
     // Must come after git.cwd()
     git.init();
@@ -51,24 +51,24 @@ export async function deploy(Ui, origin, params = {}) {
     const hosts = {
         github: 'https://github.com',
     };
-    const url = hosts[origin.HOST] + '/' + origin.REPO + '.git';
+    const url = hosts[origin.host] + '/' + origin.repo + '.git';
 
     // Deployment
     const pull = async () => {
         Ui.log('');
-        const waiting = Ui.waiting(Ui.f`Deploying ${origin.TAG}`);
+        const waiting = Ui.waiting(Ui.f`Deploying ${origin.tag}`);
         waiting.start();
         await git.reset('hard');
-        return git.pull(origin.TAG, origin.BRANCH)
+        return git.pull(origin.tag, origin.branch)
             .then(() => {
                 waiting.stop();
-                Ui.success(Ui.f`[${Ui.style.comment((new Date).toUTCString())}] Successfully deployed ${origin.TAG + '@' + origin.BRANCH} - ${url} to ${origin.DEPLOY_PATH}!`);
-                if (origin.ONDEPLOY) {
-                    Ui.success(Ui.f`[ONDEPLOY] ${origin.ONDEPLOY}`);
+                Ui.success(Ui.f`[${Ui.style.comment((new Date).toUTCString())}] Successfully deployed ${origin.tag + '@' + origin.branch} - ${url} to ${origin.deploy_path}!`);
+                if (origin.ondeploy) {
+                    Ui.success(Ui.f`[ondeploy] ${origin.ondeploy}`);
                     const cwd = process.cwd();
-                    process.chdir(origin.DEPLOY_PATH);
+                    process.chdir(origin.deploy_path);
                     return new Promise((resolve, reject) => {
-                        exec(origin.ONDEPLOY, (error, stdout, stderr) => {
+                        exec(origin.ondeploy, (error, stdout, stderr) => {
                             if (error) {
                                 reject(error);
                                 return;
@@ -91,14 +91,14 @@ export async function deploy(Ui, origin, params = {}) {
 
     // Remote setup
     return git.getRemotes().then(remotes => {
-        if (!_any(remotes, remote => remote.name === origin.TAG)
+        if (!_any(remotes, remote => remote.name === origin.tag)
         // But if the folder was deleted and created anew,
         // the above would still hold true, so we detect that here
         || isNewDeployPath) {
-            return git.addRemote(origin.TAG, url)
+            return git.addRemote(origin.tag, url)
                 .then(() => {
                     Ui.log('');
-                    Ui.info(Ui.f`Added new origin - ${origin.TAG}: ${url}`);
+                    Ui.info(Ui.f`Added new origin - ${origin.tag}: ${url}`);
                     return pull();
                 })
                 .catch(err => Ui.error(err));
@@ -111,11 +111,11 @@ export async function deploy(Ui, origin, params = {}) {
 /**
  * @hook
  */
-export function hook(Ui, request, response, params = {}) {
+export function hook(Ui, request, response, setup = {}) {
     return new Promise(async (resolve, reject) => {
         const eventHandler = Webhooks.createEventHandler();
         eventHandler.on('push', async ({ name, payload }) => {
-            const matches = await origins.match(payload.repository.full_name, params);
+            const matches = await origins.match(payload.repository.full_name, setup);
             if (matches.length > 1) {
                 throw new Error(`Failed deploy attempt (${payload.repository.full_name}): Multiple deploy settings found.`);
             }
@@ -123,13 +123,13 @@ export function hook(Ui, request, response, params = {}) {
             if (!(deployParams = matches[0])) {
                 throw new Error(`Failed deploy attempt (${payload.repository.full_name}): No deploy settings found.`);
             }
-            if (!deployParams.AUTO_DEPLOY) {
+            if (!deployParams.autodeploy) {
                 throw new Error(`Failed deploy attempt (${payload.repository.full_name}): Auto-deploy disabled.`);
             }
-            if (!deployParams.AUTO_DEPLOY_SECRET) {
+            if (!deployParams.autodeploy_secret) {
                 throw new Error(`Failed deploy attempt (${payload.repository.full_name}): The deploy settings do not contain a secret.`);
             }
-            if (!Webhooks.verify(deployParams.AUTO_DEPLOY_SECRET, payload, request.headers['x-hub-signature'])) {
+            if (!Webhooks.verify(deployParams.autodeploy_secret, payload, request.headers['x-hub-signature'])) {
                 throw new Error(`Failed deploy attempt (${payload.repository.full_name}): Signature mismatch.`);
             }
             if (payload.repository.disabled || payload.repository.archived) {
@@ -141,7 +141,7 @@ export function hook(Ui, request, response, params = {}) {
             Ui.log('---------------------------');
             resolve();
         });
-        if (request.headers['user-agent'].startsWith('GitHub-Hookshot/')) {
+        if (request.headers['user-agent'] && request.headers['user-agent'].startsWith('GitHub-Hookshot/')) {
             eventHandler.receive({
                 id: request.headers['x-github-delivery'],
                 name: request.headers['x-github-event'],
