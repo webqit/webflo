@@ -19,7 +19,7 @@ import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
 export async function read(setup = {}) {
     // Package
     const pkg = setup.PKG || {};
-    const config = DotJson.read(Path.join(setup.ROOT || '', './manifest.json'));
+    const config = DotJson.read(Path.join(setup.ROOT || '', setup.PUBLIC_DIR, './manifest.json'));
     return _merge({
         // -----------------
         name: pkg.value,
@@ -52,7 +52,7 @@ export async function read(setup = {}) {
  * @return void
  */
 export async function write(config, setup = {}) {
-    DotJson.write(config, Path.join(setup.ROOT || '', './manifest.json'));
+    DotJson.write(config, Path.join(setup.ROOT || '', setup.PUBLIC_DIR, './manifest.json'));
 };
 
 /**

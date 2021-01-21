@@ -103,7 +103,7 @@ export async function questions(config, choices = {}, setup = {}) {
                 {
                     name: 'force',
                     type: 'toggle',
-                    message: 'Enforce HTTPS?',
+                    message: 'Force HTTPS?',
                     active: 'YES',
                     inactive: 'NO',
                 },
