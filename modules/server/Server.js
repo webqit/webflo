@@ -2,6 +2,7 @@
 /**
  * imports
  */
+import Fs from 'fs';
 import Url from 'url';
 import Path from 'path';
 import Http from 'http';
@@ -57,8 +58,8 @@ export default async function(Ui, flags = {}) {
             throw new Error('HTTPS: config/server/https.certfile is not configured.');
         }
         Https.createServer({
-            key: fs.readFileSync(config.server.https.keyfile),
-            cert: fs.readFileSync(config.server.https.certfile),
+            key: Fs.readFileSync(config.server.https.keyfile),
+            cert: Fs.readFileSync(config.server.https.certfile),
         }, (request, response) => {
             run(setup, config, request, response, Ui, flags, 'https');
         }).listen(PORT);
