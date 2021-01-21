@@ -62,7 +62,7 @@ export default async function(Ui, flags = {}) {
             cert: Fs.readFileSync(config.server.https.certfile),
         }, (request, response) => {
             run(setup, config, request, response, Ui, flags, 'https');
-        }).listen(PORT);
+        }).listen(config.server.https.port);
     }
 };
 
@@ -356,7 +356,7 @@ export async function run(setup, config, request, response, Ui, flags = {}, prot
     if (flags.logs !== false) {
         Ui.log(''
             + '[' + (flow.vhost ? Ui.style.keyword(flow.vhost.host) + '][' : '') + Ui.style.comment((new Date).toUTCString()) + '] '
-            + Ui.style.keyword(request.method) + ' '
+            + Ui.style.keyword(protocol.toUpperCase() + ' ' + request.method) + ' '
             + Ui.style.url(request.url) + (flow.data && flow.data.autoIndex ? Ui.style.comment((!request.url.endsWith('/') ? '/' : '') + flow.data.autoIndex) : '') + ' '
             + (flow.data ? ' (' + Ui.style.comment(flow.data.contentType) + ') ' : '')
             + (
