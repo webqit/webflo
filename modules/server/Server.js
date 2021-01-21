@@ -41,7 +41,7 @@ export default async function(Ui, flags = {}) {
     console.log(config.server)
     if (!flags.https_only) {
         Http.createServer((request, response) => {
-            if (config.server.https.port && config.server.https.force) {
+            if (config.server.https.port && config.server.https.force && !flags.http_only) {
                 response.statusCode = 302;
                 response.setHeader('Location', 'https://' + request.headers.host + request.url);
                 response.end();
