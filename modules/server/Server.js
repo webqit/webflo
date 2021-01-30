@@ -305,6 +305,7 @@ export async function run(setup, config, request, response, Ui, flags = {}, prot
                     flow.data = {
                         contentType: 'application/json',
                         content: flow.data,
+                        nostore: true,
                     };
                 }
             }
@@ -316,6 +317,9 @@ export async function run(setup, config, request, response, Ui, flags = {}, prot
             if (!response.headersSent) {
                 if (flow.data) {
                     response.setHeader('Content-type', flow.data.contentType);
+                    if (flow.data.nostore) {
+                        response.setHeader('Cache-Control', 'no-store');
+                    }
                     if (flow.data.cors) {
                         response.setHeader('Access-Control-Allow-Origin', flow.data.cors === true ? '*' : flow.data.cors);
                     }
