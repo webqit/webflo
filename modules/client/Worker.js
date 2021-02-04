@@ -61,14 +61,14 @@ export default function(params) {
 					// Clear outdated CACHES
 					await self.caches.keys().then(keyList => {
 						return Promise.all(keyList.map(key => {
-							if (key !== params.cache_name) {
+							if (key !== params.cache_name && key !== params.cache_name + '_json') {
 								if (params.lifecycle_logs) {
 									console.log('[ServiceWorker] Removing old cache:', key);
 								}
 								return self.caches.delete(key);
 							}
 						}));
-					})
+					}) 
 				}
 				resolve();
 			})
@@ -115,10 +115,14 @@ export default function(params) {
 
 	};
 
+	const getCacheName = request => request.headers.get('Accept') === 'application/json'
+			? params.cache_name + '_json' 
+			: params.cache_name;
+			
 	// Caching strategy: cache_first
 	const cache_first_fetch = evt => {
 
-		return self.caches.open(params.cache_name).then(cache => {
+		return self.caches.open(getCacheName(evt.request)).then(cache => {
 			return cache.match(evt.request).then(response => {
 				if (response) {
 					return response;
@@ -133,7 +137,7 @@ export default function(params) {
 	const network_first_fetch = evt => {
 
 		return self.fetch(evt.request).then(response => handleFetchResponse(evt.request, response)).catch(() => {
-			return self.caches.open(params.cache_name).then(cache => {
+			return self.caches.open(getCacheName(evt.request)).then(cache => {
 				return cache.match(evt.request);
 			});
 		});
@@ -154,7 +158,7 @@ export default function(params) {
 		// as well as the cache consuming the response, we need
 		// to clone it so we have two streams.
 		var responseToCache = response.clone();
-		self.caches.open(params.cache_name).then(cache => {
+		self.caches.open(getCacheName(request)).then(cache => {
 			if (params.lifecycle_logs) {
 				console.log('[ServiceWorker] Caching new resource:', request.url);
 			}

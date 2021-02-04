@@ -98,8 +98,7 @@ export default function(params) {
 					window.document.setState({
 						env: 'client',
 						onHydration: flow.onHydration,
-						network: 
-						networkWatch,
+						network: networkWatch,
 					}, {update: true});
 				}
 				window.document.setState({page: flow.data, location: flow.location}, {update: true});
@@ -123,7 +122,12 @@ export default function(params) {
 
 			return flow.data;
 
-		} catch(e) { throw e }
+		} catch(e) {
+
+			window.document.body.setAttribute('template', '');
+			throw e;
+
+		}
 		
 	});
 

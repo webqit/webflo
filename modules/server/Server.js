@@ -305,7 +305,6 @@ export async function run(setup, config, request, response, Ui, flags = {}, prot
                     flow.data = {
                         contentType: 'application/json',
                         content: flow.data,
-                        nostore: true,
                     };
                 }
             }
