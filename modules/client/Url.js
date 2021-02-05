@@ -58,65 +58,62 @@ export default class Url {
 		// -----------------------
 		// When any one of these properties change,
 		// the others are automatically derived
-		Observer.observe(this, [['search'], ['searchmap'], ['pathname'], ['pathmap'], ['pathsplit'], ['href']], changes => {
-			var [search, searchmap, pathname, pathmap, pathsplit, href] = changes.map(delta => delta.value);
-			var [_search, _searchmap, _pathname, _pathmap, _pathsplit, _href] = changes.map(delta => delta.oldValue);
-			if (changes[1]/*searchmap*/.type === 'set' && !changes[1]/*searchmap*/.isUpdate) {
-				return;
-			}
+		Observer.observe(this, changes => {
 			var urlObj = {};
-			// ----------
-			var isSearchmapSame = changes[1]/*searchmap*/.type === 'get' && _strictEven(searchmap, _searchmap);
-			if (search === _search && !isSearchmapSame) {
-				// "searchmap" was updated. So we update "search"
-				urlObj.search = Self.toSearch(searchmap);
-				if (urlObj.search === this.search) {
-					delete urlObj.search;
+			for (var e of changes) {
+				if (e.name === 'searchmap' && e.type === 'set' && !e.isUpdate) {
+					// Abort completely
+					return;
+				}
+				// ----------
+				if (e.name === 'href' && !e.related.length) {
+					urlObj = Self.parseUrl(e.value);
+				}
+				// ----------
+				var originChanged;
+				if (e.name === 'origin') {
+					originChanged = true;
+				}
+				// ----------
+				if ((e.name === 'pathmap' || e.name === 'pathsplit') && !e.related.includes('pathname')) {
+					// We update "pathname" from the new "pathmap"/"pathsplit"
+					var pathname = Self.toPathname(e.value, this.pathname/*referenceUrl*/, this.pathMappingScheme/*pathMappingScheme*/);
+					if (pathname !== this.pathname) {
+						urlObj.pathname = pathname;
+					}
+				}
+				if ((e.name === 'pathname' || e.name === 'pathsplit') && !e.related.includes('pathmap')) {
+					// We update "pathmap" from the new "pathname"/"pathsplit"
+					var pathmap = Self.toPathmap(e.value, this.pathMappingScheme/*pathMappingScheme*/);
+					if (!_strictEven(pathmap, this.pathmap)) {
+						urlObj.pathmap = pathmap;
+					}
+				}
+				if ((e.name === 'pathname' || e.name === 'pathmap') && !e.related.includes('pathsplit')) {
+					// We update "pathsplit" from the new "pathname"/"pathmap"
+					var pathsplit = Self.toPathsplit(e.value, this.pathname/*referenceUrl*/, this.pathMappingScheme/*pathMappingScheme*/);
+					if (!_strictEven(pathsplit, this.pathsplit)) {
+						urlObj.pathsplit = pathsplit;
+					}
+				}
+				// ----------
+				if (e.name === 'searchmap' && !e.related.includes('search')) {
+					// "searchmap" was updated. So we update "search"
+					var search = Self.toSearch(e.value);
+					if (search !== this.search) {
+						urlObj.search = search;
+					}
+				}
+				if (e.name === 'search' && !e.related.includes('searchmap')) {
+					// "search" was updated. So we update "searchmap"
+					var searchmap = Self.toSearchmap(e.value);
+					if (!_strictEven(searchmap, this.searchmap)) {
+						urlObj.searchmap = searchmap;
+					}
 				}
 			}
-			if (search !== _search && isSearchmapSame) {
-				// "search" was updated. So we update "searchmap"
-				urlObj.searchmap = Self.toSearchmap(search);
-				if (_strictEven(urlObj.searchmap, this.searchmap)) {
-					delete urlObj.searchmap;
-				}
-			}
-			// ----------
-			var isPathmapSame = changes[3]/*pathmap*/.type === 'get' && _strictEven(pathmap, _pathmap);
-			var isPathsplitSame = changes[4]/*pathsplit*/.type === 'get' && _strictEven(pathsplit, _pathsplit);
-			if (pathname === _pathname && (!isPathmapSame || !isPathsplitSame)) {
-				// We update "pathname" from the new "pathmap"/"pathsplit"
-				urlObj.pathname = Self.toPathname(!isPathsplitSame ? pathsplit : pathmap, this.pathname/*referenceUrl*/, this.pathMappingScheme/*pathMappingScheme*/);
-				if (urlObj.pathname === this.pathname) {
-					delete urlObj.pathname;
-				}
-			}
-			if (isPathmapSame && (pathname !== _pathname || !isPathsplitSame)) {
-				// We update "pathmap" from the new "pathname"/"pathsplit"
-				urlObj.pathmap = Self.toPathmap(pathname !== _pathname ? pathname : pathsplit, this.pathMappingScheme/*pathMappingScheme*/);
-				if (_strictEven(urlObj.pathmap, this.pathmap)) {
-					delete urlObj.pathmap;
-				}
-			}
-			if (isPathsplitSame && (pathname !== _pathname || !isPathmapSame)) {
-				// We update "pathsplit" from the new "pathname"/"pathmap"
-				urlObj.pathsplit = Self.toPathsplit(pathname !== _pathname ? pathname : pathmap, this.pathname/*referenceUrl*/, this.pathMappingScheme/*pathMappingScheme*/);
-				if (_strictEven(urlObj.pathsplit, this.pathsplit)) {
-					delete urlObj.pathsplit;
-				}
-			}
-			// ----------
-			if (href === _href && !_isEmpty(urlObj)) {
-				// We update "href" from the new component values
-				urlObj.href = this.origin;
-				urlObj.href += urlObj.pathname/*if pathmap or pathsplit was the change*/ || pathname/*whether or not pathname was the change*/;
-				urlObj.href += urlObj.search/*if searchmap was the change*/ || search/*whether or not search was the change*/ || '';
-				if (urlObj.href === this.href) {
-					delete urlObj.href;
-				}
-			} else if (_isEmpty(urlObj) && href !== _href) {
-				// We update component values from the new "href"
-				urlObj = Self.parseUrl(href);
+			if (!urlObj.href && (originChanged || urlObj.pathname || urlObj.search)) {
+				urlObj.href = [this.origin, urlObj.pathname || this.pathname, urlObj.search || this.search].join('');
 			}
 			if (!_isEmpty(urlObj)) {
 				return Observer.set(this, urlObj);
@@ -125,12 +122,12 @@ export default class Url {
 		// -----------------------
 		// Validate e.details
 		Observer.observe(this, changes => {
-			changes.forEach(delta => {
-				if (delta && delta.detail) {
-					if (!_isTypeObject(delta.detail)) {
+			changes.forEach(e => {
+				if (e && e.detail) {
+					if (!_isTypeObject(e.detail)) {
 						throw new Error('"e.detail" can only be of type object.');
 					}
-					if (delta.detail.request && !_isObject(delta.detail.request)) {
+					if (e.detail.request && !_isObject(e.detail.request)) {
 						throw new Error('"e.detail.request" can only be of type object.');
 					}
 				}
@@ -270,9 +267,9 @@ export default class Url {
 			if (!referenceUrl) {
 				throw new Error('A "referenceUrl" must be given to properly determine a path-naming scheme.');
 			}
-			pathmapOrPathsplit = Self.toPathsplit(pathmapOrPathsplit, referenceUrl, pathMappingScheme);
+			pathmapOrPathsplit = this.toPathsplit(pathmapOrPathsplit, referenceUrl, pathMappingScheme);
 		}
-		return '/' + pathmapOrPathsplit.join('/') + '/';
+		return '/' + pathmapOrPathsplit.filter(a => a).join('/');
 	}
 };
 

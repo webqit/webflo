@@ -107,11 +107,14 @@ export default class Http {
 		// -----------------------
 		// Syndicate changes to
 		// the browser;s location bar
-		Observer.observe(instance.location, 'href', delta => {
-			if (delta.value === window.document.location.href) {
-				instance.history.replaceState(instance.history.state, '', delta.value);
+		Observer.observe(instance.location, 'href', e => {
+			if (e.value === 'http:') return;
+			if (e.value === window.document.location.href || e.value + '/' === window.document.location.href) {
+				instance.history.replaceState(instance.history.state, '', instance.location.href);
 			} else {
-				instance.history.pushState(instance.history.state, '', delta.value);
+				try {
+					instance.history.pushState(instance.history.state, '', instance.location.href);
+				} catch(e) {}
 			}
 		}, {diff: true});
 
@@ -130,8 +133,8 @@ export default class Http {
 		// ----------------------------------
 
 		// Observe location and route
-		Observer.observe(instance.location, 'href', async delta => {
-			return await client.call(null, createRequest(delta.oldValue));
+		Observer.observe(instance.location, 'href', async e => {
+			return await client.call(null, createRequest(e.oldValue));
 		}, {diff: true});
 		// Startup route
 		client.call(null, createRequest(document.referrer), true/* initCall */);

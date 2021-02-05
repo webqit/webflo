@@ -38,6 +38,7 @@ export default class Router {
         target = _arrFrom(target);
         var path = this.path;
         var setup = this.setup;
+        var fetch = this.fetch.bind(this);
 
         // ----------------
         // ROUTER
@@ -70,7 +71,7 @@ export default class Router {
                     _this.pathname = '/' + path.slice(0, index).join('/');
                     _this.dirname = Path.dirname(routeHandlerFile);
                     // -------------
-                    return await func.bind(_this)(...args.concat([output, _next/*next*/]));
+                    return await func.bind(_this)(...args.concat([output, _next/*next*/, fetch]));
                 }
             }
     
