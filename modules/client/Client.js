@@ -71,12 +71,13 @@ export default function(params) {
 				var networkProgress = networkProgressOngoing = new RequestHandle();
 				networkProgress.setActive(true);
 				// -----------------
-				const request = _fetch(requestPath, {
+				var requestUrl = request.url.includes('?') ? request.url + '&webfloapi=1' : request.url + '?webfloapi=1';
+				const response = _fetch(requestUrl, {
 					headers: {accept: 'application/json',},
 				}, networkProgress.updateProgress.bind(networkProgress));
 				// -----------------
-				request.catch(e => networkProgress.throw(e.message));
-				return request.then(response => {
+				response.catch(e => networkProgress.throw(e.message));
+				return response.then(response => {
 					if (!networkProgress.active) {
 						return new Promise(() => {});
 					}
@@ -107,12 +108,14 @@ export default function(params) {
 				return window;
 			});
 
-			var urlTarget;
-			if (flow.location.hash && (urlTarget = document.querySelector(flow.location.hash))) {
-				urlTarget.scrollIntoView(true);
-			} else {
-				window.scroll({top: 0, left: 0, behavior: 'auto'});
-			}
+			setTimeout(() => {
+				var urlTarget;
+				if (flow.location.hash && (urlTarget = document.querySelector(flow.location.hash))) {
+					urlTarget.scrollIntoView(true);
+				} else {
+					window.scroll({top: 0, left: 0, behavior: 'auto'});
+				}
+            }, 0);
 
 			// --------
 			// Render...

@@ -115,31 +115,28 @@ export function hook(Ui, request, response, setup = {}) {
     return new Promise(async (resolve, reject) => {
         const eventHandler = Webhooks.createEventHandler();
         eventHandler.on('push', async ({ name, payload }) => {
-            const matches = await origins.match(payload.repository.full_name, setup);
-            if (matches.length > 1) {
-                throw new Error(`Failed deploy attempt (${payload.repository.full_name}): Multiple deploy settings found.`);
-            }
+            const matches = await origins.match(payload.repository.full_name, setup).filter(o => o.autodeploy);
             var deployParams;
             if (!(deployParams = matches[0])) {
-                throw new Error(`Failed deploy attempt (${payload.repository.full_name}): No deploy settings found.`);
+                return;
             }
-            if (!deployParams.autodeploy) {
-                throw new Error(`Failed deploy attempt (${payload.repository.full_name}): Auto-deploy disabled.`);
+            if (matches.length > 1) {
+                reject(`Failed deploy attempt (${payload.repository.full_name}): Multiple deploy settings found.`);
             }
             if (!deployParams.autodeploy_secret) {
-                throw new Error(`Failed deploy attempt (${payload.repository.full_name}): The deploy settings do not contain a secret.`);
+                reject(`Failed deploy attempt (${payload.repository.full_name}): The deploy settings do not contain a secret.`);
             }
             if (!Webhooks.verify(deployParams.autodeploy_secret, payload, request.headers['x-hub-signature'])) {
-                throw new Error(`Failed deploy attempt (${payload.repository.full_name}): Signature mismatch.`);
+                reject(`Failed deploy attempt (${payload.repository.full_name}): Signature mismatch.`);
             }
             if (payload.repository.disabled || payload.repository.archived) {
-                throw new Error(`Failed deploy attempt (${payload.repository.full_name}): Repository disabled or archived.`);
+                reject(`Failed deploy attempt (${payload.repository.full_name}): Repository disabled or archived.`);
             }
             Ui.log('---------------------------');
             await deploy(Ui, deployParams);
             Ui.log('');
             Ui.log('---------------------------');
-            resolve();
+            resolve(true);
         });
         if (request.headers['user-agent'] && request.headers['user-agent'].startsWith('GitHub-Hookshot/')) {
             eventHandler.receive({

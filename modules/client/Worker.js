@@ -83,7 +83,7 @@ export default function(params) {
 	 */
 
 	// Listen now...
-	self.addEventListener('fetch', evt => {
+	self.addEventListener('fetch', async evt => {
 		evt.respondWith(handleFetch(evt));
 	});
 
@@ -136,6 +136,12 @@ export default function(params) {
 	// Caching strategy: network_first
 	const network_first_fetch = evt => {
 
+		// Now, the following is key:
+		// The browser likes to use "force-cache" for "navigate" requests
+		// when, for example, the back button was used.
+		// Thus the origin server would still not be contacted by the self.fetch() below, leading inconsistencies in responses.
+		// So, we detect this scenerio and avoid it.
+		// if (evt.request.mode === 'navigate' && evt.request.cache === 'force-cache' && evt.request.destination === 'document') {}
 		return self.fetch(evt.request).then(response => handleFetchResponse(evt.request, response)).catch(() => {
 			return self.caches.open(getCacheName(evt.request)).then(cache => {
 				return cache.match(evt.request);
