@@ -38,7 +38,6 @@ import * as prerendering from '../../config/prerendering.js';
 export default async function(Ui, flags = {}) {
     const setup = await _setup.read({});
     const config = { server: await server.read(setup), vhosts, redirects, origins, prerendering, };
-    console.log(config.server)
     if (!flags.https_only) {
         Http.createServer((request, response) => {
             if (config.server.https.port && config.server.https.force && !flags.http_only) {

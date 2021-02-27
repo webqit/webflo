@@ -115,7 +115,7 @@ export function hook(Ui, request, response, setup = {}) {
     return new Promise(async (resolve, reject) => {
         const eventHandler = Webhooks.createEventHandler();
         eventHandler.on('push', async ({ name, payload }) => {
-            const matches = await origins.match(payload.repository.full_name, setup).filter(o => o.autodeploy);
+            const matches = (await origins.match(payload.repository.full_name, setup)).filter(o => o.autodeploy);
             var deployParams;
             if (!(deployParams = matches[0])) {
                 return;
