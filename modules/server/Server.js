@@ -38,6 +38,16 @@ import * as prerendering from '../../config/prerendering.js';
 export default async function(Ui, flags = {}) {
     const setup = await _setup.read({});
     const config = { server: await server.read(setup), vhosts, redirects, origins, prerendering, };
+    
+    const v_configs = {};
+    if (config.server.shared) {
+        ((await vhosts.read(setup)).entries || []).forEach(async vh => {
+            var vsetup = await _setup.read({ROOT: Path.join(setup.ROOT, vh.path)});
+            var vconfig = { server: await server.read(vsetup), vhosts, redirects, origins, prerendering, };
+            v_configs[vh.host] = { setup: vsetup, config: vconfig, vh, };
+        });
+    }
+    
     if (!flags.https_only) {
         Http.createServer((request, response) => {
             if (config.server.https.port && config.server.https.force && !flags.http_only) {
@@ -45,23 +55,64 @@ export default async function(Ui, flags = {}) {
                 response.setHeader('Location', 'https://' + request.headers.host + request.url);
                 response.end();
             } else {
-                run(setup, config, request, response, Ui, flags, 'http');
+                if (config.server.shared) {
+                    // ----------------
+                    var v_config;
+                    if (v_config = v_configs[request.headers.host]) {
+                        run(v_config.setup, v_config.config, request, response, Ui, flags, 'http', v_config.vh);
+                    }
+                    // ----------------
+                } else {
+                    // ----------------
+                    run(setup, config, request, response, Ui, flags, 'http');
+                    // ----------------
+                }
             }
         }).listen(config.server.port);
     }
+
     if (!flags.http_only && config.server.https.port) {
-        if (!config.server.https.keyfile) {
-            throw new Error('HTTPS: config/server/https.keyfile is not configured.');
+        var httpsServer;
+        if (config.server.shared) {
+            // --------------
+            httpsServer = Https.createServer({}, (request, response) => {
+                var v_config;
+                if (v_config = v_configs[request.headers.host]) {
+                    run(v_config.setup, v_config.config, request, response, Ui, flags, 'https', v_config.vh);
+                }
+            });
+            // --------------
+            _each(v_configs, (host, v_config) => {
+                if (!v_config.config.server.https.keyfile) {
+                    throw new Error('HTTPS: config/server/https.keyfile is not configured for host: ' + host + '.');
+                }
+                if (!v_config.config.server.https.certfile) {
+                    throw new Error('HTTPS: config/server/https.certfile is not configured for host: ' + host + '.');
+                }
+                httpsServer.addContext(host, {
+                    key: Fs.readFileSync(v_config.config.server.https.keyfile),
+                    cert: Fs.readFileSync(v_config.config.server.https.certfile),
+                });
+            });
+            // ----------------
+        } else {
+            // ----------------
+            if (!config.server.https.keyfile) {
+                throw new Error('HTTPS: config/server/https.keyfile is not configured.');
+            }
+            if (!config.server.https.certfile) {
+                throw new Error('HTTPS: config/server/https.certfile is not configured.');
+            }
+            httpsServer = Https.createServer({
+                key: Fs.readFileSync(config.server.https.keyfile),
+                cert: Fs.readFileSync(config.server.https.certfile),
+            }, (request, response) => {
+                run(setup, config, request, response, Ui, flags, 'https');
+            });
+            // ----------------
         }
-        if (!config.server.https.certfile) {
-            throw new Error('HTTPS: config/server/https.certfile is not configured.');
-        }
-        Https.createServer({
-            key: Fs.readFileSync(config.server.https.keyfile),
-            cert: Fs.readFileSync(config.server.https.certfile),
-        }, (request, response) => {
-            run(setup, config, request, response, Ui, flags, 'https');
-        }).listen(config.server.https.port);
+
+        httpsServer.listen(config.server.https.port);
     }
 };
 
@@ -78,7 +129,7 @@ export default async function(Ui, flags = {}) {
  * 
  * @return void
  */
-export async function run(setup, config, request, response, Ui, flags = {}, protocol = 'http') {
+export async function run(setup, config, request, response, Ui, flags = {}, protocol = 'http', vhost = null) {
 
     const $setup = {...setup};
     const flow = {
@@ -87,7 +138,7 @@ export async function run(setup, config, request, response, Ui, flags = {}, prot
         request,
         response,
         location: Url.parse(protocol + '://' + request.headers.host + request.url, true, true),
-        vhost: null,
+        vhost: vhost,
         fatal: false,
         rdr: null,
         data: null,
@@ -105,16 +156,6 @@ export async function run(setup, config, request, response, Ui, flags = {}, prot
             return val;
         },
     };
-
-    // -------------------
-    // Resolve vhosts
-    // -------------------
-
-    var vhostsMatch = (!config.vhosts ? null : await config.vhosts.match(flow.location, setup/**the original */)) || [];
-    if (config.server.shared && vhostsMatch.length) {
-        flow.vhost = vhostsMatch[0];
-        $setup.ROOT = Path.join($setup.ROOT, vhostsMatch[0].path);
-    }
 
     // -------------------
     // Handle redirects
