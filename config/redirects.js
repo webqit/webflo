@@ -18,7 +18,10 @@ import Minimatch from 'minimatch';
  * @return object
  */
 export async function read(setup = {}) {
-    return DotJson.read(Path.join(setup.ROOT || '', './.webflo/config/redirects.json'));
+    const config = DotJson.read(Path.join(setup.ROOT || '', './.webflo/config/redirects.json'));
+    return _merge({
+        entries: [],
+    }, config);
 };
 
 /**

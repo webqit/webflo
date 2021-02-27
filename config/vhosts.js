@@ -15,7 +15,10 @@ import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
  * @return object
  */
 export async function read(setup = {}) {
-    return DotJson.read(Path.join(setup.ROOT || '', './.webflo/config/vhosts.json'));
+    const config = DotJson.read(Path.join(setup.ROOT || '', './.webflo/config/vhosts.json'));
+    return _merge({
+        entries: [],
+    }, config);
 };
 
 /**

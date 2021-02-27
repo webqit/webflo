@@ -38,7 +38,14 @@ export async function start(Ui, flags, setup = {}) {
         Ui.log('');
         Ui.log(Ui.f`${'-------------------------------'}`);
         Ui.log('');
-        Ui.log(Ui.f`${{HTTP: config.port, HTTPS: config.https.port || 0, PUBLIC_DIR: setup.PUBLIC_DIR, SERVER_DIR: setup.SERVER_DIR, }}`);
+        const runtimeDetails = {HTTP: config.port, HTTPS: config.https.port || 0,};
+        if (config.shared) {
+            runtimeDetails.MODE = 'Virtual Hosts';
+        } else {
+            runtimeDetails.PUBLIC_DIR = setup.PUBLIC_DIR;
+            runtimeDetails.SERVER_DIR = setup.SERVER_DIR;
+        }
+        Ui.log(Ui.f`${runtimeDetails}`);
         Ui.log('');
         Ui.log(Ui.f`${'-------------------------------'}`);
         Ui.log('');

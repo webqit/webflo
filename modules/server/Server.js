@@ -41,11 +41,11 @@ export default async function(Ui, flags = {}) {
     
     const v_configs = {};
     if (config.server.shared) {
-        ((await vhosts.read(setup)).entries || []).forEach(async vh => {
+        await Promise.all(((await vhosts.read(setup)).entries || []).map(async vh => {
             var vsetup = await _setup.read({ROOT: Path.join(setup.ROOT, vh.path)});
             var vconfig = { server: await server.read(vsetup), vhosts, redirects, origins, prerendering, };
             v_configs[vh.host] = { setup: vsetup, config: vconfig, vh, };
-        });
+        }));
     }
     
     if (!flags.https_only) {
@@ -58,7 +58,7 @@ export default async function(Ui, flags = {}) {
                 if (config.server.shared) {
                     // ----------------
                     var v_config;
-                    if (v_config = v_configs[request.headers.host]) {
+                    if (v_config = v_configs[request.headers.host.split(':')[0]]) {
                         run(v_config.setup, v_config.config, request, response, Ui, flags, 'http', v_config.vh);
                     }
                     // ----------------
@@ -77,7 +77,7 @@ export default async function(Ui, flags = {}) {
             // --------------
             httpsServer = Https.createServer({}, (request, response) => {
                 var v_config;
-                if (v_config = v_configs[request.headers.host]) {
+                if (v_config = v_configs[request.headers.host.split(':')[0]]) {
                     run(v_config.setup, v_config.config, request, response, Ui, flags, 'https', v_config.vh);
                 }
             });

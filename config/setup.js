@@ -16,7 +16,7 @@ import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
 export async function read(params = {}) {
     const config = DotJson.read(Path.join(params.ROOT || '', './.webflo/config/setup.json'));
     return _merge({
-        ROOT: process.cwd(),
+        ROOT: params.ROOT || process.cwd(),
         PUBLIC_DIR: './public',
         SERVER_DIR: './server',
         CLIENT_DIR: './client',

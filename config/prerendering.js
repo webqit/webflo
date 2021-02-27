@@ -18,9 +18,7 @@ import Minimatch from 'minimatch';
 export async function read(setup = {}) {
     const config = DotJson.read(Path.join(setup.ROOT || '', './.webflo/config/prerendering.json'));
     return _merge({
-        entries: [{
-            page: '',
-        }],
+        entries: [],
     }, config);
 };
 
