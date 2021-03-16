@@ -22,7 +22,7 @@ export async function read(params = {}) {
         CLIENT_DIR: './client',
         WORKER_DIR: './worker',
     }, config);
-}; 
+};
 
 /**
  * Writes PROJECT to file.

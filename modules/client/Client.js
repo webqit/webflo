@@ -113,7 +113,11 @@ export default function(params) {
 				if (flow.location.hash && (urlTarget = document.querySelector(flow.location.hash))) {
 					urlTarget.scrollIntoView(true);
 				} else {
-					window.scroll({top: 0, left: 0, behavior: 'auto'});
+					document.documentElement.classList.add('scroll-reset');
+					window.scroll({top: 0, left: 0});
+					setTimeout(() => {
+						document.documentElement.classList.remove('scroll-reset');
+					}, 400);
 				}
             }, 0);
 

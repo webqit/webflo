@@ -23,6 +23,7 @@ import Router, { FixedResponse } from './Router.js';
 import * as _setup from '../../config/setup.js';
 import * as server from '../../config/server.js';
 import * as vhosts from '../../config/vhosts.js';
+import * as headers from '../../config/headers.js';
 import * as redirects from '../../config/redirects.js';
 import * as origins from '../../cmd/origins.js';
 import * as prerendering from '../../config/prerendering.js';
@@ -37,79 +38,110 @@ import * as prerendering from '../../config/prerendering.js';
  */
 export default async function(Ui, flags = {}) {
     const setup = await _setup.read({});
-    const config = { server: await server.read(setup), vhosts, redirects, origins, prerendering, };
+    const config = { server: await server.read(setup), vhosts, redirects, headers, origins, prerendering, };
+    const instanceConfig = config;
     
     const v_configs = {};
     if (config.server.shared) {
         await Promise.all(((await vhosts.read(setup)).entries || []).map(async vh => {
             var vsetup = await _setup.read({ROOT: Path.join(setup.ROOT, vh.path)});
-            var vconfig = { server: await server.read(vsetup), vhosts, redirects, origins, prerendering, };
+            var vconfig = { server: await server.read(vsetup), vhosts, redirects, headers, origins, prerendering, };
             v_configs[vh.host] = { setup: vsetup, config: vconfig, vh, };
         }));
     }
+
+    // ---------------------------------------------
     
-    if (!flags.https_only) {
+    const getVConfig = (request, response) => {
+        var v_config, v_hostname = (request.headers.host || '').split(':')[0];
+        if (v_config = v_configs[v_hostname]) {
+            return v_config;
+        }
+        if ((v_hostname.startsWith('www.') && (v_config = v_configs[v_hostname.substr(4)]) && v_config.config.server.force_www)
+        || (!v_hostname.startsWith('www.') && (v_config = v_configs['www.' + v_hostname]) && v_config.config.server.force_www)) {
+            return v_config;
+        }
+        response.statusCode = 500;
+        response.end('Unrecognized host');
+    };
+
+    const goOrForceWww = (setup, config, request, response, protocol, isVhost) => {
+        var hostname = request.headers.host || '';
+        if (hostname.startsWith('www.') && config.server.force_www === 'remove') {
+            response.statusCode = 302;
+            response.setHeader('Location', protocol + '://' + hostname.substr(4) + request.url);
+            response.end();
+        } else if (!hostname.startsWith('www.') && config.server.force_www === 'add') {
+            response.statusCode = 302;
+            response.setHeader('Location', protocol + '://www.' + hostname + request.url);
+            response.end();
+        } else {
+            run(instanceConfig, setup, config, request, response, Ui, flags, protocol, isVhost);
+        }
+    };
+
+    // ---------------------------------------------
+    
+    if (!flags['https-only']) {
+
         Http.createServer((request, response) => {
-            if (config.server.https.port && config.server.https.force && !flags.http_only) {
-                response.statusCode = 302;
-                response.setHeader('Location', 'https://' + request.headers.host + request.url);
-                response.end();
-            } else {
-                if (config.server.shared) {
-                    // ----------------
-                    var v_config;
-                    if (v_config = v_configs[request.headers.host.split(':')[0]]) {
-                        run(v_config.setup, v_config.config, request, response, Ui, flags, 'http', v_config.vh);
-                    }
-                    // ----------------
-                } else {
-                    // ----------------
-                    run(setup, config, request, response, Ui, flags, 'http');
-                    // ----------------
+            if (config.server.shared) {
+                var v_config;
+                if (v_config = getVConfig(request, response)) {
+                    goOrForceHttps(v_config.setup, v_config.config, request, response, v_config.vh);
                 }
+            } else {
+                goOrForceHttps(setup, config, request, response);
             }
         }).listen(config.server.port);
+
+        const goOrForceHttps = (_setup, _config, _request, _response, isVhost) => {
+            if (_config.server.https.force && !flags['http-only'] && /** main server */config.server.https.port) {
+                _response.statusCode = 302;
+                _response.setHeader('Location', 'https://' + _request.headers.host + _request.url);
+                _response.end();
+            } else {
+                goOrForceWww(_setup, _config, _request, _response, 'http', isVhost);
+            }
+        };
+
     }
 
-    if (!flags.http_only && config.server.https.port) {
-        var httpsServer;
-        if (config.server.shared) {
-            // --------------
-            httpsServer = Https.createServer({}, (request, response) => {
+    // ---------------------------------------------
+
+    if (!flags['http-only'] && config.server.https.port) {
+
+        const httpsServer = Https.createServer({}, (request, response) => {
+            if (config.server.shared) {
                 var v_config;
-                if (v_config = v_configs[request.headers.host.split(':')[0]]) {
-                    run(v_config.setup, v_config.config, request, response, Ui, flags, 'https', v_config.vh);
+                if (v_config = getVConfig(request, response)) {
+                    goOrForceWww(v_config.setup, v_config.config, request, response, 'https', v_config.vh);
                 }
-            });
-            // --------------
+            } else {
+                goOrForceWww(setup, config, request, response, 'https');
+            }
+        });
+
+        if (config.server.shared) {
             _each(v_configs, (host, v_config) => {
-                if (!v_config.config.server.https.keyfile) {
-                    throw new Error('HTTPS: config/server/https.keyfile is not configured for host: ' + host + '.');
+                if (Fs.existsSync(v_config.config.server.https.keyfile)) {
+                    const cert = {
+                        key: Fs.readFileSync(v_config.config.server.https.keyfile),
+                        cert: Fs.readFileSync(v_config.config.server.https.certfile),
+                    };
+                    httpsServer.addContext(host, cert);
+                    if (v_config.config.server.force_www) {
+                        httpsServer.addContext(host.startsWith('www.') ? host.substr(4) : 'www.' + host, cert);
+                    }
                 }
-                if (!v_config.config.server.https.certfile) {
-                    throw new Error('HTTPS: config/server/https.certfile is not configured for host: ' + host + '.');
-                }
-                httpsServer.addContext(host, {
-                    key: Fs.readFileSync(v_config.config.server.https.keyfile),
-                    cert: Fs.readFileSync(v_config.config.server.https.certfile),
-                });
             });
-            // ----------------
         } else {
-            // ----------------
-            if (!config.server.https.keyfile) {
-                throw new Error('HTTPS: config/server/https.keyfile is not configured.');
+            if (Fs.existsSync(config.server.https.keyfile)) {
+                httpsServer.addContext('*', {
+                    key: Fs.readFileSync(config.server.https.keyfile),
+                    cert: Fs.readFileSync(config.server.https.certfile),
+                });
             }
-            if (!config.server.https.certfile) {
-                throw new Error('HTTPS: config/server/https.certfile is not configured.');
-            }
-            httpsServer = Https.createServer({
-                key: Fs.readFileSync(config.server.https.keyfile),
-                cert: Fs.readFileSync(config.server.https.certfile),
-            }, (request, response) => {
-                run(setup, config, request, response, Ui, flags, 'https');
-            });
-            // ----------------
         }
 
         httpsServer.listen(config.server.https.port);
@@ -119,8 +151,9 @@ export default async function(Ui, flags = {}) {
 /**
  * The Server.
  * 
+ * @param Object    instanceConfig
  * @param Object    setup
- * @param Object    setup
+ * @param Object    config
  * @param Request   request
  * @param Response  response
  * @param Ui        Ui
@@ -129,7 +162,7 @@ export default async function(Ui, flags = {}) {
  * 
  * @return void
  */
-export async function run(setup, config, request, response, Ui, flags = {}, protocol = 'http', vhost = null) {
+export async function run(instanceConfig, setup, config, request, response, Ui, flags = {}, protocol = 'http', vhost = null) {
 
     const $setup = {...setup};
     const flow = {
@@ -257,7 +290,7 @@ export async function run(setup, config, request, response, Ui, flags = {}, prot
 
             if (config.origins) {
                 config.origins.hook(Ui, request, response, $setup).then(async () => {
-                    await serverRestart(Ui, config.server.process.name);
+                    await serverRestart(Ui, instanceConfig.server.process.name);
                     process.exit();
                 }).catch(e => { throw e; });
             }
@@ -355,6 +388,16 @@ export async function run(setup, config, request, response, Ui, flags = {}, prot
 
             if (!response.headersSent) {
                 if (flow.data) {
+                    // -------------------
+                    // Handle headers
+                    // -------------------
+                    if (config.headers) {
+                        if (flow.headers = await config.headers.match(flow.location, $setup)) {
+                            flow.headers.forEach(header => {
+                                response.setHeader(header.name, header.value);
+                            });
+                        }
+                    }
                     response.setHeader('Content-type', flow.data.contentType);
                     if (flow.data.nostore) {
                         response.setHeader('Cache-Control', 'no-store');

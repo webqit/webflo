@@ -13,6 +13,7 @@ import * as _setup from './config/setup.js';
 import * as client from './config/client.js';
 import * as manifest from './config/manifest.js';
 import * as prerendering from './config/prerendering.js';
+import * as headers from './config/headers.js';
 import * as redirects from './config/redirects.js';
 import * as origins from './config/origins.js';
 import * as server from './config/server.js';
@@ -21,11 +22,12 @@ import * as vhosts from './config/vhosts.js';
 import * as CMDclient from './cmd/client.js';
 import * as CMDorigins from './cmd/origins.js';
 import * as CMDserver from './cmd/server.js';
+import * as CMDcertbot from './cmd/certbot.js';
 
 // ------------------------------------------
 
-const config = { client, manifest, prerendering, redirects, origins, server, variables, vhosts, };
-const cmd = { client: CMDclient, origins: CMDorigins, server: CMDserver, };
+const config = { client, manifest, prerendering, redirects, headers, origins, server, variables, vhosts, };
+const cmd = { client: CMDclient, origins: CMDorigins, server: CMDserver, certbot: CMDcertbot, };
 
 // ------------------------------------------
 
@@ -145,6 +147,13 @@ console.log('');
                 await config[domain].write(_merge(data, _data), setup);
             });
 
+        break;
+
+        // --------------------------
+
+        case 'cert':
+            var domains = Object.keys(keywords);
+           cmd.certbot.generate(Ui, domains, flags, setup);
         break;
         
         case 'help':

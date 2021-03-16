@@ -107,7 +107,7 @@ export default class Router {
             // read file from file system
             return new Promise((resolve, reject) => {
                 // if is a directory search for index file matching the extention
-                if (!ext && filename.lastIndexOf('.') < filename.lastIndexOf('/')) {
+                if (!ext && Fs.lstatSync(_filename).isDirectory()) {
                     ext = '.html';
                     _filename += '/index' + ext;
                     autoIndex = 'index.html';

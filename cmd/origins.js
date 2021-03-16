@@ -3,6 +3,7 @@
  * imports
  */
 import Fs from 'fs';
+import Path from 'path';
 import { exec } from 'child_process';
 import _any from '@webqit/util/arr/any.js';
 import _isObject from '@webqit/util/js/isObject.js';
@@ -34,6 +35,8 @@ export async function deploy(Ui, origin, setup = {}) {
         }
         origin = matches[0];
     }
+    // ---------------
+    origin.deploy_path = Path.join(setup.ROOT, origin.deploy_path);
     // ---------------
     // Instance
     const git = SimpleGit();
@@ -133,7 +136,7 @@ export function hook(Ui, request, response, setup = {}) {
                 reject(`Failed deploy attempt (${payload.repository.full_name}): Repository disabled or archived.`);
             }
             Ui.log('---------------------------');
-            await deploy(Ui, deployParams);
+            await deploy(Ui, deployParams, setup);
             Ui.log('');
             Ui.log('---------------------------');
             resolve(true);

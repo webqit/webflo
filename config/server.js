@@ -4,6 +4,7 @@
  */
 import Path from 'path';
 import _merge from '@webqit/util/obj/merge.js';
+import { initialGetIndex } from '@webqit/backpack/src/cli/Promptx.js';
 import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
 
 /**
@@ -21,16 +22,17 @@ export async function read(setup = {}) {
             port: 0,
             keyfile: '',
             certfile: '',
-            force: true,
+            force: false,
         },
         process: {
             name: Path.basename(process.cwd()),
             errfile: '',
             outfile: '',
-            merge_logs: true,
             exec_mode: 'fork',
             autorestart: true,
+            merge_logs: false,
         },
+        force_www: '',
         shared: false,
     }, config);
 };
@@ -63,6 +65,11 @@ export async function questions(config, choices = {}, setup = {}) {
         exec_mode: [
             {value: 'fork',},
             {value: 'cluster',},
+        ],
+        force_www: [
+            {value: '', title: 'do nothing'},
+            {value: 'add',},
+            {value: 'remove',},
         ],
     }, choices);
 
@@ -142,13 +149,6 @@ export async function questions(config, choices = {}, setup = {}) {
                     validation: ['important'],
                 },
                 {
-                    name: 'merge_logs',
-                    type: 'toggle',
-                    message: 'Server merge logs?',
-                    active: 'YES',
-                    inactive: 'NO',
-                },
-                {
                     name: 'autorestart',
                     type: 'toggle',
                     message: 'Server autorestart on crash?',
@@ -156,7 +156,21 @@ export async function questions(config, choices = {}, setup = {}) {
                     inactive: 'NO',
                     initial: config.autorestart,
                 },
+                {
+                    name: 'merge_logs',
+                    type: 'toggle',
+                    message: 'Server merge logs?',
+                    active: 'YES',
+                    inactive: 'NO',
+                },
             ],
+        },
+        {
+            name: 'force_www',
+            type: 'select',
+            message: 'Force add/remove "www" on hostname?',
+            choices: CHOICES.force_www,
+            initial: initialGetIndex(CHOICES.force_www, config.force_www),
         },
         {
             name: 'shared',

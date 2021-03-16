@@ -32,7 +32,7 @@ export async function read(setup = {}) {
             host: hostname,
             repo: origin,
             branch: 'master',
-            tag: 'origin',
+            tag: 'root',
             deploy_path: '.',
             autodeploy: true,
             autodeploy_secret: '',
@@ -118,7 +118,7 @@ export async function questions(config, choices = {}, setup = {}) {
                     name: 'deploy_path',
                     type: 'text',
                     message: 'Enter the relative local path that this origin deploys to',
-                    validation: ['path-relative'],
+                    validation: ['important'],
                 },
                 {
                     name: 'autodeploy',

@@ -22,14 +22,14 @@ export const desc = {
 /**
  * @build
  */
-export async function build(Ui, setup = {}) {
+export async function build(Ui, setup) {
     const config = await client.read(setup);
     // Consistent forward slashing
     const forwardSlash = str => str.replace(/\\/g, '/');
-    let clientModulesDir = forwardSlash(Url.fileURLToPath(Path.join(import.meta.url, '../../modules/client')));
+    var clientModulesDir = forwardSlash(Url.fileURLToPath(Path.join(import.meta.url, '../../modules/client')));
     var clientDirSplit = Path.resolve(setup.CLIENT_DIR).replace(/\\/g, '/').split('/');
     var createWorker = !_isEmpty(config.worker);
-    let waiting;
+    var waiting;
 
     // -------------------
     // Create the Service Worker file
