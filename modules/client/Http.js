@@ -134,10 +134,10 @@ export default class Http {
 
 		// Observe location and route
 		Observer.observe(instance.location, 'href', async e => {
-			return await client.call(null, createRequest(e.oldValue));
+			return await client.call(null, createRequest(e.oldValue), (e.detail || {}).src);
 		}, {diff: true});
 		// Startup route
-		client.call(null, createRequest(document.referrer), true/* initCall */);
+		client.call(null, createRequest(document.referrer), null/* src */, true/* initCall */);
 
 		return instance;
 	}

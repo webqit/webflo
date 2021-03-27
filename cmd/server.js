@@ -23,8 +23,8 @@ export const desc = {
 /**
  * @start
  */
-export async function start(Ui, flags, setup = {}) {
-    const config = await server.read(setup);
+export async function start(Ui, flags, layout = {}) {
+    const config = await server.read(layout);
     const currentDir = Path.dirname(Url.fileURLToPath(import.meta.url));
      // -------------------
     // Splash screen
@@ -42,8 +42,8 @@ export async function start(Ui, flags, setup = {}) {
         if (config.shared) {
             runtimeDetails.MODE = 'Virtual Hosts';
         } else {
-            runtimeDetails.PUBLIC_DIR = setup.PUBLIC_DIR;
-            runtimeDetails.SERVER_DIR = setup.SERVER_DIR;
+            runtimeDetails.PUBLIC_DIR = layout.PUBLIC_DIR;
+            runtimeDetails.SERVER_DIR = layout.SERVER_DIR;
         }
         Ui.log(Ui.f`${runtimeDetails}`);
         Ui.log('');

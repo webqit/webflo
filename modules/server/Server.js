@@ -20,13 +20,14 @@ import _wrapped from '@webqit/util/str/wrapped.js';
 import _beforeLast from '@webqit/util/str/beforeLast.js';
 import { restart as serverRestart } from '../../cmd/server.js';
 import Router, { FixedResponse } from './Router.js';
-import * as _setup from '../../config/setup.js';
+import * as _layout from '../../config/layout.js';
+import * as _variables from '../../config/variables.js';
 import * as server from '../../config/server.js';
 import * as vhosts from '../../config/vhosts.js';
 import * as headers from '../../config/headers.js';
 import * as redirects from '../../config/redirects.js';
-import * as origins from '../../cmd/origins.js';
 import * as prerendering from '../../config/prerendering.js';
+import * as origins from '../../cmd/origins.js';
 
 /**
  * The default initializer.
@@ -37,16 +38,39 @@ import * as prerendering from '../../config/prerendering.js';
  * @return void
  */
 export default async function(Ui, flags = {}) {
-    const setup = await _setup.read({});
-    const config = { server: await server.read(setup), vhosts, redirects, headers, origins, prerendering, };
+    const layout = await _layout.read({});
+    const config = {
+        server: await server.read(layout),
+        variables: await _variables.read({}),
+        vhosts,
+        redirects,
+        headers,
+        origins,
+        prerendering,
+    };
+
+    if (config.variables.autoload) {
+        Object.keys(config.variables.entries).forEach(key => {
+            process.env[key] = config.variables.entries[key];
+        });
+    }
+
     const instanceConfig = config;
     
     const v_configs = {};
     if (config.server.shared) {
-        await Promise.all(((await vhosts.read(setup)).entries || []).map(async vh => {
-            var vsetup = await _setup.read({ROOT: Path.join(setup.ROOT, vh.path)});
-            var vconfig = { server: await server.read(vsetup), vhosts, redirects, headers, origins, prerendering, };
-            v_configs[vh.host] = { setup: vsetup, config: vconfig, vh, };
+        await Promise.all(((await vhosts.read(layout)).entries || []).map(async vh => {
+            var vlayout = await _layout.read({ROOT: Path.join(layout.ROOT, vh.path)});
+            var vconfig = {
+                server: await server.read(vlayout),
+                variables: await _variables.read({ROOT: Path.join(layout.ROOT, vh.path)}),
+                vhosts,
+                redirects,
+                headers,
+                origins,
+                prerendering,
+            };
+            v_configs[vh.host] = { layout: vlayout, config: vconfig, vh, };
         }));
     }
 
@@ -65,7 +89,7 @@ export default async function(Ui, flags = {}) {
         response.end('Unrecognized host');
     };
 
-    const goOrForceWww = (setup, config, request, response, protocol, isVhost) => {
+    const goOrForceWww = (layout, config, request, response, protocol, isVhost) => {
         var hostname = request.headers.host || '';
         if (hostname.startsWith('www.') && config.server.force_www === 'remove') {
             response.statusCode = 302;
@@ -76,7 +100,7 @@ export default async function(Ui, flags = {}) {
             response.setHeader('Location', protocol + '://www.' + hostname + request.url);
             response.end();
         } else {
-            run(instanceConfig, setup, config, request, response, Ui, flags, protocol, isVhost);
+            run(instanceConfig, layout, config, request, response, Ui, flags, protocol, isVhost);
         }
     };
 
@@ -88,20 +112,20 @@ export default async function(Ui, flags = {}) {
             if (config.server.shared) {
                 var v_config;
                 if (v_config = getVConfig(request, response)) {
-                    goOrForceHttps(v_config.setup, v_config.config, request, response, v_config.vh);
+                    goOrForceHttps(v_config.layout, v_config.config, request, response, v_config.vh);
                 }
             } else {
-                goOrForceHttps(setup, config, request, response);
+                goOrForceHttps(layout, config, request, response);
             }
         }).listen(config.server.port);
 
-        const goOrForceHttps = (_setup, _config, _request, _response, isVhost) => {
+        const goOrForceHttps = (_layout, _config, _request, _response, isVhost) => {
             if (_config.server.https.force && !flags['http-only'] && /** main server */config.server.https.port) {
                 _response.statusCode = 302;
                 _response.setHeader('Location', 'https://' + _request.headers.host + _request.url);
                 _response.end();
             } else {
-                goOrForceWww(_setup, _config, _request, _response, 'http', isVhost);
+                goOrForceWww(_layout, _config, _request, _response, 'http', isVhost);
             }
         };
 
@@ -115,10 +139,10 @@ export default async function(Ui, flags = {}) {
             if (config.server.shared) {
                 var v_config;
                 if (v_config = getVConfig(request, response)) {
-                    goOrForceWww(v_config.setup, v_config.config, request, response, 'https', v_config.vh);
+                    goOrForceWww(v_config.layout, v_config.config, request, response, 'https', v_config.vh);
                 }
             } else {
-                goOrForceWww(setup, config, request, response, 'https');
+                goOrForceWww(layout, config, request, response, 'https');
             }
         });
 
@@ -152,7 +176,7 @@ export default async function(Ui, flags = {}) {
  * The Server.
  * 
  * @param Object    instanceConfig
- * @param Object    setup
+ * @param Object    layout
  * @param Object    config
  * @param Request   request
  * @param Response  response
@@ -162,42 +186,49 @@ export default async function(Ui, flags = {}) {
  * 
  * @return void
  */
-export async function run(instanceConfig, setup, config, request, response, Ui, flags = {}, protocol = 'http', vhost = null) {
+export async function run(instanceConfig, layout, config, request, response, Ui, flags = {}, protocol = 'http', vhost = null) {
 
-    const $setup = {...setup};
-    const flow = {
-        setup: $setup,
+    const $layout = {...layout};
+    const $process = {
+        layout: $layout,
+        env: {},
         protocol,
         request,
         response,
-        location: Url.parse(protocol + '://' + request.headers.host + request.url, true, true),
+        url: Url.parse(protocol + '://' + request.headers.host + request.url, true, true),
         vhost: vhost,
         fatal: false,
         rdr: null,
         data: null,
         // Piping utility
-        route: async (...stack) => {
+        walk: async (...stack) => {
             var val;
-            var pipe = async function() {
+            var next = async function() {
                 var middleware = stack.shift();
                 if (middleware) {
-                    val = await middleware(request, response, pipe);
+                    val = await middleware(request, response, next);
                     return val;
                 }
             };
-            await pipe();
+            await next();
             return val;
         },
     };
+
+    if (config.variables.autoload) {
+        Object.keys(config.variables.entries).forEach(key => {
+            $process.env[key] = config.variables.entries[key];
+        });
+    }
 
     // -------------------
     // Handle redirects
     // -------------------
 
     if (config.redirects) {
-        if (flow.rdr = await config.redirects.match(flow.location, $setup)) {
-            response.statusCode = flow.rdr.code;
-            response.setHeader('Location', flow.rdr.target);
+        if ($process.rdr = await config.redirects.match($process.url, $layout)) {
+            response.statusCode = $process.rdr.code;
+            response.setHeader('Location', $process.rdr.target);
             response.end();
         }
     }
@@ -206,7 +237,7 @@ export async function run(instanceConfig, setup, config, request, response, Ui, 
     // Handle request
     // -------------------
 
-    if (!flow.fatal && !flow.rdr) {
+    if (!$process.fatal && !$process.rdr) {
 
         // --------
         // Request parsing
@@ -225,7 +256,7 @@ export async function run(instanceConfig, setup, config, request, response, Ui, 
 
         // Query
         request.query = {}; var queryIndexes = {};
-        _each(flow.location.query, (name, value) => {
+        _each($process.url.query, (name, value) => {
             var _name = name.endsWith('[]') && _isArray(value) ? _beforeLast(name, '[]') : name;
             var _value = typeof value === 'string' && (_wrapped(value, '{', '}') || _wrapped(value, '[', ']')) ? JSON.parse(value) : value;
             setToPath(request.query, _name, _value, queryIndexes);
@@ -289,23 +320,20 @@ export async function run(instanceConfig, setup, config, request, response, Ui, 
             // -------------------
 
             if (config.origins) {
-                config.origins.hook(Ui, request, response, $setup).then(async () => {
+                config.origins.hook(Ui, request, response, $layout).then(async () => {
                     await serverRestart(Ui, instanceConfig.server.process.name);
                     process.exit();
                 }).catch(e => { throw e; });
             }
 
             // The app router
-            const router = new Router(flow.location.pathname, $setup);
+            const router = new Router($process.url.pathname, $layout);
 
             // --------
             // ROUTE FOR DATA
             // --------
-            flow.data = await router.route([flow], [request.method.toLowerCase(), 'default'], async function(output) {
-                if (arguments.length) {
-                    return output;
-                }
-                var file = await router.fetch(request.url);
+            $process.data = await router.route([request.method.toLowerCase(), 'default'], [$process], async function() {
+                var file = await router.fetch(/*request.url*/this.pathname);
                 // JSON request should ignore static files
                 if (file && !request.accepts.type(file.contentType)) {
                     return;
@@ -314,7 +342,7 @@ export async function run(instanceConfig, setup, config, request, response, Ui, 
                 // PRE-RENDERING
                 // ----------------
                 if (file && file.contentType === 'text/html' && (file.content + '').startsWith(`<!-- PRE-RENDERED -->`)) {
-                    var prerenderMatch = config.prerendering ? await !config.prerendering.match(flow.location.pathname, $setup) : null;
+                    var prerenderMatch = config.prerendering ? await !config.prerendering.match($process.url.pathname, $layout) : null;
                     if (!prerenderMatch) {
                         router.deletePreRendered(file.filename);
                         return;
@@ -325,20 +353,30 @@ export async function run(instanceConfig, setup, config, request, response, Ui, 
             // --------
             // ROUTE FOR RENDERING?
             // --------
-            if (!(flow.data instanceof FixedResponse) && _isObject(flow.data)) {
+            if (!($process.data instanceof FixedResponse) && _isObject($process.data)) {
                 if (request.accepts.type('text/html')) {
                     // --------
                     // Render
                     // --------
-                    const window = await router.route([flow.data], 'render', async function(_window) {
+                    const window = await router.route('render', [$process.data], async function() {
                         if (arguments.length) {
-                            return _window;
+                            return;
                         }
                         // --------
+                        if (!$layout.renderFileCache) {
+                            $layout.renderFileCache = {};
+                        }
+                        var renderFile, pathnameSplit = $process.url.pathname.split('/');
+                        while ((renderFile = Path.join($layout.ROOT, $layout.PUBLIC_DIR, './' + pathnameSplit.join('/'), 'index.html')) 
+                        && pathnameSplit.length && ($layout.renderFileCache[renderFile] === false || !($layout.renderFileCache[renderFile] && Fs.existsSync(renderFile)))) {
+                            $layout.renderFileCache[renderFile] === false;
+                            pathnameSplit.pop();
+                        }
+                        $layout.renderFileCache[renderFile] === true;
                         const instanceParams = QueryString.stringify({
-                            SOURCE: Path.join($setup.ROOT, $setup.PUBLIC_DIR, './index.html'),
-                            URL: flow.location.href,
-                            ROOT: $setup.ROOT,
+                            SOURCE: renderFile,
+                            URL: $process.url.href,
+                            ROOT: $layout.ROOT,
                             G: 0,
                         });
                         const { window } = await import('@webqit/pseudo-browser/instance.js?' + instanceParams);
@@ -351,8 +389,8 @@ export async function run(instanceConfig, setup, config, request, response, Ui, 
                                 env: 'server',
                             }, {update: true});
                         }
-                        window.document.setState({page: flow.data, location: flow.location}, {update: true});
-                        window.document.body.setAttribute('template', 'page' + flow.location.pathname);
+                        window.document.setState({page: $process.data, url: $process.url}, {update: true});
+                        window.document.body.setAttribute('template', 'page' + $process.url.pathname);
                         return window;
                     });
                     // --------
@@ -360,7 +398,7 @@ export async function run(instanceConfig, setup, config, request, response, Ui, 
                     // --------
                     if (_isObject(window) && window.document) {
                         await window.WQ.DOM.templatesReady;
-                        flow.data = await _promise(resolve => {
+                        $process.data = await _promise(resolve => {
                             setTimeout(() => {
                                 resolve({
                                     contentType: 'text/html',
@@ -369,15 +407,15 @@ export async function run(instanceConfig, setup, config, request, response, Ui, 
                             }, 1000);
                         });
                     } else {
-                        flow.data = window;
+                        $process.data = window;
                     }
                 } else if (request.accepts.type('application/json')) {
                     // --------
                     // JSONfy
                     // --------
-                    flow.data = {
+                    $process.data = {
                         contentType: 'application/json',
-                        content: flow.data,
+                        content: $process.data,
                     };
                 }
             }
@@ -387,36 +425,36 @@ export async function run(instanceConfig, setup, config, request, response, Ui, 
             // --------
 
             if (!response.headersSent) {
-                if (flow.data) {
+                if ($process.data) {
                     // -------------------
                     // Handle headers
                     // -------------------
                     if (config.headers) {
-                        if (flow.headers = await config.headers.match(flow.location, $setup)) {
-                            flow.headers.forEach(header => {
+                        if ($process.headers = await config.headers.match($process.url, $layout)) {
+                            $process.headers.forEach(header => {
                                 response.setHeader(header.name, header.value);
                             });
                         }
                     }
-                    response.setHeader('Content-type', flow.data.contentType);
-                    if (flow.data.nostore) {
+                    response.setHeader('Content-type', $process.data.contentType);
+                    if ($process.data.nostore) {
                         response.setHeader('Cache-Control', 'no-store');
                     }
-                    if (flow.data.cors) {
-                        response.setHeader('Access-Control-Allow-Origin', flow.data.cors === true ? '*' : flow.data.cors);
+                    if ($process.data.cors) {
+                        response.setHeader('Access-Control-Allow-Origin', $process.data.cors === true ? '*' : $process.data.cors);
                     }
                     response.end(
-                        flow.data.contentType === 'application/json' && _isObject(flow.data.content) 
-                            ? JSON.stringify(flow.data.content) 
-                            : flow.data.content
+                        $process.data.contentType === 'application/json' && _isObject($process.data.content) 
+                            ? JSON.stringify($process.data.content) 
+                            : $process.data.content
                     );
                     // ----------------
                     // PRE-RENDERING
                     // ----------------
-                    if (!flow.data.filename && flow.data.contentType === 'text/html') {
-                        var prerenderMatch = config.prerendering ? await !config.prerendering.match(flow.location.pathname, $setup) : null;
+                    if (!$process.data.filename && $process.data.contentType === 'text/html') {
+                        var prerenderMatch = config.prerendering ? await !config.prerendering.match($process.url.pathname, $layout) : null;
                         if (prerenderMatch) {
-                            router.putPreRendered(flow.location.pathname, `<!-- PRE-RENDERED -->\r\n` + flow.data.content);
+                            router.putPreRendered($process.url.pathname, `<!-- PRE-RENDERED -->\r\n` + $process.data.content);
                         }
                     }
                 } else {
@@ -427,7 +465,7 @@ export async function run(instanceConfig, setup, config, request, response, Ui, 
 
         } catch(e) {
 
-            flow.fatal = e;
+            $process.fatal = e;
             response.statusCode = e.errorCode || 500;
             response.end(`Internal server error!`);
 
@@ -441,25 +479,25 @@ export async function run(instanceConfig, setup, config, request, response, Ui, 
 
     if (flags.logs !== false) {
         Ui.log(''
-            + '[' + (flow.vhost ? Ui.style.keyword(flow.vhost.host) + '][' : '') + Ui.style.comment((new Date).toUTCString()) + '] '
+            + '[' + ($process.vhost ? Ui.style.keyword($process.vhost.host) + '][' : '') + Ui.style.comment((new Date).toUTCString()) + '] '
             + Ui.style.keyword(protocol.toUpperCase() + ' ' + request.method) + ' '
-            + Ui.style.url(request.url) + (flow.data && flow.data.autoIndex ? Ui.style.comment((!request.url.endsWith('/') ? '/' : '') + flow.data.autoIndex) : '') + ' '
-            + (flow.data ? ' (' + Ui.style.comment(flow.data.contentType) + ') ' : '')
+            + Ui.style.url(request.url) + ($process.data && $process.data.autoIndex ? Ui.style.comment((!request.url.endsWith('/') ? '/' : '') + $process.data.autoIndex) : '') + ' '
+            + ($process.data ? ' (' + Ui.style.comment($process.data.contentType) + ') ' : '')
             + (
                 [404, 500].includes(response.statusCode) 
-                ? Ui.style.err(response.statusCode + (flow.fatal ? ` [ERROR]: ${flow.fatal.error || flow.fatal.toString()}` : ``)) 
-                : Ui.style.val(response.statusCode) + ((response.statusCode + '').startsWith('3') ? ' - ' + Ui.style.val(response.getHeader('location')) : '')
+                ? Ui.style.err(response.statusCode + ($process.fatal ? ` [ERROR]: ${$process.fatal.error || $process.fatal.toString()}` : ``)) 
+                : Ui.style.val(response.statusCode) + ((response.statusCode + '').startsWith('3') ? ' - ' + Ui.style.val(response.getHeader('Location')) : '')
             )
         );
     }
 
-    if (flow.fatal) {
+    if ($process.fatal) {
         if (flags.dev) {
-            console.trace(flow.fatal);
-            //Ui.error(flow.fatal);
+            console.trace($process.fatal);
+            //Ui.error($process.fatal);
             process.exit();
         }
-        throw flow.fatal;
+        throw $process.fatal;
     }
 
 };

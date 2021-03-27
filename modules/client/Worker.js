@@ -4,6 +4,7 @@
  */
 import Router from './Router.js';
 import Minimatch from 'minimatch';
+import _isArray from '@webqit/util/js/isArray.js';
 import _after from '@webqit/util/str/after.js';
 
 /**
@@ -29,14 +30,14 @@ export default function(params) {
 			self.skipWaiting();
 		}
 		// Manage CACHE
-		if (params.cache_name && params.caching_strategy === 'static' && params.caching_list) {
+		if (params.cache_name && params.static_caching_list) {
 			// Add files to cache
 			evt.waitUntil(
 				self.caches.open(params.cache_name).then(cache => {
 					if (params.lifecycle_logs) {
 						console.log('[ServiceWorker] Pre-caching resources.');
 					}
-					return cache.addAll(params.caching_list);
+					return cache.addAll(params.static_caching_list);
 				})
 			);
 		}
@@ -98,9 +99,9 @@ export default function(params) {
 			request: evt.request,
 			scope: evt,
 		}
-		return await router.route([routingPayload], 'default', async function(response) {
+		return await router.route([routingPayload], 'default', async function(flo) {
 			if (arguments.length) {
-				return response;
+				return;
 			}
 			switch(params.fetching_strategy) {
 				case 'cache_first':
@@ -154,8 +155,8 @@ export default function(params) {
 	const handleFetchResponse = (request, response) => {
 
 		// Check if we received a valid response
-		if (params.caching_strategy === 'static' || !response || response.status !== 200 || response.type !== 'basic'
-		|| ((params.caching_list || []).filter(c => c.trim()).length && !params.caching_list.reduce((matched, pattern) => matched || Minimatch(request.url, pattern, {dot: true}), false))) {
+		if (!response || response.status !== 200 || response.type !== 'basic'
+		|| (!(params.dynamic_caching_list || []).map(c => c.trim()).filter(c => c).reduce((matched, pattern) => matched || Minimatch(request.url, pattern, {dot: true}), false))) {
 			return response;
 		}
 
@@ -176,175 +177,41 @@ export default function(params) {
 
 	// -----------------------------
 	
-	if (params.support_messaging) {
-		
-		/**
-		 * -------------
-		 * ON-MESSAGE
-		 * -------------
-		 */
+	self.addEventListener('message', evt => {
+		const router = new Router('/', params);
+		evt.waitUntil(
+			router.route('postmessage', [evt], function() {
+				return self;
+			})
+		);
+	});
 
-		self.addEventListener('message', evt => {
-			var messageRoutingUrl = '/';
-			if (params.message_routing_url_property && evt.data[params.message_routing_url_property]) {
-				messageRoutingUrl = evt.data[params.message_routing_url_property];
-			}
-			// The app router
-			const router = new Router(messageRoutingUrl, params);
-			// The srvice object
-			const routingPayload = {
-				params,
-				evt,
-				scope: self,
-			}
-			evt.waitUntil(
-				router.route([routingPayload], 'message', async function(messageData) {
-					if (arguments.length) {
-						return messageData;
-					}
-					return evt.data.json(); // Promise
-				}).then(messageData => {
-					if (messageData && params.message_relay_flag_property && messageData[params.message_relay_flag_property]) {
-						return self.clients.matchAll().then(clientList => {
-							clientList.forEach(client => {
-								if (client.id === evt.source.id) {
-									return;
-								}
-								client.postMessage({
-									isMessageRelay: true,
-									sourceId: evt.source.id,
-									message: messageData,
-								});
-							});
-						});
-					}
-				})
-			);
-		});
-	}
+	self.addEventListener('push', evt => {
+		const router = new Router('/', params);
+		evt.waitUntil(
+			router.route('notificationpush', [evt], function() {
+				return self;
+			})
+		);
+	});
 
-	// -----------------------------
+	self.addEventListener('notificationclick', evt => {
+		const router = new Router('/', params);
+		evt.waitUntil(
+			router.route('notificationclick', [evt], function() {
+				return self;
+			})
+		);
+	});
 
-	if (params.support_notification) {
-		
-		/**
-		 * -------------
-		 * ON-PUSH
-		 * -------------
-		 */
-
-		self.addEventListener('push', evt => {
-			var notificationRoutingUrl = '/';
-			if (params.notification_routing_url_property && evt.data[params.notification_routing_url_property]) {
-				notificationRoutingUrl = evt.data[params.notification_routing_url_property];
-			}
-			// The app router
-			const router = new Router(notificationRoutingUrl, params);
-			// The srvice object
-			const routingPayload = {
-				params,
-				evt,
-				scope: self,
-			}
-			evt.waitUntil(
-				router.route([routingPayload], 'notice', async function(notificationData) {
-					if (arguments.length) {
-						return notificationData;
-					}
-					try {
-						return evt.data.json(); // Promise
-					} catch(e) {
-						return evt.data.text(); // Promise
-					}
-				}).then(notificationData => {
-					if (notificationData) {
-						return self.registration.showNotification(params.NOTIFICATION_TITLE || '', notificationData);
-					}
-				})
-			);
-		});
-		
-		/**
-		 * -------------
-		 * ON-NOTIFICATION...
-		 * -------------
-		 */
-
-		self.addEventListener('notificationclick', evt => {
-			var notificationTargetUrl = '/';
-			if (params.notification_target_url_property && evt.notification[params.notification_target_url_property]) {
-				notificationTargetUrl = evt.notification[params.notification_target_url_property];
-			}
-			// The app router
-			const router = new Router(notificationTargetUrl, params);
-			// The srvice object
-			const routingPayload = {
-				params,
-				evt,
-				scope: self,
-			}
-			evt.waitUntil(
-				router.route([routingPayload], 'target', async function(cuurentClientAtUrl) {
-					if (arguments.length) {
-						return cuurentClientAtUrl;
-					}
-					return self.clients.matchAll().then(clientList => {
-						// Take the user to the app... the current open window or a new window
-						return clientList.reduce((cuurentClientAtUrl, client) => {
-							return cuurentClientAtUrl || matchClientUrl(client, notificationTargetUrl) ? client : null;
-						}, null);
-					});
-				}).then(cuurentClientAtUrl => {
-					if (cuurentClientAtUrl) {
-						return cuurentClientAtUrl.focus();
-					}
-					return self.clients.openWindow(notificationTargetUrl); // Promise
-				}).then(cuurentClientAtUrl => {
-					// Let client know that a notification for it has been clicked
-					return cuurentClientAtUrl.postMessage({
-						isNotificationTargetEvent: true,
-						notification: evt.notification.data,
-					});
-				})
-			);
-		});
-
-		// -----------------------------
-
-		self.addEventListener('notificationclose', evt => {
-			var notificationTargetUrl = '/';
-			if (params.notification_target_url_property && evt.notification[params.notification_target_url_property]) {
-				notificationTargetUrl = evt.notification[params.notification_target_url_property];
-			}
-			// The app router
-			const router = new Router(notificationTargetUrl, params);
-			// The srvice object
-			const routingPayload = {
-				params,
-				evt,
-				scope: self,
-			}
-			evt.waitUntil(
-				router.route([routingPayload], 'untarget', async function(cuurentClientAtUrl) {
-					if (arguments.length) {
-						return cuurentClientAtUrl;
-					}
-					return self.clients.matchAll().then(clientList => {
-						// Take the user to the app
-						return clientList.reduce((cuurentClientAtUrl, client) => cuurentClientAtUrl || matchClientUrl(client, notificationTargetUrl) ? client : null, null);
-					});
-				}).then(cuurentClientAtUrl => {
-					if (cuurentClientAtUrl) {
-						// Let client know that a notification for it has been closed
-						return cuurentClientAtUrl.postMessage({
-							isNotificationUntargetEvent: true,
-							notification: evt.notification.data,
-						});
-					}
-				})
-			);
-		});
-	}
+	self.addEventListener('notificationclose', evt => {
+		const router = new Router('/', params);
+		evt.waitUntil(
+			router.route('notificationclose', [evt], function() {
+				return self;
+			})
+		);
+	});
 
 };
 
@@ -352,3 +219,42 @@ export default function(params) {
  * @utils
  */
 const matchClientUrl = (client, url) => '/' + _after(_after(client.url, '//'), '/') === url;
+
+/**
+relay(messageData) {
+	return self.clients.matchAll().then(clientList => {
+		clientList.forEach(client => {
+			if (client.id === evt.source.id) {
+				return;
+			}
+			client.postMessage(messageData);
+		});
+	});
+};
+
+if (notificationData) {
+	var title = params.NOTIFICATION_TITLE || '';
+	if (_isArray(notificationData)) {
+		title = notificationData[0];
+		notificationData = notificationData[1];
+	}
+	return self.registration.showNotification(title, notificationData);
+}
+
+var cuurentClientAtUrl = self.clients.matchAll().then(clientList => {
+	// Take the user to the app... the current open window or a new window
+	return clientList.reduce((cuurentClientAtUrl, client) => {
+		return cuurentClientAtUrl || matchClientUrl(client, pathname) ? client : null;
+	}, null);
+});
+if (cuurentClientAtUrl) {
+	return cuurentClientAtUrl.focus();
+}
+return self.clients.openWindow(pathname);
+
+return self.clients.matchAll().then(clientList => {
+	// Take the user to the app
+	return clientList.reduce((cuurentClientAtUrl, client) => cuurentClientAtUrl || matchClientUrl(client, pathname) ? client : null, null);
+});
+
+ */

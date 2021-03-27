@@ -32,22 +32,21 @@ export default class Router {
     /**
      * Performs dynamic routing.
      * 
-     * @param array             args
      * @param array|string      target
+     * @param array             args
      * @param function          _default
      * 
      * @return object
      */
-    async route(args, target, _default) {
+    async route(target, args, _default) {
 
         target = _arrFrom(target);
-        var path = this.path;
         var routeTree = this.params.ROUTES;
 
         // ----------------
         // The loop
         // ----------------
-        const next = async function(index, output) {
+        const next = async function(path, index, output) {
 
             var exports;
             if (index === 0) {
@@ -64,7 +63,19 @@ export default class Router {
                     // -------------
                     // Dynamic response
                     // -------------
-                    var _next = (..._args) => next(index + 1, ..._args);
+                    var _next = (..._args) => {
+                        if (_args.length > 1) {
+                            var rdr = _args.splice(1, 1)[0];
+                            if (!_isString(rdr)) {
+                                throw new Error('Router redirect must be a string!');
+                            }
+                            if (rdr.startsWith('/')) {
+                                throw new Error('Router redirect must NOT be an absolute path!');
+                            }
+                            path = path.slice(0, index).concat(rdr.split('/').map(a => a.trim()).filter(a => a));
+                        }
+                        return next(path, index + 1, ..._args);
+                    };
                     _next.pathname = path.slice(index).join('/');
                     // -------------
                     var _this = {};
@@ -78,7 +89,8 @@ export default class Router {
                 // -------------
                 // Local file
                 // -------------
-                return await (arguments.length === 2 ? _default(output) : _default());
+                var defaultThis = {pathname: '/' + path.join('/')};
+                return await (arguments.length === 3 ? _default.call(defaultThis, output) : _default.call(defaultThis));
             }
     
             // -------------
@@ -87,6 +99,6 @@ export default class Router {
             return output;
         };
         
-        return next(0);
+        return next(this.path, 0);
     } 
 };

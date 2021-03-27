@@ -35,23 +35,23 @@ export default function(params) {
 	 * Apply routing
 	 * ----------------
 	 */	
-	Http.createClient(async (request, initCall) => {
+	Http.createClient(async (request, src, initCall) => {
 
         // -------------------
         // Resolve canonicity
         // -------------------
 
 		// The srvice object
-		const flow = {
+		const $process = {
 			onHydration: initCall && (await window.WQ.OOHTML.meta('isomorphic')),
-			location: Url.parseUrl(request.url),
+			url: Url.parseUrl(request.url),
 			params,
 			request,
 			data: null,
 		}
 		
 		// The app router
-		const requestPath = flow.location.pathname;
+		const requestPath = $process.url.pathname;
 		const router = new Router(requestPath, params);
 		if (networkProgressOngoing) {
 			networkProgressOngoing.setActive(false);
@@ -63,15 +63,13 @@ export default function(params) {
 			// --------
 			// ROUTE FOR DATA
 			// --------
-			flow.data = await router.route([flow], 'default', async function(output) {
-				if (arguments.length) {
-					return output;
-				}
+			$process.data = await router.route('default', [$process], async function() {
 				// -----------------
 				var networkProgress = networkProgressOngoing = new RequestHandle();
 				networkProgress.setActive(true);
 				// -----------------
-				var requestUrl = request.url.includes('?') ? request.url + '&webfloapi=1' : request.url + '?webfloapi=1';
+				var requestUrl_ = /*request.url*/this.pathname;
+				var requestUrl = requestUrl_.includes('?') ? requestUrl_ + '&webfloapi=1' : requestUrl_ + '?webfloapi=1';
 				const response = _fetch(requestUrl, {
 					headers: {accept: 'application/json',},
 				}, networkProgress.updateProgress.bind(networkProgress));
@@ -90,36 +88,35 @@ export default function(params) {
 			// Render
 			// --------
 			await window.WQ.DOM.ready;
-			const _window = await router.route([flow.data || {}], 'render', async function(_window) {
-				if (arguments.length) {
-					return _window;
-				}
+			const _window = await router.route('render', [$process.data || {}], async function() {
 				// --------
 				if (!window.document.state.env) {
 					window.document.setState({
 						env: 'client',
-						onHydration: flow.onHydration,
+						onHydration: $process.onHydration,
 						network: networkWatch,
 					}, {update: true});
 				}
-				window.document.setState({page: flow.data, location: flow.location}, {update: true});
+				window.document.setState({page: $process.data, url: $process.url}, {update: true});
 				window.document.body.setAttribute('template', 'page' + requestPath);
 
 				return window;
 			});
 
-			setTimeout(() => {
-				var urlTarget;
-				if (flow.location.hash && (urlTarget = document.querySelector(flow.location.hash))) {
-					urlTarget.scrollIntoView(true);
-				} else {
-					document.documentElement.classList.add('scroll-reset');
-					window.scroll({top: 0, left: 0});
-					setTimeout(() => {
-						document.documentElement.classList.remove('scroll-reset');
-					}, 400);
-				}
-            }, 0);
+			if (src && (src instanceof Element)) {
+				setTimeout(() => {
+					var urlTarget;
+					if ($process.url.hash && (urlTarget = document.querySelector($process.url.hash))) {
+						urlTarget.scrollIntoView(true);
+					} else {
+						document.documentElement.classList.add('scroll-reset');
+						window.scroll({top: 0, left: 0});
+						setTimeout(() => {
+							document.documentElement.classList.remove('scroll-reset');
+						}, 400);
+					}
+				}, 0);
+			}
 
 			// --------
 			// Render...
@@ -127,7 +124,7 @@ export default function(params) {
 
 			await window.WQ.DOM.templatesReady;
 
-			return flow.data;
+			return $process.data;
 
 		} catch(e) {
 

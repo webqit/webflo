@@ -32,7 +32,7 @@
     "@octokit/auth-basic": "^1.4.6",
     "@octokit/rest": "^17.11.2",
     "@octokit/webhooks": "^7.15.1",
-    "@webqit/backpack": "0.0.3",
+    "@webqit/backpack": "0.0.31",
     "@webqit/browser-pie": "0.0.8",
     "@webqit/pseudo-browser": "^0.2.9",
     "@webqit/util": "^0.7.0",

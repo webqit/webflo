@@ -13,12 +13,12 @@ import Minimatch from 'minimatch';
 /**
  * Reads entries from file.
  * 
- * @param object    setup
+ * @param object    layout
  * 
  * @return object
  */
-export async function read(setup = {}) {
-    const config = DotJson.read(Path.join(setup.ROOT || '', './.webflo/config/headers.json'));
+export async function read(layout = {}) {
+    const config = DotJson.read(Path.join(layout.ROOT || '', './.webflo/config/headers.json'));
     return _merge({
         entries: [],
     }, config);
@@ -28,22 +28,22 @@ export async function read(setup = {}) {
  * Writes entries to file.
  * 
  * @param object    config
- * @param object    setup
+ * @param object    layout
  * 
  * @return void
  */
-export async function write(config, setup = {}) {
-    DotJson.write(config, Path.join(setup.ROOT || '', './.webflo/config/headers.json'));
+export async function write(config, layout = {}) {
+    DotJson.write(config, Path.join(layout.ROOT || '', './.webflo/config/headers.json'));
 };
 
 /**
  * @match
  */
-export async function match(url, setup = {}) {
+export async function match(url, layout = {}) {
     if (!_isObject(url)) {
         url = Url.parse(url);
     }
-    return ((await read(setup)).entries || []).filter(header => {
+    return ((await read(layout)).entries || []).filter(header => {
         var matcher = Minimatch.Minimatch(header.url, {dot: true});
         var regex = matcher.makeRe();
         var rootMatch = url.pathname.split('/').filter(seg => seg).map(seg => seg.trim()).reduce((str, seg) => str.endsWith(' ') ? str : ((str = str + '/' + seg) && str.match(regex) ? str + ' ' : str), '');
@@ -56,11 +56,11 @@ export async function match(url, setup = {}) {
  * 
  * @param object    config
  * @param object    choices
- * @param object    setup
+ * @param object    layout
  * 
  * @return Array
  */
-export async function questions(config, choices = {}, setup = {}) {
+export async function questions(config, choices = {}, layout = {}) {
 
     // Questions
     return [

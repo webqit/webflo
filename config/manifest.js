@@ -12,14 +12,14 @@ import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
 /**
  * Reads MANIFEST from file.
  * 
- * @param object    setup
+ * @param object    layout
  * 
  * @return object
  */
-export async function read(setup = {}) {
+export async function read(layout = {}) {
     // Package
-    const pkg = setup.PKG || {};
-    const config = DotJson.read(Path.join(setup.ROOT || '', setup.PUBLIC_DIR, './manifest.json'));
+    const pkg = layout.PKG || {};
+    const config = DotJson.read(Path.join(layout.ROOT || '', layout.PUBLIC_DIR, './manifest.json'));
     return _merge({
         // -----------------
         name: pkg.value,
@@ -47,12 +47,12 @@ export async function read(setup = {}) {
  * Writes MANIFEST to file.
  * 
  * @param object    config
- * @param object    setup
+ * @param object    layout
  * 
  * @return void
  */
-export async function write(config, setup = {}) {
-    DotJson.write(config, Path.join(setup.ROOT || '', setup.PUBLIC_DIR, './manifest.json'));
+export async function write(config, layout = {}) {
+    DotJson.write(config, Path.join(layout.ROOT || '', layout.PUBLIC_DIR, './manifest.json'));
 };
 
 /**
@@ -60,11 +60,11 @@ export async function write(config, setup = {}) {
  * 
  * @param object    config
  * @param object    choices
- * @param object    setup
+ * @param object    layout
  * 
  * @return Array
  */
-export async function questions(config, choices = {}, setup = {}) {
+export async function questions(config, choices = {}, layout = {}) {
 
     // Choices hash...
     const CHOICES = _merge({

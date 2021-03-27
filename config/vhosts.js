@@ -10,12 +10,12 @@ import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
 /**
  * Reads entries from file.
  * 
- * @param object    setup
+ * @param object    layout
  * 
  * @return object
  */
-export async function read(setup = {}) {
-    const config = DotJson.read(Path.join(setup.ROOT || '', './.webflo/config/vhosts.json'));
+export async function read(layout = {}) {
+    const config = DotJson.read(Path.join(layout.ROOT || '', './.webflo/config/vhosts.json'));
     return _merge({
         entries: [],
     }, config);
@@ -25,22 +25,22 @@ export async function read(setup = {}) {
  * Writes entries to file.
  * 
  * @param object    config
- * @param object    setup
+ * @param object    layout
  * 
  * @return void
  */
-export async function write(config, setup = {}) {
-    DotJson.write(config, Path.join(setup.ROOT || '', './.webflo/config/vhosts.json'));
+export async function write(config, layout = {}) {
+    DotJson.write(config, Path.join(layout.ROOT || '', './.webflo/config/vhosts.json'));
 };
 
 /**
  * @match
  */
-export async function match(hostname, setup = {}) {
+export async function match(hostname, layout = {}) {
     if (_isObject(hostname)) {
         hostname = hostname.hostname;
     }
-    return ((await read(setup)).entries || []).filter(vh => vh.host === hostname);
+    return ((await read(layout)).entries || []).filter(vh => vh.host === hostname);
 };
 
 /**
@@ -48,11 +48,11 @@ export async function match(hostname, setup = {}) {
  * 
  * @param object    config
  * @param object    choices
- * @param object    setup
+ * @param object    layout
  * 
  * @return Array
  */
-export async function questions(config, choices = {}, setup = {}) {
+export async function questions(config, choices = {}, layout = {}) {
 
     // Questions
     return [

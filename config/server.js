@@ -10,12 +10,12 @@ import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
 /**
  * Reads RUNTIME from file.
  * 
- * @param object    setup
+ * @param object    layout
  * 
  * @return object
  */
-export async function read(setup = {}) {
-    const config = DotJson.read(Path.join(setup.ROOT || '', './.webflo/config/server.json'));
+export async function read(layout = {}) {
+    const config = DotJson.read(Path.join(layout.ROOT || '', './.webflo/config/server.json'));
     return _merge({
         port: process.env.port || 3000,
         https: {
@@ -41,12 +41,12 @@ export async function read(setup = {}) {
  * Writes RUNTIME to file.
  * 
  * @param object    config
- * @param object    setup
+ * @param object    layout
  * 
  * @return void
  */
-export async function write(config, setup = {}) {
-    DotJson.write(config, Path.join(setup.ROOT || '', './.webflo/config/server.json'));
+export async function write(config, layout = {}) {
+    DotJson.write(config, Path.join(layout.ROOT || '', './.webflo/config/server.json'));
 };
 
 /**
@@ -54,11 +54,11 @@ export async function write(config, setup = {}) {
  * 
  * @param object    config
  * @param object    choices
- * @param object    setup
+ * @param object    layout
  * 
  * @return Array
  */
-export async function questions(config, choices = {}, setup = {}) {
+export async function questions(config, choices = {}, layout = {}) {
 
     // Choices
     const CHOICES = _merge({
