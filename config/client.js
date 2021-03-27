@@ -13,36 +13,29 @@ import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
 /**
  * Reads WORKER from file.
  * 
- * @param object    setup
+ * @param object    layout
  * 
  * @return object
  */
-export async function read(setup = {}) {
-    const config = DotJson.read(Path.join(setup.ROOT || '', './.webflo/config/client.json'));
+export async function read(layout = {}) {
+    const config = DotJson.read(Path.join(layout.ROOT || '', './.webflo/config/client.json'));
     return _merge({
         // -----------------
         // SERVICE WORKER
         // -----------------
         worker: {
-            lifecycle_logs: true,
-            // -----------------
             scope: '/',
             cache_name: 'cache_v0',
             fetching_strategy: 'cache_first',
-            caching_strategy: 'dynamic',
-            caching_list: [],
+            dynamic_caching_list: [],
+            static_caching_list: [],
             skip_waiting: false,
+            lifecycle_logs: true,
             // -----------------
-            support_messaging: true,
-            message_routing_url_property: '',
-            message_relay_flag_property: '',
-            // -----------------
-            support_notification: false,
+            support_push: false,
             push_registration_url: '',
             push_deregistration_url: '',
             push_public_key: '',
-            notification_routing_url_property: '',
-            notification_target_url_property: '',
         },
     }, config);
 };
@@ -51,12 +44,12 @@ export async function read(setup = {}) {
  * Writes WORKER to file.
  * 
  * @param object    config
- * @param object    setup
+ * @param object    layout
  * 
  * @return void
  */
-export async function write(config, setup = {}) {
-    DotJson.write(config, Path.join(setup.ROOT || '', './.webflo/config/client.json'));
+export async function write(config, layout = {}) {
+    DotJson.write(config, Path.join(layout.ROOT || '', './.webflo/config/client.json'));
 };
 
 /**
@@ -64,11 +57,11 @@ export async function write(config, setup = {}) {
  * 
  * @param object    config
  * @param object    choices
- * @param object    setup
+ * @param object    layout
  * 
  * @return Array
  */
-export async function questions(config, choices = {}, setup = {}) {
+export async function questions(config, choices = {}, layout = {}) {
 
     // Increment cache
     if (config.cache_name && config.cache_name.indexOf('_v') > -1 && _isNumeric(_after(config.cache_name, '_v'))) {
@@ -81,11 +74,6 @@ export async function questions(config, choices = {}, setup = {}) {
             {value: 'network_first',},
             {value: 'cache_first',},
             {value: 'auto',},
-        ],
-        worker_cahing_strategy:[
-            {value: 'dynamic',},
-            {value: 'static',},
-            {value: 'none',},
         ],
     }, choices);
 
@@ -114,10 +102,43 @@ export async function questions(config, choices = {}, setup = {}) {
             },
             questions: [
                 {
-                    name: 'dir',
+                    name: 'scope',
                     type: 'text',
-                    message: 'Enter the application\'s worker-level routing directory',
-                    initial: config.dir,
+                    message: 'Specify the Service Worker scope',
+                    initial: config.scope,
+                },
+                {
+                    name: 'cache_name',
+                    type: 'text',
+                    message: 'Enter the Service Worker cache name',
+                    initial: config.cache_name,
+                },
+                {
+                    name: 'fetching_strategy',
+                    type: 'select',
+                    message: 'Select the Service Worker fetching strategy',
+                    choices: CHOICES.worker_fetching_strategy,
+                    initial: initialGetIndex(CHOICES.worker_fetching_strategy, config.fetching_strategy),
+                },
+                {
+                    name: 'static_caching_list',
+                    type: 'list',
+                    message: 'Specify files to statically cache (comma-separated)',
+                    initial: (config.static_caching_list || []).join(', '),
+                },
+                {
+                    name: 'dynamic_caching_list',
+                    type: 'list',
+                    message: 'Specify files to dynamically cache (comma-separated)',
+                    initial: (config.dynamic_caching_list || []).join(', '),
+                },
+                {
+                    name: 'skip_waiting',
+                    type: 'toggle',
+                    message: 'Choose whether to skip the "waiting" state for updated Service Workers',
+                    active: 'YES',
+                    inactive: 'NO',
+                    initial: config.skip_waiting,
                 },
                 {
                     name: 'lifecycle_logs',
@@ -127,140 +148,35 @@ export async function questions(config, choices = {}, setup = {}) {
                     inactive: 'NO',
                     initial: config.lifecycle_logs,
                 },
-                // ------------- advanced --------------
-                {
-                    name: '__advanced',
-                    type: 'toggle',
-                    message: 'Show advanced Service Worker options?',
-                    active: 'YES',
-                    inactive: 'NO',
-                    initial: config.__advanced,
-                },
-                // ------------- advanced --------------
-                {
-                    name: 'scope',
-                    type: (prev, answers) => answers.__advanced ? 'text' : null,
-                    message: 'Specify the Service Worker scope',
-                    initial: config.scope,
-                },
-                {
-                    name: 'cache_name',
-                    type: (prev, answers) => answers.__advanced ? 'text' : null,
-                    message: 'Enter the Service Worker cache name',
-                    initial: config.cache_name,
-                },
-                {
-                    name: 'fetching_strategy',
-                    type: (prev, answers) => answers.__advanced ? 'select' : null,
-                    message: 'Select the Service Worker fetching strategy',
-                    choices: CHOICES.worker_fetching_strategy,
-                    initial: initialGetIndex(CHOICES.worker_fetching_strategy, config.fetching_strategy),
-                },
-                {
-                    name: 'caching_strategy',
-                    type: (prev, answers) => answers.__advanced ? 'select' : null,
-                    message: 'Select the Service Worker caching strategy',
-                    choices: CHOICES.worker_cahing_strategy,
-                    initial: initialGetIndex(CHOICES.worker_cahing_strategy, config.caching_strategy),
-                },
-                {
-                    name: 'caching_list',
-                    type: (prev, answers) => answers.__advanced ? 'list' : null,
-                    message: 'Specify files to cache (comma-separated)',
-                    initial: (config.caching_list || []).join(', '),
-                },
-                {
-                    name: 'skip_waiting',
-                    type: (prev, answers) => answers.__advanced ? 'toggle' : null,
-                    message: 'Choose whether to skip the "waiting" state for updated Service Workers',
-                    active: 'YES',
-                    inactive: 'NO',
-                    initial: config.skip_waiting,
-                },
-                // ------------- messaging --------------
-                {
-                    name: 'support_messaging',
-                    type: 'toggle',
-                    message: 'Support worker-clients post-messaging?',
-                    active: 'YES',
-                    inactive: 'NO',
-                    initial: config.support_messaging,
-                },
-                // ------------- messaging --------------
-                // ------------- messaging advanced --------------
-                {
-                    name: '__messaging_advanced',
-                    type: (prev, answers) => answers.support_messaging ? 'toggle' : null,
-                    message: 'Show advanced post-messaging options?',
-                    active: 'YES',
-                    inactive: 'NO',
-                    initial: config.__messaging_advanced,
-                },
-                // ------------- messaging advanced --------------
-                {
-                    name: 'message_routing_url_property',
-                    type: (prev, answers) => answers.__messaging_advanced ? 'text' : null,
-                    message: 'Enter a Message Object\'s URL property for routing post-messages',
-                    initial: config.message_routing_url_property,
-                },
-                {
-                    name: 'message_relay_flag_property',
-                    type: (prev, answers) => answers.__messaging_advanced ? 'text' : null,
-                    message: 'Enter a Message Object\'s relay property for relaying post-messages',
-                    initial: config.message_relay_flag_property,
-                },
                 // ------------- notification --------------
                 {
-                    name: 'support_notification',
+                    name: 'support_push',
                     type: 'toggle',
                     message: 'Support push-notifications?',
                     active: 'YES',
                     inactive: 'NO',
-                    initial: config.support_notification,
+                    initial: config.support_push,
                 },
-                // ------------- notification --------------
                 {
                     name: 'push_registration_url',
-                    type: (prev, answers) => answers.support_notification ? 'text' : null,
+                    type: (prev, answers) => answers.support_push ? 'text' : null,
                     message: 'Enter the URL for push notification subscription',
                     initial: config.push_registration_url,
                     validation: ['important'],
                 },
                 {
                     name: 'push_deregistration_url',
-                    type: (prev, answers) => answers.support_notification ? 'text' : null,
+                    type: (prev, answers) => answers.support_push ? 'text' : null,
                     message: 'Enter the URL for push notification unsubscription',
                     initial: config.push_deregistration_url,
                     validation: ['important'],
                 },
                 {
                     name: 'push_key',
-                    type: (prev, answers) => answers.support_notification ? 'text' : null,
+                    type: (prev, answers) => answers.support_push ? 'text' : null,
                     message: 'Enter the Public Key for push notification subscription',
                     initial: config.push_key,
                     validation: ['important'],
-                },
-                // ------------- notification advanced --------------
-                {
-                    name: '__notification_advanced',
-                    type: (prev, answers) => answers.support_notification ? 'toggle' : null,
-                    message: 'Show advanced push-notifications options?',
-                    active: 'YES',
-                    inactive: 'NO',
-                    initial: config.__notification_advanced,
-                },
-                // ------------- notification advanced --------------
-                {
-                    name: 'notification_routing_url_property',
-                    type: (prev, answers) => answers.__notification_advanced ? 'text' : null,
-                    message: 'Enter a Notification Object\'s URL property for routing push notifications',
-                    initial: config.notification_routing_url_property,
-                },
-                {
-                    name: 'notification_target_url_property',
-                    type: (prev, answers) => answers.__notification_advanced ? 'text' : null,
-                    message: 'Enter a Notification Object\'s URL property name for notification targeting',
-                    initial: config.notification_target_url_property,
                 },
             ],
         },

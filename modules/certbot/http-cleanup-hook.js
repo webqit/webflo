@@ -5,7 +5,7 @@
  */
 import Fs from 'fs';
 import Path from 'path';
-import * as _setup from '../../config/setup.js';
+import * as _layout from '../../config/layout.js';
 
 // ------------------------------------------
 
@@ -17,7 +17,7 @@ const domain = process.env.CERTBOT_DOMAIN,
     allDomains = process.env.CERTBOT_ALL_DOMAINS.split(',')*/
     ;
 (async function() {
-    const setup = await _setup.read({});
-    const acmeFile = Path.join(setup.PUBLIC_DIR, './.well-known/acme-challenge/', token);
+    const layout = await _layout.read({});
+    const acmeFile = Path.join(layout.PUBLIC_DIR, './.well-known/acme-challenge/', token);
     Fs.unlinkSync(acmeFile);
 })();

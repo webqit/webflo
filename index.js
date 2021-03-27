@@ -9,7 +9,7 @@ import parseArgs from '@webqit/backpack/src/cli/parseArgs.js';
 import Ui from '@webqit/backpack/src/cli/Ui.js';
 import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
 import { Promptx } from '@webqit/backpack/src/cli/Promptx.js';
-import * as _setup from './config/setup.js';
+import * as _layout from './config/layout.js';
 import * as client from './config/client.js';
 import * as manifest from './config/manifest.js';
 import * as prerendering from './config/prerendering.js';
@@ -47,14 +47,14 @@ const { command, keywords, flags, options, ellipsis } = parseArgs(process.argv);
 console.log('');
 
 (async function() {
-    const setup = await _setup.read({});
-    setup.PKG = DotJson.read('./package.json');
+    const layout = await _layout.read({});
+    layout.PKG = DotJson.read('./package.json');
     switch(command) {
 
         // --------------------------
 
         case 'build':
-            cmd.client.build(Ui, setup);
+            cmd.client.build(Ui, layout);
         break;
 
         // --------------------------
@@ -64,7 +64,7 @@ console.log('');
                 options;
             // ----------------
             if (!origin && ellipsis) {
-                if (!(options = (await config.origins.read(setup)).REPOS) || _isEmpty(options)) {
+                if (!(options = (await config.origins.read(layout)).REPOS) || _isEmpty(options)) {
                     Ui.log(Ui.f`Please configure an origin (${'webflo config ...'}) to use the ${'deploy'} command.`);
                     return;
                 }
@@ -80,13 +80,13 @@ console.log('');
                 return;
             }
             // ----------------
-            cmd.origins.deploy(Ui, origin, setup);
+            cmd.origins.deploy(Ui, origin, layout);
         break;
 
         // --------------------------
 
         case 'start':
-           cmd.server.start(Ui, flags, setup);
+           cmd.server.start(Ui, flags, layout);
         break;
         
         case 'stop':
@@ -142,9 +142,9 @@ console.log('');
                 return;
             }
             // ----------------
-            const data = await config[domain].read(setup);
-            Promptx(await config[domain].questions(data, {}, setup)).then(async _data => {
-                await config[domain].write(_merge(data, _data), setup);
+            const data = await config[domain].read(layout);
+            Promptx(await config[domain].questions(data, {}, layout)).then(async _data => {
+                await config[domain].write(_merge(data, _data), layout);
             });
 
         break;
@@ -153,7 +153,7 @@ console.log('');
 
         case 'cert':
             var domains = Object.keys(keywords);
-           cmd.certbot.generate(Ui, domains, flags, setup);
+           cmd.certbot.generate(Ui, domains, flags, layout);
         break;
         
         case 'help':

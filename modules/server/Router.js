@@ -15,35 +15,34 @@ export default class Router {
      * Instantiates a new Router.
      * 
      * @param string|array      path
-     * @param object            setup
+     * @param object            layout
      * 
      * @return void
      */
-    constructor(path, setup) {
+    constructor(path, layout) {
         this.path = _isArray(path) ? path : (path + '').split('/').filter(a => a);
-        this.setup = setup;
+        this.layout = layout;
     }
 
     /**
      * Performs dynamic routing.
      * 
-     * @param array             args
      * @param array|string      target
+     * @param array             args
      * @param function          _default
      * 
      * @return object
      */
-    async route(args, target, _default) {
+    async route(target, args, _default) {
         
         target = _arrFrom(target);
-        var path = this.path;
-        var setup = this.setup;
+        var layout = this.layout;
         var fetch = this.fetch.bind(this);
 
         // ----------------
         // ROUTER
         // ----------------
-        const next = async function(index, output) {
+        const next = async function(path, index, output) {
     
             var exports, routeHandlerFile, wildcardRouteHandlerFile;
             if (index === 0) {
@@ -55,8 +54,8 @@ export default class Router {
                 wildcardRouteHandlerFile = Path.join(wildcardRouteSlice, './index.js');
             }
     
-            if ((routeHandlerFile && Fs.existsSync(routeHandlerFile = Path.join(setup.ROOT, setup.SERVER_DIR, routeHandlerFile)))
-            || (wildcardRouteHandlerFile && Fs.existsSync(routeHandlerFile = Path.join(setup.ROOT, setup.SERVER_DIR, wildcardRouteHandlerFile)))) {
+            if ((routeHandlerFile && Fs.existsSync(routeHandlerFile = Path.join(layout.ROOT, layout.SERVER_DIR, routeHandlerFile)))
+            || (wildcardRouteHandlerFile && Fs.existsSync(routeHandlerFile = Path.join(layout.ROOT, layout.SERVER_DIR, wildcardRouteHandlerFile)))) {
                 exports = await import(Url.pathToFileURL(routeHandlerFile));
                 // ---------------
                 var func = target.reduce((func, name) => func || exports[name], null);
@@ -64,7 +63,19 @@ export default class Router {
                     // -------------
                     // Then we can call the handler
                     // -------------
-                    var _next = (..._args) => next(index + 1, ..._args);
+                    var _next = (..._args) => {
+                        if (_args.length > 1) {
+                            var rdr = _args.splice(1, 1)[0];
+                            if (!_isString(rdr)) {
+                                throw new Error('Router redirect must be a string!');
+                            }
+                            if (rdr.startsWith('/')) {
+                                throw new Error('Router redirect must NOT be an absolute path!');
+                            }
+                            path = path.slice(0, index).concat(rdr.split('/').map(a => a.trim()).filter(a => a));
+                        }
+                        return next(path, index + 1, ..._args);
+                    };
                     _next.pathname = path.slice(index).join('/');
                     // -------------
                     var _this = {};
@@ -79,7 +90,8 @@ export default class Router {
                 // -------------
                 // Local file
                 // -------------
-                return await (arguments.length === 2 ? _default(output) : _default());
+                var defaultThis = {pathname: '/' + path.join('/')};
+                return await (arguments.length === 3 ? _default.call(defaultThis, output) : _default.call(defaultThis));
             }
     
             // -------------
@@ -88,7 +100,7 @@ export default class Router {
             return output;
         };
     
-        return next(0);
+        return next(this.path, 0);
     }
 
     /**
@@ -99,7 +111,7 @@ export default class Router {
      * @return Promise
      */
     fetch(filename) {
-        var _filename = Path.join(this.setup.ROOT, this.setup.PUBLIC_DIR, filename);
+        var _filename = Path.join(this.layout.ROOT, this.layout.PUBLIC_DIR, filename);
         var autoIndex;
         if (Fs.existsSync(_filename)) {
             // based on the URL path, extract the file extention. e.g. .js, .doc, ...
@@ -141,7 +153,7 @@ export default class Router {
      * @return bool
      */
     putPreRendered(filename, content) {
-        var _filename = Path.join(this.setup.PUBLIC_DIR, '.', filename);
+        var _filename = Path.join(this.layout.PUBLIC_DIR, '.', filename);
         if (!Path.parse(filename).ext && filename.lastIndexOf('.') < filename.lastIndexOf('/')) {
             _filename = Path.join(_filename, '/index.html');
         }

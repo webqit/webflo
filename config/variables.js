@@ -4,29 +4,38 @@
  */
 import Path from 'path';
 import _merge from '@webqit/util/obj/merge.js';
+import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
 import * as DotEnv from '@webqit/backpack/src/dotfiles/DotEnv.js';
 
 /**
  * Reads entries from file.
  * 
- * @param object    setup
+ * @param object    layout
  * 
  * @return object
  */
-export async function read(setup = {}) {
-    return {entries: DotEnv.read(Path.join(setup.ROOT || '', './.env')),};
+export async function read(layout = {}) {
+    const config = DotJson.read(Path.join(layout.ROOT || '', './.webflo/config/variables.json'));
+    return _merge({
+        autoload: true,
+    }, config, {
+        entries: DotEnv.read(Path.join(layout.ROOT || '', './.env')) || {},
+    });
 };
 
 /**
  * Writes entries to file.
  * 
  * @param object    config
- * @param object    setup
+ * @param object    layout
  * 
  * @return void
  */
-export async function write(config, setup = {}) {
-    DotEnv.write(config.entries, Path.join(setup.ROOT || '', './.env'));
+export async function write(config, layout = {}) {
+    const _config = {...config};
+    DotEnv.write(_config.entries, Path.join(layout.ROOT || '', './.env'));
+    delete _config.entries;
+    DotJson.write(_config, Path.join(layout.ROOT || '', './.webflo/config/variables.json'));
 };
 
 /**
@@ -34,11 +43,11 @@ export async function write(config, setup = {}) {
  * 
  * @param object    config
  * @param object    CHOICES
- * @param object    setup
+ * @param object    layout
  * 
  * @return Array
  */
-export async function questions(config, choices = {}, setup = {}) {
+export async function questions(config, choices = {}, layout = {}) {
 
     // Questions
     return [
@@ -65,6 +74,13 @@ export async function questions(config, choices = {}, setup = {}) {
                 },
             ],
         },
-
+        {
+            name: 'autoload',
+            type: 'toggle',
+            message: 'Choose whether to autoload variables into "process.env"',
+            active: 'YES',
+            inactive: 'NO',
+            initial: config.autoload,
+        },
     ];
 };

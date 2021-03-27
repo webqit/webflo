@@ -6,7 +6,7 @@ import Fs from 'fs';
 import Readline from 'readline';
 import { spawn } from 'child_process';
 import _arrFrom from '@webqit/util/arr/from.js';
-import * as _setup from '../config/setup.js';
+import * as _layout from '../config/layout.js';
 import * as _server from '../config/server.js';
 
 /**
@@ -22,11 +22,11 @@ export const desc = {
  * @param Ui        Ui
  * @param string    allDomains
  * @param object    flags
- * @param object    setup
+ * @param object    layout
  * 
  * @return object
  */
-export async function generate(Ui, allDomains, flags = {}, setup = {}) {
+export async function generate(Ui, allDomains, flags = {}, layout = {}) {
     const domains = _arrFrom(allDomains).reduce((all, d) => all.concat(d.split(',')), []).filter(d => d.trim());
     const args = [
         'certonly',
@@ -56,8 +56,8 @@ export async function generate(Ui, allDomains, flags = {}, setup = {}) {
     });
 
     child.on('exit', async exitCode => {
-        const setup = await _setup.read({});
-        const server = await _server.read(setup);
+        const layout = await _layout.read({});
+        const server = await _server.read(layout);
         const domain = domains[0], certDir = `/etc/letsencrypt/live/${domain}`;
         if (!exitCode && (flags['auto-config'] || flags.c)) {
             if (Fs.existsSync(certDir)) {

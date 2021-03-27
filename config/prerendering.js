@@ -11,12 +11,12 @@ import Minimatch from 'minimatch';
 /**
  * Reads entries from file.
  * 
- * @param object    setup
+ * @param object    layout
  * 
  * @return object
  */
-export async function read(setup = {}) {
-    const config = DotJson.read(Path.join(setup.ROOT || '', './.webflo/config/prerendering.json'));
+export async function read(layout = {}) {
+    const config = DotJson.read(Path.join(layout.ROOT || '', './.webflo/config/prerendering.json'));
     return _merge({
         entries: [],
     }, config);
@@ -26,23 +26,23 @@ export async function read(setup = {}) {
  * Writes entries to file.
  * 
  * @param object    config
- * @param object    setup
+ * @param object    layout
  * 
  * @return void
  */
-export async function write(config, setup = {}) {
-    DotJson.write(config, Path.join(setup.ROOT || '', './.webflo/config/prerendering.json'));
+export async function write(config, layout = {}) {
+    DotJson.write(config, Path.join(layout.ROOT || '', './.webflo/config/prerendering.json'));
 };
 
 /**
  * @match
  */
-export async function match(url, setup = {}) {
+export async function match(url, layout = {}) {
     var pathname = url;
     if (_isObject(url)) {
         pathname = url.pathname;
     }
-    return ((await read(setup)).entries || []).reduce((match, prerend) => {
+    return ((await read(layout)).entries || []).reduce((match, prerend) => {
         if (match) {
             return match;
         }
@@ -62,11 +62,11 @@ export async function match(url, setup = {}) {
  * 
  * @param object    config
  * @param object    choices
- * @param object    setup
+ * @param object    layout
  * 
  * @return Array
  */
-export async function questions(config, choices = {}, setup = {}) {
+export async function questions(config, choices = {}, layout = {}) {
 
     // Questions
     return [

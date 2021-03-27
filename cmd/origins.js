@@ -21,12 +21,12 @@ export const desc = {
 /**
  * @deploy
  */
-export async function deploy(Ui, origin, setup = {}) {
+export async function deploy(Ui, origin, layout = {}) {
     if (!_isObject(origin)) {
         if (!origin) {
             throw new Error(`Please provide a repository name.`);
         }
-        const matches = await origins.match(origin, setup);
+        const matches = await origins.match(origin, layout);
         if (matches.length > 1) {
             throw new Error(`Cannot deploy ${origin}: Multiple deploy settings found.`);
         }
@@ -36,7 +36,7 @@ export async function deploy(Ui, origin, setup = {}) {
         origin = matches[0];
     }
     // ---------------
-    origin.deploy_path = Path.join(setup.ROOT, origin.deploy_path);
+    origin.deploy_path = Path.join(layout.ROOT, origin.deploy_path);
     // ---------------
     // Instance
     const git = SimpleGit();
@@ -92,7 +92,7 @@ export async function deploy(Ui, origin, setup = {}) {
             });
     };
 
-    // Remote setup
+    // Remote layout
     return git.getRemotes().then(remotes => {
         if (!_any(remotes, remote => remote.name === origin.tag)
         // But if the folder was deleted and created anew,
@@ -114,11 +114,11 @@ export async function deploy(Ui, origin, setup = {}) {
 /**
  * @hook
  */
-export function hook(Ui, request, response, setup = {}) {
+export function hook(Ui, request, response, layout = {}) {
     return new Promise(async (resolve, reject) => {
         const eventHandler = Webhooks.createEventHandler();
         eventHandler.on('push', async ({ name, payload }) => {
-            const matches = (await origins.match(payload.repository.full_name, setup)).filter(o => o.autodeploy);
+            const matches = (await origins.match(payload.repository.full_name, layout)).filter(o => o.autodeploy);
             var deployParams;
             if (!(deployParams = matches[0])) {
                 return;
@@ -136,7 +136,7 @@ export function hook(Ui, request, response, setup = {}) {
                 reject(`Failed deploy attempt (${payload.repository.full_name}): Repository disabled or archived.`);
             }
             Ui.log('---------------------------');
-            await deploy(Ui, deployParams, setup);
+            await deploy(Ui, deployParams, layout);
             Ui.log('');
             Ui.log('---------------------------');
             resolve(true);

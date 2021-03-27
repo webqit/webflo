@@ -12,16 +12,16 @@ import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
 /**
  * Reads entries from file.
  * 
- * @param object    setup
+ * @param object    layout
  * 
  * @return object
  */
-export async function read(setup = {}) {
-    const config = DotJson.read(Path.join(setup.ROOT || '', './.webflo/config/origins.json'));
+export async function read(layout = {}) {
+    const config = DotJson.read(Path.join(layout.ROOT || '', './.webflo/config/origins.json'));
     
     var hostname = '', origin = '';
-    if (setup.PKG && setup.PKG.repository) {
-        var inferredRepo = Url.parse(_isTypeObject(setup.PKG.repository) ? setup.PKG.repository.url : setup.PKG.repository);
+    if (layout.PKG && layout.PKG.repository) {
+        var inferredRepo = Url.parse(_isTypeObject(layout.PKG.repository) ? layout.PKG.repository.url : layout.PKG.repository);
         hostname = _before(inferredRepo.hostname, '.');
         origin = _before(inferredRepo.pathname, '.');
     }
@@ -46,19 +46,19 @@ export async function read(setup = {}) {
  * Writes entries to file.
  * 
  * @param object    config
- * @param object    setup
+ * @param object    layout
  * 
  * @return void
  */
-export async function write(config, setup = {}) {
-    DotJson.write(config, Path.join(setup.ROOT || '', './.webflo/config/origins.json'));
+export async function write(config, layout = {}) {
+    DotJson.write(config, Path.join(layout.ROOT || '', './.webflo/config/origins.json'));
 };
 
 /**
  * @match
  */
-export async function match(origin, setup = {}) {
-    return ((await read(setup)).entries || []).filter(_origin => _origin.tag.toLowerCase() === origin.toLowerCase() || _origin.repo.toLowerCase() === origin.toLowerCase());
+export async function match(origin, layout = {}) {
+    return ((await read(layout)).entries || []).filter(_origin => _origin.tag.toLowerCase() === origin.toLowerCase() || _origin.repo.toLowerCase() === origin.toLowerCase());
 };
 
 /**
@@ -66,11 +66,11 @@ export async function match(origin, setup = {}) {
  * 
  * @param object    config
  * @param object    choices
- * @param object    setup
+ * @param object    layout
  * 
  * @return Array
  */
-export async function questions(config, choices = {}, setup = {}) {
+export async function questions(config, choices = {}, layout = {}) {
 
     // Choices
     const CHOICES = _merge({

@@ -22,12 +22,12 @@ export const desc = {
 /**
  * @build
  */
-export async function build(Ui, setup) {
-    const config = await client.read(setup);
+export async function build(Ui, layout) {
+    const config = await client.read(layout);
     // Consistent forward slashing
     const forwardSlash = str => str.replace(/\\/g, '/');
     var clientModulesDir = forwardSlash(Url.fileURLToPath(Path.join(import.meta.url, '../../modules/client')));
-    var clientDirSplit = Path.resolve(setup.CLIENT_DIR).replace(/\\/g, '/').split('/');
+    var clientDirSplit = Path.resolve(layout.CLIENT_DIR).replace(/\\/g, '/').split('/');
     var createWorker = !_isEmpty(config.worker);
     var waiting;
 
@@ -44,7 +44,7 @@ export async function build(Ui, setup) {
         if (!workerBundlingConfig.output) {
             workerBundlingConfig.output = {
                 filename: 'worker.js',
-                path: Path.resolve(setup.PUBLIC_DIR),
+                path: Path.resolve(layout.PUBLIC_DIR),
             };
         }
 
@@ -60,7 +60,7 @@ export async function build(Ui, setup) {
         Ui.log('');
         Ui.title(`SERVICE WORKER BUILD`);
         // >> Routes mapping
-        buildRoutes(Ui, Path.resolve(setup.WORKER_DIR), workerBuild, 'Worker-Side Routing:');
+        buildRoutes(Ui, Path.resolve(layout.WORKER_DIR), workerBuild, 'Worker-Side Routing:');
 
         // >> Params
         workerBuild.code.push(``);
@@ -100,7 +100,7 @@ export async function build(Ui, setup) {
     if (!clientBundlingConfig.output) {
         clientBundlingConfig.output = {
             filename: 'bundle.js',
-            path: Path.resolve(setup.PUBLIC_DIR),
+            path: Path.resolve(layout.PUBLIC_DIR),
         };
     }
 
@@ -112,7 +112,7 @@ export async function build(Ui, setup) {
     Ui.log('');
     Ui.title(`CLIENT BUILD`);
     // >> Routes mapping
-    buildRoutes(Ui, Path.resolve(setup.CLIENT_DIR), clientBuild, 'Client-Side Routing:');
+    buildRoutes(Ui, Path.resolve(layout.CLIENT_DIR), clientBuild, 'Client-Side Routing:');
 
     // >> Import the Webflo Client file
     clientBuild.imports[clientModulesDir + '/Client.js'] = 'Client';
@@ -142,28 +142,13 @@ export async function build(Ui, setup) {
             `        navigator.serviceWorker.register('/${workerBundlingConfig.output.filename}', {scope: '${config.worker.scope}'}).then(async registration => {`,
             `            console.log('Service worker registered.');`,
             `            await /*SUPPORT_PUSH*/${config.worker.support_push} ? new Push(registration, {`,
-            `                REGISTRATION_URL: '${config.worker.push_registration_url}',`,
-            `                UNREGISTRATION_URL: '${config.worker.push_registration_url}',`,
-            `                PUBLIC_KEY: '${config.worker.push_public_key}',`,
+            `                registration_url: '${config.worker.push_registration_url}',`,
+            `                deregistration_url: '${config.worker.push_deregistration_url}',`,
+            `                public_key: '${config.worker.push_public_key}',`,
             `            }) : null;`,
             `        });`,
             `    });`,
             `}`,
-            ``,
-            `/**`,
-            `navigator.serviceWorker.addEventListener('message', event => {`,
-            `    if (event.data.isNotificationTargetEvent) {`,
-            `        // NotificationClick event for this client`,
-            `        console.log('NotificationClick event for this client', event.data);`,
-            `    } else if (event.data.isNotificationUntargetEvent) {`,
-            `        // NotificationClose event for this client`,
-            `        console.log('NotificationClose event for this client', event.data);`,
-            `    } else if (event.data.isMessageRelay) {`,
-            `        // Message from other clients`,
-            `        console.log('Message from other clients', event.data);`,
-            `    }`,
-            `});`,
-            `*/`,
             ``,
         ]);
     }
