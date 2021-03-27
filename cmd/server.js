@@ -59,17 +59,15 @@ export async function start(Ui, flags = {}, layout = {}) {
     };
 
     if (flags.dev) {
-        return new Promise((resolve, reject) => {
-            var nodemon;
-            try {
-                nodemon = import('nodemon');
-            } catch(e) {
-                reject('Unable to start in --dev mode. ' + e);
-            }
-            nodemon({script, ext: 'js json'});
-            showRunning();
-            resolve();
-        });
+        var nodemon;
+        try {
+            nodemon = await import('nodemon');
+        } catch(e) {
+            throw new Error('Unable to start in --dev mode. ' + e);
+        }
+        nodemon.default({script, ext: 'js json'});
+        showRunning();
+        return;
     }
 
     if (flags.live) {
