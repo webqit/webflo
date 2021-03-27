@@ -2,6 +2,7 @@
 /**
  * imports
  */
+import Fs from 'fs';
 import Path from 'path';
 import _merge from '@webqit/util/obj/merge.js';
 import _all from '@webqit/util/arr/all.js';
@@ -12,14 +13,18 @@ import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
 /**
  * Reads MANIFEST from file.
  * 
+ * @param object    flags
  * @param object    layout
  * 
  * @return object
  */
-export async function read(layout = {}) {
+ export async function read(flags = {}, layout = {}) {
+    const ext = flags.dev ? '.dev' : (flags.live ? '.live' : '');
+    const configDir = Path.join(layout.ROOT || ``, layout.PUBLIC_DIR || '');
+    const configFile = ext => `${configDir}/manifest${ext}.json`;
+    const config = DotJson.read(ext && Fs.existsSync(configFile(ext)) ? configFile(ext) : configFile(''));
     // Package
     const pkg = layout.PKG || {};
-    const config = DotJson.read(Path.join(layout.ROOT || '', layout.PUBLIC_DIR, './manifest.json'));
     return _merge({
         // -----------------
         name: pkg.value,
@@ -47,12 +52,16 @@ export async function read(layout = {}) {
  * Writes MANIFEST to file.
  * 
  * @param object    config
+ * @param object    flags
  * @param object    layout
  * 
  * @return void
  */
-export async function write(config, layout = {}) {
-    DotJson.write(config, Path.join(layout.ROOT || '', layout.PUBLIC_DIR, './manifest.json'));
+ export async function write(config, flags = {}, layout = {}) {
+    const ext = flags.dev ? '.dev' : (flags.live ? '.live' : '');
+    const configDir = Path.join(layout.ROOT || ``, layout.PUBLIC_DIR || '');
+    const configFile = ext => `${configDir}/manifest${ext}.json`;
+    DotJson.write(config, ext ? configFile(ext) : configFile(''));
 };
 
 /**

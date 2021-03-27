@@ -9,14 +9,15 @@ import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
 /**
  * Reads PROJECT from file.
  * 
- * @param object    params
+ * @param object    flags
+ * @param object    defaults
  * 
  * @return object
  */
-export async function read(params = {}) {
-    const config = DotJson.read(Path.join(params.ROOT || '', './.webflo/config/setup.json'));
+export async function read(flags, defaults = {}) {
+    const config = DotJson.read(Path.join(defaults.ROOT || '', './.webflo/config/setup.json'));
     return _merge({
-        ROOT: params.ROOT || process.cwd(),
+        ROOT: defaults.ROOT || process.cwd(),
         PUBLIC_DIR: './public',
         SERVER_DIR: './server',
         CLIENT_DIR: './client',
@@ -28,12 +29,13 @@ export async function read(params = {}) {
  * Writes PROJECT to file.
  * 
  * @param object    config
- * @param object    params
+ * @param object    flags
+ * @param object    defaults
  * 
  * @return void
  */
-export async function write(config, params = {}) {
-    DotJson.write(config, Path.join(params.ROOT || '', './.webflo/config/setup.json'));
+export async function write(config, flags = {}, defaults = {}) {
+    DotJson.write(config, Path.join(defaults.ROOT || '', './.webflo/config/setup.json'));
 };
 
 /**

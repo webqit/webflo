@@ -2,6 +2,7 @@
 /**
  * imports
  */
+import Fs from 'fs';
 import Path from 'path';
 import _merge from '@webqit/util/obj/merge.js';
 import _isObject from '@webqit/util/js/isObject.js';
@@ -10,12 +11,16 @@ import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
 /**
  * Reads entries from file.
  * 
+ * @param object    flags
  * @param object    layout
  * 
  * @return object
  */
-export async function read(layout = {}) {
-    const config = DotJson.read(Path.join(layout.ROOT || '', './.webflo/config/vhosts.json'));
+ export async function read(flags = {}, layout = {}) {
+    const ext = flags.dev ? '.dev' : (flags.live ? '.live' : '');
+    const configDir = Path.join(layout.ROOT || ``, `./.webflo/config/`);
+    const configFile = ext => `${configDir}/vhosts${ext}.json`;
+    const config = DotJson.read(ext && Fs.existsSync(configFile(ext)) ? configFile(ext) : configFile(''));
     return _merge({
         entries: [],
     }, config);
@@ -25,22 +30,26 @@ export async function read(layout = {}) {
  * Writes entries to file.
  * 
  * @param object    config
+ * @param object    flags
  * @param object    layout
  * 
  * @return void
  */
-export async function write(config, layout = {}) {
-    DotJson.write(config, Path.join(layout.ROOT || '', './.webflo/config/vhosts.json'));
+ export async function write(config, flags = {}, layout = {}) {
+    const ext = flags.dev ? '.dev' : (flags.live ? '.live' : '');
+    const configDir = Path.join(layout.ROOT || ``, `./.webflo/config/`);
+    const configFile = ext => `${configDir}/vhosts${ext}.json`;
+    DotJson.write(config, ext ? configFile(ext) : configFile(''));
 };
 
 /**
  * @match
  */
-export async function match(hostname, layout = {}) {
+export async function match(hostname, flags = {}, layout = {}) {
     if (_isObject(hostname)) {
         hostname = hostname.hostname;
     }
-    return ((await read(layout)).entries || []).filter(vh => vh.host === hostname);
+    return ((await read(flags, layout)).entries || []).filter(vh => vh.host === hostname);
 };
 
 /**

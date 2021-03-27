@@ -2,6 +2,7 @@
 /**
  * imports
  */
+import Fs from 'fs';
 import Url from 'url';
 import Path from 'path';
 import _merge from '@webqit/util/obj/merge.js';
@@ -13,12 +14,16 @@ import Minimatch from 'minimatch';
 /**
  * Reads entries from file.
  * 
+ * @param object    flags
  * @param object    layout
  * 
  * @return object
  */
-export async function read(layout = {}) {
-    const config = DotJson.read(Path.join(layout.ROOT || '', './.webflo/config/redirects.json'));
+ export async function read(flags = {}, layout = {}) {
+    const ext = flags.dev ? '.dev' : (flags.live ? '.live' : '');
+    const configDir = Path.join(layout.ROOT || ``, `./.webflo/config/`);
+    const configFile = ext => `${configDir}/redirects${ext}.json`;
+    const config = DotJson.read(ext && Fs.existsSync(configFile(ext)) ? configFile(ext) : configFile(''));
     return _merge({
         entries: [],
     }, config);
@@ -28,22 +33,26 @@ export async function read(layout = {}) {
  * Writes entries to file.
  * 
  * @param object    config
+ * @param object    flags
  * @param object    layout
  * 
  * @return void
  */
-export async function write(config, layout = {}) {
-    DotJson.write(config, Path.join(layout.ROOT || '', './.webflo/config/redirects.json'));
+ export async function write(config, flags = {}, layout = {}) {
+    const ext = flags.dev ? '.dev' : (flags.live ? '.live' : '');
+    const configDir = Path.join(layout.ROOT || ``, `./.webflo/config/`);
+    const configFile = ext => `${configDir}/redirects${ext}.json`;
+    DotJson.write(config, ext ? configFile(ext) : configFile(''));
 };
 
 /**
  * @match
  */
-export async function match(url, layout = {}) {
+export async function match(url, flags = {}, layout = {}) {
     if (!_isObject(url)) {
         url = Url.parse(url);
     }
-    return ((await read(layout)).entries || []).reduce((match, rdr) => {
+    return ((await read(flags, layout)).entries || []).reduce((match, rdr) => {
         if (match) {
             return match;
         }

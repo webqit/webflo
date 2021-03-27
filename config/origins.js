@@ -2,6 +2,7 @@
 /**
  * imports
  */
+import Fs from 'fs';
 import Url from 'url';
 import Path from 'path';
 import _merge from '@webqit/util/obj/merge.js';
@@ -12,12 +13,16 @@ import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
 /**
  * Reads entries from file.
  * 
+ * @param object    flags
  * @param object    layout
  * 
  * @return object
  */
-export async function read(layout = {}) {
-    const config = DotJson.read(Path.join(layout.ROOT || '', './.webflo/config/origins.json'));
+ export async function read(flags = {}, layout = {}) {
+    const ext = flags.dev ? '.dev' : (flags.live ? '.live' : '');
+    const configDir = Path.join(layout.ROOT || ``, `./.webflo/config/`);
+    const configFile = ext => `${configDir}/origins${ext}.json`;
+    const config = DotJson.read(ext && Fs.existsSync(configFile(ext)) ? configFile(ext) : configFile(''));
     
     var hostname = '', origin = '';
     if (layout.PKG && layout.PKG.repository) {
@@ -46,19 +51,23 @@ export async function read(layout = {}) {
  * Writes entries to file.
  * 
  * @param object    config
+ * @param object    flags
  * @param object    layout
  * 
  * @return void
  */
-export async function write(config, layout = {}) {
-    DotJson.write(config, Path.join(layout.ROOT || '', './.webflo/config/origins.json'));
+ export async function write(config, flags = {}, layout = {}) {
+    const ext = flags.dev ? '.dev' : (flags.live ? '.live' : '');
+    const configDir = Path.join(layout.ROOT || ``, `./.webflo/config/`);
+    const configFile = ext => `${configDir}/origins${ext}.json`;
+    DotJson.write(config, ext ? configFile(ext) : configFile(''));
 };
 
 /**
  * @match
  */
-export async function match(origin, layout = {}) {
-    return ((await read(layout)).entries || []).filter(_origin => _origin.tag.toLowerCase() === origin.toLowerCase() || _origin.repo.toLowerCase() === origin.toLowerCase());
+export async function match(origin, flags = {}, layout = {}) {
+    return ((await read(flags, layout)).entries || []).filter(_origin => _origin.tag.toLowerCase() === origin.toLowerCase() || _origin.repo.toLowerCase() === origin.toLowerCase());
 };
 
 /**

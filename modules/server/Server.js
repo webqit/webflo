@@ -38,10 +38,10 @@ import * as origins from '../../cmd/origins.js';
  * @return void
  */
 export default async function(Ui, flags = {}) {
-    const layout = await _layout.read({});
+    const layout = await _layout.read(flags, {});
     const config = {
-        server: await server.read(layout),
-        variables: await _variables.read({}),
+        server: await server.read(flags, layout),
+        variables: await _variables.read(flags, {}),
         vhosts,
         redirects,
         headers,
@@ -59,11 +59,11 @@ export default async function(Ui, flags = {}) {
     
     const v_configs = {};
     if (config.server.shared) {
-        await Promise.all(((await vhosts.read(layout)).entries || []).map(async vh => {
-            var vlayout = await _layout.read({ROOT: Path.join(layout.ROOT, vh.path)});
+        await Promise.all(((await vhosts.read(flags, layout)).entries || []).map(async vh => {
+            var vlayout = await _layout.read(flags, {ROOT: Path.join(layout.ROOT, vh.path)});
             var vconfig = {
-                server: await server.read(vlayout),
-                variables: await _variables.read({ROOT: Path.join(layout.ROOT, vh.path)}),
+                server: await server.read(flags, vlayout),
+                variables: await _variables.read(flags, vlayout),
                 vhosts,
                 redirects,
                 headers,
@@ -226,7 +226,7 @@ export async function run(instanceConfig, layout, config, request, response, Ui,
     // -------------------
 
     if (config.redirects) {
-        if ($process.rdr = await config.redirects.match($process.url, $layout)) {
+        if ($process.rdr = await config.redirects.match($process.url, flags, $layout)) {
             response.statusCode = $process.rdr.code;
             response.setHeader('Location', $process.rdr.target);
             response.end();
@@ -342,7 +342,7 @@ export async function run(instanceConfig, layout, config, request, response, Ui,
                 // PRE-RENDERING
                 // ----------------
                 if (file && file.contentType === 'text/html' && (file.content + '').startsWith(`<!-- PRE-RENDERED -->`)) {
-                    var prerenderMatch = config.prerendering ? await !config.prerendering.match($process.url.pathname, $layout) : null;
+                    var prerenderMatch = config.prerendering ? await !config.prerendering.match($process.url.pathname, flags, $layout) : null;
                     if (!prerenderMatch) {
                         router.deletePreRendered(file.filename);
                         return;
@@ -430,7 +430,7 @@ export async function run(instanceConfig, layout, config, request, response, Ui,
                     // Handle headers
                     // -------------------
                     if (config.headers) {
-                        if ($process.headers = await config.headers.match($process.url, $layout)) {
+                        if ($process.headers = await config.headers.match($process.url, flags, $layout)) {
                             $process.headers.forEach(header => {
                                 response.setHeader(header.name, header.value);
                             });
@@ -452,7 +452,7 @@ export async function run(instanceConfig, layout, config, request, response, Ui,
                     // PRE-RENDERING
                     // ----------------
                     if (!$process.data.filename && $process.data.contentType === 'text/html') {
-                        var prerenderMatch = config.prerendering ? await !config.prerendering.match($process.url.pathname, $layout) : null;
+                        var prerenderMatch = config.prerendering ? await !config.prerendering.match($process.url.pathname, flags, $layout) : null;
                         if (prerenderMatch) {
                             router.putPreRendered($process.url.pathname, `<!-- PRE-RENDERED -->\r\n` + $process.data.content);
                         }

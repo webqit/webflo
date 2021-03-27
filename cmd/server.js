@@ -23,8 +23,8 @@ export const desc = {
 /**
  * @start
  */
-export async function start(Ui, flags, layout = {}) {
-    const config = await server.read(layout);
+export async function start(Ui, flags = {}, layout = {}) {
+    const config = await server.read(flags, layout);
     const currentDir = Path.dirname(Url.fileURLToPath(import.meta.url));
     const script = Path.resolve(currentDir, '../modules/server/start.mjs');
      // -------------------

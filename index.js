@@ -54,7 +54,7 @@ console.log('');
         // --------------------------
 
         case 'build':
-            cmd.client.build(Ui, layout);
+            cmd.client.build(Ui, flags, layout);
         break;
 
         // --------------------------
@@ -64,7 +64,7 @@ console.log('');
                 options;
             // ----------------
             if (!origin && ellipsis) {
-                if (!(options = (await config.origins.read(layout)).REPOS) || _isEmpty(options)) {
+                if (!(options = (await config.origins.read(flags, layout)).REPOS) || _isEmpty(options)) {
                     Ui.log(Ui.f`Please configure an origin (${'webflo config ...'}) to use the ${'deploy'} command.`);
                     return;
                 }
@@ -80,7 +80,7 @@ console.log('');
                 return;
             }
             // ----------------
-            cmd.origins.deploy(Ui, origin, layout);
+            cmd.origins.deploy(Ui, origin, flags, layout);
         break;
 
         // --------------------------
@@ -142,9 +142,9 @@ console.log('');
                 return;
             }
             // ----------------
-            const data = await config[domain].read(layout);
+            const data = await config[domain].read(flags, layout);
             Promptx(await config[domain].questions(data, {}, layout)).then(async _data => {
-                await config[domain].write(_merge(data, _data), layout);
+                await config[domain].write(_merge(data, _data), flags, layout);
             });
 
         break;

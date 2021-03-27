@@ -21,12 +21,12 @@ export const desc = {
 /**
  * @deploy
  */
-export async function deploy(Ui, origin, layout = {}) {
+export async function deploy(Ui, origin, flags = {}, layout = {}) {
     if (!_isObject(origin)) {
         if (!origin) {
             throw new Error(`Please provide a repository name.`);
         }
-        const matches = await origins.match(origin, layout);
+        const matches = await origins.match(origin, flags, layout);
         if (matches.length > 1) {
             throw new Error(`Cannot deploy ${origin}: Multiple deploy settings found.`);
         }
@@ -118,7 +118,7 @@ export function hook(Ui, request, response, layout = {}) {
     return new Promise(async (resolve, reject) => {
         const eventHandler = Webhooks.createEventHandler();
         eventHandler.on('push', async ({ name, payload }) => {
-            const matches = (await origins.match(payload.repository.full_name, layout)).filter(o => o.autodeploy);
+            const matches = (await origins.match(payload.repository.full_name, flags, layout)).filter(o => o.autodeploy);
             var deployParams;
             if (!(deployParams = matches[0])) {
                 return;

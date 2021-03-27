@@ -6,7 +6,6 @@ import Fs from 'fs';
 import Readline from 'readline';
 import { spawn } from 'child_process';
 import _arrFrom from '@webqit/util/arr/from.js';
-import * as _layout from '../config/layout.js';
 import * as _server from '../config/server.js';
 
 /**
@@ -56,8 +55,7 @@ export async function generate(Ui, allDomains, flags = {}, layout = {}) {
     });
 
     child.on('exit', async exitCode => {
-        const layout = await _layout.read({});
-        const server = await _server.read(layout);
+        const server = await _server.read(flags, layout);
         const domain = domains[0], certDir = `/etc/letsencrypt/live/${domain}`;
         if (!exitCode && (flags['auto-config'] || flags.c)) {
             if (Fs.existsSync(certDir)) {

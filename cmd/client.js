@@ -22,8 +22,8 @@ export const desc = {
 /**
  * @build
  */
-export async function build(Ui, layout) {
-    const config = await client.read(layout);
+export async function build(Ui, flags = {}, layout = {}) {
+    const config = await client.read(flags, layout);
     // Consistent forward slashing
     const forwardSlash = str => str.replace(/\\/g, '/');
     var clientModulesDir = forwardSlash(Url.fileURLToPath(Path.join(import.meta.url, '../../modules/client')));
