@@ -26,6 +26,7 @@ export const desc = {
 export async function start(Ui, flags, setup = {}) {
     const config = await server.read(setup);
     const currentDir = Path.dirname(Url.fileURLToPath(import.meta.url));
+    const script = Path.resolve(currentDir, '../modules/server/start.mjs');
      // -------------------
     // Splash screen
     // -------------------
@@ -57,6 +58,20 @@ export async function start(Ui, flags, setup = {}) {
 
     };
 
+    if (flags.dev) {
+        return new Promise((resolve, reject) => {
+            var nodemon;
+            try {
+                nodemon = import('nodemon');
+            } catch(e) {
+                reject('Unable to start in --dev mode. ' + e);
+            }
+            nodemon({script, ext: 'js json'});
+            showRunning();
+            resolve();
+        });
+    }
+
     if (flags.live) {
         return new Promise(resolve => {
             Pm2.connect(err => {
@@ -65,12 +80,11 @@ export async function start(Ui, flags, setup = {}) {
                     resolve();
                 } else {
 
-                    var script = Path.resolve(currentDir, '../modules/server/start.mjs'),
-                        name = config.process.name,
+                    var name = config.process.name,
                         args = Object.keys(flags).map(f => '--' + f),
                         exec_mode = config.process.exec_mode || 'fork',
                         autorestart = 'AUTO_RESTART' in config ? config.process.autorestart : true,
-                        merge_logs = 'merge_logs' in config.process ? config.process.merge_logs : true,
+                        merge_logs = 'merge_logs' in config.process ? config.process.merge_logs : false,
                         output = config.process.outfile || Path.resolve('./.webflo/runtime/output.log'),
                         error = config.process.errfile || Path.resolve('./.webflo/runtime/error.log');
                     Pm2.start({script, name, args, exec_mode, autorestart, merge_logs, output, error, force: true}, err => {
