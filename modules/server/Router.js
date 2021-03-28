@@ -16,33 +16,37 @@ export default class Router {
      * 
      * @param string|array      path
      * @param object            layout
+     * @param object            context
      * 
      * @return void
      */
-    constructor(path, layout) {
+    constructor(path, layout, context) {
         this.path = _isArray(path) ? path : (path + '').split('/').filter(a => a);
         this.layout = layout;
+        this.context = context;
     }
 
     /**
      * Performs dynamic routing.
      * 
      * @param array|string      target
-     * @param array             args
+     * @param array             argsA
+     * @param any               input
      * @param function          _default
+     * @param array             argsB
      * 
      * @return object
      */
-    async route(target, args, _default) {
+    async route(target, argsA, input, _default, argsB = []) {
         
         target = _arrFrom(target);
         var layout = this.layout;
-        var fetch = this.fetch.bind(this);
+        var context = this.context;
 
         // ----------------
         // ROUTER
         // ----------------
-        const next = async function(path, index, output) {
+        const next = async function(index, input, path) {
     
             var exports, routeHandlerFile, wildcardRouteHandlerFile;
             if (index === 0) {
@@ -58,31 +62,34 @@ export default class Router {
             || (wildcardRouteHandlerFile && Fs.existsSync(routeHandlerFile = Path.join(layout.ROOT, layout.SERVER_DIR, wildcardRouteHandlerFile)))) {
                 exports = await import(Url.pathToFileURL(routeHandlerFile));
                 // ---------------
-                var func = target.reduce((func, name) => func || exports[name], null);
+                const func = target.reduce((func, name) => func || exports[name], null);
                 if (func) {
                     // -------------
                     // Then we can call the handler
                     // -------------
-                    var _next = (..._args) => {
+                    const _next = (..._args) => {
                         if (_args.length > 1) {
-                            var rdr = _args.splice(1, 1)[0];
-                            if (!_isString(rdr)) {
+                            if (!_isString(_args[1])) {
                                 throw new Error('Router redirect must be a string!');
                             }
-                            if (rdr.startsWith('/')) {
+                            if (_args[1].startsWith('/')) {
                                 throw new Error('Router redirect must NOT be an absolute path!');
                             }
-                            path = path.slice(0, index).concat(rdr.split('/').map(a => a.trim()).filter(a => a));
+                            _args[1] = path.slice(0, index).concat(_args[1].split('/').map(a => a.trim()).filter(a => a));
+                        } else {
+                            _args[1] = path;
                         }
-                        return next(path, index + 1, ..._args);
+                        return next(index + 1, ..._args);
                     };
                     _next.pathname = path.slice(index).join('/');
                     // -------------
-                    var _this = {};
-                    _this.pathname = '/' + path.slice(0, index).join('/');
-                    _this.dirname = Path.dirname(routeHandlerFile);
-                    // -------------
-                    return await func.bind(_this)(...args.concat([output, _next/*next*/, fetch]));
+                    const _this = {
+                        pathname: '/' + path.slice(0, index).join('/'),
+                        dirname = Path.dirname(routeHandlerFile),
+                        ...context
+                    };
+                     // -------------
+                    return await func.bind(_this)(...argsA.concat([input, _next/*next*/].concat(argsB)));
                 }
             }
     
@@ -90,17 +97,17 @@ export default class Router {
                 // -------------
                 // Local file
                 // -------------
-                var defaultThis = {pathname: '/' + path.join('/')};
-                return await (arguments.length === 3 ? _default.call(defaultThis, output) : _default.call(defaultThis));
+                const defaultThis = {pathname: '/' + path.join('/'), ...context};
+                return await _default.call(defaultThis, input);
             }
     
             // -------------
             // Recieved response or undefined
             // -------------
-            return output;
+            return input;
         };
     
-        return next(this.path, 0);
+        return next(0, input, this.path);
     }
 
     /**

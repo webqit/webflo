@@ -4,7 +4,7 @@
  */
 import Fs from 'fs';
 import Path from 'path';
-import { exec } from 'child_process';
+import { spawn } from 'child_process';
 import _any from '@webqit/util/arr/any.js';
 import _isObject from '@webqit/util/js/isObject.js';
 import SimpleGit from 'simple-git';
@@ -68,20 +68,27 @@ export async function deploy(Ui, origin, flags = {}, layout = {}) {
                 Ui.success(Ui.f`[${Ui.style.comment((new Date).toUTCString())}] Successfully deployed ${origin.tag + '@' + origin.branch} - ${url} to ${origin.deploy_path}!`);
                 if (origin.ondeploy) {
                     Ui.success(Ui.f`[ondeploy] ${origin.ondeploy}`);
-                    const cwd = process.cwd();
-                    process.chdir(origin.deploy_path);
+                    var cmd = origin.ondeploy.split(' ').map(a => a.trim()).filter(a => a);
                     return new Promise((resolve, reject) => {
-                        exec(origin.ondeploy, (error, stdout, stderr) => {
-                            if (error) {
-                                reject(error);
-                                return;
-                            }
-                            if (stderr) {
-                                Ui.log(stderr);
-                                return;
-                            }
-                            Ui.log(stdout);
-                            process.chdir(cwd);
+                        const child = spawn(cmd.shift(), cmd, {
+                            cwd: origin.deploy_path,
+                        });
+                        //process.stdin.pipe(child.stdin);
+
+                        child.stdout.on('data', data => {
+                            Ui.log('[' + Ui.style.keyword('ONDEPLOY') + '][' + Ui.style.var('OUT') + ']:', data + '');
+                        });
+
+                        child.stderr.on('data', data => {
+                            Ui.log('[' + Ui.style.keyword('ONDEPLOY') + '][' + Ui.style.err('ERR') + ']:', (data + '').trim());
+                        });
+                        
+                        child.on('error', data => {
+                            Ui.error(data);
+                            reject(data);
+                        });
+
+                        child.on('exit', async exitCode => {
                             resolve();
                         });
                     });
@@ -114,7 +121,7 @@ export async function deploy(Ui, origin, flags = {}, layout = {}) {
 /**
  * @hook
  */
-export function hook(Ui, request, response, layout = {}) {
+export function hook(Ui, request, response, flags = {}, layout = {}) {
     return new Promise(async (resolve, reject) => {
         const eventHandler = Webhooks.createEventHandler();
         eventHandler.on('push', async ({ name, payload }) => {

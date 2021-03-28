@@ -189,17 +189,11 @@ export default async function(Ui, flags = {}) {
 export async function run(instanceConfig, layout, config, request, response, Ui, flags = {}, protocol = 'http', vhost = null) {
 
     const $layout = {...layout};
-    const $process = {
+    request.URL = Url.parse(protocol + '://' + request.headers.host + request.url, true, true);
+    const $context = {
+        rdr: null,
         layout: $layout,
         env: {},
-        protocol,
-        request,
-        response,
-        url: Url.parse(protocol + '://' + request.headers.host + request.url, true, true),
-        vhost: vhost,
-        fatal: false,
-        rdr: null,
-        data: null,
         // Piping utility
         walk: async (...stack) => {
             var val;
@@ -213,11 +207,13 @@ export async function run(instanceConfig, layout, config, request, response, Ui,
             await next();
             return val;
         },
+        fatal: false,
+        data: null,
     };
 
     if (config.variables.autoload) {
         Object.keys(config.variables.entries).forEach(key => {
-            $process.env[key] = config.variables.entries[key];
+            $context.env[key] = config.variables.entries[key];
         });
     }
 
@@ -226,9 +222,9 @@ export async function run(instanceConfig, layout, config, request, response, Ui,
     // -------------------
 
     if (config.redirects) {
-        if ($process.rdr = await config.redirects.match($process.url, flags, $layout)) {
-            response.statusCode = $process.rdr.code;
-            response.setHeader('Location', $process.rdr.target);
+        if ($context.rdr = await config.redirects.match(request.URL, flags, $layout)) {
+            response.statusCode = $context.rdr.code;
+            response.setHeader('Location', $context.rdr.target);
             response.end();
         }
     }
@@ -237,7 +233,7 @@ export async function run(instanceConfig, layout, config, request, response, Ui,
     // Handle request
     // -------------------
 
-    if (!$process.fatal && !$process.rdr) {
+    if (!$context.fatal && !$context.rdr) {
 
         // --------
         // Request parsing
@@ -256,7 +252,7 @@ export async function run(instanceConfig, layout, config, request, response, Ui,
 
         // Query
         request.query = {}; var queryIndexes = {};
-        _each($process.url.query, (name, value) => {
+        _each(request.URL.query, (name, value) => {
             var _name = name.endsWith('[]') && _isArray(value) ? _beforeLast(name, '[]') : name;
             var _value = typeof value === 'string' && (_wrapped(value, '{', '}') || _wrapped(value, '[', ']')) ? JSON.parse(value) : value;
             setToPath(request.query, _name, _value, queryIndexes);
@@ -320,19 +316,19 @@ export async function run(instanceConfig, layout, config, request, response, Ui,
             // -------------------
 
             if (config.origins) {
-                config.origins.hook(Ui, request, response, $layout).then(async () => {
+                config.origins.hook(Ui, request, response, flags, $layout).then(async () => {
                     await serverRestart(Ui, instanceConfig.server.process.name);
                     process.exit();
                 }).catch(e => { throw e; });
             }
 
             // The app router
-            const router = new Router($process.url.pathname, $layout);
+            const router = new Router(request.URL.pathname, $layout, $context);
 
             // --------
             // ROUTE FOR DATA
             // --------
-            $process.data = await router.route([request.method.toLowerCase(), 'default'], [$process], async function() {
+            $context.data = await router.route([request.method.toLowerCase(), 'default'], [request], null, async function() {
                 var file = await router.fetch(/*request.url*/this.pathname);
                 // JSON request should ignore static files
                 if (file && !request.accepts.type(file.contentType)) {
@@ -342,23 +338,23 @@ export async function run(instanceConfig, layout, config, request, response, Ui,
                 // PRE-RENDERING
                 // ----------------
                 if (file && file.contentType === 'text/html' && (file.content + '').startsWith(`<!-- PRE-RENDERED -->`)) {
-                    var prerenderMatch = config.prerendering ? await !config.prerendering.match($process.url.pathname, flags, $layout) : null;
+                    var prerenderMatch = config.prerendering ? await !config.prerendering.match(request.URL.pathname, flags, $layout) : null;
                     if (!prerenderMatch) {
                         router.deletePreRendered(file.filename);
                         return;
                     }
                 }
                 return file;
-            });
+            }, [response]);
             // --------
             // ROUTE FOR RENDERING?
             // --------
-            if (!($process.data instanceof FixedResponse) && _isObject($process.data)) {
+            if (!($context.data instanceof FixedResponse) && _isObject($context.data)) {
                 if (request.accepts.type('text/html')) {
                     // --------
                     // Render
                     // --------
-                    const window = await router.route('render', [$process.data], async function() {
+                    const window = await router.route('render', [], $context.data, async function() {
                         if (arguments.length) {
                             return;
                         }
@@ -366,7 +362,7 @@ export async function run(instanceConfig, layout, config, request, response, Ui,
                         if (!$layout.renderFileCache) {
                             $layout.renderFileCache = {};
                         }
-                        var renderFile, pathnameSplit = $process.url.pathname.split('/');
+                        var renderFile, pathnameSplit = request.URL.pathname.split('/');
                         while ((renderFile = Path.join($layout.ROOT, $layout.PUBLIC_DIR, './' + pathnameSplit.join('/'), 'index.html')) 
                         && pathnameSplit.length && ($layout.renderFileCache[renderFile] === false || !($layout.renderFileCache[renderFile] && Fs.existsSync(renderFile)))) {
                             $layout.renderFileCache[renderFile] === false;
@@ -375,7 +371,7 @@ export async function run(instanceConfig, layout, config, request, response, Ui,
                         $layout.renderFileCache[renderFile] === true;
                         const instanceParams = QueryString.stringify({
                             SOURCE: renderFile,
-                            URL: $process.url.href,
+                            URL: request.URL.href,
                             ROOT: $layout.ROOT,
                             G: 0,
                         });
@@ -389,8 +385,8 @@ export async function run(instanceConfig, layout, config, request, response, Ui,
                                 env: 'server',
                             }, {update: true});
                         }
-                        window.document.setState({page: $process.data, url: $process.url}, {update: true});
-                        window.document.body.setAttribute('template', 'page' + $process.url.pathname);
+                        window.document.setState({page: $context.data, url: request.URL}, {update: true});
+                        window.document.body.setAttribute('template', 'page' + request.URL.pathname);
                         return window;
                     });
                     // --------
@@ -398,7 +394,7 @@ export async function run(instanceConfig, layout, config, request, response, Ui,
                     // --------
                     if (_isObject(window) && window.document) {
                         await window.WQ.DOM.templatesReady;
-                        $process.data = await _promise(resolve => {
+                        $context.data = await _promise(resolve => {
                             setTimeout(() => {
                                 resolve({
                                     contentType: 'text/html',
@@ -407,15 +403,15 @@ export async function run(instanceConfig, layout, config, request, response, Ui,
                             }, 1000);
                         });
                     } else {
-                        $process.data = window;
+                        $context.data = window;
                     }
                 } else if (request.accepts.type('application/json')) {
                     // --------
                     // JSONfy
                     // --------
-                    $process.data = {
+                    $context.data = {
                         contentType: 'application/json',
-                        content: $process.data,
+                        content: $context.data,
                     };
                 }
             }
@@ -425,36 +421,36 @@ export async function run(instanceConfig, layout, config, request, response, Ui,
             // --------
 
             if (!response.headersSent) {
-                if ($process.data) {
+                if ($context.data) {
                     // -------------------
                     // Handle headers
                     // -------------------
                     if (config.headers) {
-                        if ($process.headers = await config.headers.match($process.url, flags, $layout)) {
-                            $process.headers.forEach(header => {
+                        if ($context.headers = await config.headers.match(request.URL, flags, $layout)) {
+                            $context.headers.forEach(header => {
                                 response.setHeader(header.name, header.value);
                             });
                         }
                     }
-                    response.setHeader('Content-type', $process.data.contentType);
-                    if ($process.data.nostore) {
+                    response.setHeader('Content-type', $context.data.contentType);
+                    if ($context.data.nostore) {
                         response.setHeader('Cache-Control', 'no-store');
                     }
-                    if ($process.data.cors) {
-                        response.setHeader('Access-Control-Allow-Origin', $process.data.cors === true ? '*' : $process.data.cors);
+                    if ($context.data.cors) {
+                        response.setHeader('Access-Control-Allow-Origin', $context.data.cors === true ? '*' : $context.data.cors);
                     }
                     response.end(
-                        $process.data.contentType === 'application/json' && _isObject($process.data.content) 
-                            ? JSON.stringify($process.data.content) 
-                            : $process.data.content
+                        $context.data.contentType === 'application/json' && _isObject($context.data.content) 
+                            ? JSON.stringify($context.data.content) 
+                            : $context.data.content
                     );
                     // ----------------
                     // PRE-RENDERING
                     // ----------------
-                    if (!$process.data.filename && $process.data.contentType === 'text/html') {
-                        var prerenderMatch = config.prerendering ? await !config.prerendering.match($process.url.pathname, flags, $layout) : null;
+                    if (!$context.data.filename && $context.data.contentType === 'text/html') {
+                        var prerenderMatch = config.prerendering ? await !config.prerendering.match(request.URL.pathname, flags, $layout) : null;
                         if (prerenderMatch) {
-                            router.putPreRendered($process.url.pathname, `<!-- PRE-RENDERED -->\r\n` + $process.data.content);
+                            router.putPreRendered(request.URL.pathname, `<!-- PRE-RENDERED -->\r\n` + $context.data.content);
                         }
                     }
                 } else {
@@ -465,7 +461,7 @@ export async function run(instanceConfig, layout, config, request, response, Ui,
 
         } catch(e) {
 
-            $process.fatal = e;
+            $context.fatal = e;
             response.statusCode = e.errorCode || 500;
             response.end(`Internal server error!`);
 
@@ -479,25 +475,25 @@ export async function run(instanceConfig, layout, config, request, response, Ui,
 
     if (flags.logs !== false) {
         Ui.log(''
-            + '[' + ($process.vhost ? Ui.style.keyword($process.vhost.host) + '][' : '') + Ui.style.comment((new Date).toUTCString()) + '] '
+            + '[' + (vhost ? Ui.style.keyword(vhost.host) + '][' : '') + Ui.style.comment((new Date).toUTCString()) + '] '
             + Ui.style.keyword(protocol.toUpperCase() + ' ' + request.method) + ' '
-            + Ui.style.url(request.url) + ($process.data && $process.data.autoIndex ? Ui.style.comment((!request.url.endsWith('/') ? '/' : '') + $process.data.autoIndex) : '') + ' '
-            + ($process.data ? ' (' + Ui.style.comment($process.data.contentType) + ') ' : '')
+            + Ui.style.url(request.url) + ($context.data && $context.data.autoIndex ? Ui.style.comment((!request.url.endsWith('/') ? '/' : '') + $context.data.autoIndex) : '') + ' '
+            + ($context.data ? ' (' + Ui.style.comment($context.data.contentType) + ') ' : '')
             + (
                 [404, 500].includes(response.statusCode) 
-                ? Ui.style.err(response.statusCode + ($process.fatal ? ` [ERROR]: ${$process.fatal.error || $process.fatal.toString()}` : ``)) 
+                ? Ui.style.err(response.statusCode + ($context.fatal ? ` [ERROR]: ${$context.fatal.error || $context.fatal.toString()}` : ``)) 
                 : Ui.style.val(response.statusCode) + ((response.statusCode + '').startsWith('3') ? ' - ' + Ui.style.val(response.getHeader('Location')) : '')
             )
         );
     }
 
-    if ($process.fatal) {
+    if ($context.fatal) {
         if (flags.dev) {
-            console.trace($process.fatal);
-            //Ui.error($process.fatal);
+            console.trace($context.fatal);
+            //Ui.error($context.fatal);
             process.exit();
         }
-        throw $process.fatal;
+        throw $context.fatal;
     }
 
 };

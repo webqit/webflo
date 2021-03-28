@@ -22,10 +22,10 @@ OOHTML(window);
  * ---------------------------
  */
 
-export default function(params) {
+export default function(layout) {
 
 	// Copy..
-	params = {...params};
+	layout = {...layout};
 	window.addEventListener('online', () => Observer.set(networkWatch, 'online', navigator.onLine));
 	window.addEventListener('offline', () => Observer.set(networkWatch, 'online', navigator.onLine));
 	var networkProgressOngoing;
@@ -42,17 +42,18 @@ export default function(params) {
         // -------------------
 
 		// The srvice object
-		const $process = {
+		request.URL = Url.parseUrl(request.url);
+		const $context = {
 			onHydration: initCall && (await window.WQ.OOHTML.meta('isomorphic')),
 			url: Url.parseUrl(request.url),
-			params,
+			layout,
 			request,
 			data: null,
 		}
 		
 		// The app router
-		const requestPath = $process.url.pathname;
-		const router = new Router(requestPath, params);
+		const requestPath = request.URL.pathname;
+		const router = new Router(requestPath, layout, $context);
 		if (networkProgressOngoing) {
 			networkProgressOngoing.setActive(false);
 			networkProgressOngoing = null;
@@ -63,7 +64,7 @@ export default function(params) {
 			// --------
 			// ROUTE FOR DATA
 			// --------
-			$process.data = await router.route('default', [$process], async function() {
+			$context.data = await router.route('default', [request], null, async function() {
 				// -----------------
 				var networkProgress = networkProgressOngoing = new RequestHandle();
 				networkProgress.setActive(true);
@@ -82,22 +83,22 @@ export default function(params) {
 					networkProgress.setActive(false);
 					return response.ok ? response.json() : null;
 				});
-			});
+			}, []);
 
 			// --------
 			// Render
 			// --------
 			await window.WQ.DOM.ready;
-			const _window = await router.route('render', [$process.data || {}], async function() {
+			const _window = await router.route('render', [], $context.data, async function() {
 				// --------
 				if (!window.document.state.env) {
 					window.document.setState({
 						env: 'client',
-						onHydration: $process.onHydration,
+						onHydration: $context.onHydration,
 						network: networkWatch,
 					}, {update: true});
 				}
-				window.document.setState({page: $process.data, url: $process.url}, {update: true});
+				window.document.setState({page: $context.data, url: request.URL}, {update: true});
 				window.document.body.setAttribute('template', 'page' + requestPath);
 
 				return window;
@@ -106,7 +107,7 @@ export default function(params) {
 			if (src && (src instanceof Element)) {
 				setTimeout(() => {
 					var urlTarget;
-					if ($process.url.hash && (urlTarget = document.querySelector($process.url.hash))) {
+					if (request.URL.hash && (urlTarget = document.querySelector(request.URL.hash))) {
 						urlTarget.scrollIntoView(true);
 					} else {
 						document.documentElement.classList.add('scroll-reset');
@@ -124,7 +125,7 @@ export default function(params) {
 
 			await window.WQ.DOM.templatesReady;
 
-			return $process.data;
+			return $context.data;
 
 		} catch(e) {
 
