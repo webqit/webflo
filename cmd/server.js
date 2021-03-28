@@ -59,15 +59,23 @@ export async function start(Ui, flags = {}, layout = {}) {
     };
 
     if (flags.dev) {
-        var nodemon;
+        var nodemon, ecpt;
         try {
             nodemon = await import('nodemon');
         } catch(e) {
-            throw new Error('Unable to start in --dev mode. ' + e);
+            ecpt = e;
         }
-        nodemon.default({script, ext: 'js json'});
-        showRunning();
-        return;
+        if (nodemon) {
+            try {
+                nodemon.default({script, ext: 'js json'});
+                showRunning();
+                return;
+            } catch(e) {
+                throw e;
+            }
+        } else {
+            Ui.error('Filesystem watch could not be enabled for --dev mode. ' + ecpt);
+        }
     }
 
     if (flags.live) {
