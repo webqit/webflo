@@ -85,7 +85,7 @@ export default class Router {
                     // -------------
                     const _this = {
                         pathname: '/' + path.slice(0, index).join('/'),
-                        dirname = Path.dirname(routeHandlerFile),
+                        dirname: Path.dirname(routeHandlerFile),
                         ...context
                     };
                      // -------------
