@@ -9,25 +9,8 @@ import parseArgs from '@webqit/backpack/src/cli/parseArgs.js';
 import Ui from '@webqit/backpack/src/cli/Ui.js';
 import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
 import { Promptx } from '@webqit/backpack/src/cli/Promptx.js';
-import * as _layout from './config/layout.js';
-import * as client from './config/client.js';
-import * as manifest from './config/manifest.js';
-import * as prerendering from './config/prerendering.js';
-import * as headers from './config/headers.js';
-import * as redirects from './config/redirects.js';
-import * as origins from './config/origins.js';
-import * as server from './config/server.js';
-import * as variables from './config/variables.js';
-import * as vhosts from './config/vhosts.js';
-import * as CMDclient from './cmd/client.js';
-import * as CMDorigins from './cmd/origins.js';
-import * as CMDserver from './cmd/server.js';
-import * as CMDcertbot from './cmd/certbot.js';
-
-// ------------------------------------------
-
-const config = { client, manifest, prerendering, redirects, headers, origins, server, variables, vhosts, };
-const cmd = { client: CMDclient, origins: CMDorigins, server: CMDserver, certbot: CMDcertbot, };
+import * as config from './config/index.js';
+import * as cmd from './cmd/index.js';
 
 // ------------------------------------------
 
@@ -47,7 +30,7 @@ const { command, keywords, flags, options, ellipsis } = parseArgs(process.argv);
 console.log('');
 
 (async function() {
-    const layout = await _layout.read({});
+    const layout = await config.layout.read({});
     layout.PKG = DotJson.read('./package.json');
     switch(command) {
 
