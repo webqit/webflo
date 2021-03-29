@@ -2,6 +2,7 @@
 /**
  * @imports
  */
+import _isObject from '@webqit/util/js/isObject.js';
 import _fetch from '@webqit/browser-pie/src/apis/fetch.js';
 import { OOHTML, Observer } from '@webqit/pseudo-browser/index2.js';
 import Router from './Router.js';
@@ -44,11 +45,9 @@ export default function(layout) {
 		// The srvice object
 		request.URL = Url.parseUrl(request.url);
 		const $context = {
-			onHydration: initCall && (await window.WQ.OOHTML.meta('isomorphic')),
-			url: Url.parseUrl(request.url),
 			layout,
-			request,
-			data: null,
+			onHydration: initCall && (await window.WQ.OOHTML.meta('isomorphic')),
+			response: null,
 		}
 		
 		// The app router
@@ -64,7 +63,7 @@ export default function(layout) {
 			// --------
 			// ROUTE FOR DATA
 			// --------
-			$context.data = await router.route('default', [request], null, async function() {
+			$context.response = await router.route('default', [request], null, async function() {
 				// -----------------
 				var networkProgress = networkProgressOngoing = new RequestHandle();
 				networkProgress.setActive(true);
@@ -88,9 +87,10 @@ export default function(layout) {
 			// --------
 			// Render
 			// --------
-			await window.WQ.DOM.ready;
-			const _window = await router.route('render', [], $context.data, async function() {
+			const rendering = await router.route('render', [request], $context.response, async function(data) {
 				// --------
+				// OOHTML would waiting for DOM-ready in order to be initialized
+				await window.WQ.OOHTML.ready;
 				if (!window.document.state.env) {
 					window.document.setState({
 						env: 'client',
@@ -98,11 +98,25 @@ export default function(layout) {
 						network: networkWatch,
 					}, {update: true});
 				}
-				window.document.setState({page: $context.data, url: request.URL}, {update: true});
+				window.document.setState({page: data, url: request.URL}, {update: true});
 				window.document.body.setAttribute('template', 'page' + requestPath);
+				return new Promise(res => {
+					window.document.addEventListener('templatesreadystatechange', () => res(window));
+					if (window.document.templatesReadyState === 'complete') {
+						res(window);
+					}
+				});;
+			}, []);
 
-				return window;
-			});
+			// --------
+			// Render...
+			// --------
+
+			if (_isObject(rendering) && rendering.document) {
+				//$context.response = window.print();
+			} else {
+				//$context.response = rendering;
+			}
 
 			if (src && (src instanceof Element)) {
 				setTimeout(() => {
@@ -118,14 +132,6 @@ export default function(layout) {
 					}
 				}, 0);
 			}
-
-			// --------
-			// Render...
-			// --------
-
-			await window.WQ.DOM.templatesReady;
-
-			return $context.data;
 
 		} catch(e) {
 

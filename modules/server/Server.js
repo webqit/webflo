@@ -20,6 +20,9 @@ import _wrapped from '@webqit/util/str/wrapped.js';
 import _beforeLast from '@webqit/util/str/beforeLast.js';
 import { restart as serverRestart } from '../../cmd/server.js';
 import Router, { FixedResponse } from './Router.js';
+import * as config from '../../config/index.js';
+import * as cmd from '../../cmd/index.js';
+
 import * as _layout from '../../config/layout.js';
 import * as _variables from '../../config/variables.js';
 import * as server from '../../config/server.js';
@@ -38,38 +41,24 @@ import * as origins from '../../cmd/origins.js';
  * @return void
  */
 export default async function(Ui, flags = {}) {
-    const layout = await _layout.read(flags, {});
-    const config = {
-        server: await server.read(flags, layout),
-        variables: await _variables.read(flags, {}),
-        vhosts,
-        redirects,
-        headers,
-        origins,
-        prerendering,
-    };
+    const layout = await config.layout.read(flags, {});
+    const server = await config.server.read(flags, layout);
+    const variables = await config.variables.read(flags, {});
 
-    if (config.variables.autoload) {
-        Object.keys(config.variables.entries).forEach(key => {
-            process.env[key] = config.variables.entries[key];
+    if (variables.autoload) {
+        Object.keys(variables.entries).forEach(key => {
+            process.env[key] = variables.entries[key];
         });
     }
 
     const instanceConfig = config;
     
     const v_configs = {};
-    if (config.server.shared) {
-        await Promise.all(((await vhosts.read(flags, layout)).entries || []).map(async vh => {
-            var vlayout = await _layout.read(flags, {ROOT: Path.join(layout.ROOT, vh.path)});
-            var vconfig = {
-                server: await server.read(flags, vlayout),
-                variables: await _variables.read(flags, vlayout),
-                vhosts,
-                redirects,
-                headers,
-                origins,
-                prerendering,
-            };
+    if (server.shared) {
+        await Promise.all(((await config.vhosts.read(flags, layout)).entries || []).map(async vh => {
+            const vlayout = await config.layout.read(flags, {ROOT: Path.join(layout.ROOT, vh.path)});
+            const vserver = await config.server.read(flags, vlayout);
+            const vvariables = await config.variables.read(flags, vlayout);
             v_configs[vh.host] = { layout: vlayout, config: vconfig, vh, };
         }));
     }
@@ -207,8 +196,8 @@ export async function run(instanceConfig, layout, config, request, response, Ui,
             await next();
             return val;
         },
+        response: null,
         fatal: false,
-        data: null,
     };
 
     if (config.variables.autoload) {
@@ -328,7 +317,7 @@ export async function run(instanceConfig, layout, config, request, response, Ui,
             // --------
             // ROUTE FOR DATA
             // --------
-            $context.data = await router.route([request.method.toLowerCase(), 'default'], [request], null, async function() {
+            $context.response = await router.route([request.method.toLowerCase(), 'default'], [request], null, async function() {
                 var file = await router.fetch(/*request.url*/this.pathname);
                 // JSON request should ignore static files
                 if (file && !request.accepts.type(file.contentType)) {
@@ -349,15 +338,12 @@ export async function run(instanceConfig, layout, config, request, response, Ui,
             // --------
             // ROUTE FOR RENDERING?
             // --------
-            if (!($context.data instanceof FixedResponse) && _isObject($context.data)) {
+            if (!($context.response instanceof FixedResponse) && _isObject($context.response)) {
                 if (request.accepts.type('text/html')) {
                     // --------
                     // Render
                     // --------
-                    const window = await router.route('render', [], $context.data, async function() {
-                        if (arguments.length) {
-                            return;
-                        }
+                    const rendering = await router.route('render', [request], $context.response, async function(data) {
                         // --------
                         if (!$layout.renderFileCache) {
                             $layout.renderFileCache = {};
@@ -373,11 +359,9 @@ export async function run(instanceConfig, layout, config, request, response, Ui,
                             SOURCE: renderFile,
                             URL: request.URL.href,
                             ROOT: $layout.ROOT,
-                            G: 0,
                         });
                         const { window } = await import('@webqit/pseudo-browser/instance.js?' + instanceParams);
                         // --------
-                        
                         // OOHTML would waiting for DOM-ready in order to be initialized
                         await window.WQ.OOHTML.ready;
                         if (!window.document.state.env) {
@@ -385,33 +369,37 @@ export async function run(instanceConfig, layout, config, request, response, Ui,
                                 env: 'server',
                             }, {update: true});
                         }
-                        window.document.setState({page: $context.data, url: request.URL}, {update: true});
+                        window.document.setState({page: data, url: request.URL}, {update: true});
                         window.document.body.setAttribute('template', 'page' + request.URL.pathname);
-                        return window;
-                    });
+                        return new Promise(res => {
+                            window.document.addEventListener('templatesreadystatechange', () => res(window));
+                            if (window.document.templatesReadyState === 'complete') {
+                                res(window);
+                            }
+                        });
+                    }, [response]);
                     // --------
                     // Serialize rendering?
                     // --------
-                    if (_isObject(window) && window.document) {
-                        await window.WQ.DOM.templatesReady;
-                        $context.data = await _promise(resolve => {
+                    if (_isObject(rendering) && rendering.document) {
+                        $context.response = await _promise(resolve => {
                             setTimeout(() => {
                                 resolve({
                                     contentType: 'text/html',
-                                    content: window.print(),
+                                    content: rendering.print(),
                                 });
                             }, 1000);
                         });
                     } else {
-                        $context.data = window;
+                        $context.response = rendering;
                     }
                 } else if (request.accepts.type('application/json')) {
                     // --------
                     // JSONfy
                     // --------
-                    $context.data = {
+                    $context.response = {
                         contentType: 'application/json',
-                        content: $context.data,
+                        content: $context.response,
                     };
                 }
             }
@@ -421,7 +409,7 @@ export async function run(instanceConfig, layout, config, request, response, Ui,
             // --------
 
             if (!response.headersSent) {
-                if ($context.data) {
+                if ($context.response) {
                     // -------------------
                     // Handle headers
                     // -------------------
@@ -432,25 +420,25 @@ export async function run(instanceConfig, layout, config, request, response, Ui,
                             });
                         }
                     }
-                    response.setHeader('Content-type', $context.data.contentType);
-                    if ($context.data.nostore) {
+                    response.setHeader('Content-type', $context.response.contentType);
+                    if ($context.response.nostore) {
                         response.setHeader('Cache-Control', 'no-store');
                     }
-                    if ($context.data.cors) {
-                        response.setHeader('Access-Control-Allow-Origin', $context.data.cors === true ? '*' : $context.data.cors);
+                    if ($context.response.cors) {
+                        response.setHeader('Access-Control-Allow-Origin', $context.response.cors === true ? '*' : $context.response.cors);
                     }
                     response.end(
-                        $context.data.contentType === 'application/json' && _isObject($context.data.content) 
-                            ? JSON.stringify($context.data.content) 
-                            : $context.data.content
+                        $context.response.contentType === 'application/json' && _isObject($context.response.content) 
+                            ? JSON.stringify($context.response.content) 
+                            : $context.response.content
                     );
                     // ----------------
                     // PRE-RENDERING
                     // ----------------
-                    if (!$context.data.filename && $context.data.contentType === 'text/html') {
+                    if (!$context.response.filename && $context.response.contentType === 'text/html') {
                         var prerenderMatch = config.prerendering ? await !config.prerendering.match(request.URL.pathname, flags, $layout) : null;
                         if (prerenderMatch) {
-                            router.putPreRendered(request.URL.pathname, `<!-- PRE-RENDERED -->\r\n` + $context.data.content);
+                            router.putPreRendered(request.URL.pathname, `<!-- PRE-RENDERED -->\r\n` + $context.response.content);
                         }
                     }
                 } else {
@@ -477,8 +465,8 @@ export async function run(instanceConfig, layout, config, request, response, Ui,
         Ui.log(''
             + '[' + (vhost ? Ui.style.keyword(vhost.host) + '][' : '') + Ui.style.comment((new Date).toUTCString()) + '] '
             + Ui.style.keyword(protocol.toUpperCase() + ' ' + request.method) + ' '
-            + Ui.style.url(request.url) + ($context.data && $context.data.autoIndex ? Ui.style.comment((!request.url.endsWith('/') ? '/' : '') + $context.data.autoIndex) : '') + ' '
-            + ($context.data ? ' (' + Ui.style.comment($context.data.contentType) + ') ' : '')
+            + Ui.style.url(request.url) + ($context.response && $context.response.autoIndex ? Ui.style.comment((!request.url.endsWith('/') ? '/' : '') + $context.response.autoIndex) : '') + ' '
+            + ($context.response ? ' (' + Ui.style.comment($context.response.contentType) + ') ' : '')
             + (
                 [404, 500].includes(response.statusCode) 
                 ? Ui.style.err(response.statusCode + ($context.fatal ? ` [ERROR]: ${$context.fatal.error || $context.fatal.toString()}` : ``)) 
