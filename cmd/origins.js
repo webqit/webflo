@@ -38,7 +38,7 @@ export async function deploy(Ui, origin, flags = {}, layout = {}) {
                 branch,
                 host: urlSplit.pop(),
                 url: origin,
-                tag: origin,
+                tag: repo.replace('/', '-'),
             };
         } else {
             const matches = await origins.match(origin, flags, layout);
