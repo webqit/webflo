@@ -35,7 +35,7 @@ export async function deploy(Ui, origin, flags = {}, layout = {}) {
             var [ repo, branch ] = urlSplit.splice(-2).join('/').split(':');
             origin = {
                 repo,
-                branch,
+                branch: branch || 'master',
                 host: urlSplit.pop(),
                 url: origin,
                 tag: repo.replace('/', '-'),
