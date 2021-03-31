@@ -6,6 +6,7 @@ import Fs from 'fs';
 import Path from 'path';
 import { spawn } from 'child_process';
 import _any from '@webqit/util/arr/any.js';
+import _beforeLast from '@webqit/util/str/beforeLast.js';
 import _isObject from '@webqit/util/js/isObject.js';
 import SimpleGit from 'simple-git';
 import Webhooks from '@octokit/webhooks';
@@ -26,35 +27,52 @@ export async function deploy(Ui, origin, flags = {}, layout = {}) {
         if (!origin) {
             throw new Error(`Please provide a repository name.`);
         }
-        const matches = await origins.match(origin, flags, layout);
-        if (matches.length > 1) {
-            throw new Error(`Cannot deploy ${origin}: Multiple deploy settings found.`);
+        if (origin.includes('/')) {
+            if (!origin.startsWith('https://') || !origin.endsWith('.git')) {
+                throw new Error(`Cannot deploy ${origin}: A valid https git repository is expected.`);
+            }
+            var urlSplit = _beforeLast(origin, '.git').split('/');
+            var [ repo, branch ] = urlSplit.splice(-2).join('/').split(':');
+            origin = {
+                repo,
+                branch,
+                host: urlSplit.pop(),
+                url: origin,
+                tag: origin,
+            };
+        } else {
+            const matches = await origins.match(origin, flags, layout);
+            if (matches.length > 1) {
+                throw new Error(`Cannot deploy ${origin}: Multiple deploy settings found.`);
+            }
+            if (!matches.length) {
+                throw new Error(`Cannot deploy ${origin}: No deploy settings found.`);
+            }
+            origin = matches[0];
         }
-        if (!matches.length) {
-            throw new Error(`Cannot deploy ${origin}: No deploy settings found.`);
-        }
-        origin = matches[0];
     }
     // ---------------
-    origin.deploy_path = Path.join(layout.ROOT, origin.deploy_path);
+    const isDeployPathSet = origin.deploy_path;
+    origin.deploy_path = Path.join(layout.ROOT, origin.deploy_path || '.');
     // ---------------
     // Instance
     const git = SimpleGit();
     // Before calling git.init()
     var isNewDeployPath = !Fs.existsSync((origin.deploy_path || '') + '/.git');
-    if (origin.deploy_path) {
+    if (isDeployPathSet) {
         if (!Fs.existsSync(origin.deploy_path)) {
             Fs.mkdirSync(origin.deploy_path, {recursive: true});
         }
-        git.cwd(origin.deploy_path);
     }
+    git.cwd(origin.deploy_path);
     // Must come after git.cwd()
     git.init();
 
     const hosts = {
         github: 'https://github.com',
+        bitbucket: 'https://bitbucket.org',
     };
-    const url = hosts[origin.host] + '/' + origin.repo + '.git';
+    const url = origin.url || hosts[origin.host] + '/' + origin.repo + '.git';
 
     // Deployment
     const pull = async () => {

@@ -85,6 +85,7 @@ export async function questions(config, choices = {}, layout = {}) {
     const CHOICES = _merge({
         host: [
             {value: 'github',},
+            {value: 'bitbucket',},
         ],
     }, choices);
 
