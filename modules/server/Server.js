@@ -33,10 +33,11 @@ import * as cmd from '../../cmd/index.js';
  */
 export default async function(Ui, flags = {}) {
 
+    const layout = await config.layout.read(flags, {});
     const setup = {
-        layout: await config.layout.read(flags, {}),
+        layout,
         server: await config.server.read(flags, layout),
-        variables: await config.variables.read(flags, {}),
+        variables: await config.variables.read(flags, layout),
     };
 
     if (setup.variables.autoload) {
