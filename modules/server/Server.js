@@ -50,7 +50,7 @@ export default async function(Ui, flags = {}) {
     
     const v_setup = {};
     if (setup.server.shared) {
-        await Promise.all(((await config.vhosts.read(flags, setup.layout)).entries || []).map(async vh => {
+        await Promise.all(((await config.vhosts.read(flags, setup.layout)).entries || []).map(vh => new Promise(async resolve => {
             const vlayout = await config.layout.read(flags, {ROOT: Path.join(setup.layout.ROOT, vh.path)});
             v_setup[vh.host] = {
                 layout: vlayout,
@@ -58,7 +58,8 @@ export default async function(Ui, flags = {}) {
                 variables: await config.variables.read(flags, vlayout),
                 vh,
             };
-        }));
+            resolve();
+        })));
     }
 
     // ---------------------------------------------
@@ -76,7 +77,7 @@ export default async function(Ui, flags = {}) {
         response.end('Unrecognized host');
     };
 
-    const goOrForceWww = (setup, request, response, protocol, isVhost) => {
+    const goOrForceWww = (setup, request, response, protocol) => {
         var hostname = request.headers.host || '';
         if (hostname.startsWith('www.') && setup.server.force_www === 'remove') {
             response.statusCode = 302;

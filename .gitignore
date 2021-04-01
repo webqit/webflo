@@ -1,3 +1,7 @@
 .*
 !/.gitignore
+!/.webflo
+/.webflo/config/variables.json
+/.webflo/config/variables.live.json
+/.webflo/config/variables.dev.json
 node_modules
