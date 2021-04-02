@@ -100,7 +100,7 @@ export async function start(Ui, flags = {}, layout = {}) {
                             Ui.log('');
                             showRunning(name, autorestart);
                         }
-                        Pm2.disconnect(resolve);
+                        //Pm2.disconnect(resolve);
                     });
                 }
             });
