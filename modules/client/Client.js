@@ -23,10 +23,11 @@ OOHTML(window);
  * ---------------------------
  */
 
-export default function(layout) {
+export default function(layout, params) {
 
 	// Copy..
 	layout = {...layout};
+	params = {...params};
 	window.addEventListener('online', () => Observer.set(networkWatch, 'online', navigator.onLine));
 	window.addEventListener('offline', () => Observer.set(networkWatch, 'online', navigator.onLine));
 	var networkProgressOngoing;

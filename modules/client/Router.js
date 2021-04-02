@@ -45,7 +45,7 @@ export default class Router {
      async route(target, argsA, input, _default, argsB = []) {
 
         target = _arrFrom(target);
-        var routeTree = this.layout.ROUTES;
+        var routeTree = this.layout;
         var context = this.context;
 
         // ----------------

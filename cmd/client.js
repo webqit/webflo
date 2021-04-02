@@ -69,13 +69,12 @@ export async function build(Ui, flags = {}, layout = {}) {
         Object.keys(config.worker).forEach(name => {
             workerBuild.code.push(`   ${name}: ${['boolean', 'number'].includes(typeof config.worker[name]) ? config.worker[name] : `'${config.worker[name]}'`},`);
         });
-        workerBuild.code.push(`   ROUTES: routes,`);
         workerBuild.code.push(`};`);
 
         // >> instantiation
         workerBuild.code.push(``);
         workerBuild.code.push(`// >> Worker Instantiation`);
-        workerBuild.code.push(`Worker.call(null, params);`);
+        workerBuild.code.push(`Worker.call(null, layout, params);`);
         
         // >> Write to file...
         waiting = Ui.waiting(Ui.f`Writing the Service Worker file: ${workerBundlingConfig.entry}`);
@@ -121,13 +120,12 @@ export async function build(Ui, flags = {}, layout = {}) {
     clientBuild.code.push(``);
     clientBuild.code.push(`// >> Client Params`);
     clientBuild.code.push(`const params = {`);
-    clientBuild.code.push(`   ROUTES: routes,`);
     clientBuild.code.push(`};`);
 
     // >> Client Instantiation
     clientBuild.code.push(``);
     clientBuild.code.push(`// >> Client Instantiation`);
-    clientBuild.code.push(`Client.call(null, params);`);
+    clientBuild.code.push(`Client.call(null, layout, params);`);
 
     // Service Worker registration code?
     if (createWorker) {
@@ -243,7 +241,7 @@ const buildRoutes = (Ui, entry, build, desc) => {
 
     // >> Routes mapping
     build.code.push(`// >> ` + desc);
-    build.code.push(`const routes = {};`);
+    build.code.push(`const layout = {};`);
 
     var indexCount = 0;
     if (entry && Fs.existsSync(entry)) {
@@ -256,7 +254,7 @@ const buildRoutes = (Ui, entry, build, desc) => {
                 build.imports['./' + relativePath] = '* as ' + routeName;
                 // Definition code
                 var routePath = _beforeLast('/' + relativePath, '/index.js');
-                build.code.push(`routes['${routePath || '/'}'] = ${routeName};`);
+                build.code.push(`layout['${routePath || '/'}'] = ${routeName};`);
                 // Show
                 Ui.log(`> ./ ${relativePath}`);
             }

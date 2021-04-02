@@ -13,9 +13,10 @@ import _after from '@webqit/util/str/after.js';
  * ---------------------------
  */
 			
-export default function(params) {
+export default function(layout, params) {
 
 	// Copy...
+	layout = {...layout};
 	params = {...params};
 
 	/**
@@ -91,18 +92,18 @@ export default function(params) {
 	// Fetches request
 	const handleFetch = async evt => {
 
+		const $context = {
+			layout,
+		};
 		// The app router
-		const router = new Router(evt.request.url, params);
+		const router = new Router(evt.request.url, layout, $context);
 		// The srvice object
 		const routingPayload = {
 			params,
 			request: evt.request,
 			scope: evt,
 		}
-		return await router.route([routingPayload], 'default', async function(flo) {
-			if (arguments.length) {
-				return;
-			}
+		return await router.route('default', [evt.request], null, async function() {
 			switch(params.fetching_strategy) {
 				case 'cache_first':
 					return cache_first_fetch(evt);
@@ -178,36 +179,48 @@ export default function(params) {
 	// -----------------------------
 	
 	self.addEventListener('message', evt => {
-		const router = new Router('/', params);
+		const $context = {
+			layout,
+		};
+		const router = new Router('/', layout, $context);
 		evt.waitUntil(
-			router.route('postmessage', [evt], function() {
+			router.route('postmessage', [evt], null, function() {
 				return self;
 			})
 		);
 	});
 
 	self.addEventListener('push', evt => {
-		const router = new Router('/', params);
+		const $context = {
+			layout,
+		};
+		const router = new Router('/', layout, $context);
 		evt.waitUntil(
-			router.route('notificationpush', [evt], function() {
+			router.route('notificationpush', [evt], null, function() {
 				return self;
 			})
 		);
 	});
 
 	self.addEventListener('notificationclick', evt => {
-		const router = new Router('/', params);
+		const $context = {
+			layout,
+		};
+		const router = new Router('/', layout, $context);
 		evt.waitUntil(
-			router.route('notificationclick', [evt], function() {
+			router.route('notificationclick', [evt], null, function() {
 				return self;
 			})
 		);
 	});
 
 	self.addEventListener('notificationclose', evt => {
-		const router = new Router('/', params);
+		const $context = {
+			layout,
+		};
+		const router = new Router('/', layout, $context);
 		evt.waitUntil(
-			router.route('notificationclose', [evt], function() {
+			router.route('notificationclose', [evt], null, function() {
 				return self;
 			})
 		);
