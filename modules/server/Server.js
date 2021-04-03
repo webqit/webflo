@@ -149,7 +149,9 @@ export default async function(Ui, flags = {}) {
                             httpsServer.addContext(host.startsWith('www.') ? host.substr(4) : 'www.' + host, cert);
                         }
                     } else {
-                        httpsServer.addContext(_setup.server.https.certdoms.trim(), cert);
+                        domains.forEach(domain => {
+                            httpsServer.addContext(domain, cert);
+                        });
                     }
                 }
             });
