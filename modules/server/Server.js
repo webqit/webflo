@@ -17,6 +17,7 @@ import _isArray from '@webqit/util/js/isArray.js';
 import _isObject from '@webqit/util/js/isObject.js';
 import _promise from '@webqit/util/js/promise.js';
 import _wrapped from '@webqit/util/str/wrapped.js';
+import _arrFrom from '@webqit/util/arr/from.js';
 import _beforeLast from '@webqit/util/str/beforeLast.js';
 import { restart as serverRestart } from '../../cmd/server.js';
 import Router, { FixedResponse } from './Router.js';
@@ -141,7 +142,8 @@ export default async function(Ui, flags = {}) {
                         key: Fs.readFileSync(_setup.server.https.keyfile),
                         cert: Fs.readFileSync(_setup.server.https.certfile),
                     };
-                    if (!_setup.server.https.certdoms || _setup.server.https.certdoms.trim() === '*') {
+                    var domains = _arrFrom(_setup.server.https.certdoms);
+                    if (!domains[0] || domains[0].trim() === '*') {
                         httpsServer.addContext(host, cert);
                         if (_setup.server.force_www) {
                             httpsServer.addContext(host.startsWith('www.') ? host.substr(4) : 'www.' + host, cert);
@@ -153,9 +155,16 @@ export default async function(Ui, flags = {}) {
             });
         } else {
             if (Fs.existsSync(setup.server.https.keyfile)) {
-                httpsServer.addContext(setup.server.https.certdoms.trim() || '*', {
+                var domains = _arrFrom(setup.server.https.certdoms);
+                var cert = {
                     key: Fs.readFileSync(setup.server.https.keyfile),
                     cert: Fs.readFileSync(setup.server.https.certfile),
+                };
+                if (!domains[0]) {
+                    domains = ['*'];
+                }
+                domains.forEach(domain => {
+                    httpsServer.addContext(domain, cert);
                 });
             }
         }
