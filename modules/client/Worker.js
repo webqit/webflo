@@ -107,13 +107,13 @@ export default function(layout, params) {
 			scope: evt,
 		}
 		return await router.route('default', [evt.request], null, async function() {
-			if (Micromatch.isMatch(request.url, (params.cache_only_url_list || []).map(c => c.trim()).filter(c => c))) {
+			if (Micromatch.isMatch(evt.request.url, (params.cache_only_url_list || []).map(c => c.trim()).filter(c => c))) {
 				return cache_fetch(evt);
 			}
-			if (Micromatch.isMatch(request.url, (params.cache_first_url_list || []).map(c => c.trim()).filter(c => c))) {
+			if (Micromatch.isMatch(evt.request.url, (params.cache_first_url_list || []).map(c => c.trim()).filter(c => c))) {
 				return cache_fetch(evt, true/** cacheRefresh */);
 			}
-			if (Micromatch.isMatch(request.url, (params.network_first_url_list || []).map(c => c.trim()).filter(c => c))) {
+			if (Micromatch.isMatch(evt.request.url, (params.network_first_url_list || []).map(c => c.trim()).filter(c => c))) {
 				return network_fetch(evt, true/** cacheFallback */);
 			}
 			return network_fetch(evt);
