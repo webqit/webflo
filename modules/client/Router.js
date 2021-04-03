@@ -104,7 +104,7 @@ export default class Router {
             // -------------
             // Recieved response or undefined
             // -------------
-            return input;
+            return;
         };
         
         return next(0, input, this.path);

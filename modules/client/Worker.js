@@ -4,10 +4,12 @@
  */
 import Router from './Router.js';
 import _isGlobe from 'is-glob';
-import Micromatch from 'minimatch';
+import Minimatch from 'minimatch';
 import _isArray from '@webqit/util/js/isArray.js';
 import _afterLast from '@webqit/util/str/afterLast.js';
 import _after from '@webqit/util/str/after.js';
+import _any from '@webqit/util/arr/any.js';
+
 
 /**
  * ---------------------------
@@ -40,7 +42,7 @@ export default function(layout, params) {
 					if (params.lifecycle_logs) {
 						console.log('[ServiceWorker] Pre-caching resources.');
 					}
-					const cache_only_url_list = (params.cache_only_url_list || []).map(c => c.trim()).filter(c => c).reduce((all, url) => all.concat(Micromatch.brace(url, { expand: true })), []);
+					const cache_only_url_list = (params.cache_only_url_list || []).map(c => c.trim()).filter(c => c);//.reduce((all, url) => all.concat(Micromatch.brace(url, { expand: true })), []);
 					return cache.addAll(cache_only_url_list.filter(url => !_isGlobe(url) && !_afterLast(url, '.').includes('/')));
 				})
 			);
@@ -107,13 +109,13 @@ export default function(layout, params) {
 			scope: evt,
 		}
 		return await router.route('default', [evt.request], null, async function() {
-			if (Micromatch.isMatch(evt.request.url, (params.cache_only_url_list || []).map(c => c.trim()).filter(c => c))) {
+			if (_any((params.cache_only_url_list || []).map(c => c.trim()).filter(c => c), pattern => Minimatch.Minimatch(evt.request.url, pattern))) {
 				return cache_fetch(evt);
 			}
-			if (Micromatch.isMatch(evt.request.url, (params.cache_first_url_list || []).map(c => c.trim()).filter(c => c))) {
+			if (_any((params.cache_first_url_list || []).map(c => c.trim()).filter(c => c), pattern => Minimatch.Minimatch(evt.request.url, pattern))) {
 				return cache_fetch(evt, true/** cacheRefresh */);
 			}
-			if (Micromatch.isMatch(evt.request.url, (params.network_first_url_list || []).map(c => c.trim()).filter(c => c))) {
+			if (_any((params.network_first_url_list || []).map(c => c.trim()).filter(c => c), pattern => Minimatch.Minimatch(evt.request.url, pattern))) {
 				return network_fetch(evt, true/** cacheFallback */);
 			}
 			return network_fetch(evt);

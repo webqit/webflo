@@ -122,7 +122,6 @@ export async function questions(config, choices = {}, layout = {}) {
                     type: 'list',
                     message: 'Enter the CERT domains (comma-separated)',
                     validation: ['important'],
-                    format: val => val || '',
                 },
                 {
                     name: 'force',

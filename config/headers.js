@@ -9,7 +9,7 @@ import _merge from '@webqit/util/obj/merge.js';
 import _after from '@webqit/util/str/after.js';
 import _isObject from '@webqit/util/js/isObject.js';
 import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
-import Micromatch from 'minimatch';
+import Micromatch from 'micromatch';
 
 /**
  * Reads entries from file.

@@ -73,8 +73,8 @@ export async function write(config, flags = {}, layout = {}) {
 export async function questions(config, choices = {}, layout = {}) {
 
     // Increment cache
-    if (config.cache_name && config.cache_name.indexOf('_v') > -1 && _isNumeric(_after(config.cache_name, '_v'))) {
-        config.cache_name = _before(config.cache_name, '_v') + '_v' + (parseInt(_after(config.cache_name, '_v')) + 1);
+    if (config.worker.cache_name && config.worker.cache_name.indexOf('_v') > -1 && _isNumeric(_after(config.worker.cache_name, '_v'))) {
+        config.worker.cache_name = _before(config.worker.cache_name, '_v') + '_v' + (parseInt(_after(config.worker.cache_name, '_v')) + 1);
     }
 
     // Questions
@@ -118,28 +118,24 @@ export async function questions(config, choices = {}, layout = {}) {
                     type: 'list',
                     message: 'Specify URLs for a "cache-only" fetching strategy (comma-separated, globe supported)',
                     initial: (config.cache_only_url_list || []).join(', '),
-                    format: val => val || '',
                 },
                 {
                     name: 'cache_first_url_list',
                     type: 'list',
                     message: 'Specify URLs for a "cache-first-then-network" fetching strategy (comma-separated, globe supported)',
                     initial: (config.cache_first_url_list || []).join(', '),
-                    format: val => val || '',
                 },
                 {
                     name: 'network_first_url_list',
                     type: 'list',
                     message: 'Specify URLs for a "network-first-then-cache" fetching strategy (comma-separated, globe supported)',
                     initial: (config.network_first_url_list || []).join(', '),
-                    format: val => val || '',
                 },
                 {
                     name: 'network_only_url_list',
                     type: 'list',
                     message: 'Specify URLs for a "network-only" fetching strategy (comma-separated, globe supported)',
                     initial: (config.network_only_url_list || []).join(', '),
-                    format: val => val || '',
                 },
                 {
                     name: 'skip_waiting',

@@ -67,7 +67,7 @@ export async function build(Ui, flags = {}, layout = {}) {
         workerBuild.code.push(`// >> Worker Params`);
         workerBuild.code.push(`const params = {`);
         Object.keys(config.worker).forEach(name => {
-            workerBuild.code.push(`   ${name}: ${['boolean', 'number'].includes(typeof config.worker[name]) ? config.worker[name] : `'${config.worker[name]}'`},`);
+            workerBuild.code.push(`   ${name}: ${['boolean', 'number'].includes(typeof config.worker[name]) ? config.worker[name] : (Array.isArray(config.worker[name]) ? (!config.worker[name].length ? `[]` : `['${config.worker[name].join(`', '`)}']`) : `'${config.worker[name]}'`)},`);
         });
         workerBuild.code.push(`};`);
 
@@ -196,7 +196,7 @@ const createBundle = (Ui, config, desc) => {
     return new Promise(resolve => {
         var waiting = Ui.waiting(`${desc} ...`);
         Ui.log('');
-        Ui.info(Ui.f`FROM: ${config.intermediate}`);
+        Ui.info(Ui.f`FROM: ${config.entry}`);
         Ui.info(Ui.f`TO: ${config.output.path + '/' + config.output.filename}`);
         Ui.log('');
         waiting.start();
@@ -213,7 +213,7 @@ const createBundle = (Ui, config, desc) => {
                 colors: true,
             }));
             // Remove intermediate build
-            Fs.unlinkSync(intermediateFile);
+            //Fs.unlinkSync(intermediateFile);
             resolve();
         });
     });
