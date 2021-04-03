@@ -141,15 +141,19 @@ export default async function(Ui, flags = {}) {
                         key: Fs.readFileSync(_setup.server.https.keyfile),
                         cert: Fs.readFileSync(_setup.server.https.certfile),
                     };
-                    httpsServer.addContext(host, cert);
-                    if (_setup.server.force_www) {
-                        httpsServer.addContext(host.startsWith('www.') ? host.substr(4) : 'www.' + host, cert);
+                    if (!_setup.server.https.certdoms || _setup.server.https.certdoms.trim() === '*') {
+                        httpsServer.addContext(host, cert);
+                        if (_setup.server.force_www) {
+                            httpsServer.addContext(host.startsWith('www.') ? host.substr(4) : 'www.' + host, cert);
+                        }
+                    } else {
+                        httpsServer.addContext(_setup.server.https.certdoms.trim(), cert);
                     }
                 }
             });
         } else {
             if (Fs.existsSync(setup.server.https.keyfile)) {
-                httpsServer.addContext('*', {
+                httpsServer.addContext(setup.server.https.certdoms.trim() || '*', {
                     key: Fs.readFileSync(setup.server.https.keyfile),
                     cert: Fs.readFileSync(setup.server.https.certfile),
                 });

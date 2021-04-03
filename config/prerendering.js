@@ -7,7 +7,7 @@ import Path from 'path';
 import _merge from '@webqit/util/obj/merge.js';
 import _isObject from '@webqit/util/js/isObject.js';
 import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
-import Minimatch from 'minimatch';
+import Micromatch from 'micromatch';
 
 /**
  * Reads entries from file.
@@ -55,8 +55,7 @@ export async function match(url, flags = {}, layout = {}) {
         if (match) {
             return match;
         }
-        var matcher = Minimatch.Minimatch(prerend.page, {dot: true});
-        var regex = matcher.makeRe();
+        var regex = Micromatch.makeRe(prerend.page, {dot: true});
         var rootMatch = pathname.split('/').filter(seg => seg).map(seg => seg.trim()).reduce((str, seg) => str.endsWith(' ') ? str : ((str = str + '/' + seg) && str.match(regex) ? str + ' ' : str), '');
         if (rootMatch.endsWith(' ')) {
             return {

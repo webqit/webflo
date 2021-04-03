@@ -3,8 +3,10 @@
  * @imports
  */
 import Router from './Router.js';
-import Minimatch from 'minimatch';
+import _isGlobe from 'is-glob';
+import Micromatch from 'minimatch';
 import _isArray from '@webqit/util/js/isArray.js';
+import _afterLast from '@webqit/util/str/afterLast.js';
 import _after from '@webqit/util/str/after.js';
 
 /**
@@ -38,7 +40,8 @@ export default function(layout, params) {
 					if (params.lifecycle_logs) {
 						console.log('[ServiceWorker] Pre-caching resources.');
 					}
-					return cache.addAll(params.static_caching_list);
+					const cache_only_url_list = (params.cache_only_url_list || []).map(c => c.trim()).filter(c => c).reduce((all, url) => all.concat(Micromatch.brace(url, { expand: true })), []);
+					return cache.addAll(cache_only_url_list.filter(url => !_isGlobe(url) && !_afterLast(url, '.').includes('/')));
 				})
 			);
 		}
@@ -104,15 +107,16 @@ export default function(layout, params) {
 			scope: evt,
 		}
 		return await router.route('default', [evt.request], null, async function() {
-			switch(params.fetching_strategy) {
-				case 'cache_first':
-					return cache_first_fetch(evt);
-				break;
-				case 'network_first':
-				default:
-					return network_first_fetch(evt);
-				break;
+			if (Micromatch.isMatch(request.url, (params.cache_only_url_list || []).map(c => c.trim()).filter(c => c))) {
+				return cache_fetch(evt);
 			}
+			if (Micromatch.isMatch(request.url, (params.cache_first_url_list || []).map(c => c.trim()).filter(c => c))) {
+				return cache_fetch(evt, true/** cacheRefresh */);
+			}
+			if (Micromatch.isMatch(request.url, (params.network_first_url_list || []).map(c => c.trim()).filter(c => c))) {
+				return network_fetch(evt, true/** cacheFallback */);
+			}
+			return network_fetch(evt);
 		});
 
 	};
@@ -122,29 +126,36 @@ export default function(layout, params) {
 			: params.cache_name;
 			
 	// Caching strategy: cache_first
-	const cache_first_fetch = evt => {
+	const cache_fetch = (evt, cacheRefresh) => {
 
 		return self.caches.open(getCacheName(evt.request)).then(cache => {
 			return cache.match(evt.request).then(response => {
 				if (response) {
+					if (cacheRefresh) {
+						// Fetch, but return this immediately
+						self.fetch(evt.request).then(response => refreshCache(evt.request, response));
+					}
 					return response;
 				}
-				return self.fetch(evt.request).then(response => handleFetchResponse(evt.request, response));
+				return self.fetch(evt.request).then(response => refreshCache(evt.request, response));
 			});
 		});
 		
 	};
 
 	// Caching strategy: network_first
-	const network_first_fetch = evt => {
+	const network_fetch = (evt, cacheFallback) => {
 
+		if (!cacheFallback) {
+			return self.fetch(evt.request);
+		}
 		// Now, the following is key:
 		// The browser likes to use "force-cache" for "navigate" requests
 		// when, for example, the back button was used.
 		// Thus the origin server would still not be contacted by the self.fetch() below, leading inconsistencies in responses.
 		// So, we detect this scenerio and avoid it.
 		// if (evt.request.mode === 'navigate' && evt.request.cache === 'force-cache' && evt.request.destination === 'document') {}
-		return self.fetch(evt.request).then(response => handleFetchResponse(evt.request, response)).catch(() => {
+		return self.fetch(evt.request).then(response => refreshCache(evt.request, response)).catch(() => {
 			return self.caches.open(getCacheName(evt.request)).then(cache => {
 				return cache.match(evt.request);
 			});
@@ -153,11 +164,10 @@ export default function(layout, params) {
 	};
 
 	// Caches response 
-	const handleFetchResponse = (request, response) => {
+	const refreshCache = (request, response) => {
 
 		// Check if we received a valid response
-		if (!response || response.status !== 200 || response.type !== 'basic'
-		|| (!(params.dynamic_caching_list || []).map(c => c.trim()).filter(c => c).reduce((matched, pattern) => matched || Minimatch(request.url, pattern, {dot: true}), false))) {
+		if (!response || response.status !== 200 || response.type !== 'basic') {
 			return response;
 		}
 
@@ -168,7 +178,7 @@ export default function(layout, params) {
 		var responseToCache = response.clone();
 		self.caches.open(getCacheName(request)).then(cache => {
 			if (params.lifecycle_logs) {
-				console.log('[ServiceWorker] Caching new resource:', request.url);
+				console.log('[ServiceWorker] Refreshing cache:', request.url);
 			}
 			cache.put(request, responseToCache);
 		});

@@ -38,8 +38,8 @@ export async function build(Ui, flags = {}, layout = {}) {
     if (createWorker) {
 
         var workerBundlingConfig = config.BUNDLING || {};
-        if (!workerBundlingConfig.entry) {
-            workerBundlingConfig.entry = clientDirSplit.join('/') + '/worker.js';
+        if (!workerBundlingConfig.intermediate) {
+            workerBundlingConfig.intermediate = clientDirSplit.join('/') + '/worker.js';
         }
         if (!workerBundlingConfig.output) {
             workerBundlingConfig.output = {
@@ -77,14 +77,14 @@ export async function build(Ui, flags = {}, layout = {}) {
         workerBuild.code.push(`Worker.call(null, layout, params);`);
         
         // >> Write to file...
-        waiting = Ui.waiting(Ui.f`Writing the Service Worker file: ${workerBundlingConfig.entry}`);
+        waiting = Ui.waiting(Ui.f`Writing the Service Worker file: ${workerBundlingConfig.intermediate}`);
         waiting.start();
 
         // Write
-        DotJs.write(workerBuild, workerBundlingConfig.entry, 'Service Worker File');
+        DotJs.write(workerBuild, workerBundlingConfig.intermediate, 'Service Worker File');
         
         waiting.stop();
-        Ui.info(Ui.f`Service Worker file: ${workerBundlingConfig.entry}`);
+        Ui.info(Ui.f`Service Worker file: ${workerBundlingConfig.intermediate}`);
 
     }
 
@@ -93,8 +93,8 @@ export async function build(Ui, flags = {}, layout = {}) {
     // -------------------
 
     var clientBundlingConfig = config.BUNDLING || {};
-    if (!clientBundlingConfig.entry) {
-        clientBundlingConfig.entry = clientDirSplit.join('/') + '/bundle.js';
+    if (!clientBundlingConfig.intermediate) {
+        clientBundlingConfig.intermediate = clientDirSplit.join('/') + '/bundle.js';
     }
     if (!clientBundlingConfig.output) {
         clientBundlingConfig.output = {
@@ -152,14 +152,14 @@ export async function build(Ui, flags = {}, layout = {}) {
     }
     
     // >> Write to file...
-    waiting = Ui.waiting(`Writing the client entry file: ${clientBundlingConfig.entry}`);
+    waiting = Ui.waiting(`Writing the client entry file: ${clientBundlingConfig.intermediate}`);
     waiting.start();
 
     // Write
-    DotJs.write(clientBuild, clientBundlingConfig.entry, 'Client Build File');
+    DotJs.write(clientBuild, clientBundlingConfig.intermediate, 'Client Build File');
         
     waiting.stop();
-    Ui.info(Ui.f`Client Build file: ${clientBundlingConfig.entry}`);
+    Ui.info(Ui.f`Client Build file: ${clientBundlingConfig.intermediate}`);
 
     // -------------------
     // Run webpack
@@ -187,10 +187,16 @@ export async function build(Ui, flags = {}, layout = {}) {
  * @return void
  */
 const createBundle = (Ui, config, desc) => {
+    const intermediateFile = config.intermediate;
+    config = {...config};
+    if (!config.entry) {
+        config.entry = config.intermediate;
+    }
+    delete config.intermediate;
     return new Promise(resolve => {
         var waiting = Ui.waiting(`${desc} ...`);
         Ui.log('');
-        Ui.info(Ui.f`FROM: ${config.entry}`);
+        Ui.info(Ui.f`FROM: ${config.intermediate}`);
         Ui.info(Ui.f`TO: ${config.output.path + '/' + config.output.filename}`);
         Ui.log('');
         waiting.start();
@@ -206,7 +212,8 @@ const createBundle = (Ui, config, desc) => {
             Ui.log(stats.toString({
                 colors: true,
             }));
-
+            // Remove intermediate build
+            Fs.unlinkSync(intermediateFile);
             resolve();
         });
     });

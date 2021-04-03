@@ -27,6 +27,7 @@ import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
             port: 0,
             keyfile: '',
             certfile: '',
+            certdoms: '*',
             force: false,
         },
         process: {
@@ -114,6 +115,12 @@ export async function questions(config, choices = {}, layout = {}) {
                     name: 'certfile',
                     type: 'text',
                     message: 'Enter SSL CERT file',
+                    validation: ['important'],
+                },
+                {
+                    name: 'certdoms',
+                    type: 'text',
+                    message: 'Enter the CERT domains',
                     validation: ['important'],
                 },
                 {

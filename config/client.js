@@ -8,7 +8,6 @@ import _merge from '@webqit/util/obj/merge.js';
 import _before from '@webqit/util/str/before.js';
 import _after from '@webqit/util/str/after.js';
 import _isNumeric from '@webqit/util/js/isNumeric.js';
-import { initialGetIndex } from '@webqit/backpack/src/cli/Promptx.js';
 import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
 
 /**
@@ -31,9 +30,10 @@ export async function read(flags = {}, layout = {}) {
         worker: {
             scope: '/',
             cache_name: 'cache_v0',
-            fetching_strategy: 'cache_first',
-            dynamic_caching_list: [],
-            static_caching_list: [],
+            cache_only_url_list: [],
+            cache_first_url_list: [],
+            network_first_url_list: [],
+            network_only_url_list: [],
             skip_waiting: false,
             lifecycle_logs: true,
             // -----------------
@@ -123,23 +123,28 @@ export async function questions(config, choices = {}, layout = {}) {
                     initial: config.cache_name,
                 },
                 {
-                    name: 'fetching_strategy',
-                    type: 'select',
-                    message: 'Select the Service Worker fetching strategy',
-                    choices: CHOICES.worker_fetching_strategy,
-                    initial: initialGetIndex(CHOICES.worker_fetching_strategy, config.fetching_strategy),
+                    name: 'cache_only_url_list',
+                    type: 'list',
+                    message: 'Specify URLs for a "cache-only" fetching strategy (comma-separated, globe supported)',
+                    initial: (config.cache_only_url_list || []).join(', '),
                 },
                 {
-                    name: 'static_caching_list',
+                    name: 'cache_first_url_list',
                     type: 'list',
-                    message: 'Specify files to statically cache (comma-separated)',
-                    initial: (config.static_caching_list || []).join(', '),
+                    message: 'Specify URLs for a "cache-first-then-network" fetching strategy (comma-separated, globe supported)',
+                    initial: (config.cache_first_url_list || []).join(', '),
                 },
                 {
-                    name: 'dynamic_caching_list',
+                    name: 'network_first_url_list',
                     type: 'list',
-                    message: 'Specify files to dynamically cache (comma-separated)',
-                    initial: (config.dynamic_caching_list || []).join(', '),
+                    message: 'Specify URLs for a "network-first-then-cache" fetching strategy (comma-separated, globe supported)',
+                    initial: (config.network_first_url_list || []).join(', '),
+                },
+                {
+                    name: 'network_only_url_list',
+                    type: 'list',
+                    message: 'Specify URLs for a "network-only" fetching strategy (comma-separated, globe supported)',
+                    initial: (config.network_only_url_list || []).join(', '),
                 },
                 {
                     name: 'skip_waiting',
