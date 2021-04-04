@@ -213,7 +213,7 @@ const createBundle = (Ui, config, desc) => {
                 colors: true,
             }));
             // Remove intermediate build
-            //Fs.unlinkSync(intermediateFile);
+            Fs.unlinkSync(intermediateFile);
             resolve();
         });
     });
