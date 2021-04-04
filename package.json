@@ -12,7 +12,7 @@
     "vanila-javascript"
   ],
   "homepage": "https://webqit.io/tooling/webflo",
-  "version": "0.7.73",
+  "version": "0.7.74",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -32,7 +32,7 @@
     "@octokit/auth-basic": "^1.4.6",
     "@octokit/rest": "^17.11.2",
     "@octokit/webhooks": "^7.15.1",
-    "@webqit/backpack": "^0.0.32",
+    "@webqit/backpack": "^0.0.33",
     "@webqit/browser-pie": "0.0.8",
     "@webqit/pseudo-browser": "^0.2.9",
     "@webqit/util": "^0.7.0",
