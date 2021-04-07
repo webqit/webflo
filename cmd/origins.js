@@ -161,7 +161,7 @@ export function hook(Ui, request, response, flags = {}, layout = {}) {
                 reject(`Failed deploy attempt (${payload.repository.full_name}): Repository disabled or archived.`);
             }
             Ui.log('---------------------------');
-            await deploy(Ui, deployParams, layout);
+            await deploy(Ui, deployParams, flags, layout);
             Ui.log('');
             Ui.log('---------------------------');
             resolve(true);
