@@ -41,7 +41,7 @@ import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
             deploy_path: '.',
             autodeploy: true,
             autodeploy_secret: '',
-            ondeploy: '',
+            ondeploy: 'npm install',
         }],
     }, config);
 

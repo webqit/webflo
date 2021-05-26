@@ -19,7 +19,6 @@ import _promise from '@webqit/util/js/promise.js';
 import _wrapped from '@webqit/util/str/wrapped.js';
 import _arrFrom from '@webqit/util/arr/from.js';
 import _beforeLast from '@webqit/util/str/beforeLast.js';
-import { restart as serverRestart } from '../../cmd/server.js';
 import Router, { FixedResponse } from './Router.js';
 import * as config from '../../config/index.js';
 import * as cmd from '../../cmd/index.js';
@@ -316,15 +315,21 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
             // Handle autodeploy events
             // -------------------
 
-            if (cmd.origins) {
-                cmd.origins.hook(Ui, request, response, flags, hostSetup.layout).then(async () => {
-                    await serverRestart(Ui, instanceSetup.server.process.name);
-                    process.exit();
-                }).catch(e => { throw e; });
-            }
-
             // The app router
             const router = new Router(request.URL.pathname, hostSetup.layout, $context);
+
+            // --------
+            // ROUTE FOR DEPLOY
+            // --------
+            if (cmd.origins) {
+                await cmd.origins.hook(Ui, request, response, flags, hostSetup.layout).then(deploy => {
+                    if (deploy) {
+                        return router.route('deploy', [request], null, function() {
+                            return deploy();
+                        }, [response]);
+                    }
+                });
+            }
 
             // --------
             // ROUTE FOR DATA

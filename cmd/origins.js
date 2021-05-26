@@ -160,11 +160,13 @@ export function hook(Ui, request, response, flags = {}, layout = {}) {
             if (payload.repository.disabled || payload.repository.archived) {
                 reject(`Failed deploy attempt (${payload.repository.full_name}): Repository disabled or archived.`);
             }
-            Ui.log('---------------------------');
-            await deploy(Ui, deployParams, flags, layout);
-            Ui.log('');
-            Ui.log('---------------------------');
-            resolve(true);
+            resolve(async (deployMsg = '') => {
+                Ui.log('---------------------------');
+                Ui.log(deployMsg);
+                await deploy(Ui, deployParams, flags, layout);
+                Ui.log('');
+                Ui.log('---------------------------');
+            });
         });
         if (request.headers['user-agent'] && request.headers['user-agent'].startsWith('GitHub-Hookshot/')) {
             eventHandler.receive({
@@ -172,6 +174,8 @@ export function hook(Ui, request, response, flags = {}, layout = {}) {
                 name: request.headers['x-github-event'],
                 payload: await request.inputs(),
             }).catch(reject);
+        } else {
+            resolve();
         }
     });
 };
