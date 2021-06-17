@@ -20,7 +20,7 @@ import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
  */
 export async function read(flags = {}, layout = {}) {
     const ext = flags.dev ? '.dev' : (flags.live ? '.live' : '');
-    const configDir = Path.join(layout.ROOT || ``, `./.webflo/config/`);
+    const configDir = Path.join(layout.ROOT || ``, `./.webqit/webflo/config/`);
     const configFile = ext => `${configDir}/client${ext}.json`;
     const config = DotJson.read(ext && Fs.existsSync(configFile(ext)) ? configFile(ext) : configFile(''));
     return _merge({
@@ -56,7 +56,7 @@ export async function read(flags = {}, layout = {}) {
  */
 export async function write(config, flags = {}, layout = {}) {
     const ext = flags.dev ? '.dev' : (flags.live ? '.live' : '');
-    const configDir = Path.join(layout.ROOT || ``, `./.webflo/config/`);
+    const configDir = Path.join(layout.ROOT || ``, `./.webqit/webflo/config/`);
     const configFile = ext => `${configDir}/client${ext}.json`;
     DotJson.write(config, ext ? configFile(ext) : configFile(''));
 };

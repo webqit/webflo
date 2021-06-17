@@ -53,7 +53,7 @@ export default class Router {
                 routeHandlerFile = 'index.js';
             } else if (path[index - 1]) {
                 var routeSlice = path.slice(0, index).join('/');
-                var wildcardRouteSlice = path.slice(0, index - 1).concat('_').join('/');
+                var wildcardRouteSlice = path.slice(0, index - 1).concat('*').join('/');
                 routeHandlerFile = Path.join(routeSlice, './index.js');
                 wildcardRouteHandlerFile = Path.join(wildcardRouteSlice, './index.js');
             }

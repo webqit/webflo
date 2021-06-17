@@ -34,7 +34,7 @@ export async function start(Ui, flags = {}, layout = {}) {
         // -------------------
         // Splash screen
         // -------------------
-        const WEBFLO = DotJson.read(Path.join(currentDir, '../package.json'));
+        const WEBFLO = DotJson.read(Path.join(currentDir, '../../package.json'));
         Ui.banner(WEBFLO.title, WEBFLO.version);
         Ui.log('');
         Ui.log(Ui.f`${'-------------------------------'}`);
@@ -91,8 +91,8 @@ export async function start(Ui, flags = {}, layout = {}) {
                         exec_mode = config.process.exec_mode || 'fork',
                         autorestart = 'AUTO_RESTART' in config ? config.process.autorestart : true,
                         merge_logs = 'merge_logs' in config.process ? config.process.merge_logs : false,
-                        output = config.process.outfile || Path.resolve('./.webflo/runtime/output.log'),
-                        error = config.process.errfile || Path.resolve('./.webflo/runtime/error.log');
+                        output = config.process.outfile || Path.resolve('./.webqit/webflo/runtime/output.log'),
+                        error = config.process.errfile || Path.resolve('./.webqit/webflo/runtime/error.log');
                     Pm2.start({script, name, args, exec_mode, autorestart, merge_logs, output, error, force: true}, err => {
                         if (err) {
                             Ui.error(err);

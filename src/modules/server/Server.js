@@ -380,7 +380,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                         const { window } = await import('@webqit/pseudo-browser/instance.js?' + instanceParams);
                         // --------
                         // OOHTML would waiting for DOM-ready in order to be initialized
-                        await window.WQ.OOHTML.ready;
+                        await new Promise(res => window.WebQit.DOM.ready(res));
                         if (!window.document.state.env) {
                             window.document.setState({
                                 env: 'server',

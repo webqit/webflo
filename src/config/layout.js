@@ -15,7 +15,7 @@ import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
  * @return object
  */
 export async function read(flags, defaults = {}) {
-    const config = DotJson.read(Path.join(defaults.ROOT || '', './.webflo/config/setup.json'));
+    const config = DotJson.read(Path.join(defaults.ROOT || '', './.webqit/webflo/config/setup.json'));
     return _merge({
         ROOT: defaults.ROOT || process.cwd(),
         PUBLIC_DIR: './public',
@@ -35,7 +35,7 @@ export async function read(flags, defaults = {}) {
  * @return void
  */
 export async function write(config, flags = {}, defaults = {}) {
-    DotJson.write(config, Path.join(defaults.ROOT || '', './.webflo/config/setup.json'));
+    DotJson.write(config, Path.join(defaults.ROOT || '', './.webqit/webflo/config/setup.json'));
 };
 
 /**

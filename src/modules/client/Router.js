@@ -58,7 +58,7 @@ export default class Router {
                 exports = routeTree['/'];
             } else if (path[index - 1]) {
                 var currentHandlerPath = '/' + path.slice(0, index).join('/');
-                var wildcardCurrentHandlerPath = path.slice(0, index - 1).concat('_').join('/');
+                var wildcardCurrentHandlerPath = '/' + path.slice(0, index - 1).concat('*').join('/');
                 exports = routeTree[currentHandlerPath] || routeTree[wildcardCurrentHandlerPath];
             }
 

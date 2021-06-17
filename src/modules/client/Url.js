@@ -120,7 +120,7 @@ export default class Url {
 			}
 		}, {subtree:true/*for pathmap/pathsplit/searchmap updates*/, diff: true});
 		// -----------------------
-		// Validate e.details
+		// Validate e.detail
 		Observer.observe(this, changes => {
 			changes.forEach(e => {
 				if (e && e.detail) {

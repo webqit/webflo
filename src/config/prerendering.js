@@ -5,8 +5,9 @@
 import Fs from 'fs';
 import Path from 'path';
 import _merge from '@webqit/util/obj/merge.js';
+import _isObject from '@webqit/util/js/isObject.js';
 import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
-import * as DotEnv from '@webqit/backpack/src/dotfiles/DotEnv.js';
+import Micromatch from 'micromatch';
 
 /**
  * Reads entries from file.
@@ -18,14 +19,12 @@ import * as DotEnv from '@webqit/backpack/src/dotfiles/DotEnv.js';
  */
  export async function read(flags = {}, layout = {}) {
     const ext = flags.dev ? '.dev' : (flags.live ? '.live' : '');
-    const configDir = Path.join(layout.ROOT || ``, `./.webflo/config/`);
-    const configFile = ext => `${configDir}/variables${ext}.json`;
+    const configDir = Path.join(layout.ROOT || ``, `./.webqit/webflo/config/`);
+    const configFile = ext => `${configDir}/prerendering${ext}.json`;
     const config = DotJson.read(ext && Fs.existsSync(configFile(ext)) ? configFile(ext) : configFile(''));
     return _merge({
-        autoload: true,
-    }, config, {
-        entries: DotEnv.read(Path.join(layout.ROOT || '', './.env')) || {},
-    });
+        entries: [],
+    }, config);
 };
 
 /**
@@ -39,21 +38,38 @@ import * as DotEnv from '@webqit/backpack/src/dotfiles/DotEnv.js';
  */
  export async function write(config, flags = {}, layout = {}) {
     const ext = flags.dev ? '.dev' : (flags.live ? '.live' : '');
-    const configDir = Path.join(layout.ROOT || ``, `./.webflo/config/`);
-    const configFile = ext => `${configDir}/variables${ext}.json`;
+    const configDir = Path.join(layout.ROOT || ``, `./.webqit/webflo/config/`);
+    const configFile = ext => `${configDir}/prerendering${ext}.json`;
+    DotJson.write(config, ext ? configFile(ext) : configFile(''));
+};
 
-    const _config = {...config};
-    DotEnv.write(_config.entries, Path.join(layout.ROOT || '', './.env'));
-    
-    delete _config.entries;
-    DotJson.write(_config, ext ? configFile(ext) : configFile(''));
+/**
+ * @match
+ */
+export async function match(url, flags = {}, layout = {}) {
+    var pathname = url;
+    if (_isObject(url)) {
+        pathname = url.pathname;
+    }
+    return ((await read(flags, layout)).entries || []).reduce((match, prerend) => {
+        if (match) {
+            return match;
+        }
+        var regex = Micromatch.makeRe(prerend.page, {dot: true});
+        var rootMatch = pathname.split('/').filter(seg => seg).map(seg => seg.trim()).reduce((str, seg) => str.endsWith(' ') ? str : ((str = str + '/' + seg) && str.match(regex) ? str + ' ' : str), '');
+        if (rootMatch.endsWith(' ')) {
+            return {
+                url: prerend.page,
+            };
+        }
+    }, null);
 };
 
 /**
  * Configures entries.
  * 
  * @param object    config
- * @param object    CHOICES
+ * @param object    choices
  * @param object    layout
  * 
  * @return Array
@@ -66,32 +82,18 @@ export async function questions(config, choices = {}, layout = {}) {
             name: 'entries',
             type: 'recursive',
             controls: {
-                name: 'variable',
-                combomode: true,
+                name: 'page',
             },
             initial: config.entries,
             questions: [
                 {
-                    name: 'name',
+                    name: 'page',
                     type: 'text',
-                    message: 'Name',
-                    validation: ['important'],
-                },
-                {
-                    name: 'value',
-                    type: 'text',
-                    message: 'Value',
+                    message: 'Page URL',
                     validation: ['important'],
                 },
             ],
         },
-        {
-            name: 'autoload',
-            type: 'toggle',
-            message: 'Choose whether to autoload variables into "process.env"',
-            active: 'YES',
-            inactive: 'NO',
-            initial: config.autoload,
-        },
+
     ];
 };

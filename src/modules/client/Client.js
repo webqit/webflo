@@ -15,7 +15,7 @@ import Url from './Url.js';
  * ---------------------------
  */
 
-OOHTML(window);
+OOHTML.call(window);
 
 /**
  * ---------------------------
@@ -47,7 +47,7 @@ export default function(layout, params) {
 		request.URL = Url.parseUrl(request.url);
 		const $context = {
 			layout,
-			onHydration: initCall && (await window.WQ.OOHTML.meta('isomorphic')),
+			onHydration: initCall && (await window.WebQit.OOHTML.meta.get('isomorphic')),
 			response: null,
 		}
 		
@@ -91,7 +91,7 @@ export default function(layout, params) {
 			const rendering = await router.route('render', [request], $context.response, async function(data) {
 				// --------
 				// OOHTML would waiting for DOM-ready in order to be initialized
-				await window.WQ.OOHTML.ready;
+				await new Promise(res => window.WebQit.DOM.ready(res));
 				if (!window.document.state.env) {
 					window.document.setState({
 						env: 'client',
