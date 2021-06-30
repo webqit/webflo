@@ -28,7 +28,9 @@ export async function build(Ui, flags = {}, layout = {}) {
     const forwardSlash = str => str.replace(/\\/g, '/');
     var clientModulesDir = forwardSlash(Url.fileURLToPath(Path.join(import.meta.url, '../../modules/client')));
     var clientDirSplit = Path.resolve(layout.CLIENT_DIR).replace(/\\/g, '/').split('/');
-    var createWorker = !_isEmpty(config.worker);
+    var clientParams = config.client || {};
+    var workerParams = config.worker || {};
+    var createWorker = !_isEmpty(workerParams);
     var waiting;
 
     // -------------------
@@ -37,7 +39,7 @@ export async function build(Ui, flags = {}, layout = {}) {
 
     if (createWorker) {
 
-        var workerBundlingConfig = config.BUNDLING || {};
+        var workerBundlingConfig = workerParams.bundling || {};
         if (!workerBundlingConfig.intermediate) {
             workerBundlingConfig.intermediate = clientDirSplit.join('/') + '/worker.js';
         }
@@ -66,8 +68,10 @@ export async function build(Ui, flags = {}, layout = {}) {
         workerBuild.code.push(``);
         workerBuild.code.push(`// >> Worker Params`);
         workerBuild.code.push(`const params = {`);
-        Object.keys(config.worker).forEach(name => {
-            workerBuild.code.push(`   ${name}: ${['boolean', 'number'].includes(typeof config.worker[name]) ? config.worker[name] : (Array.isArray(config.worker[name]) ? (!config.worker[name].length ? `[]` : `['${config.worker[name].join(`', '`)}']`) : `'${config.worker[name]}'`)},`);
+        Object.keys(workerParams).forEach(name => {
+            if (name !== 'bundling') {
+                workerBuild.code.push(`   ${name}: ${['boolean', 'number'].includes(typeof workerParams[name]) ? workerParams[name] : (Array.isArray(workerParams[name]) ? (!workerParams[name].length ? `[]` : `['${workerParams[name].join(`', '`)}']`) : `'${workerParams[name]}'`)},`);
+            }
         });
         workerBuild.code.push(`};`);
 
@@ -92,7 +96,7 @@ export async function build(Ui, flags = {}, layout = {}) {
     // Create the Client file
     // -------------------
 
-    var clientBundlingConfig = config.BUNDLING || {};
+    var clientBundlingConfig = config.bundling || {};
     if (!clientBundlingConfig.intermediate) {
         clientBundlingConfig.intermediate = clientDirSplit.join('/') + '/bundle.js';
     }
@@ -108,13 +112,13 @@ export async function build(Ui, flags = {}, layout = {}) {
         code: [],
     };
 
+    // >> Import the Webflo Client file
+    clientBuild.imports[clientModulesDir + '/Client.js'] = 'Client';
+
     Ui.log('');
     Ui.title(`CLIENT BUILD`);
     // >> Routes mapping
     buildRoutes(Ui, Path.resolve(layout.CLIENT_DIR), clientBuild, 'Client-Side Routing:');
-
-    // >> Import the Webflo Client file
-    clientBuild.imports[clientModulesDir + '/Client.js'] = 'Client';
 
     // >> Client Params
     clientBuild.code.push(``);
@@ -129,7 +133,7 @@ export async function build(Ui, flags = {}, layout = {}) {
 
     // Service Worker registration code?
     if (createWorker) {
-        if (config.worker.support_push) {
+        if (workerParams.support_push) {
             clientBuild.imports[clientModulesDir + '/Push.js'] = 'Push';
         }
         clientBuild.code.push(...[
@@ -137,12 +141,12 @@ export async function build(Ui, flags = {}, layout = {}) {
             `// >> Service Worker Registration`,
             `if ('serviceWorker' in navigator) {`,
             `    window.addEventListener('load', () => {`,
-            `        navigator.serviceWorker.register('/${workerBundlingConfig.output.filename}', {scope: '${config.worker.scope}'}).then(async registration => {`,
+            `        navigator.serviceWorker.register('/${workerBundlingConfig.output.filename}', {scope: '${workerParams.scope}'}).then(async registration => {`,
             `            console.log('Service worker registered.');`,
-            `            await /*SUPPORT_PUSH*/${config.worker.support_push} ? new Push(registration, {`,
-            `                registration_url: '${config.worker.push_registration_url}',`,
-            `                deregistration_url: '${config.worker.push_deregistration_url}',`,
-            `                public_key: '${config.worker.push_public_key}',`,
+            `            await /*SUPPORT_PUSH*/${workerParams.support_push} ? new Push(registration, {`,
+            `                registration_url: '${workerParams.push_registration_url}',`,
+            `                deregistration_url: '${workerParams.push_deregistration_url}',`,
+            `                public_key: '${workerParams.push_public_key}',`,
             `            }) : null;`,
             `        });`,
             `    });`,
@@ -165,14 +169,14 @@ export async function build(Ui, flags = {}, layout = {}) {
     // Run webpack
     // -------------------
     
-    if (config.BUNDLING !== false) {
+    if (config.bundling || workerParams.bundling) {
         Ui.log('');
         Ui.title(`BUNDLES`);
     }
-    if (createWorker) {
+    if (workerParams.bundling !== false) {
         await createBundle(Ui, workerBundlingConfig, 'Bundling the Service Worker Build file');
     }
-    if (config.BUNDLING !== false) {
+    if (config.bundling !== false) {
         await createBundle(Ui, clientBundlingConfig, 'Bundling the Client Build file');
     }
     

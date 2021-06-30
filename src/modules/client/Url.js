@@ -45,35 +45,26 @@ export default class Url {
 			return a === b;
 		};
 		// -----------------------
-		// Setting the "href" properties must also publish
-		// all the other properties in urlProperties
-		Observer.intercept(this, 'set', (e, recieved, next) => {
-			if (e.query === 'href' && _difference(urlProperties, e.related).length) {
-				var urlObj = Self.parseUrl(e.value);
-				Observer.set(this, urlObj);
-				return false;
-			}
-			return next();
-		});
-		// -----------------------
 		// When any one of these properties change,
 		// the others are automatically derived
 		Observer.observe(this, changes => {
 			var urlObj = {};
+			var originChanged, hashChanged, hrefChanged, onlyHrefChanged;
 			for (var e of changes) {
 				if (e.name === 'searchmap' && e.type === 'set' && !e.isUpdate) {
 					// Abort completely
 					return;
 				}
 				// ----------
-				if (e.name === 'href' && !e.related.length) {
-					urlObj = Self.parseUrl(e.value);
+				if (e.name === 'href' && e.related.length === 1) {
+					var urlObj = Self.parseUrl(e.value);
+					delete urlObj.href;
+					onlyHrefChanged = true;
 				}
 				// ----------
-				var originChanged;
-				if (e.name === 'origin') {
-					originChanged = true;
-				}
+				if (e.name === 'href') { hrefChanged = true; } else
+				if (e.name === 'origin') { originChanged = true; } else
+				if (e.name === 'hash') { hashChanged = true; }
 				// ----------
 				if ((e.name === 'pathmap' || e.name === 'pathsplit') && !e.related.includes('pathname')) {
 					// We update "pathname" from the new "pathmap"/"pathsplit"
@@ -112,8 +103,11 @@ export default class Url {
 					}
 				}
 			}
-			if (!urlObj.href && (originChanged || urlObj.pathname || urlObj.search)) {
-				urlObj.href = [this.origin, urlObj.pathname || this.pathname, urlObj.search || this.search].join('');
+			if (!onlyHrefChanged && (originChanged || hashChanged || urlObj.pathname || urlObj.search || urlObj.hash)) {
+				var href = [urlObj.origin || this.origin, urlObj.pathname || this.pathname, urlObj.search || this.search, urlObj.hash || this.hash].join('');
+				if (href !== this.href) {
+					urlObj.href = href;
+				}
 			}
 			if (!_isEmpty(urlObj)) {
 				return Observer.set(this, urlObj);
@@ -169,7 +163,7 @@ export default class Url {
 	 * @return object
 	 */
 	static copy(urlObj) {
-		return _copy(urlObj, urlProperties, false/*withSymbols*/);
+		return urlProperties.reduce((obj, prop) => _with(obj, prop, urlObj[prop]), {});
 	}
 
 	/**
@@ -182,7 +176,7 @@ export default class Url {
 	static parseUrl(href) {
 		var a = window.document.createElement('a');
 		a.href = href;
-		return urlProperties.reduce((obj, prop) => _with(obj, prop, a[prop]), {});
+		return this.copy(a);
 	}
 
 	/**

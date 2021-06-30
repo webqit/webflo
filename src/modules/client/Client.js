@@ -37,7 +37,9 @@ export default function(layout, params) {
 	 * Apply routing
 	 * ----------------
 	 */	
-	Http.createClient(async (request, src, initCall) => {
+	Http.createClient(async function(request, event = null) {
+
+		const httpInstance = this;
 
         // -------------------
         // Resolve canonicity
@@ -47,12 +49,12 @@ export default function(layout, params) {
 		request.URL = Url.parseUrl(request.url);
 		const $context = {
 			layout,
-			onHydration: initCall && (await window.WebQit.OOHTML.meta.get('isomorphic')),
+			onHydration: !event && (await window.WebQit.OOHTML.meta.get('isomorphic')),
 			response: null,
 		}
 		
 		// The app router
-		const requestPath = request.URL.pathname;
+		const requestPath = httpInstance.location.pathname;
 		const router = new Router(requestPath, layout, $context);
 		if (networkProgressOngoing) {
 			networkProgressOngoing.setActive(false);
@@ -69,11 +71,15 @@ export default function(layout, params) {
 				var networkProgress = networkProgressOngoing = new RequestHandle();
 				networkProgress.setActive(true);
 				// -----------------
-				var requestUrl_ = /*request.url*/this.pathname;
-				var requestUrl = requestUrl_.includes('?') ? requestUrl_ + '&webfloapi=1' : requestUrl_ + '?webfloapi=1';
-				const response = _fetch(requestUrl, {
-					headers: {accept: 'application/json',},
-				}, networkProgress.updateProgress.bind(networkProgress));
+				const headers = request.headers || {};
+				if (!request.headers.get('accept')) {
+					if (headers.append) {
+						headers.append('accept', 'application/json');
+					} else {
+						headers['accept'] = 'application/json';
+					}
+				}
+				const response = _fetch(request, {}, networkProgress.updateProgress.bind(networkProgress));
 				// -----------------
 				response.catch(e => networkProgress.throw(e.message));
 				return response.then(response => {
@@ -97,6 +103,7 @@ export default function(layout, params) {
 						env: 'client',
 						onHydration: $context.onHydration,
 						network: networkWatch,
+						location: httpInstance.location,
 					}, {update: true});
 				}
 				window.document.setState({page: data, url: request.URL}, {update: true});
@@ -119,10 +126,10 @@ export default function(layout, params) {
 				//$context.response = rendering;
 			}
 
-			if (src && (src instanceof Element)) {
+			if (event && _isObject(event.detail) && (event.detail.src instanceof Element)) {
 				setTimeout(() => {
 					var urlTarget;
-					if (request.URL.hash && (urlTarget = document.querySelector(request.URL.hash))) {
+					if (httpInstance.location.hash && (urlTarget = document.querySelector(httpInstance.location.hash))) {
 						urlTarget.scrollIntoView(true);
 					} else {
 						document.documentElement.classList.add('scroll-reset');

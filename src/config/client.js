@@ -24,6 +24,7 @@ export async function read(flags = {}, layout = {}) {
     const configFile = ext => `${configDir}/client${ext}.json`;
     const config = DotJson.read(ext && Fs.existsSync(configFile(ext)) ? configFile(ext) : configFile(''));
     return _merge({
+        bundling: {},
         // -----------------
         // SERVICE WORKER
         // -----------------
@@ -41,6 +42,7 @@ export async function read(flags = {}, layout = {}) {
             push_registration_url: '',
             push_deregistration_url: '',
             push_public_key: '',
+            bundling: {},
         },
     }, config);
 };
@@ -86,7 +88,7 @@ export async function questions(config, choices = {}, layout = {}) {
             name: 'client',
             initial: config.client,
             controls: {
-                name: 'client params',
+                name: 'Client params',
             },
             questions: [
             ],
