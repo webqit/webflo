@@ -77,9 +77,9 @@ export default class Http {
 		// and fire to this router.
 		window.addEventListener('click', e => {
 			var anchor, href;
-			if ((anchor = e.target.closest('a')) 
-			// And not towards any target
-			&& (href = anchor.href) && !anchor.target
+			if ((anchor = e.target.closest('a')) && (href = anchor.href)
+			// And not towards any target nor have a download directive
+			&& !anchor.target && !anchor.download
 			// Same origin... but...
 			&& (!anchor.origin || anchor.origin === instance.location.origin)) {
 				if (e.metaKey || e.altKey || e.ctrlKey || e.shiftKey) {

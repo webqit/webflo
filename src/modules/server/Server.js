@@ -7,18 +7,13 @@ import Url from 'url';
 import Path from 'path';
 import Http from 'http';
 import Https from 'https';
-import Cookie from 'cookie';
-import Accepts from 'accepts';
-import Formidable from 'formidable';
 import QueryString from 'querystring';
-import _set from '@webqit/util/obj/set.js';
 import _each from '@webqit/util/obj/each.js';
-import _isArray from '@webqit/util/js/isArray.js';
-import _isObject from '@webqit/util/js/isObject.js';
-import _promise from '@webqit/util/js/promise.js';
-import _wrapped from '@webqit/util/str/wrapped.js';
 import _arrFrom from '@webqit/util/arr/from.js';
-import _beforeLast from '@webqit/util/str/beforeLast.js';
+import _promise from '@webqit/util/js/promise.js';
+import _isObject from '@webqit/util/js/isObject.js';
+import ServerNavigationEvent from './ServerNavigationEvent.js';
+import ServerResponseBuilder from './ServerResponseBuilder.js';
 import Router, { FixedResponse } from './Router.js';
 import * as config from '../../config/index.js';
 import * as cmd from '../../cmd/index.js';
@@ -40,7 +35,7 @@ export default async function(Ui, flags = {}) {
         variables: await config.variables.read(flags, layout),
     };
 
-    if (setup.variables.autoload) {
+    if (setup.variables.autoload !== false && !setup.server.shared) {
         Object.keys(setup.variables.entries).forEach(key => {
             process.env[key] = setup.variables.entries[key];
         });
@@ -96,7 +91,7 @@ export default async function(Ui, flags = {}) {
     
     if (!flags['https-only']) {
 
-        Http.createServer((request, response) => {
+        Http.createServer({ServerResponse: ServerResponseBuilder}, (request, response) => {
             if (setup.server.shared) {
                 var _setup;
                 if (_setup = getVSetup(request, response)) {
@@ -123,7 +118,7 @@ export default async function(Ui, flags = {}) {
 
     if (!flags['http-only'] && setup.server.https.port) {
 
-        const httpsServer = Https.createServer({}, (request, response) => {
+        const httpsServer = Https.createServer({ServerResponse: ServerResponseBuilder}, (request, response) => {
             if (setup.server.shared) {
                 var _setup;
                 if (_setup = getVSetup(request, response)) {
@@ -189,29 +184,20 @@ export default async function(Ui, flags = {}) {
  */
 export async function run(instanceSetup, hostSetup, request, response, Ui, flags = {}, protocol = 'http') {
 
-    request.URL = Url.parse(protocol + '://' + request.headers.host + request.url, true, true);
+    // --------
+    // Request parsing
+    // --------
+
+    const serverNavigationEvent = new ServerNavigationEvent(request, response, protocol);
     const $context = {
         rdr: null,
         layout: hostSetup.layout,
         env: {},
-        // Piping utility
-        walk: async (...stack) => {
-            var val;
-            var next = async function() {
-                var middleware = stack.shift();
-                if (middleware) {
-                    val = await middleware(request, response, next);
-                    return val;
-                }
-            };
-            await next();
-            return val;
-        },
         response: null,
         fatal: false,
     };
 
-    if (hostSetup.variables.autoload) {
+    if (hostSetup.variables.autoload !== false) {
         Object.keys(hostSetup.variables.entries).forEach(key => {
             $context.env[key] = hostSetup.variables.entries[key];
         });
@@ -222,7 +208,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
     // -------------------
 
     if (config.redirects) {
-        if ($context.rdr = await config.redirects.match(request.URL, flags, hostSetup.layout)) {
+        if ($context.rdr = await config.redirects.match(serverNavigationEvent.request.url, flags, hostSetup.layout)) {
             response.statusCode = $context.rdr.code;
             response.setHeader('Location', $context.rdr.target);
             response.end();
@@ -235,80 +221,6 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
 
     if (!$context.fatal && !$context.rdr) {
 
-        // --------
-        // Request parsing
-        // --------
-
-        const setToPath = (target, name, value, indexes) => {
-            if (name.endsWith('[]')) {
-                if (!indexes[name]) {
-                    indexes[name] = 0;
-                }
-                name = _beforeLast(name, '[]') + '[' + (indexes[name] ++) + ']';
-            }
-            var pathArray = name.split('[').map(seg => _beforeLast(seg, ']'));
-            _set(target, pathArray, value);
-        };
-
-        // Query
-        request.query = {}; var queryIndexes = {};
-        _each(request.URL.query, (name, value) => {
-            var _name = name.endsWith('[]') && _isArray(value) ? _beforeLast(name, '[]') : name;
-            var _value = typeof value === 'string' && (_wrapped(value, '{', '}') || _wrapped(value, '[', ']')) ? JSON.parse(value) : value;
-            setToPath(request.query, _name, _value, queryIndexes);
-        });
-
-        // Cookies
-        request.cookies = {}; var cookiesIndexes = {};
-        _each(Cookie.parse(request.headers.cookie || ''), (name, value) => {
-            var _value = _wrapped(value, '{', '}') || _wrapped(value, '[', ']') ? JSON.parse(value) : value;
-            setToPath(request.cookies, name, _value, cookiesIndexes);
-        });
-
-        // Inputs
-        request.inputs = () => request.body().then(body => body.inputs);
-
-        // Files
-        request.files = () => request.body().then(body => body.files);
-
-        // Body
-        request.body = () => {
-            var formidable, contentType = request.headers['content-type'], body = {
-                inputs: {},
-                files: {},
-                type: contentType === 'application/x-www-form-urlencoded' ? 'form' 
-                    : (contentType === 'application/json' ? 'json' : (contentType.startsWith('multipart/') ? 'multipart' : contentType)),
-            };
-            return new Promise((resolve, reject) => {
-                if (!formidable) {
-                    formidable = new Formidable.IncomingForm({multiples: true});
-                    formidable.parse(request, function(error, inputs, files) {
-                        if (error) {
-                            reject(error);
-                            return;
-                        }
-                        var inputsIndexes = {};
-                        Object.keys(inputs).forEach(name => {
-                            var _name = name; // name.endsWith('[]') && _isArray(inputs[name]/* not _value */) ? _beforeLast(name, '[]') : name;
-                            var _value = inputs[name]; // typeof inputs[name] === 'string' && (_wrapped(inputs[name], '{', '}') || _wrapped(inputs[name], '[', ']')) ? JSON.parse(inputs[name]) : inputs[name];
-                            setToPath(body.inputs, _name, _value, inputsIndexes);
-                        });
-                        var filesIndexes = {};
-                        Object.keys(files).forEach(name => {
-                            var _name = name.endsWith('[]') && _isArray(files[name]) ? _beforeLast(name, '[]') : name;
-                            setToPath(body.files, _name, files[name], filesIndexes);
-                        });
-                        resolve(body);
-                    });
-                } else {
-                    resolve(body);
-                }
-            });
-        };
-
-        // Accept Headers
-        request.accepts = Accepts(request);
-
         try {
 
             // -------------------
@@ -316,15 +228,15 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
             // -------------------
 
             // The app router
-            const router = new Router(request.URL.pathname, hostSetup.layout, $context);
+            const router = new Router(serverNavigationEvent.url.pathname, hostSetup.layout, $context);
 
             // --------
             // ROUTE FOR DEPLOY
             // --------
             if (cmd.origins) {
-                await cmd.origins.hook(Ui, request, response, flags, hostSetup.layout).then(deploy => {
+                await cmd.origins.hook(Ui, serverNavigationEvent.request, response, flags, hostSetup.layout).then(deploy => {
                     if (deploy) {
-                        return router.route('deploy', [request], null, function() {
+                        return router.route('deploy', [serverNavigationEvent], null, function() {
                             return deploy();
                         }, [response]);
                     }
@@ -334,17 +246,17 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
             // --------
             // ROUTE FOR DATA
             // --------
-            $context.response = await router.route([request.method.toLowerCase(), 'default'], [request], null, async function() {
-                var file = await router.fetch(/*request.url*/this.pathname);
+            $context.response = await router.route([serverNavigationEvent.request.method.toLowerCase(), 'default'], [serverNavigationEvent], null, async function() {
+                var file = await router.fetch(serverNavigationEvent.url.pathname);
                 // JSON request should ignore static files
-                if (file && !request.accepts.type(file.contentType)) {
+                if (file && !serverNavigationEvent.accepts.type(file.contentType)) {
                     return;
                 }
                 // ----------------
                 // PRE-RENDERING
                 // ----------------
                 if (file && file.contentType === 'text/html' && (file.content + '').startsWith(`<!-- PRE-RENDERED -->`)) {
-                    var prerenderMatch = config.prerendering ? await !config.prerendering.match(request.URL.pathname, flags, hostSetup.layout) : null;
+                    var prerenderMatch = config.prerendering ? await !config.prerendering.match(serverNavigationEvent.url.pathname, flags, hostSetup.layout) : null;
                     if (!prerenderMatch) {
                         router.deletePreRendered(file.filename);
                         return;
@@ -356,16 +268,16 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
             // ROUTE FOR RENDERING?
             // --------
             if (!($context.response instanceof FixedResponse) && _isObject($context.response)) {
-                if (request.accepts.type('text/html')) {
+                if (serverNavigationEvent.accepts.type('text/html')) {
                     // --------
                     // Render
                     // --------
-                    const rendering = await router.route('render', [request], $context.response, async function(data) {
+                    const rendering = await router.route('render', [serverNavigationEvent], $context.response, async function(data) {
                         // --------
                         if (!hostSetup.layout.renderFileCache) {
                             hostSetup.layout.renderFileCache = {};
                         }
-                        var renderFile, pathnameSplit = request.URL.pathname.split('/');
+                        var renderFile, pathnameSplit = serverNavigationEvent.url.pathname.split('/');
                         while ((renderFile = Path.join(hostSetup.layout.ROOT, hostSetup.layout.PUBLIC_DIR, './' + pathnameSplit.join('/'), 'index.html')) 
                         && pathnameSplit.length && (hostSetup.layout.renderFileCache[renderFile] === false || !(hostSetup.layout.renderFileCache[renderFile] && Fs.existsSync(renderFile)))) {
                             hostSetup.layout.renderFileCache[renderFile] === false;
@@ -374,7 +286,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                         hostSetup.layout.renderFileCache[renderFile] === true;
                         const instanceParams = QueryString.stringify({
                             SOURCE: renderFile,
-                            URL: request.URL.href,
+                            URL: serverNavigationEvent.url.href,
                             ROOT: hostSetup.layout.ROOT,
                         });
                         const { window } = await import('@webqit/pseudo-browser/instance.js?' + instanceParams);
@@ -386,8 +298,8 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                                 env: 'server',
                             }, {update: true});
                         }
-                        window.document.setState({page: data, url: request.URL}, {update: true});
-                        window.document.body.setAttribute('template', 'page' + request.URL.pathname);
+                        window.document.setState({page: data, url: serverNavigationEvent.request.url}, {update: 'merge'});
+                        window.document.body.setAttribute('template', 'page/' + serverNavigationEvent.url.pathname.split('/').filter(a => a).map(a => a + '+-').join('/'));
                         return new Promise(res => {
                             window.document.addEventListener('templatesreadystatechange', () => res(window));
                             if (window.document.templatesReadyState === 'complete') {
@@ -410,7 +322,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                     } else {
                         $context.response = rendering;
                     }
-                } else if (request.accepts.type('application/json')) {
+                } else if (serverNavigationEvent.accepts.type('application/json')) {
                     // --------
                     // JSONfy
                     // --------
@@ -431,7 +343,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                     // Handle headers
                     // -------------------
                     if (config.headers) {
-                        if ($context.headers = await config.headers.match(request.URL, flags, hostSetup.layout)) {
+                        if ($context.headers = await config.headers.match(serverNavigationEvent.request.url, flags, hostSetup.layout)) {
                             $context.headers.forEach(header => {
                                 response.setHeader(header.name, header.value);
                             });
@@ -453,14 +365,14 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                     // PRE-RENDERING
                     // ----------------
                     if (!$context.response.filename && $context.response.contentType === 'text/html') {
-                        var prerenderMatch = config.prerendering ? await !config.prerendering.match(request.URL.pathname, flags, hostSetup.layout) : null;
+                        var prerenderMatch = config.prerendering ? await !config.prerendering.match(serverNavigationEvent.url.pathname, flags, hostSetup.layout) : null;
                         if (prerenderMatch) {
-                            router.putPreRendered(request.URL.pathname, `<!-- PRE-RENDERED -->\r\n` + $context.response.content);
+                            router.putPreRendered(serverNavigationEvent.url.pathname, `<!-- PRE-RENDERED -->\r\n` + $context.response.content);
                         }
                     }
                 } else {
                     response.statusCode = 404;
-                    response.end(`${request.url} not found!`);
+                    response.end(`${serverNavigationEvent.request.url} not found!`);
                 }
             }
 
@@ -481,8 +393,8 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
     if (flags.logs !== false) {
         Ui.log(''
             + '[' + (hostSetup.vh ? Ui.style.keyword(hostSetup.vh.host) + '][' : '') + Ui.style.comment((new Date).toUTCString()) + '] '
-            + Ui.style.keyword(protocol.toUpperCase() + ' ' + request.method) + ' '
-            + Ui.style.url(request.url) + ($context.response && $context.response.autoIndex ? Ui.style.comment((!request.url.endsWith('/') ? '/' : '') + $context.response.autoIndex) : '') + ' '
+            + Ui.style.keyword(protocol.toUpperCase() + ' ' + serverNavigationEvent.request.method) + ' '
+            + Ui.style.url(serverNavigationEvent.request.url) + ($context.response && $context.response.autoIndex ? Ui.style.comment((!serverNavigationEvent.request.url.endsWith('/') ? '/' : '') + $context.response.autoIndex) : '') + ' '
             + ($context.response ? ' (' + Ui.style.comment($context.response.contentType) + ') ' : '')
             + (
                 [404, 500].includes(response.statusCode) 

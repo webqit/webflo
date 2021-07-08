@@ -5,9 +5,10 @@
 import _isObject from '@webqit/util/js/isObject.js';
 import _fetch from '@webqit/browser-pie/src/apis/fetch.js';
 import { OOHTML, Observer } from '@webqit/pseudo-browser/index2.js';
+import ClientNavigationEvent from './ClientNavigationEvent.js';
+import ClientResponseBuilder from './ClientResponseBuilder.js';
 import Router from './Router.js';
 import Http from './Http.js';
-import Url from './Url.js';
 
 /**
  * ---------------------------
@@ -46,7 +47,7 @@ export default function(layout, params) {
         // -------------------
 
 		// The srvice object
-		request.URL = Url.parseUrl(request.url);
+		const clientNavigationEvent = new ClientNavigationEvent(request, new ClientResponseBuilder);
 		const $context = {
 			layout,
 			onHydration: !event && (await window.WebQit.OOHTML.meta.get('isomorphic')),
@@ -54,7 +55,7 @@ export default function(layout, params) {
 		}
 		
 		// The app router
-		const requestPath = httpInstance.location.pathname;
+		const requestPath = clientNavigationEvent.url.pathname;
 		const router = new Router(requestPath, layout, $context);
 		if (networkProgressOngoing) {
 			networkProgressOngoing.setActive(false);
@@ -66,20 +67,20 @@ export default function(layout, params) {
 			// --------
 			// ROUTE FOR DATA
 			// --------
-			$context.response = await router.route('default', [request], null, async function() {
+			$context.response = await router.route('default', [clientNavigationEvent], null, async function() {
 				// -----------------
 				var networkProgress = networkProgressOngoing = new RequestHandle();
 				networkProgress.setActive(true);
 				// -----------------
-				const headers = request.headers || {};
-				if (!request.headers.get('accept')) {
+				const headers = clientNavigationEvent.request.headers || {};
+				if (!clientNavigationEvent.request.headers.get('accept')) {
 					if (headers.append) {
 						headers.append('accept', 'application/json');
 					} else {
 						headers['accept'] = 'application/json';
 					}
 				}
-				const response = _fetch(request, {}, networkProgress.updateProgress.bind(networkProgress));
+				const response = _fetch(clientNavigationEvent.request, {}, networkProgress.updateProgress.bind(networkProgress));
 				// -----------------
 				response.catch(e => networkProgress.throw(e.message));
 				return response.then(response => {
@@ -94,7 +95,7 @@ export default function(layout, params) {
 			// --------
 			// Render
 			// --------
-			const rendering = await router.route('render', [request], $context.response, async function(data) {
+			const rendering = await router.route('render', [clientNavigationEvent], $context.response, async function(data) {
 				// --------
 				// OOHTML would waiting for DOM-ready in order to be initialized
 				await new Promise(res => window.WebQit.DOM.ready(res));
@@ -103,17 +104,17 @@ export default function(layout, params) {
 						env: 'client',
 						onHydration: $context.onHydration,
 						network: networkWatch,
-						location: httpInstance.location,
+						url: httpInstance.location,
 					}, {update: true});
 				}
-				window.document.setState({page: data, url: request.URL}, {update: true});
-				window.document.body.setAttribute('template', 'page' + requestPath);
+				window.document.setState({page: data}, {update: 'merge'});
+				window.document.body.setAttribute('template', 'page/' + requestPath.split('/').filter(a => a).map(a => a + '+-').join('/'));
 				return new Promise(res => {
 					window.document.addEventListener('templatesreadystatechange', () => res(window));
 					if (window.document.templatesReadyState === 'complete') {
 						res(window);
 					}
-				});;
+				});
 			}, []);
 
 			// --------
@@ -129,14 +130,14 @@ export default function(layout, params) {
 			if (event && _isObject(event.detail) && (event.detail.src instanceof Element)) {
 				setTimeout(() => {
 					var urlTarget;
-					if (httpInstance.location.hash && (urlTarget = document.querySelector(httpInstance.location.hash))) {
+					if (clientNavigationEvent.url.hash && (urlTarget = document.querySelector(clientNavigationEvent.url.hash))) {
 						urlTarget.scrollIntoView(true);
 					} else {
 						document.documentElement.classList.add('scroll-reset');
 						window.scroll({top: 0, left: 0});
 						setTimeout(() => {
 							document.documentElement.classList.remove('scroll-reset');
-						}, 400);
+						}, 200);
 					}
 				}, 0);
 			}

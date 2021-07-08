@@ -12,6 +12,7 @@ import _isString from '@webqit/util/js/isString.js';
 import _isEmpty from '@webqit/util/js/isEmpty.js';
 import _copy from '@webqit/util/obj/copy.js';
 import _with from '@webqit/util/obj/with.js';
+import { wwwFormUnserialize, wwwFormSerialize } from '../util.js';
 
 /**
  * ---------------------------
@@ -51,7 +52,7 @@ export default class Url {
 			var urlObj = {};
 			var originChanged, hashChanged, hrefChanged, onlyHrefChanged;
 			for (var e of changes) {
-				if (e.name === 'searchmap' && e.type === 'set' && !e.isUpdate) {
+				if (e.name === 'query' && e.type === 'set' && !e.isUpdate) {
 					// Abort completely
 					return;
 				}
@@ -88,18 +89,18 @@ export default class Url {
 					}
 				}
 				// ----------
-				if (e.name === 'searchmap' && !e.related.includes('search')) {
-					// "searchmap" was updated. So we update "search"
+				if (e.name === 'query' && !e.related.includes('search')) {
+					// "query" was updated. So we update "search"
 					var search = Self.toSearch(e.value);
 					if (search !== this.search) {
 						urlObj.search = search;
 					}
 				}
-				if (e.name === 'search' && !e.related.includes('searchmap')) {
-					// "search" was updated. So we update "searchmap"
-					var searchmap = Self.toSearchmap(e.value);
-					if (!_strictEven(searchmap, this.searchmap)) {
-						urlObj.searchmap = searchmap;
+				if (e.name === 'search' && !e.related.includes('query')) {
+					// "search" was updated. So we update "query"
+					var query = Self.toQuery(e.value);
+					if (!_strictEven(query, this.query)) {
+						urlObj.query = query;
 					}
 				}
 			}
@@ -112,7 +113,7 @@ export default class Url {
 			if (!_isEmpty(urlObj)) {
 				return Observer.set(this, urlObj);
 			}
-		}, {subtree:true/*for pathmap/pathsplit/searchmap updates*/, diff: true});
+		}, {subtree:true/*for pathmap/pathsplit/query updates*/, diff: true});
 		// -----------------------
 		// Validate e.detail
 		Observer.observe(this, changes => {
@@ -186,23 +187,20 @@ export default class Url {
 	 *
 	 * @return object
 	 */
-	static toSearchmap(search) {
-		var queryArr = (search.startsWith('?') ? search.substr(1) : search)
-			.split('&').filter(str => str).map(str => str.split('=').map(str => str.trim()));
-		return queryArr.reduce((recieved, q) => _with(recieved, q[0], q[1]), {});
+	static toQuery(search) {
+		return wwwFormUnserialize(search);
 	}
 
 	/**
-	 * Stringifies the input searchmap to search string.
+	 * Stringifies the input query to search string.
 	 *
-	 * @param object			searchmap
+	 * @param object			query
 	 *
 	 * @return string
 	 */
-	static toSearch(searchmap) {
-		return Object.keys(searchmap).length 
-			? '?' + Object.keys(searchmap).map(k => k + '=' + searchmap[k]).join('&')
-			: '';
+	static toSearch(query) {
+		var search = wwwFormSerialize(query);
+		return search ? '?' + search : '';
 	}
 
 	/**
@@ -265,7 +263,7 @@ export default class Url {
 		}
 		return '/' + pathmapOrPathsplit.filter(a => a).join('/');
 	}
-};
+}
 
 /**
  * These are standard
@@ -274,7 +272,6 @@ export default class Url {
  * @array
  */
 const urlProperties = [
-	'hash',
 	'host',
 	'hostname',
 	'href',
@@ -283,4 +280,5 @@ const urlProperties = [
 	'port',
 	'protocol',
 	'search',
+	'hash',
 ];
