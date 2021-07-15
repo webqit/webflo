@@ -3,6 +3,7 @@
  * @imports
  */
 import _isObject from '@webqit/util/js/isObject.js';
+import _before from '@webqit/util/str/before.js';
 import _fetch from '@webqit/browser-pie/src/apis/fetch.js';
 import { OOHTML, Observer } from '@webqit/pseudo-browser/index2.js';
 import ClientNavigationEvent from './ClientNavigationEvent.js';
@@ -74,11 +75,8 @@ export default function(layout, params) {
 				// -----------------
 				const headers = clientNavigationEvent.request.headers || {};
 				if (!clientNavigationEvent.request.headers.get('accept')) {
-					if (headers.append) {
-						headers.append('accept', 'application/json');
-					} else {
-						headers['accept'] = 'application/json';
-					}
+					headers.append('accept', 'application/json');
+					headers.append('cache-control', 'no-store');
 				}
 				const response = _fetch(clientNavigationEvent.request, {}, networkProgress.updateProgress.bind(networkProgress));
 				// -----------------
@@ -127,7 +125,7 @@ export default function(layout, params) {
 				//$context.response = rendering;
 			}
 
-			if (event && _isObject(event.detail) && (event.detail.src instanceof Element)) {
+			if (event && _isObject(event.detail) && (event.detail.src instanceof Element) && /* do only on url path change */ _before(event.value, '?') !== _before(event.oldValue, '?')) {
 				setTimeout(() => {
 					var urlTarget;
 					if (clientNavigationEvent.url.hash && (urlTarget = document.querySelector(clientNavigationEvent.url.hash))) {

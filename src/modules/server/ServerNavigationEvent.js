@@ -23,7 +23,7 @@ export default class ServerNavigationEvent extends NavigationEvent {
     constructor(request, response, protocol = 'http') {
         super(request, response);
         this.url = Url.parse(protocol + '://' + request.headers.host + request.url);
-        this.url.search = wwwFormUnserialize(this.url.search); 
+        this.url.query = wwwFormUnserialize(this.url.search); 
         this.requestParse = {
             payloadPromise: null,
             cookies: null,

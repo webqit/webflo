@@ -20,7 +20,7 @@ export default class ClientNavigationEvent extends NavigationEvent {
     constructor(request, response) {
         super(request, response);
         this.url = Url.parseUrl(request.url);
-        this.url.search = wwwFormUnserialize(this.url.search); 
+        this.url.query = wwwFormUnserialize(this.url.search); 
     }
     
     // Payload

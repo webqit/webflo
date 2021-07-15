@@ -67,7 +67,7 @@ export function wwwFormUnserialize(str, target = {}, delim = '&') {
     str = str || '';
     (str.startsWith('?') ? str.substr(1) : str)
         .split(delim).filter(q => q).map(q => q.split('=').map(q => q.trim()))
-        .forEach(q => wwwFormSet(target, q[0], q[1]));
+        .forEach(q => wwwFormSet(target, q[0], decodeURIComponent(q[1])));
     return target;
 }
 
@@ -92,7 +92,7 @@ export function wwwFormSerialize(form, delim = '&') {
     var q = [];
     Object.keys(form).forEach(key => {
         wwwFormPathSerializeCallback(key, form[key], (_wwwFormPath, _value) => {
-            q.push(`${_wwwFormPath}=${_value}`);
+            q.push(`${_wwwFormPath}=${encodeURIComponent(_value)}`);
         });
     });
     return q.join(delim);

@@ -128,7 +128,7 @@ export default function(layout, params) {
 			: params.cache_name;
 			
 	// Caching strategy: cache_first
-	const cache_fetch = (evt, cacheRefresh) => {
+	const cache_fetch = (evt, cacheRefresh = false) => {
 
 		return self.caches.open(getCacheName(evt.request)).then(cache => {
 			return cache.match(evt.request).then(response => {
@@ -169,7 +169,10 @@ export default function(layout, params) {
 	const refreshCache = (request, response) => {
 
 		// Check if we received a valid response
-		if (!response || response.status !== 200 || response.type !== 'basic') {
+		//console.log(request.headers.get('cache-control'), response.headers.get('cache-control'));
+		if (!response || response.status !== 200 || response.type !== 'basic' 
+		|| request.headers.get('cache-control') === 'no-store' 
+		|| response.headers.get('cache-control') === 'no-store') {
 			return response;
 		}
 

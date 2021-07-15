@@ -118,7 +118,7 @@ export default class Router {
      * @return Promise
      */
     fetch(filename) {
-        var _filename = Path.join(this.layout.ROOT, this.layout.PUBLIC_DIR, filename);
+        var _filename = Path.join(this.layout.ROOT, this.layout.PUBLIC_DIR, decodeURIComponent(filename));
         var autoIndex;
         if (Fs.existsSync(_filename)) {
             // based on the URL path, extract the file extention. e.g. .js, .doc, ...
