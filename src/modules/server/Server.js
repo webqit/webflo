@@ -3,7 +3,6 @@
  * imports
  */
 import Fs from 'fs';
-import Url from 'url';
 import Path from 'path';
 import Http from 'http';
 import Https from 'https';

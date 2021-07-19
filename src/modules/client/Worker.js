@@ -8,6 +8,7 @@ import Minimatch from 'minimatch';
 import _isArray from '@webqit/util/js/isArray.js';
 import _afterLast from '@webqit/util/str/afterLast.js';
 import _after from '@webqit/util/str/after.js';
+import _before from '@webqit/util/str/before.js';
 import _any from '@webqit/util/arr/any.js';
 
 
@@ -101,14 +102,8 @@ export default function(layout, params) {
 			layout,
 		};
 		// The app router
-		const router = new Router(evt.request.url, layout, $context);
-		// The srvice object
-		const routingPayload = {
-			params,
-			request: evt.request,
-			scope: evt,
-		}
-		return await router.route('default', [evt.request], null, async function() {
+		const router = new Router(_before(evt.request.url, '?'), layout, $context);
+		return await router.route('default', [evt], null, async function() {
 			if (_any((params.cache_only_url_list || []).map(c => c.trim()).filter(c => c), pattern => Minimatch.Minimatch(evt.request.url, pattern))) {
 				return cache_fetch(evt);
 			}
@@ -147,7 +142,6 @@ export default function(layout, params) {
 
 	// Caching strategy: network_first
 	const network_fetch = (evt, cacheFallback) => {
-
 		if (!cacheFallback) {
 			return self.fetch(evt.request);
 		}
@@ -157,22 +151,18 @@ export default function(layout, params) {
 		// Thus the origin server would still not be contacted by the self.fetch() below, leading to inconsistencies in responses.
 		// So, we detect this scenerio and avoid it.
 		// if (evt.request.mode === 'navigate' && evt.request.cache === 'force-cache' && evt.request.destination === 'document') {}
-		return self.fetch(evt.request).then(response => refreshCache(evt.request, response)).catch(() => {
+		return self.fetch(evt.request).then(response => refreshCache(evt.request, response)).catch(e => {
 			return self.caches.open(getCacheName(evt.request)).then(cache => {
 				return cache.match(evt.request);
 			});
 		});
-
 	};
 
 	// Caches response 
 	const refreshCache = (request, response) => {
 
 		// Check if we received a valid response
-		//console.log(request.headers.get('cache-control'), response.headers.get('cache-control'));
-		if (!response || response.status !== 200 || response.type !== 'basic' 
-		|| request.headers.get('cache-control') === 'no-store' 
-		|| response.headers.get('cache-control') === 'no-store') {
+		if (!response || response.status !== 200 || (response.type !== 'basic' && response.type !== 'cors')) {
 			return response;
 		}
 

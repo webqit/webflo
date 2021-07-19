@@ -73,10 +73,10 @@ export default function(layout, params) {
 				var networkProgress = networkProgressOngoing = new RequestHandle();
 				networkProgress.setActive(true);
 				// -----------------
-				const headers = clientNavigationEvent.request.headers || {};
-				if (!clientNavigationEvent.request.headers.get('accept')) {
-					headers.append('accept', 'application/json');
-					headers.append('cache-control', 'no-store');
+				const headers = clientNavigationEvent.request.headers;
+				if (!headers.get('Accept')) {
+					headers.append('Accept', 'application/json');
+					headers.append('Cache-Control', 'no-store');
 				}
 				const response = _fetch(clientNavigationEvent.request, {}, networkProgress.updateProgress.bind(networkProgress));
 				// -----------------
@@ -103,9 +103,9 @@ export default function(layout, params) {
 						onHydration: $context.onHydration,
 						network: networkWatch,
 						url: httpInstance.location,
-					}, {update: true});
+					}, { update: true });
 				}
-				window.document.setState({page: data}, {update: 'merge'});
+				window.document.setState({page: data}, { update: 'merge' });
 				window.document.body.setAttribute('template', 'page/' + requestPath.split('/').filter(a => a).map(a => a + '+-').join('/'));
 				return new Promise(res => {
 					window.document.addEventListener('templatesreadystatechange', () => res(window));
