@@ -4,6 +4,7 @@
  */
 import NavigationEvent from '../NavigationEvent.js';
 import { wwwFormUnserialize, wwwFormSet } from '../util.js';
+import StdResponse from './StdResponse.js';
 import Url from './Url.js';
 
 /**
@@ -17,37 +18,45 @@ export default class ClientNavigationEvent extends NavigationEvent {
      * @param Request request 
      * @param Response response 
      */
-    constructor(request, response) {
-        super(request, response);
+    constructor(request) {
+        super(request);
         this.url = Url.parseUrl(request.url);
         this.url.query = wwwFormUnserialize(this.url.search); 
+        this.StdResponse = StdResponse;
     }
-    
+        
     // Payload
-    getPayload() {
-        if (!this.requestParse.payloadPromise) {
-            this.requestParse.payloadPromise = new Promise(async resolve => {
-                var contentType = this.request.headers['content-type'];
-                    var payload = {
-                        inputs: {},
-                        files: {},
-                        type: contentType === 'application/x-www-form-urlencoded' ? 'form' 
-                            : (contentType === 'application/json' ? 'json' 
-                                : (contentType.startsWith('multipart/') ? 'multipart' 
-                                    : contentType)),
-                    };
-                var formData = await this.request.clone().getFormData();
-                for(var [ name, value ] of formData.entries()) {
+    static parseRequestBody(request) {
+        return new Promise(async resolve => {
+            request = request.clone();
+            var contentType = request.headers['content-type'];
+            var payload = {
+                contents: null,
+                inputs: {},
+                files: {},
+                type: contentType === 'application/x-www-form-urlencoded' || contentType.startsWith('multipart/') ? 'form-data' 
+                    : (contentType === 'application/json' ? 'json'
+                        : (contentType === 'text/plain' ? 'plain' 
+                            : 'raw')),
+            };
+            if (payload.type === 'form-data') {
+                payload.contents = await request.formData();
+                for(var [ name, value ] of payload.contents.entries()) {
                     if (value instanceof File) {
                         wwwFormSet(payload.files, name, value);
                     } else {
                         wwwFormSet(payload.inputs, name, value);
                     }
                 }
-                resolve(payload);
-            });
-        }
-        return this.requestParse.payloadPromise;
+            } else {
+                payload.contents = await (payload.type === 'json' 
+                    ? request.json() : (
+                        payload.type === 'plain' ? request.text() : request.arrayBuffer()
+                    )
+                )
+            }
+            resolve(payload);
+        });
     }
 
     // Cookies
@@ -56,9 +65,11 @@ export default class ClientNavigationEvent extends NavigationEvent {
             this.requestParse.cookies = wwwFormUnserialize(this.request.headers.cookie, {}, ';');
             this.requestParse.cookiesProxy = new Proxy(this.requestParse.cookies, {
                 set(target, key, value) {
+                    throw new Error('Not yet implemented: set-cookie proxy.');
                     return true;
                 },
                 deleteProperty(target, key) {
+                    throw new Error('Not yet implemented: set-cookie proxy.');
                     return true;
                 }
             });

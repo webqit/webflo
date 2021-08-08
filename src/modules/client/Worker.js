@@ -107,6 +107,15 @@ export default function(layout, params) {
 			if (_any((params.cache_only_url_list || []).map(c => c.trim()).filter(c => c), pattern => Minimatch.Minimatch(evt.request.url, pattern))) {
 				return cache_fetch(evt);
 			}
+			// Now, the following is key:
+			// The browser likes to use "force-cache" for "navigate" requests
+			// when, for example, the back button was used.
+			// Thus the origin server would still not be contacted by the self.fetch() below, leading to inconsistencies in responses.
+			// So, we detect this scenerio and avoid it.		
+			if (evt.request.mode === 'navigate' && evt.request.cache === 'force-cache' && evt.request.destination === 'document') {
+				console.log('------------', 'eeee')
+				return cache_fetch(evt, true/** cacheRefresh */);
+			}
 			if (_any((params.cache_first_url_list || []).map(c => c.trim()).filter(c => c), pattern => Minimatch.Minimatch(evt.request.url, pattern))) {
 				return cache_fetch(evt, true/** cacheRefresh */);
 			}
@@ -145,12 +154,6 @@ export default function(layout, params) {
 		if (!cacheFallback) {
 			return self.fetch(evt.request);
 		}
-		// Now, the following is key:
-		// The browser likes to use "force-cache" for "navigate" requests
-		// when, for example, the back button was used.
-		// Thus the origin server would still not be contacted by the self.fetch() below, leading to inconsistencies in responses.
-		// So, we detect this scenerio and avoid it.
-		// if (evt.request.mode === 'navigate' && evt.request.cache === 'force-cache' && evt.request.destination === 'document') {}
 		return self.fetch(evt.request).then(response => refreshCache(evt.request, response)).catch(e => {
 			return self.caches.open(getCacheName(evt.request)).then(cache => {
 				return cache.match(evt.request);

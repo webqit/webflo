@@ -15,7 +15,7 @@ import * as cmd from './cmd/index.js';
 // ------------------------------------------
 
 const commands = {
-    config: 'Starts a configuration processes.',
+    config: 'Starts a configuration process.',
     build: cmd.client.desc.build,
     deploy: cmd.origins.desc.deploy,
     ...cmd.server.desc,

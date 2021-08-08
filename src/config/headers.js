@@ -8,6 +8,7 @@ import Path from 'path';
 import _merge from '@webqit/util/obj/merge.js';
 import _after from '@webqit/util/str/after.js';
 import _isObject from '@webqit/util/js/isObject.js';
+import { initialGetIndex } from '@webqit/backpack/src/cli/Promptx.js';
 import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
 import Micromatch from 'micromatch';
 
@@ -70,6 +71,13 @@ export async function match(url, flags = {}, layout = {}) {
  */
 export async function questions(config, choices = {}, layout = {}) {
 
+    const CHOICES = _merge({
+        type: [
+            {value: 'request', title: 'Request Header'},
+            {value: 'response', title: 'Response Header'},
+        ]
+    }, choices);
+
     // Questions
     return [
         {
@@ -80,6 +88,13 @@ export async function questions(config, choices = {}, layout = {}) {
             },
             initial: config.entries,
             questions: [
+                {
+                    name: 'type',
+                    type: 'text',
+                    message: 'Choose header type',
+                    validation: ['important'],
+                    initial: function() { return initialGetIndex(CHOICES.type, this.value); },
+                },
                 {
                     name: 'url',
                     type: 'text',

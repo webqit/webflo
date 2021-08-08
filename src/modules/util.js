@@ -40,7 +40,7 @@ export function wwwFormPathUnserializeCallback(form, wwwFormPath, callback, touc
     }
 }
 
-export function wwwFormSet(form, wwwFormPath, value) {
+export function wwwFormSet(form, wwwFormPath, value, append = true) {
     wwwFormPathUnserializeCallback(form, wwwFormPath, (_form, _key) => {
         if (_isNumeric(_key)) {
             _key = _key || _isArray(_form) 
@@ -50,7 +50,7 @@ export function wwwFormSet(form, wwwFormPath, value) {
                 _form[_key + i] = _value;
             });
         } else {
-            _form[_key] = _form[_key] ? _arrFrom(_form[_key], false).concat(value) : value;
+            _form[_key] = append && (_key in _form) ? _arrFrom(_form[_key], false).concat(value) : value;
         }
     }, true);
 }

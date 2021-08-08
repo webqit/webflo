@@ -83,11 +83,13 @@ export default class Router {
                         return next(index + 1, ..._args);
                     };
                     _next.pathname = path.slice(index).join('/');
+                    _next.stepname = _next.pathname.split('/').shift();
                     // -------------
                     const _this = {
                         pathname: '/' + path.slice(0, index).join('/'),
                         ...context
                     };
+                    _this.stepname = _this.pathname.split('/').pop();
                     // -------------
                     return await func.bind(_this)(...argsA.concat([input, _next/*next*/].concat(argsB)));
                 }

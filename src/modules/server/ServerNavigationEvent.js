@@ -7,6 +7,7 @@ import Accepts from 'accepts';
 import Formidable from 'formidable';
 import NavigationEvent from '../NavigationEvent.js';
 import { wwwFormUnserialize, wwwFormSet } from '../util.js';
+import StdResponse from './StdResponse.js';
 
 /**
  * The ServerNavigationEvent class
@@ -17,50 +18,49 @@ export default class ServerNavigationEvent extends NavigationEvent {
      * Initializes a new NavigationEvent instance.
      * 
      * @param Request request 
-     * @param Response response 
      * @param String protocol 
      */
-    constructor(request, response, protocol = 'http') {
-        super(request, response);
+    constructor(request, protocol = 'http') {
+        super(request);
         this.url = Url.parse(protocol + '://' + request.headers.host + request.url);
         this.url.query = wwwFormUnserialize(this.url.search); 
-        this.requestParse = {
-            payloadPromise: null,
-            cookies: null,
-            accepts: null,
-        };
+        this.StdResponse = StdResponse;
     }
-    
+        
     // Payload
-    getPayload() {
-        if (!this.requestParse.payloadPromise) {
-            this.requestParse.payloadPromise = new Promise((resolve, reject) => {
-                var formidable = new Formidable.IncomingForm({multiples: true});
-                formidable.parse(this.request, function(error, inputs, files) {
-                    if (error) {
-                        reject(error);
-                        return;
-                    }
-                    var contentType = this.request.headers['content-type'];
-                    var payload = {
-                        inputs: {},
-                        files: {},
-                        type: contentType === 'application/x-www-form-urlencoded' ? 'form' 
-                            : (contentType === 'application/json' ? 'json' 
-                                : (contentType.startsWith('multipart/') ? 'multipart' 
-                                    : contentType)),
-                    };
+    static parseRequestBody(request) {
+        return new Promise(async resolve => {
+            var contentType = request.headers['content-type'];
+            var payload = {
+                contents: null,
+                inputs: {},
+                files: {},
+                type: contentType === 'application/x-www-form-urlencoded' || contentType.startsWith('multipart/') ? 'form-data' 
+                    : (contentType === 'application/json' ? 'json'
+                        : (contentType === 'text/plain' ? 'plain' 
+                            : 'raw')),
+            };
+            var formidable = new Formidable.IncomingForm({multiples: true, keepExtensions: true});
+            formidable.parse(this.request, function(error, inputs, files) {
+                if (error) {
+                    reject(error);
+                    return;
+                }
+                if (payload.type === 'form-data') {
+                    payload.contents = { ...inputs, ...files };
                     Object.keys(inputs).forEach(name => {
                         wwwFormSet(payload.inputs, name, inputs[name]);
                     });
                     Object.keys(files).forEach(name => {
                         wwwFormSet(payload.files, name, files[name]);
                     });
-                    resolve(payload);
-                });
+                } else {
+                    payload.contents = inputs;
+                }
+                resolve(payload);
             });
-        }
-        return this.requestParse.payloadPromise;
+            resolve(payload);
+        });
     }
 
     // Cookies
@@ -69,9 +69,11 @@ export default class ServerNavigationEvent extends NavigationEvent {
             this.requestParse.cookies = wwwFormUnserialize(this.request.headers.cookie, {}, ';');
             this.requestParse.cookiesProxy = new Proxy(this.requestParse.cookies, {
                 set(target, key, value) {
+                    throw new Error('Not yet implemented: set-cookie proxy.');
                     return true;
                 },
                 deleteProperty(target, key) {
+                    throw new Error('Not yet implemented: set-cookie proxy.');
                     return true;
                 }
             });

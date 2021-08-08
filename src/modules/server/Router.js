@@ -82,13 +82,15 @@ export default class Router {
                         return next(index + 1, ..._args);
                     };
                     _next.pathname = path.slice(index).join('/');
+                    _next.stepname = _next.pathname.split('/').shift();
                     // -------------
                     const _this = {
                         pathname: '/' + path.slice(0, index).join('/'),
                         dirname: Path.dirname(routeHandlerFile),
                         ...context
                     };
-                     // -------------
+                    _this.stepname = _this.pathname.split('/').pop();
+                    // -------------
                     return await func.bind(_this)(...argsA.concat([input, _next/*next*/].concat(argsB)));
                 }
             }
@@ -113,11 +115,12 @@ export default class Router {
     /**
      * Reads a static file from the public directory.
      * 
-     * @param object filename
+     * @param ServerNavigationEvent event
      * 
      * @return Promise
      */
-    fetch(filename) {
+    fetch(event) {
+        var filename = event.url.pathname;
         var _filename = Path.join(this.layout.ROOT, this.layout.PUBLIC_DIR, decodeURIComponent(filename));
         var autoIndex;
         if (Fs.existsSync(_filename)) {
@@ -144,7 +147,13 @@ export default class Router {
                         });
                     } else {
                         // if the file is found, set Content-type and send data
-                        resolve(new FixedResponse(ext === '.json' ? data + '' : data, mimeTypes[ext] || 'text/plain', _filename, autoIndex));
+                        resolve(new event.Response({
+                            contentType: mimeTypes[ext] || 'text/plain',
+                            filename: _filename,
+                            body: ext === '.json' ? data + '' : data,
+                            static: true,
+                            autoIndex,
+                        }));
                     }
                 });
             });

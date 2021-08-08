@@ -7,6 +7,7 @@ import _before from '@webqit/util/str/before.js';
 import _after from '@webqit/util/str/after.js';
 import _toTitle from '@webqit/util/str/toTitle.js';
 import _arrFrom from '@webqit/util/arr/from.js';
+import { wwwFormUnserialize, wwwFormSet, wwwFormSerialize } from '../util.js';
 import Url from './Url.js';
 
 /**
@@ -89,9 +90,11 @@ export default class Http {
 				Observer.set(instance.location, Url.copy(anchor), {
 					detail: {type: 'link', src: anchor,},
 				});
-				// Only on "href" change or on same "href" but no "hash"
-				// In other words, same "href" "hash"-based navigation should be natural
-				if (!href.includes('#') || _before(href, '#') !== _before(window.document.location.href, '#')) {
+				// URLs with # will cause a natural navigation
+				// even if pointing to a different page, a natural navigation will still happen
+				// because with the Observer.set() above, window.document.location.href would have become
+				// the destination page, which makes it look like same page navigation
+				if (!href.includes('#')) {
 					e.preventDefault();
 				}
 			}
@@ -113,8 +116,11 @@ export default class Http {
 			&& (!actionEl.origin || actionEl.origin === instance.location.origin)) {
 				var formData = new FormData(form);
 				if (submitParams.method === 'get') {
-					var query = (new URLSearchParams(formData.entries())).toString();
-					actionEl.search += `${actionEl.search ? '&' : '?'}${query}`;
+					var query = wwwFormUnserialize(actionEl.search);
+					Array.from(formData.entries()).forEach(_entry => {
+						wwwFormSet(query, _entry[0], _entry[1], false);
+					});
+					actionEl.search = wwwFormSerialize(query);
 					formData = null;
 				}
 				if (e.metaKey || e.altKey || e.ctrlKey || e.shiftKey) {
@@ -124,9 +130,11 @@ export default class Http {
 				Observer.set(instance.location, Url.copy(actionEl), {
 					detail: {type: 'form', src: form, submitParams, data: formData},
 				});
-				// Only on "href" change or on same "href" but no "hash"
-				// In other words, same "href" "hash"-based navigation should be natural
-				if (!actionEl.hash || _before(actionEl.href, '#') !== _before(window.document.location.href, '#')) {
+				// URLs with # will cause a natural navigation
+				// even if pointing to a different page, a natural navigation will still happen
+				// because with the Observer.set() above, window.document.location.href would have become
+				// the destination page, which makes it look like same page navigation
+				if (!actionEl.hash) {
 					e.preventDefault();
 				}
 			}

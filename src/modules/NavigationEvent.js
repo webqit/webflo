@@ -2,6 +2,7 @@
 /**
  * @imports
  */
+import Response from "./Response.js";
 
 /**
  * The ClientNavigationEvent class
@@ -12,36 +13,28 @@ export default class NavigationEvent {
      * Initializes a new NavigationEvent instance.
      * 
      * @param Request request 
-     * @param Response response 
      */
-    constructor(request, response) {
+    constructor(request) {
         this._request = request;   
-        this._response = response;   
+        this.Response = Response;
+        this.requestParse = {
+            payloadPromise: null,
+            cookies: null,
+            accepts: null,
+        };
     }
 
     // Request
     get request() {
         return this._request;
     }
-
-    // Response
-    get response() {
-        return this._response;
-    }
-
-    // Inputs
-    get inputs() {
-        return this.getPayload().then(payload => payload.inputs);
-    }
-
-    // Files
-    get files() {
-        return this.getPayload().then(payload => payload.files);
-    }
-
-    // Files
-    respondWith(response) {
-        this._response = response;
+     
+    // Payload
+    getPayload() {
+        if (!this.requestParse.payloadPromise) {
+            this.requestParse.payloadPromise = this.constructor.parseRequestBody(this.request);
+        }
+        return this.requestParse.payloadPromise;
     }
 
     // Walk

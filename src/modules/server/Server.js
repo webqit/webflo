@@ -11,11 +11,11 @@ import _each from '@webqit/util/obj/each.js';
 import _arrFrom from '@webqit/util/arr/from.js';
 import _promise from '@webqit/util/js/promise.js';
 import _isObject from '@webqit/util/js/isObject.js';
-import ServerNavigationEvent from './ServerNavigationEvent.js';
-import ServerResponseBuilder from './ServerResponseBuilder.js';
-import Router, { FixedResponse } from './Router.js';
+import _isTypeObject from '@webqit/util/js/isTypeObject.js';
 import * as config from '../../config/index.js';
 import * as cmd from '../../cmd/index.js';
+import ServerNavigationEvent from './ServerNavigationEvent.js';
+import Router from './Router.js';
 
 /**
  * The default initializer.
@@ -90,7 +90,7 @@ export default async function(Ui, flags = {}) {
     
     if (!flags['https-only']) {
 
-        Http.createServer({ServerResponse: ServerResponseBuilder}, (request, response) => {
+        Http.createServer((request, response) => {
             if (setup.server.shared) {
                 var _setup;
                 if (_setup = getVSetup(request, response)) {
@@ -117,7 +117,7 @@ export default async function(Ui, flags = {}) {
 
     if (!flags['http-only'] && setup.server.https.port) {
 
-        const httpsServer = Https.createServer({ServerResponse: ServerResponseBuilder}, (request, response) => {
+        const httpsServer = Https.createServer((request, response) => {
             if (setup.server.shared) {
                 var _setup;
                 if (_setup = getVSetup(request, response)) {
@@ -187,7 +187,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
     // Request parsing
     // --------
 
-    const serverNavigationEvent = new ServerNavigationEvent(request, response, protocol);
+    const serverNavigationEvent = new ServerNavigationEvent(request, protocol);
     const $context = {
         rdr: null,
         layout: hostSetup.layout,
@@ -201,6 +201,18 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
             $context.env[key] = hostSetup.variables.entries[key];
         });
     }
+    $context.headers = config.headers ? await config.headers.match(serverNavigationEvent.request.url, flags, hostSetup.layout) : [];
+    const resolveSetHeader = header => {
+        var headerName = header.name.toLowerCase(),
+            headerValue = header.value,
+            isAppend = headerName.startsWith('+') ? (headerName = headerName.substr(1), true) : false,
+            isPrepend = headerName.endsWith('+') ? (headerName = headerName.substr(0, headerName.length - 1), true) : false;
+        if (isAppend || isPrepend) {
+            headerValue = [ serverNavigationEvent.request.headers[headerName] || '' , headerValue].filter(v => v);
+            headerValue = isPrepend ? headerValue.reverse().join(',') : headerValue.join(','); 
+        }
+        return { name:headerName, value:headerValue };
+    }
 
     // -------------------
     // Handle redirects
@@ -213,7 +225,16 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
             response.end();
         }
     }
+
+    // -------------------
+    // Automatic request headers
+    // -------------------
     
+    $context.headers.filter(header => header.type === 'request').forEach(header => {
+        const { name, value } = resolveSetHeader(header);
+        serverNavigationEvent.request.headers[name] = value;
+    });
+
     // -------------------
     // Handle request
     // -------------------
@@ -246,7 +267,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
             // ROUTE FOR DATA
             // --------
             $context.response = await router.route([serverNavigationEvent.request.method.toLowerCase(), 'default'], [serverNavigationEvent], null, async function() {
-                var file = await router.fetch(serverNavigationEvent.url.pathname);
+                var file = await router.fetch(serverNavigationEvent);
                 // JSON request should ignore static files
                 if (file && !serverNavigationEvent.accepts.type(file.contentType)) {
                     return;
@@ -254,7 +275,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                 // ----------------
                 // PRE-RENDERING
                 // ----------------
-                if (file && file.contentType === 'text/html' && (file.content + '').startsWith(`<!-- PRE-RENDERED -->`)) {
+                if (file && file.contentType === 'text/html' && (file.body + '').startsWith(`<!-- PRE-RENDERED -->`)) {
                     var prerenderMatch = config.prerendering ? await !config.prerendering.match(serverNavigationEvent.url.pathname, flags, hostSetup.layout) : null;
                     if (!prerenderMatch) {
                         router.deletePreRendered(file.filename);
@@ -263,15 +284,21 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                 }
                 return file;
             }, [response]);
+            if ($context.response instanceof serverNavigationEvent.StdResponse) {
+                throw new Error('Not yet implemented: serverNavigationEvent.StdResponse.');
+            } else if (!($context.response instanceof serverNavigationEvent.Response)) {
+                $context.response = new serverNavigationEvent.Response({ body:$context.response });
+            }
+            
             // --------
             // ROUTE FOR RENDERING?
             // --------
-            if (!($context.response instanceof FixedResponse) && _isObject($context.response)) {
+            if (!$context.response.static && _isTypeObject($context.response.body)) {
                 if (serverNavigationEvent.accepts.type('text/html')) {
                     // --------
                     // Render
                     // --------
-                    const rendering = await router.route('render', [serverNavigationEvent], $context.response, async function(data) {
+                    const rendering = await router.route('render', [serverNavigationEvent], $context.response.body, async function(data) {
                         // --------
                         if (!hostSetup.layout.renderFileCache) {
                             hostSetup.layout.renderFileCache = {};
@@ -297,7 +324,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                                 env: 'server',
                             }, {update: true});
                         }
-                        window.document.setState({page: data, url: serverNavigationEvent.request.url}, {update: 'merge'});
+                        window.document.setState({page: data, url: serverNavigationEvent.url}, {update: 'merge'});
                         window.document.body.setAttribute('template', 'page/' + serverNavigationEvent.url.pathname.split('/').filter(a => a).map(a => a + '+-').join('/'));
                         return new Promise(res => {
                             window.document.addEventListener('templatesreadystatechange', () => res(window));
@@ -312,23 +339,24 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                     if (_isObject(rendering) && rendering.document) {
                         $context.response = await _promise(resolve => {
                             setTimeout(() => {
-                                resolve({
+                                resolve(new serverNavigationEvent.Response({
+                                    ...$context.response,
                                     contentType: 'text/html',
-                                    content: rendering.print(),
-                                });
+                                    body: rendering.print(),
+                                }));
                             }, 1000);
                         });
                     } else {
+                        if (!(rendering instanceof serverNavigationEvent.Response)) {
+                            throw new Error('render() must return a response Object corresponding to event.Response')
+                        }
                         $context.response = rendering;
                     }
-                } else if (serverNavigationEvent.accepts.type('application/json')) {
+                } else if (serverNavigationEvent.accepts.type('application/json') && !$context.response.contentType) {
                     // --------
                     // JSONfy
                     // --------
-                    $context.response = {
-                        contentType: 'application/json',
-                        content: $context.response,
-                    };
+                    $context.response.contentType = 'application/json';
                 }
             }
 
@@ -337,28 +365,24 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
             // --------
 
             if (!response.headersSent) {
-                if ($context.response) {
+                if ($context.response.body) {
                     // -------------------
-                    // Handle headers
+                    // Automatic response headers
                     // -------------------
-                    if (config.headers) {
-                        if ($context.headers = await config.headers.match(serverNavigationEvent.request.url, flags, hostSetup.layout)) {
-                            $context.headers.forEach(header => {
-                                response.setHeader(header.name, header.value);
-                            });
+                    $context.headers.filter(header => header.type === 'response').forEach(header => {
+                        const { name, value } = resolveSetHeader(header);
+                        response.setHeader(name, value);
+                    });
+                    _each($context.response.headers || {}, (name, value) => {
+                        if (name === 'set-cookie' && _isArray(value)) {
+                            throw new Error('Arrays not yet implemented for set-cookie header.');
                         }
-                    }
-                    response.setHeader('Content-type', $context.response.contentType);
-                    if ($context.response.nostore) {
-                        response.setHeader('Cache-Control', 'no-store');
-                    }
-                    if ($context.response.cors) {
-                        response.setHeader('Access-Control-Allow-Origin', $context.response.cors === true ? '*' : $context.response.cors);
-                    }
+                        response.setHeader(name, value);
+                    });
                     response.end(
-                        $context.response.contentType === 'application/json' && _isObject($context.response.content) 
-                            ? JSON.stringify($context.response.content) 
-                            : $context.response.content
+                        $context.response.contentType === 'application/json' && _isTypeObject($context.response.body) 
+                            ? JSON.stringify($context.response.body) 
+                            : $context.response.body
                     );
                     // ----------------
                     // PRE-RENDERING
@@ -366,7 +390,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                     if (!$context.response.filename && $context.response.contentType === 'text/html') {
                         var prerenderMatch = config.prerendering ? await !config.prerendering.match(serverNavigationEvent.url.pathname, flags, hostSetup.layout) : null;
                         if (prerenderMatch) {
-                            router.putPreRendered(serverNavigationEvent.url.pathname, `<!-- PRE-RENDERED -->\r\n` + $context.response.content);
+                            router.putPreRendered(serverNavigationEvent.url.pathname, `<!-- PRE-RENDERED -->\r\n` + $context.response.body);
                         }
                     }
                 } else {
@@ -393,8 +417,8 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
         Ui.log(''
             + '[' + (hostSetup.vh ? Ui.style.keyword(hostSetup.vh.host) + '][' : '') + Ui.style.comment((new Date).toUTCString()) + '] '
             + Ui.style.keyword(protocol.toUpperCase() + ' ' + serverNavigationEvent.request.method) + ' '
-            + Ui.style.url(serverNavigationEvent.request.url) + ($context.response && $context.response.autoIndex ? Ui.style.comment((!serverNavigationEvent.request.url.endsWith('/') ? '/' : '') + $context.response.autoIndex) : '') + ' '
-            + ($context.response ? ' (' + Ui.style.comment($context.response.contentType) + ') ' : '')
+            + Ui.style.url(serverNavigationEvent.request.url) + ($context.response.body && $context.response.autoIndex ? Ui.style.comment((!serverNavigationEvent.request.url.endsWith('/') ? '/' : '') + $context.response.autoIndex) : '') + ' '
+            + ($context.response.contentType ? ' (' + Ui.style.comment($context.response.contentType) + ') ' : 'unknown')
             + (
                 [404, 500].includes(response.statusCode) 
                 ? Ui.style.err(response.statusCode + ($context.fatal ? ` [ERROR]: ${$context.fatal.error || $context.fatal.toString()}` : ``)) 

@@ -7,7 +7,6 @@ import _before from '@webqit/util/str/before.js';
 import _fetch from '@webqit/browser-pie/src/apis/fetch.js';
 import { OOHTML, Observer } from '@webqit/pseudo-browser/index2.js';
 import ClientNavigationEvent from './ClientNavigationEvent.js';
-import ClientResponseBuilder from './ClientResponseBuilder.js';
 import Router from './Router.js';
 import Http from './Http.js';
 
@@ -48,7 +47,7 @@ export default function(layout, params) {
         // -------------------
 
 		// The srvice object
-		const clientNavigationEvent = new ClientNavigationEvent(request, new ClientResponseBuilder);
+		const clientNavigationEvent = new ClientNavigationEvent(request);
 		const $context = {
 			layout,
 			onHydration: !event && (await window.WebQit.OOHTML.meta.get('isomorphic')),

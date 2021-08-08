@@ -36,7 +36,7 @@
     "@octokit/auth-basic": "^1.4.6",
     "@octokit/rest": "^17.11.2",
     "@octokit/webhooks": "^7.15.1",
-    "@webqit/backpack": "^0.0.33",
+    "@webqit/backpack": "^0.0.34",
     "@webqit/browser-pie": "^0.0.16",
     "@webqit/pseudo-browser": "^0.3.16",
     "@webqit/util": "^0.8.7",
@@ -50,6 +50,7 @@
     "pm2": "^4.5.0",
     "simple-git": "^2.20.1",
     "touch": "^3.1.0",
+    "undici": "^4.3.1",
     "uuid": "^8.3.1",
     "webpack": "^4.44.2"
   },
