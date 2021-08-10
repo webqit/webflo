@@ -438,8 +438,8 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
         Ui.log(''
             + '[' + (hostSetup.vh ? Ui.style.keyword(hostSetup.vh.host) + '][' : '') + Ui.style.comment((new Date).toUTCString()) + '] '
             + Ui.style.keyword(protocol.toUpperCase() + ' ' + serverNavigationEvent.request.method) + ' '
-            + Ui.style.url(serverNavigationEvent.request.url) + ($context.response.body && $context.response.autoIndex ? Ui.style.comment((!serverNavigationEvent.request.url.endsWith('/') ? '/' : '') + $context.response.autoIndex) : '') + ' '
-            + ($context.response.contentType ? ' (' + Ui.style.comment($context.response.contentType) + ') ' : 'unknown')
+            + Ui.style.url(serverNavigationEvent.request.url) + ($context.response && $context.response.body && $context.response.autoIndex ? Ui.style.comment((!serverNavigationEvent.request.url.endsWith('/') ? '/' : '') + $context.response.autoIndex) : '') + ' '
+            + (' (' + Ui.style.comment($context.response && $context.response.contentType ? $context.response.contentType : 'unknown') + ') ')
             + (
                 [404, 500].includes(response.statusCode) 
                 ? Ui.style.err(response.statusCode + ($context.fatal ? ` [ERROR]: ${$context.fatal.error || $context.fatal.toString()}` : ``)) 
