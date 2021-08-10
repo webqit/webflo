@@ -8,6 +8,7 @@ import _after from '@webqit/util/str/after.js';
 import _toTitle from '@webqit/util/str/toTitle.js';
 import _arrFrom from '@webqit/util/arr/from.js';
 import { wwwFormUnserialize, wwwFormSet, wwwFormSerialize } from '../util.js';
+import StdRequest from './StdRequest.js';
 import Url from './Url.js';
 
 /**
@@ -56,7 +57,7 @@ export default class Http {
 		 * instance.location
 		 * ----------------
 		 */
-		Observer.set(instance, 'location', new Url(window.document.location, params.path_naming_scheme));
+		Observer.set(instance, 'location', new Url(window.document.location));
 		// -----------------------
 		// This event is triggered by
 		// either the browser back button,
@@ -178,10 +179,7 @@ export default class Http {
 			if (detail.accept) {
 				options.headers.accept = detail.accept;
 			}
-			if (typeof Request !== 'undefined') {
-				return new Request(url, options);
-			}
-			return {url, ...options};
+			return new StdRequest(url, options);
 		};
 		// ----------------------------------
 

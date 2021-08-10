@@ -8,7 +8,7 @@ import Path from 'path';
 import _merge from '@webqit/util/obj/merge.js';
 import _before from '@webqit/util/str/before.js';
 import _isTypeObject from '@webqit/util/js/isTypeObject.js';
-import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
+import { DotJson, anyExists } from '@webqit/backpack/src/dotfiles/index.js';
 
 /**
  * Reads entries from file.
@@ -18,11 +18,12 @@ import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
  * 
  * @return object
  */
- export async function read(flags = {}, layout = {}) {
-    const ext = flags.dev ? '.dev' : (flags.live ? '.live' : '');
+export async function read(flags = {}, layout = {}) {
+    const ext = flags.env ? `.${flags.env}` : '';
     const configDir = Path.join(layout.ROOT || ``, `./.webqit/webflo/config/`);
-    const configFile = ext => `${configDir}/origins${ext}.json`;
-    const config = DotJson.read(ext && Fs.existsSync(configFile(ext)) ? configFile(ext) : configFile(''));
+    const fileName = ext => `${configDir}/origins${ext}.json`;
+    const availableExt = anyExists([ext, '', '.example'], fileName);
+    const config = DotJson.read(fileName(availableExt));
     
     var hostname = '', origin = '';
     if (layout.PKG && layout.PKG.repository) {
@@ -56,11 +57,11 @@ import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
  * 
  * @return void
  */
- export async function write(config, flags = {}, layout = {}) {
-    const ext = flags.dev ? '.dev' : (flags.live ? '.live' : '');
+export async function write(config, flags = {}, layout = {}) {
+    const ext = flags.env ? `.${flags.env}` : '';
     const configDir = Path.join(layout.ROOT || ``, `./.webqit/webflo/config/`);
-    const configFile = ext => `${configDir}/origins${ext}.json`;
-    DotJson.write(config, ext ? configFile(ext) : configFile(''));
+    const fileName = ext => `${configDir}/origins${ext}.json`;
+    DotJson.write(config, fileName(ext));
 };
 
 /**

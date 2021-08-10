@@ -3,14 +3,11 @@
  * @imports
  */
 import { Observer } from '@webqit/pseudo-browser/index2.js';
-import _sort from '@webqit/util/arr/sort.js';
-import _difference from '@webqit/util/arr/difference.js';
 import _isArray from '@webqit/util/js/isArray.js';
 import _isObject from '@webqit/util/js/isObject.js';
 import _isTypeObject from '@webqit/util/js/isTypeObject.js';
 import _isString from '@webqit/util/js/isString.js';
 import _isEmpty from '@webqit/util/js/isEmpty.js';
-import _copy from '@webqit/util/obj/copy.js';
 import _with from '@webqit/util/obj/with.js';
 import { wwwFormUnserialize, wwwFormSerialize } from '../util.js';
 
@@ -29,9 +26,8 @@ export default class Url {
      * 
 	 * @return void
 	 */
-	constructor(input, pathMappingScheme = {}) {
+	constructor(input) {
         const Self = this.constructor;
-        this.pathMappingScheme = pathMappingScheme;
 		// -----------------------
 		// Helpers
 		var _strictEven = (a, b) => {
@@ -45,67 +41,56 @@ export default class Url {
 			}
 			return a === b;
 		};
+		Observer.intercept(this, 'set', (e, prev, next) => {
+			if (e.name === 'hash' && e.value && !e.value.startsWith('#')) {
+				return next('#' + e.value);
+			}
+			if (e.name === 'search' && e.value && !e.value.startsWith('?')) {
+				return next('?' + e.value);
+			}
+			return next();
+		});
 		// -----------------------
 		// When any one of these properties change,
 		// the others are automatically derived
 		Observer.observe(this, changes => {
 			var urlObj = {};
-			var originChanged, hashChanged, hrefChanged, onlyHrefChanged;
+			var onlyHrefChanged;
 			for (var e of changes) {
-				if (e.name === 'query' && e.type === 'set' && !e.isUpdate) {
+				if (e.path.length === 1 && e.name === 'query' && e.type === 'set' && !e.isUpdate) {
 					// Abort completely
 					return;
 				}
 				// ----------
 				if (e.name === 'href' && e.related.length === 1) {
 					var urlObj = Self.parseUrl(e.value);
+					delete urlObj.query;
 					delete urlObj.href;
 					onlyHrefChanged = true;
 				}
 				// ----------
-				if (e.name === 'href') { hrefChanged = true; } else
-				if (e.name === 'origin') { originChanged = true; } else
-				if (e.name === 'hash') { hashChanged = true; }
-				// ----------
-				if ((e.name === 'pathmap' || e.name === 'pathsplit') && !e.related.includes('pathname')) {
-					// We update "pathname" from the new "pathmap"/"pathsplit"
-					var pathname = Self.toPathname(e.value, this.pathname/*referenceUrl*/, this.pathMappingScheme/*pathMappingScheme*/);
-					if (pathname !== this.pathname) {
-						urlObj.pathname = pathname;
-					}
-				}
-				if ((e.name === 'pathname' || e.name === 'pathsplit') && !e.related.includes('pathmap')) {
-					// We update "pathmap" from the new "pathname"/"pathsplit"
-					var pathmap = Self.toPathmap(e.value, this.pathMappingScheme/*pathMappingScheme*/);
-					if (!_strictEven(pathmap, this.pathmap)) {
-						urlObj.pathmap = pathmap;
-					}
-				}
-				if ((e.name === 'pathname' || e.name === 'pathmap') && !e.related.includes('pathsplit')) {
-					// We update "pathsplit" from the new "pathname"/"pathmap"
-					var pathsplit = Self.toPathsplit(e.value, this.pathname/*referenceUrl*/, this.pathMappingScheme/*pathMappingScheme*/);
-					if (!_strictEven(pathsplit, this.pathsplit)) {
-						urlObj.pathsplit = pathsplit;
-					}
-				}
-				// ----------
-				if (e.name === 'query' && !e.related.includes('search')) {
+				if (e.name === 'query' && (e.path.length > 1 || !e.related.includes('search'))) {
 					// "query" was updated. So we update "search"
-					var search = Self.toSearch(e.value);
+					var search = Self.toSearch(this.query); // Not e.value, as that might be a subtree value
 					if (search !== this.search) {
 						urlObj.search = search;
 					}
 				}
-				if (e.name === 'search' && !e.related.includes('query')) {
+				if ((e.name === 'search' && !e.related.includes('query')) || onlyHrefChanged) {
 					// "search" was updated. So we update "query"
-					var query = Self.toQuery(e.value);
+					var query = Self.toQuery(urlObj.search || this.search); // Not e.value, as that might be a href value
 					if (!_strictEven(query, this.query)) {
 						urlObj.query = query;
 					}
 				}
 			}
-			if (!onlyHrefChanged && (originChanged || hashChanged || urlObj.pathname || urlObj.search || urlObj.hash)) {
-				var href = [urlObj.origin || this.origin, urlObj.pathname || this.pathname, urlObj.search || this.search, urlObj.hash || this.hash].join('');
+			if (!onlyHrefChanged) {
+				var fullOrigin = this.origin,
+					usernamePassword = [ this.username, this.password ].filter(a => a);
+				if (usernamePassword.length === 2) {
+					fullOrigin = `${this.protocol}//${usernamePassword.join(':')}@${this.hostname}${(this.port ? `:${this.port}` : '')}`;
+				}
+				var href = [ fullOrigin, urlObj.pathname || this.pathname, urlObj.search || this.search, this.hash ].join('');
 				if (href !== this.href) {
 					urlObj.href = href;
 				}
@@ -113,7 +98,7 @@ export default class Url {
 			if (!_isEmpty(urlObj)) {
 				return Observer.set(this, urlObj);
 			}
-		}, {subtree:true/*for pathmap/pathsplit/query updates*/, diff: true});
+		}, { subtree:true/*for pathmap/pathsplit/query updates*/, diff: true });
 		// -----------------------
 		// Validate e.detail
 		Observer.observe(this, changes => {
@@ -130,7 +115,7 @@ export default class Url {
 		}, {diff: true});
 		// -----------------------
 		// Startup properties
-        Observer.set(this, Url.copy(input));
+        Observer.set(this, _isString(input) ? Self.parseUrl(input) : Url.copy(input));
 	}
 
 	/**
@@ -177,7 +162,11 @@ export default class Url {
 	static parseUrl(href) {
 		var a = window.document.createElement('a');
 		a.href = href;
-		return this.copy(a);
+		var url = this.copy(a);
+		if (!url.query) {
+			url.query = {};
+		}
+		return url;
 	}
 
 	/**
@@ -201,69 +190,7 @@ export default class Url {
 	static toSearch(query) {
 		var search = wwwFormSerialize(query);
 		return search ? '?' + search : '';
-	}
-
-	/**
-	 * Parses the input path and returns its parts named
-	 *
-	 * @param string|array			pathnameOrPathsplit
-	 * @param object    			pathMappingScheme
-	 *
-	 * @return object
-	 */
-	static toPathmap(pathnameOrPathsplit, pathMappingScheme = {}) {
-		var pathArr = _isString(pathnameOrPathsplit) ? pathnameOrPathsplit.split('/').filter(k => k) : pathnameOrPathsplit;
-		var pathStr = _isString(pathnameOrPathsplit) ? pathnameOrPathsplit : '/' + pathArr.join('/') + '/';
-		var pathMappingScheme = _sort(Object.keys(pathMappingScheme), 'desc').reduce((_pathnames, _path) => {
-			return _pathnames || ((pathStr + '/').startsWith(_path === '/' ? _path : '/' + _path.split('/').filter(k => k).join('/') + '/') ? pathMappingScheme[_path] : null);
-		}, null);
-		return !pathMappingScheme ? {} : pathArr.reduce((obj, pathItem, i) => pathMappingScheme[i] ? _with(obj, pathMappingScheme[i], pathItem) : obj, {});
-	}
-
-	/**
-	 * Parses the input path and returns its parts unnamed
-	 *
-	 * @param string|object			pathnameOrPathmap
-	 * @param string				referenceUrl
-	 * @param object    			pathMappingScheme
-	 *
-	 * @return array
-	 */
-	static toPathsplit(pathnameOrPathmap, referenceUrl = null, pathMappingScheme = {}) {
-		if (_isString(pathnameOrPathmap)) {
-			return pathnameOrPathmap.split('/').filter(k => k);
-		}
-		if (!referenceUrl) {
-			throw new Error('A "referenceUrl" must be given to properly determine a path-naming scheme.');
-		}
-		var pathMappingScheme = _sort(Object.keys(pathMappingScheme), 'desc').reduce((_pathnames, _path) => {
-			return _pathnames || ((referenceUrl + '/').startsWith(_path === '/' ? _path : '/' + _path.split('/').filter(k => k).join('/') + '/') ? pathMappingScheme[_path] : null);
-		}, null);
-		if (_difference(Object.keys(pathnameOrPathmap), pathMappingScheme).length) {
-			throw new Error('The given pathmap contains keys (' + Object.keys(pathnameOrPathmap).join(', ') + ') not recognized by the implied path-naming scheme (' + pathMappingScheme.join(', ') + ')');
-		}
-		return !pathMappingScheme ? [] : pathMappingScheme.map(name => pathnameOrPathmap[name]).filter(a => a);
-	}
-
-	/**
-	 * Stringifies the input pathmap or pathsplit to a string
-	 *
-	 * @param object|array			pathmapOrPathsplit
-	 * @param string				referenceUrl
-     * @param object                pathMappingScheme
-	 *
-	 * @return string
-	 */
-	static toPathname(pathmapOrPathsplit, referenceUrl = null, pathMappingScheme = {}) {
-		if (_isObject(pathmapOrPathsplit)) {
-			if (!referenceUrl) {
-				throw new Error('A "referenceUrl" must be given to properly determine a path-naming scheme.');
-			}
-			pathmapOrPathsplit = this.toPathsplit(pathmapOrPathsplit, referenceUrl, pathMappingScheme);
-		}
-		return '/' + pathmapOrPathsplit.filter(a => a).join('/');
-	}
-}
+	}}
 
 /**
  * These are standard
@@ -272,13 +199,16 @@ export default class Url {
  * @array
  */
 const urlProperties = [
+	'protocol', 
+	'username',
+	'password',
 	'host',
 	'hostname',
-	'href',
+	'port',
 	'origin',
 	'pathname',
-	'port',
-	'protocol',
 	'search',
+	'query',
 	'hash',
+	'href',
 ];

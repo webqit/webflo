@@ -6,7 +6,7 @@ import Fs from 'fs';
 import Path from 'path';
 import _merge from '@webqit/util/obj/merge.js';
 import { initialGetIndex } from '@webqit/backpack/src/cli/Promptx.js';
-import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
+import { DotJson, anyExists } from '@webqit/backpack/src/dotfiles/index.js';
 
 /**
  * Reads RUNTIME from file.
@@ -16,11 +16,12 @@ import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
  * 
  * @return object
  */
- export async function read(flags = {}, layout = {}) {
-    const ext = flags.dev ? '.dev' : (flags.live ? '.live' : '');
+export async function read(flags = {}, layout = {}) {
+    const ext = flags.env ? `.${flags.env}` : '';
     const configDir = Path.join(layout.ROOT || ``, `./.webqit/webflo/config/`);
-    const configFile = ext => `${configDir}/server${ext}.json`;
-    const config = DotJson.read(ext && Fs.existsSync(configFile(ext)) ? configFile(ext) : configFile(''));
+    const fileName = ext => `${configDir}/server${ext}.json`;
+    const availableExt = anyExists([ext, '', '.example'], fileName);
+    const config = DotJson.read(fileName(availableExt));
     return _merge({
         port: process.env.port || 3000,
         https: {
@@ -52,11 +53,11 @@ import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
  * 
  * @return void
  */
- export async function write(config, flags = {}, layout = {}) {
-    const ext = flags.dev ? '.dev' : (flags.live ? '.live' : '');
+export async function write(config, flags = {}, layout = {}) {
+    const ext = flags.env ? `.${flags.env}` : '';
     const configDir = Path.join(layout.ROOT || ``, `./.webqit/webflo/config/`);
-    const configFile = ext => `${configDir}/server${ext}.json`;
-    DotJson.write(config, ext ? configFile(ext) : configFile(''));
+    const fileName = ext => `${configDir}/server${ext}.json`;
+    DotJson.write(config, fileName(ext));
 };
 
 /**

@@ -8,7 +8,7 @@ import _merge from '@webqit/util/obj/merge.js';
 import _all from '@webqit/util/arr/all.js';
 import _isNumeric from '@webqit/util/js/isNumeric.js';
 import { initialGetIndex } from '@webqit/backpack/src/cli/Promptx.js';
-import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
+import { DotJson, anyExists } from '@webqit/backpack/src/dotfiles/index.js';
 
 /**
  * Reads MANIFEST from file.
@@ -18,11 +18,12 @@ import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
  * 
  * @return object
  */
- export async function read(flags = {}, layout = {}) {
-    const ext = flags.dev ? '.dev' : (flags.live ? '.live' : '');
-    const configDir = Path.join(layout.ROOT || ``, layout.PUBLIC_DIR || '');
-    const configFile = ext => `${configDir}/manifest${ext}.json`;
-    const config = DotJson.read(ext && Fs.existsSync(configFile(ext)) ? configFile(ext) : configFile(''));
+export async function read(flags = {}, layout = {}) {
+    const ext = flags.env ? `.${flags.env}` : '';
+    const configDir = Path.join(layout.ROOT || ``, `./.webqit/webflo/config/`);
+    const fileName = ext => `${configDir}/manifest${ext}.json`;
+    const availableExt = anyExists([ext, '', '.example'], fileName);
+    const config = DotJson.read(fileName(availableExt));
     // Package
     const pkg = layout.PKG || {};
     return _merge({
@@ -57,11 +58,11 @@ import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
  * 
  * @return void
  */
- export async function write(config, flags = {}, layout = {}) {
-    const ext = flags.dev ? '.dev' : (flags.live ? '.live' : '');
+export async function write(config, flags = {}, layout = {}) {
+    const ext = flags.env ? `.${flags.env}` : '';
     const configDir = Path.join(layout.ROOT || ``, layout.PUBLIC_DIR || '');
-    const configFile = ext => `${configDir}/manifest${ext}.json`;
-    DotJson.write(config, ext ? configFile(ext) : configFile(''));
+    const fileName = ext => `${configDir}/manifest${ext}.json`;
+    DotJson.write(config, fileName(ext));
 };
 
 /**

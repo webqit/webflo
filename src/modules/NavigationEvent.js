@@ -15,40 +15,18 @@ export default class NavigationEvent {
      * @param Request request 
      */
     constructor(request) {
-        this._request = request;   
+        this._request = request;
         this.Response = Response;
-        this.requestParse = {
-            payloadPromise: null,
-            cookies: null,
-            accepts: null,
-        };
+        this.Response._request = request; 
     }
 
-    // Request
+    // request
     get request() {
         return this._request;
     }
-     
-    // Payload
-    getPayload() {
-        if (!this.requestParse.payloadPromise) {
-            this.requestParse.payloadPromise = this.constructor.parseRequestBody(this.request);
-        }
-        return this.requestParse.payloadPromise;
-    }
 
-    // Walk
-    // Piping utility
-    async walk(...stack) {
-        var val;
-        var next = async function() {
-            var middleware = stack.shift();
-            if (middleware) {
-                val = await middleware(this.request, this.response, next);
-                return val;
-            }
-        };
-        await next();
-        return val;
+    // url
+    get url() {
+        return this._url;
     }
 }

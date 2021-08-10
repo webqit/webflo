@@ -74,8 +74,8 @@ export default function(layout, params) {
 				// -----------------
 				const headers = clientNavigationEvent.request.headers;
 				if (!headers.get('Accept')) {
-					headers.append('Accept', 'application/json');
-					headers.append('Cache-Control', 'no-store');
+					headers.set('Accept', 'application/json');
+					headers.set('Cache-Control', 'no-store');
 				}
 				const response = _fetch(clientNavigationEvent.request, {}, networkProgress.updateProgress.bind(networkProgress));
 				// -----------------

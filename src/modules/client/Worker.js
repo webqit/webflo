@@ -10,6 +10,7 @@ import _afterLast from '@webqit/util/str/afterLast.js';
 import _after from '@webqit/util/str/after.js';
 import _before from '@webqit/util/str/before.js';
 import _any from '@webqit/util/arr/any.js';
+import StdRequest from './StdRequest.js';
 
 
 /**
@@ -92,6 +93,8 @@ export default function(layout, params) {
 
 	// Listen now...
 	self.addEventListener('fetch', async evt => {
+		var stdRequest = new StdRequest(evt.request);
+		Object.defineProperty(evt, 'request', { get: () => stdRequest });
 		evt.respondWith(handleFetch(evt));
 	});
 
@@ -111,9 +114,8 @@ export default function(layout, params) {
 			// The browser likes to use "force-cache" for "navigate" requests
 			// when, for example, the back button was used.
 			// Thus the origin server would still not be contacted by the self.fetch() below, leading to inconsistencies in responses.
-			// So, we detect this scenerio and avoid it.		
+			// So, we detect this scenerio and avoid it.
 			if (evt.request.mode === 'navigate' && evt.request.cache === 'force-cache' && evt.request.destination === 'document') {
-				console.log('------------', 'eeee')
 				return cache_fetch(evt, true/** cacheRefresh */);
 			}
 			if (_any((params.cache_first_url_list || []).map(c => c.trim()).filter(c => c), pattern => Minimatch.Minimatch(evt.request.url, pattern))) {

@@ -5,8 +5,7 @@
 import Fs from 'fs';
 import Path from 'path';
 import _merge from '@webqit/util/obj/merge.js';
-import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
-import * as DotEnv from '@webqit/backpack/src/dotfiles/DotEnv.js';
+import { DotJson, DotEnv, anyExists } from '@webqit/backpack/src/dotfiles/index.js';
 
 /**
  * Reads entries from file.
@@ -16,15 +15,19 @@ import * as DotEnv from '@webqit/backpack/src/dotfiles/DotEnv.js';
  * 
  * @return object
  */
- export async function read(flags = {}, layout = {}) {
-    const ext = flags.dev ? '.dev' : (flags.live ? '.live' : '');
+export async function read(flags = {}, layout = {}) {
+    const ext = flags.env ? `.${flags.env}` : '';
     const configDir = Path.join(layout.ROOT || ``, `./.webqit/webflo/config/`);
-    const configFile = ext => `${configDir}/variables${ext}.json`;
-    const config = DotJson.read(ext && Fs.existsSync(configFile(ext)) ? configFile(ext) : configFile(''));
+    const envDir = Path.resolve(layout.ROOT || '');
+    const fileName = ext => `${configDir}/variables${ext}.json`;
+    const envFileName = ext => `${envDir}/.env${ext}`;
+    const availableExt = anyExists([ext, '', '.example'], fileName);
+    const availableEnvExt = anyExists([ext, '', '.example'], envFileName);
+    const config = DotJson.read(fileName(availableExt));
     return _merge({
         autoload: true,
     }, config, {
-        entries: DotEnv.read(Path.join(layout.ROOT || '', './.env')) || {},
+        entries: DotEnv.read(envFileName(availableEnvExt)) || {},
     });
 };
 
@@ -37,16 +40,18 @@ import * as DotEnv from '@webqit/backpack/src/dotfiles/DotEnv.js';
  * 
  * @return void
  */
- export async function write(config, flags = {}, layout = {}) {
-    const ext = flags.dev ? '.dev' : (flags.live ? '.live' : '');
+export async function write(config, flags = {}, layout = {}) {
+    const ext = flags.env ? `.${flags.env}` : '';
     const configDir = Path.join(layout.ROOT || ``, `./.webqit/webflo/config/`);
-    const configFile = ext => `${configDir}/variables${ext}.json`;
+    const envDir = Path.resolve(layout.ROOT || '');
+    const fileName = ext => `${configDir}/variables${ext}.json`;
+    const envFileName = ext => `${envDir}/.env${ext}`;
 
     const _config = {...config};
-    DotEnv.write(_config.entries, Path.join(layout.ROOT || '', './.env'));
+    DotEnv.write(_config.entries, envFileName(ext));
     
     delete _config.entries;
-    DotJson.write(_config, ext ? configFile(ext) : configFile(''));
+    DotJson.write(_config, fileName(ext));
 };
 
 /**

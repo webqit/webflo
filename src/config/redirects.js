@@ -8,7 +8,7 @@ import Path from 'path';
 import _merge from '@webqit/util/obj/merge.js';
 import _after from '@webqit/util/str/after.js';
 import _isObject from '@webqit/util/js/isObject.js';
-import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
+import { DotJson, anyExists } from '@webqit/backpack/src/dotfiles/index.js';
 import Micromatch from 'micromatch';
 
 /**
@@ -19,11 +19,12 @@ import Micromatch from 'micromatch';
  * 
  * @return object
  */
- export async function read(flags = {}, layout = {}) {
-    const ext = flags.dev ? '.dev' : (flags.live ? '.live' : '');
+export async function read(flags = {}, layout = {}) {
+    const ext = flags.env ? `.${flags.env}` : '';
     const configDir = Path.join(layout.ROOT || ``, `./.webqit/webflo/config/`);
-    const configFile = ext => `${configDir}/redirects${ext}.json`;
-    const config = DotJson.read(ext && Fs.existsSync(configFile(ext)) ? configFile(ext) : configFile(''));
+    const fileName = ext => `${configDir}/redirects${ext}.json`;
+    const availableExt = anyExists([ext, '', '.example'], fileName);
+    const config = DotJson.read(fileName(availableExt));
     return _merge({
         entries: [],
     }, config);
@@ -38,11 +39,11 @@ import Micromatch from 'micromatch';
  * 
  * @return void
  */
- export async function write(config, flags = {}, layout = {}) {
-    const ext = flags.dev ? '.dev' : (flags.live ? '.live' : '');
+export async function write(config, flags = {}, layout = {}) {
+    const ext = flags.env ? `.${flags.env}` : '';
     const configDir = Path.join(layout.ROOT || ``, `./.webqit/webflo/config/`);
-    const configFile = ext => `${configDir}/redirects${ext}.json`;
-    DotJson.write(config, ext ? configFile(ext) : configFile(''));
+    const fileName = ext => `${configDir}/redirects${ext}.json`;
+    DotJson.write(config, fileName(ext));
 };
 
 /**
@@ -56,15 +57,18 @@ export async function match(url, flags = {}, layout = {}) {
         if (match) {
             return match;
         }
-        var regex = Micromatch.makeRe(rdr.to, {dot: true});
+        var regex = Micromatch.makeRe(rdr.from, {dot: true});
         var rootMatch = url.pathname.split('/').filter(seg => seg).map(seg => seg.trim()).reduce((str, seg) => str.endsWith(' ') ? str : ((str = str + '/' + seg) && str.match(regex) ? str + ' ' : str), '');
         if (rootMatch.endsWith(' ')) {
             var leaf = _after(url.pathname, rootMatch.trim());
-            var [ target, query ] = rdr.to.split('?');
+            var [ target, targetQuery ] = rdr.to.split('?');
+            if (rdr.reuseQuery) {
+                targetQuery = [(url.search || '').substr(1), targetQuery].filter(str => str).join('&');
+            }
             // ---------------
             return {
-                target: target + leaf,
-                query: [(url.search || '').substr(1), query].filter(str => str).join('&'),
+                target: target + leaf + (targetQuery ? (leaf.endsWith('?') || leaf.endsWith('&') ? '' : (leaf.includes('?') ? '&' : '?')) + targetQuery : ''),
+                query: targetQuery,
                 code: rdr.code,
             };
         }
@@ -111,6 +115,13 @@ export async function questions(config, choices = {}, layout = {}) {
                     type: 'text',
                     message: 'Enter "to" URL',
                     validation: ['important'],
+                },
+                {
+                    name: 'reuseQuery',
+                    type: 'toggle',
+                    message: 'Reuse query parameters from matched URL in destination URL?',
+                    active: 'YES',
+                    inactive: 'NO',
                 },
                 {
                     name: 'code',

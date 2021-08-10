@@ -58,7 +58,7 @@ export async function start(Ui, flags = {}, layout = {}) {
 
     };
 
-    if (flags.dev) {
+    if (flags.env === 'dev') {
         var nodemon, ecpt;
         try {
             nodemon = await import('nodemon');
@@ -78,7 +78,7 @@ export async function start(Ui, flags = {}, layout = {}) {
         }
     }
 
-    if (flags.live) {
+    if (flags.env === 'prod') {
         return new Promise(resolve => {
             Pm2.connect(err => {
                 if (err) {

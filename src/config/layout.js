@@ -4,7 +4,7 @@
  */
 import Path from 'path';
 import _merge from '@webqit/util/obj/merge.js';
-import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
+import { DotJson } from '@webqit/backpack/src/dotfiles/index.js';
 
 /**
  * Reads PROJECT from file.
