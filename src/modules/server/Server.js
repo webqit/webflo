@@ -258,13 +258,23 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
             // --------
 
             if (cmd.origins) {
-                await cmd.origins.hook(Ui, serverNavigationEvent, flags, hostSetup.layout).then(deploy => {
-                    if (deploy) {
-                        return router.route('deploy', [serverNavigationEvent], null, function() {
-                            return deploy();
-                        }, [response]);
+                const deployHook = cmd.origins.hook(Ui, async (deployParams, defaultPeployFn) => {
+                    var exitCode = await router.route('deploy', [serverNavigationEvent], deployParams, function(_deployParams) {
+                        return defaultPeployFn(_deployParams);
+                    }, [response]);
+                    // -----------
+                    response.statusCode = 200;
+                    response.end(exitCode);
+                    // -----------
+                    if (exitCode === 0 && deployParams.ondeploy_autoexit) {
+                        Ui.success(Ui.f`[ondeploy_autoexit] Exiting...`);
+                        // -----------
+                        process.exit();
+                        // -----------
                     }
-                });
+                    return exitCode;
+                }, flags, hostSetup.layout);
+                await deployHook.receive(serverNavigationEvent);
             }
 
             // --------

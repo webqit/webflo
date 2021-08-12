@@ -114,13 +114,7 @@ export async function deploy(Ui, origin, flags = {}, layout = {}) {
                     });
                     return origin.ondeploy.split('&&').map(cmd => cmd.trim()).reduce(
                         async (prev, cmd) => (await prev) === 0 ? run(cmd) : prev
-                    , 0).then(exitCode => {
-                        if (exitCode === 0 && origin.ondeploy_autoexit) {
-                            Ui.success(Ui.f`[ondeploy_autoexit] Exiting...`);
-                            process.exit();
-                        }
-                        return exitCode;
-                    });
+                    , 0);
                 }
             }).catch(err => {
                 waiting.stop();
@@ -150,44 +144,45 @@ export async function deploy(Ui, origin, flags = {}, layout = {}) {
 /**
  * @hook
  */
-export function hook(Ui, event, flags = {}, layout = {}) {
-    return new Promise(async (resolve, reject) => {
-        const eventHandler = Webhooks.createEventHandler();
-        eventHandler.on('push', async ({ name, payload }) => {
-            const matches = (await origins.match(payload.repository.full_name, flags, layout)).filter(o => o.autodeploy);
-            var deployParams;
-            if (!(deployParams = matches[0])) {
-                return;
-            }
-            if (matches.length > 1) {
-                reject(`Failed deploy attempt (${payload.repository.full_name}): Multiple deploy settings found.`);
-            }
-            if (!deployParams.autodeploy_secret) {
-                reject(`Failed deploy attempt (${payload.repository.full_name}): The deploy settings do not contain a secret.`);
-            }
-            if (!Webhooks.verify(deployParams.autodeploy_secret, payload, event.request.headers['x-hub-signature'])) {
-                reject(`Failed deploy attempt (${payload.repository.full_name}): Signature mismatch.`);
-            }
-            if (payload.repository.disabled || payload.repository.archived) {
-                reject(`Failed deploy attempt (${payload.repository.full_name}): Repository disabled or archived.`);
-            }
-            resolve(async (deployMsg = '') => {
-                Ui.log('---------------------------');
-                Ui.log(deployMsg);
-                await deploy(Ui, deployParams, flags, layout);
-                Ui.log('');
-                Ui.log('---------------------------');
-            });
-        });
-        if (event.request.headers['user-agent'] && event.request.headers['user-agent'].startsWith('GitHub-Hookshot/')) {
-            var submits = await event.request.parse();
-            eventHandler.receive({
-                id: event.request.headers['x-github-delivery'],
-                name: event.request.headers['x-github-event'],
-                payload: submits.payload /* JSON object */,
-            }).catch(reject);
-        } else {
-            resolve();
+export function hook(Ui, deployCallback, flags = {}, layout = {}) {
+    const eventHandler = Webhooks.createEventHandler();
+    eventHandler.on('push', async ({ name, payload }) => {
+        const matches = (await origins.match(payload.repository.full_name, flags, layout)).filter(o => o.autodeploy);
+        var deployParams;
+        if (!(deployParams = matches[0])) {
+            return;
         }
+        if (matches.length > 1) {
+            reject(`Failed deploy attempt (${payload.repository.full_name}): Multiple deploy settings found.`);
+        }
+        if (!deployParams.autodeploy_secret) {
+            reject(`Failed deploy attempt (${payload.repository.full_name}): The deploy settings do not contain a secret.`);
+        }
+        if (!Webhooks.verify(deployParams.autodeploy_secret, payload, event.request.headers['x-hub-signature'])) {
+            reject(`Failed deploy attempt (${payload.repository.full_name}): Signature mismatch.`);
+        }
+        if (payload.repository.disabled || payload.repository.archived) {
+            reject(`Failed deploy attempt (${payload.repository.full_name}): Repository disabled or archived.`);
+        }
+        Ui.log('---------------------------');
+        Ui.log('');
+        var exitCode = await deployCallback(deployParams, () => {
+            return deploy(Ui, deployParams, flags, layout);
+        });
+        Ui.log('');
+        Ui.log('---------------------------');
+        return exitCode;
     });
+    return {
+        receive: async event => {
+            if (event.request.headers['user-agent'] && event.request.headers['user-agent'].startsWith('GitHub-Hookshot/')) {
+                const submits = await event.request.parse();
+                return eventHandler.receive({
+                    id: event.request.headers['x-github-delivery'],
+                    name: event.request.headers['x-github-event'],
+                    payload: submits.payload /* JSON object */,
+                });
+            }
+        }
+    };
 };
