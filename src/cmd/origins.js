@@ -93,7 +93,6 @@ export async function deploy(Ui, origin, flags = {}, layout = {}) {
                             stdio: 'pipe',
                         });
 
-                        /** See stdio: "pipe" above
                         child.stdout.on('data', data => {
                             Ui.log('[' + Ui.style.keyword('ONDEPLOY') + '][' + Ui.style.var('OUT') + ']:', data + '');
                         });
@@ -101,7 +100,6 @@ export async function deploy(Ui, origin, flags = {}, layout = {}) {
                         child.stderr.on('data', data => {
                             Ui.log('[' + Ui.style.keyword('ONDEPLOY') + '][' + Ui.style.err('ERR') + ']:', (data + '').trim());
                         });
-                        */
                         
                         child.on('error', data => {
                             Ui.error(data);
