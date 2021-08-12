@@ -169,12 +169,11 @@ export function hook(Ui, event, flags = {}, layout = {}) {
             });
         });
         if (event.request.headers['user-agent'] && event.request.headers['user-agent'].startsWith('GitHub-Hookshot/')) {
-            var payload = await event.request.parse();
-            console.log('========================payload', payload);
+            var submits = await event.request.parse();
             eventHandler.receive({
                 id: event.request.headers['x-github-delivery'],
                 name: event.request.headers['x-github-event'],
-                payload: payload.inputs,
+                payload: submits.payload /* JSON object */,
             }).catch(reject);
         } else {
             resolve();
