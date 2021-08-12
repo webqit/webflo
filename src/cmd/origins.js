@@ -83,7 +83,9 @@ export async function deploy(Ui, origin, flags = {}, layout = {}) {
         return git.pull(origin.tag, origin.branch)
             .then(() => {
                 waiting.stop();
+                Ui.log('');
                 Ui.success(Ui.f`[${Ui.style.comment((new Date).toUTCString())}] Successfully deployed ${origin.tag + '@' + origin.branch} - ${url} to ${origin.deploy_path}!`);
+                Ui.log('');
                 if (origin.ondeploy) {
                     Ui.success(Ui.f`[ondeploy] ${origin.ondeploy}`);
                     const run = cmd => new Promise((resolve, reject) => {
@@ -100,6 +102,7 @@ export async function deploy(Ui, origin, flags = {}, layout = {}) {
 
                         child.on('exit', async exitCode => {
                             resolve(exitCode);
+                            Ui.log('');
                         });
                     });
                     return origin.ondeploy.split('&&').map(cmd => cmd.trim()).reduce(
@@ -158,11 +161,9 @@ export async function hook(Ui, event, deployCallback, flags = {}, layout = {}) {
         eventHandler.on('push', async ({ name, payload }) => {
             Ui.log('---------------------------');
             Ui.log('');
-            Ui.log('');
             var exitCode = await deployCallback(payload, _payload => {
                 return deploy(Ui, deployParams, flags, layout);
             });
-            Ui.log('');
             Ui.log('');
             Ui.log('---------------------------');
             if (exitCode === 0 && deployParams.ondeploy_autoexit) {
