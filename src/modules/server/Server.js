@@ -258,7 +258,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
             // --------
 
             if (cmd.origins) {
-                await cmd.origins.hook(Ui, serverNavigationEvent.request, response, flags, hostSetup.layout).then(deploy => {
+                await cmd.origins.hook(Ui, serverNavigationEvent, flags, hostSetup.layout).then(deploy => {
                     if (deploy) {
                         return router.route('deploy', [serverNavigationEvent], null, function() {
                             return deploy();

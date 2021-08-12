@@ -139,7 +139,7 @@ export async function deploy(Ui, origin, flags = {}, layout = {}) {
 /**
  * @hook
  */
-export function hook(Ui, request, response, flags = {}, layout = {}) {
+export function hook(Ui, event, flags = {}, layout = {}) {
     return new Promise(async (resolve, reject) => {
         const eventHandler = Webhooks.createEventHandler();
         eventHandler.on('push', async ({ name, payload }) => {
@@ -154,7 +154,7 @@ export function hook(Ui, request, response, flags = {}, layout = {}) {
             if (!deployParams.autodeploy_secret) {
                 reject(`Failed deploy attempt (${payload.repository.full_name}): The deploy settings do not contain a secret.`);
             }
-            if (!Webhooks.verify(deployParams.autodeploy_secret, payload, request.headers['x-hub-signature'])) {
+            if (!Webhooks.verify(deployParams.autodeploy_secret, payload, event.request.headers['x-hub-signature'])) {
                 reject(`Failed deploy attempt (${payload.repository.full_name}): Signature mismatch.`);
             }
             if (payload.repository.disabled || payload.repository.archived) {
@@ -168,11 +168,13 @@ export function hook(Ui, request, response, flags = {}, layout = {}) {
                 Ui.log('---------------------------');
             });
         });
-        if (request.headers['user-agent'] && request.headers['user-agent'].startsWith('GitHub-Hookshot/')) {
+        if (event.request.headers['user-agent'] && event.request.headers['user-agent'].startsWith('GitHub-Hookshot/')) {
+            var payload = await event.request.parse();
+            console.log('========================payload', payload);
             eventHandler.receive({
-                id: request.headers['x-github-delivery'],
-                name: request.headers['x-github-event'],
-                payload: await request.inputs(),
+                id: event.request.headers['x-github-delivery'],
+                name: event.request.headers['x-github-event'],
+                payload: payload.inputs,
             }).catch(reject);
         } else {
             resolve();
