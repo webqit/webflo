@@ -58,7 +58,7 @@ export async function start(Ui, flags = {}, layout = {}) {
 
     };
 
-    if (flags.env === 'dev') {
+    if (flags.env !== 'prod' && flags.watch) {
         var nodemon, ecpt;
         try {
             nodemon = await import('nodemon');
@@ -67,14 +67,14 @@ export async function start(Ui, flags = {}, layout = {}) {
         }
         if (nodemon) {
             try {
-                nodemon.default({script, ext: 'js json'});
+                nodemon.default({script, ext: 'js json html'});
                 showRunning();
                 return;
             } catch(e) {
                 throw e;
             }
         } else {
-            Ui.error('Filesystem watch could not be enabled for --dev mode. ' + ecpt);
+            Ui.error('Filesystem watch could not be enabled. ' + ecpt);
         }
     }
 
@@ -87,13 +87,16 @@ export async function start(Ui, flags = {}, layout = {}) {
                 } else {
 
                     var name = config.process.name,
-                        args = Object.keys(flags).map(f => '--' + f),
+                        scriptArgs = ['__cmd__', '__keywords__'].concat(Object.keys(flags).map(f => '--' + f + (flags[f] === true ? '=TRUE' : (flags[f] === false ? '=FALSE' : (flags[f] !== undefined ? '=' + flags[f] : ''))))),
                         exec_mode = config.process.exec_mode || 'fork',
                         autorestart = 'AUTO_RESTART' in config ? config.process.autorestart : true,
                         merge_logs = 'merge_logs' in config.process ? config.process.merge_logs : false,
                         output = config.process.outfile || Path.resolve('./.webqit/webflo/runtime/output.log'),
-                        error = config.process.errfile || Path.resolve('./.webqit/webflo/runtime/error.log');
-                    Pm2.start({script, name, args, exec_mode, autorestart, merge_logs, output, error, force: true}, err => {
+                        error = config.process.errfile || Path.resolve('./.webqit/webflo/runtime/error.log'),
+                        log_date_format = 'YYYY-MM-DD HH:mm Z',
+                        watch = flags.watch;
+                    const pm2Opts = { name, scriptArgs, watch, exec_mode, autorestart, merge_logs, output, error, log_date_format, force: true};
+                    Pm2.start(script, pm2Opts, err => {
                         if (err) {
                             Ui.error(err);
                         } else {
@@ -126,7 +129,8 @@ export function stop(Ui, name, flags = {}) {
             resolve();
         };
         if (flags.kill) {
-            Pm2.kill(name, cb);
+            //Pm2.kill(name, cb); API changed
+            Pm2.kill(cb);
         } else {
             Pm2.stop(name, cb);
         }
