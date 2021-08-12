@@ -90,7 +90,7 @@ export async function deploy(Ui, origin, flags = {}, layout = {}) {
                         cmd = cmd.split(' ').map(a => a.trim()).filter(a => a);
                         const child = spawn(cmd.shift(), cmd, {
                             cwd: origin.deploy_path,
-                            stdio: 'pipe',
+                            stdio: [ process.stdin, process.stdout, process.stderr ],
                         });
 
                         child.stdout.on('data', data => {
