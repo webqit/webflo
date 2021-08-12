@@ -168,12 +168,17 @@ export async function hook(Ui, event, deployCallback, flags = {}, layout = {}) {
         eventHandler.on('push', async ({ name, payload }) => {
             Ui.log('---------------------------');
             Ui.log('');
-            var exitCode = await deployCallback(deployParams, payload, () => {
+            var exitCode = await deployCallback(payload, _payload => {
                 return deploy(Ui, deployParams, flags, layout);
             });
             Ui.log('');
             Ui.log('---------------------------');
-            return exitCode;
+            if (exitCode === 0 && deployParams.ondeploy_autoexit) {
+                Ui.success(Ui.f`[ondeploy_autoexit] Exiting...`);
+                // -----------
+                process.exit();
+                // -----------
+            }
         });
         return eventHandler.receive({
             id: event.request.headers['x-github-delivery'],
