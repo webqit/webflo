@@ -107,12 +107,12 @@ export async function deploy(Ui, origin, flags = {}, layout = {}) {
                         });
 
                         child.on('exit', async exitCode => {
-                            resolve();
+                            resolve(exitCode);
                         });
                     });
                     return origin.ondeploy.split('&&').map(cmd => cmd.trim()).reduce(
-                        async (prev, cmd) => (await prev, run(cmd))
-                    , null);
+                        async (prev, cmd) => (await prev) === 0 ? run(cmd) : prev
+                    , 0);
                 }
             }).catch(err => {
                 waiting.stop();
