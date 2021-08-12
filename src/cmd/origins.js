@@ -84,10 +84,11 @@ export async function deploy(Ui, origin, flags = {}, layout = {}) {
             .then(() => {
                 waiting.stop();
                 Ui.log('');
-                Ui.success(Ui.f`[${Ui.style.comment((new Date).toUTCString())}] Successfully deployed ${origin.tag + '@' + origin.branch} - ${url} to ${origin.deploy_path}!`);
+                var _date = (new Date).toUTCString();
+                Ui.success(Ui.f`[${Ui.style.comment(_date)}][AUTODEPLOY] Successfully deployed: ${origin.tag + '@' + origin.branch} - ${url} to ${origin.deploy_path}!`);
+                Ui.success(Ui.f`[${Ui.style.comment(_date)}][AUTODEPLOY] On-deploy script: ${origin.ondeploy}!`);
                 Ui.log('');
                 if (origin.ondeploy) {
-                    Ui.success(Ui.f`[ondeploy] ${origin.ondeploy}`);
                     const run = cmd => new Promise((resolve, reject) => {
                         cmd = cmd.split(' ').map(a => a.trim()).filter(a => a);
                         const child = spawn(cmd.shift(), cmd, {
