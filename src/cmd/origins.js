@@ -158,13 +158,17 @@ export async function hook(Ui, event, deployCallback, flags = {}, layout = {}) {
         eventHandler.on('push', async ({ name, payload }) => {
             Ui.log('---------------------------');
             Ui.log('');
+            Ui.log('');
             var exitCode = await deployCallback(payload, _payload => {
                 return deploy(Ui, deployParams, flags, layout);
             });
             Ui.log('');
+            Ui.log('');
             Ui.log('---------------------------');
             if (exitCode === 0 && deployParams.ondeploy_autoexit) {
+                Ui.log('');
                 Ui.success(Ui.f`[ondeploy_autoexit] Exiting...`);
+                Ui.log('');
                 // -----------
                 process.exit();
                 // -----------
