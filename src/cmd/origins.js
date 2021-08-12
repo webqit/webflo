@@ -93,7 +93,6 @@ export async function deploy(Ui, origin, flags = {}, layout = {}) {
                             stdio: [ process.stdin, process.stdout, process.stderr ],
                         });
                         
-                        console.log('-------------------', child)
                         child.on('error', data => {
                             Ui.error(data);
                             reject(data);
