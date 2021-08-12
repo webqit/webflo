@@ -174,7 +174,7 @@ export async function hook(Ui, event, deployCallback, flags = {}, layout = {}) {
             if (exitCode === 0 && deployParams.ondeploy_autoexit) {
                 Ui.success(Ui.f`[ondeploy_autoexit] Exiting...`);
                 // -----------
-                process.exit();
+                //process.exit();
                 // -----------
             }
         });
