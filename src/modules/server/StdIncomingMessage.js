@@ -65,7 +65,6 @@ export default class StdIncomingMessage extends Http.IncomingMessage {
                 }
                 resolve(submits);
             });
-            resolve(submits);
         });
     }
 }
