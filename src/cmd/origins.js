@@ -169,7 +169,8 @@ export async function hook(Ui, event, deployCallback, flags = {}, layout = {}) {
             Ui.log('---------------------------');
             if (exitCode === 0 && deployParams.ondeploy_autoexit) {
                 Ui.log('');
-                Ui.success(Ui.f`[ondeploy_autoexit] Exiting...`);
+                var _date = (new Date).toUTCString();
+                Ui.success(Ui.f`[${Ui.style.comment(_date)}][AUTODEPLOY] Auto-exit: ${true}; exiting...`);
                 Ui.log('');
                 // -----------
                 process.exit();
