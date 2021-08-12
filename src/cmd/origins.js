@@ -90,16 +90,9 @@ export async function deploy(Ui, origin, flags = {}, layout = {}) {
                         cmd = cmd.split(' ').map(a => a.trim()).filter(a => a);
                         const child = spawn(cmd.shift(), cmd, {
                             cwd: origin.deploy_path,
+                            stdio: 'pipe',
                         });
                         //process.stdin.pipe(child.stdin);
-
-                        child.stdout.on('data', data => {
-                            Ui.log('[' + Ui.style.keyword('ONDEPLOY') + '][' + Ui.style.var('OUT') + ']:', data + '');
-                        });
-
-                        child.stderr.on('data', data => {
-                            Ui.log('[' + Ui.style.keyword('ONDEPLOY') + '][' + Ui.style.err('ERR') + ']:', (data + '').trim());
-                        });
                         
                         child.on('error', data => {
                             Ui.error(data);
