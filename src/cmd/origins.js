@@ -86,8 +86,8 @@ export async function deploy(Ui, origin, flags = {}, layout = {}) {
                 Ui.success(Ui.f`[${Ui.style.comment((new Date).toUTCString())}] Successfully deployed ${origin.tag + '@' + origin.branch} - ${url} to ${origin.deploy_path}!`);
                 if (origin.ondeploy) {
                     Ui.success(Ui.f`[ondeploy] ${origin.ondeploy}`);
-                    var cmd = origin.ondeploy.split(' ').map(a => a.trim()).filter(a => a);
-                    return new Promise((resolve, reject) => {
+                    const run = cmd => new Promise((resolve, reject) => {
+                        cmd = cmd.split(' ').map(a => a.trim()).filter(a => a);
                         const child = spawn(cmd.shift(), cmd, {
                             cwd: origin.deploy_path,
                         });
@@ -110,6 +110,9 @@ export async function deploy(Ui, origin, flags = {}, layout = {}) {
                             resolve();
                         });
                     });
+                    return origin.ondeploy.split('&&').map(cmd => cmd.trim()).reduce(
+                        async (prev, cmd) => (await prev, run(cmd))
+                    , null);
                 }
             }).catch(err => {
                 waiting.stop();
