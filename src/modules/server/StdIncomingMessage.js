@@ -32,7 +32,7 @@ export default class StdIncomingMessage extends Http.IncomingMessage {
     // Payload
     parse() {
         return new Promise(async resolve => {
-            request = this;
+            var request = this;
             var contentType = request.headers['content-type'];
             var submits = {
                 payload: null,

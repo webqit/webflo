@@ -37,7 +37,7 @@ export default class StdRequest extends Request {
     // Payload
     parse() {
         return new Promise(async resolve => {
-            request = this.clone();
+            var request = this.clone();
             var contentType = request.headers['content-type'];
             var submits = {
                 payload: null,
