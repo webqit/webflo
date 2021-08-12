@@ -428,7 +428,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                 // -------------------
                 if ($context.response.body !== undefined) {
                     response.end(
-                        $context.response.contentType === 'application/json' 
+                        $context.response.contentType === 'application/json' && _isTypeObject($context.response.body)
                             ? JSON.stringify($context.response.body) 
                             : $context.response.body
                     );
