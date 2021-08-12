@@ -206,7 +206,7 @@ export default function(layout, params) {
 		};
 		const router = new Router('/', layout, $context);
 		evt.waitUntil(
-			router.route('notificationpush', [evt], null, function() {
+			router.route('push', [evt], null, function() {
 				return self;
 			})
 		);

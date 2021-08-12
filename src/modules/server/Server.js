@@ -382,13 +382,40 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                 // -------------------
                 // Route response headers
                 // -------------------
+                const cookieAtts = ['Expires', 'Max-Age', 'Domain', 'Path', 'Secure', 'HttpOnly', 'SameSite' ];
+                const setCookies = (cookies, nameContext = null) => {
+                    _each(cookies, (name, cookie) => {
+                        name = nameContext ? `${nameContext}[${name}]` : name;
+                        cookie = !_isObject(cookie) ? { value: cookie } : cookie;
+                        var expr = `${name}=${cookie.value}`;
+                        if (cookie.value === false && !('maxAge' in cookie)) {
+                            cookie.maxAge = 0;
+                        }
+                        Object.keys(cookie).forEach(attr => {
+                            if (attr === 'value') return;
+                            var __attr = cookieAtts.reduce((match, _attr) => match || (
+                                [_attr.toLowerCase(), _attr.replace('-', '').toLowerCase()].includes(attr.toLowerCase()) ? _attr : null
+                            ), null);
+                            if (!__attr) {
+                                throw new Error(`Invalid cookie attribute: ${attr}`);
+                            }
+                            expr += cookie[attr] === true ? `; ${__attr}` : `; ${__attr}=${cookie[attr]}`;
+                        });
+                        response.setHeader('Set-Cookie', expr);
+                        if (_isObject(cookie.children)) {
+                            setCookies(cookie.children, name);
+                        }
+                    });
+                };
                 _each($context.response.headers || {}, (name, value) => {
-                    if (name.toLowerCase() === 'set-cookie' && _isArray(value)) {
-                        throw new Error('Arrays not yet implemented for set-cookie header.');
-                    } else if (name.toLowerCase() === 'location' && !$context.response.status) {
-                        $context.response.status = 302 /* Temporary */;
+                    if (name.toLowerCase() === 'set-cookie') {
+                        setCookies(value);
+                    } else {
+                        if (name.toLowerCase() === 'location' && !$context.response.status) {
+                            $context.response.status = 302 /* Temporary */;
+                        }
+                        response.setHeader(name, value);
                     }
-                    response.setHeader(name, value);
                 });
                 // -------------------
                 // Status code
@@ -399,7 +426,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                 // -------------------
                 // Send
                 // -------------------
-                if ($context.response.body || $context.response.body === 0 || $context.response.body === false) {
+                if ($context.response.body !== undefined) {
                     response.end(
                         $context.response.contentType === 'application/json' 
                             ? JSON.stringify($context.response.body) 

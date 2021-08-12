@@ -2,8 +2,8 @@
 /**
  * @imports
  */
-import { _toTitle, _fromCamel } from "@webqit/util/str/index.js";
-import { _from as _arrFrom } from "@webqit/util/arr/index.js";
+import { _toTitle, _fromCamel, _after, _beforeLast } from "@webqit/util/str/index.js";
+import { _isString, _getType, _isObject } from "@webqit/util/js/index.js";
 
 export default class Response {
 
@@ -26,7 +26,7 @@ export default class Response {
             Object.defineProperty(this, 'headers', { value: {}, enumerable:true });
         }
         this.headers[name.includes('-') ? name : _fromCamel(_toTitle(name), '-')] = value;
-        return true;
+        return this;
     }
 
     getHeader(name) {
@@ -41,12 +41,43 @@ export default class Response {
         return this.getHeader('Content-Type');
     }
 
+    set cookies(cookieJar) {
+        if (!_isObject(cookieJar)) {
+            throw new Error(`The "cookies" response directive does not support the type: ${_getType(cookieJar)}`);
+        }
+        this.setHeader('Set-Cookie', cookieJar);
+        return true;
+    }
+
+    get cookies() {
+        return this.getHeader('Set-Cookie');
+    }
+
     set redirect(value) {
         return this.setHeader('Location', value);
     }
 
     get redirect() {
         return this.getHeader('Location');
+    }
+
+    set download(value) {
+        value = value === true ? 'attachment' : (value === false ? 'inline' : value);
+        if (!_isString(value)) {
+            throw new Error(`The "download" response directive does not support the type: ${_getType(value)}`);
+        }
+        if (!['attachment', 'inline'].includes(value)) {
+            value = `attachment; filename="${value}"`;
+        }
+        return this.setHeader('Content-Disposition', value);
+    }
+
+    get download() {
+        var value = (this.getHeader('Content-Disposition') || '').trim();
+        value = value === 'attachment' ? true : (
+            value === 'inline' ? false : _after(_beforeLast(value, '"'), 'filename="')
+        );
+        return value;
     }
 
     set cors(value) {
@@ -63,13 +94,5 @@ export default class Response {
 
     get cacheControl() {
         return this.getHeader('Cache-Control');
-    }
-
-    set cookies(value) {
-        return this.setHeader('Set-Cookie', value);
-    }
-
-    get cookies() {
-        return this.getHeader('Set-Cookie');
     }
 }
