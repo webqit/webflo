@@ -84,12 +84,8 @@ console.log('');
                     message: 'Please select a runtime name',
                 }).then(d => d.runtime);
             }
-            if (!runtime) {
-                Ui.log(Ui.f`Please add a runtime name, or ${'all'}, to the ${command} command. For options, use the ellipsis ${'...'}`);
-                return;
-            }
             // ----------------
-            await cmd.server[command](Ui, runtime, flags);
+            await cmd.server[command](Ui, runtime || 'all', flags);
             process.exit();
         break;
 

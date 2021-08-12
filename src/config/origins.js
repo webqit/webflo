@@ -43,6 +43,7 @@ export async function read(flags = {}, layout = {}) {
             autodeploy: true,
             autodeploy_secret: '',
             ondeploy: 'npm install',
+            ondeploy_autoexit: true,
         }],
     }, config);
 
@@ -149,6 +150,13 @@ export async function questions(config, choices = {}, layout = {}) {
                     type: 'text',
                     message: 'Enter an optional "command" to run on deploy',
                     validation: ['input', 'important'],
+                },
+                {
+                    name: 'ondeploy_autoexit',
+                    type: (prev, ans) => ans.autodeploy ? 'toggle' : null,
+                    message: 'Auto exit process on deploy?',
+                    active: 'YES',
+                    inactive: 'NO',
                 },
             ],
         },
