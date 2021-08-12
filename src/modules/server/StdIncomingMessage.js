@@ -44,7 +44,7 @@ export default class StdIncomingMessage extends Http.IncomingMessage {
                             : 'other')),
             };
             var formidable = new Formidable.IncomingForm({multiples: true, keepExtensions: true});
-            formidable.parse(this.request, function(error, inputs, files) {
+            formidable.parse(request, function(error, inputs, files) {
                 if (error) {
                     reject(error);
                     return;
