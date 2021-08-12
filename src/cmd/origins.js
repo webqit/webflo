@@ -90,9 +90,9 @@ export async function deploy(Ui, origin, flags = {}, layout = {}) {
                         cmd = cmd.split(' ').map(a => a.trim()).filter(a => a);
                         const child = spawn(cmd.shift(), cmd, {
                             cwd: origin.deploy_path,
-                            stdio: 'pipe',
+                            //stdio: 'pipe',
                         });
-                        //process.stdin.pipe(child.stdin);
+                        process.stdin.pipe(child.stdin);
                         
                         child.on('error', data => {
                             Ui.error(data);
