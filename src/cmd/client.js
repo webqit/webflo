@@ -267,7 +267,7 @@ const buildRoutes = (Ui, entry, build, desc) => {
                 var routePath = _beforeLast('/' + relativePath, '/index.js');
                 build.code.push(`layout['${routePath || '/'}'] = ${routeName};`);
                 // Show
-                Ui.log(`> ./ ${relativePath}`);
+                Ui.log(`> ./${relativePath}`);
             }
         });
     }
