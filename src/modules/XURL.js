@@ -14,6 +14,35 @@ import { wwwFormUnserialize, wwwFormSerialize } from './util.js';
  */
 export const _URLX = BaseURL => class URL extends BaseURL {
 	
+	// constructor
+	constructor(...args) {
+		super(...args);
+		var query = wwwFormUnserialize(this.search);
+		const updateSearch = query => {
+			// "query" was updated. So we update "search"
+			var search = wwwFormSerialize(query);
+			search = search ? '?' + search : '';
+			if (search !== this.search) {
+				this.search = search;
+			}
+		};
+		this.__query = {
+			value: query,
+			proxy: new Proxy(query, {
+				set(t, n, v) {
+					t[n] = v;
+					updateSearch(t);
+					return true;
+				},
+				deleteProperty(t, n) {
+					delete t[n];
+					updateSearch(t);
+					return true;
+				}
+			})
+		};
+	}
+
 	// Set search
 	set search(value) {
 		super.search = value;
@@ -28,45 +57,9 @@ export const _URLX = BaseURL => class URL extends BaseURL {
 	get search() {
 		return super.search;
 	}
-	
-	// Set query
-	set query(value) {
-		const current  = () => this.__query.value;
-		const updateSearch = query => {
-			// "query" was updated. So we update "search"
-			var search = wwwFormSerialize(query);
-			search = search ? '?' + search : '';
-			if (search !== this.search) {
-				this.search = search;
-			}
-		};
-		this.__query = {
-			value,
-			proxy: new Proxy(value, {
-				set(t, n, v) {
-					t[n] = v;
-					if (t === current()) {
-						updateSearch(t);
-					}
-					return true;
-				},
-				deleteProperty(t, n) {
-					delete t[n];
-					if (t === current()) {
-						updateSearch(t);
-					}
-					return true;
-				}
-			})
-		};
-		updateSearch(value);
-	}
 
 	// Get query
 	get query() {
-		if (!this.__query) {
-			this.query = {};
-		}
 		return this.__query.proxy;
 	}
 

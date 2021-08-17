@@ -106,7 +106,8 @@ export default function(layout, params) {
 		};
 		// The app router
 		const router = new Router(_before(evt.request.url, '?'), layout, $context);
-		return await router.route('default', [evt], null, async function() {
+		const httpMethodName = evt.request.method.toLowerCase();
+		return await router.route([httpMethodName === 'delete' ? 'del' : httpMethodName, 'default'], [evt], null, async function() {
 			if (_any((params.cache_only_url_list || []).map(c => c.trim()).filter(c => c), pattern => Minimatch.Minimatch(evt.request.url, pattern))) {
 				return cache_fetch(evt);
 			}

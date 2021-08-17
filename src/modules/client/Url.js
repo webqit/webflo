@@ -57,10 +57,6 @@ export default class Url {
 			var urlObj = {};
 			var onlyHrefChanged;
 			for (var e of changes) {
-				if (e.path.length === 1 && e.name === 'query' && e.type === 'set' && !e.isUpdate) {
-					// Abort completely
-					return;
-				}
 				// ----------
 				if (e.name === 'href' && e.related.length === 1) {
 					var urlObj = Self.parseUrl(e.value);
@@ -76,7 +72,7 @@ export default class Url {
 						urlObj.search = search;
 					}
 				}
-				if ((e.name === 'search' && !e.related.includes('query')) || onlyHrefChanged) {
+				if (e.name === 'search') {
 					// "search" was updated. So we update "query"
 					var query = Self.toQuery(urlObj.search || this.search); // Not e.value, as that might be a href value
 					if (!_strictEven(query, this.query)) {
@@ -132,12 +128,11 @@ export default class Url {
      * or from a regular object.
 	 *
 	 * @param string|object 	href
-	 * @param object 	        pathMappingScheme
 	 *
 	 * @return Url
 	 */
-	static from(href, pathMappingScheme = {}) {
-        return new this(_isObject(href) ? href : this.parseUrl(href), pathMappingScheme);
+	static from(href) {
+        return new this(_isObject(href) ? href : this.parseUrl(href));
 	}
 
 	/**
@@ -149,7 +144,11 @@ export default class Url {
 	 * @return object
 	 */
 	static copy(urlObj) {
-		return urlProperties.reduce((obj, prop) => _with(obj, prop, urlObj[prop]), {});
+		var url = urlProperties.reduce((obj, prop) => _with(obj, prop, urlObj[prop]), {});
+		if (!('query' in urlObj)) {
+			delete url.query;
+		}
+		return url;
 	}
 
 	/**
@@ -162,11 +161,7 @@ export default class Url {
 	static parseUrl(href) {
 		var a = window.document.createElement('a');
 		a.href = href;
-		var url = this.copy(a);
-		if (!url.query) {
-			url.query = {};
-		}
-		return url;
+		return this.copy(a);
 	}
 
 	/**

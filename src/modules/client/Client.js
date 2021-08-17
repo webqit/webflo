@@ -67,7 +67,8 @@ export default function(layout, params) {
 			// --------
 			// ROUTE FOR DATA
 			// --------
-			$context.response = await router.route('default', [clientNavigationEvent], null, async function() {
+			const httpMethodName = clientNavigationEvent.request.method.toLowerCase();
+			$context.response = await router.route([httpMethodName === 'delete' ? 'del' : httpMethodName, 'default'], [clientNavigationEvent], null, async function() {
 				// -----------------
 				var networkProgress = networkProgressOngoing = new RequestHandle();
 				networkProgress.setActive(true);

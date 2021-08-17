@@ -68,18 +68,22 @@ export default class Router {
                     // Then we can call the handler
                     // -------------
                     const _next = (..._args) => {
+                        var _index;
                         if (_args.length > 1) {
                             if (!_isString(_args[1])) {
                                 throw new Error('Router redirect must be a string!');
                             }
-                            if (_args[1].startsWith('/')) {
-                                throw new Error('Router redirect must NOT be an absolute path!');
+                            var newPath = Path.join(path.slice(0, index).join('/'), _args[1]);
+                            if (newPath.startsWith('../')) {
+                                throw new Error('Router redirect cannot traverse beyond the routing directory! (' + _args[1] + ' >> ' + newPath + ')');
                             }
-                            _args[1] = path.slice(0, index).concat(_args[1].split('/').map(a => a.trim()).filter(a => a));
+                            _args[1] = newPath.split('/').map(a => a.trim()).filter(a => a);
+                            _index = path.slice(0, index).reduce((build, seg, i) => build.length === i && seg === _args[1][i] ? build.concat(seg) : build, []).length;
                         } else {
                             _args[1] = path;
+                            _index = index;
                         }
-                        return next(index + 1, ..._args);
+                        return next(_index + 1, ..._args);
                     };
                     _next.pathname = path.slice(index).join('/');
                     _next.stepname = _next.pathname.split('/').shift();
@@ -92,6 +96,8 @@ export default class Router {
                     _this.stepname = _this.pathname.split('/').pop();
                     // -------------
                     return await func.bind(_this)(...argsA.concat([input, _next/*next*/].concat(argsB)));
+                } else {
+                    return next(index + 1, input, path);
                 }
             }
     

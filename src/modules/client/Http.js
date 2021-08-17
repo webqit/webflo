@@ -69,7 +69,7 @@ export default class Http {
 			// to update to window.location
 			window.setTimeout(() => {
 				Observer.set(instance.location, Url.copy(window.document.location), {
-					detail: {type: 'history', src: window.document.location},
+					detail: { type: 'history', src: window.document.location },
 				});
 			}, 0);
 		});
@@ -89,7 +89,7 @@ export default class Http {
 				}
 				// Publish everything, including hash
 				Observer.set(instance.location, Url.copy(anchor), {
-					detail: {type: 'link', src: anchor,},
+					detail: { type: 'link', src: anchor, },
 				});
 				// URLs with # will cause a natural navigation
 				// even if pointing to a different page, a natural navigation will still happen
