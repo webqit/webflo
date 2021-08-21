@@ -83,16 +83,15 @@ export async function questions(config, choices = {}, layout = {}) {
     // Questions
     return [
         // -----------------
-        // SERVICE WORKER
+        // BUNDLING PARAMS
         // -----------------
         {
-            name: 'client',
-            initial: config.client,
+            name: 'bundling',
+            initial: config.bundling,
             controls: {
-                name: 'Client params',
+                name: 'Bundling params',
             },
-            questions: [
-            ],
+            questions: [],
         },
         // -----------------
         // SERVICE WORKER

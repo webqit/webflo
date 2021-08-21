@@ -28,7 +28,7 @@ export async function build(Ui, flags = {}, layout = {}) {
     const forwardSlash = str => str.replace(/\\/g, '/');
     var clientModulesDir = forwardSlash(Url.fileURLToPath(Path.join(import.meta.url, '../../modules/client')));
     var clientDirSplit = Path.resolve(layout.CLIENT_DIR).replace(/\\/g, '/').split('/');
-    var clientParams = config.client || {};
+    var clientParams = config; // Yes root config object
     var workerParams = config.worker || {};
     var createWorker = !_isEmpty(workerParams);
     var waiting;
@@ -70,7 +70,7 @@ export async function build(Ui, flags = {}, layout = {}) {
         workerBuild.code.push(`const params = {`);
         Object.keys(workerParams).forEach(name => {
             if (name !== 'bundling') {
-                workerBuild.code.push(`   ${name}: ${['boolean', 'number'].includes(typeof workerParams[name]) ? workerParams[name] : (Array.isArray(workerParams[name]) ? (!workerParams[name].length ? `[]` : `['${workerParams[name].join(`', '`)}']`) : `'${workerParams[name]}'`)},`);
+                workerBuild.code.push(`   ${name}: ${[ 'boolean', 'number' ].includes(typeof workerParams[name]) ? workerParams[name] : (Array.isArray(workerParams[name]) ? (!workerParams[name].length ? `[]` : `['${workerParams[name].join(`', '`)}']`) : `'${workerParams[name]}'`)},`);
             }
         });
         workerBuild.code.push(`};`);
@@ -96,7 +96,7 @@ export async function build(Ui, flags = {}, layout = {}) {
     // Create the Client file
     // -------------------
 
-    var clientBundlingConfig = config.bundling || {};
+    var clientBundlingConfig = clientParams.bundling || {};
     if (!clientBundlingConfig.intermediate) {
         clientBundlingConfig.intermediate = clientDirSplit.join('/') + '/bundle.js';
     }
@@ -169,14 +169,14 @@ export async function build(Ui, flags = {}, layout = {}) {
     // Run webpack
     // -------------------
     
-    if (config.bundling || workerParams.bundling) {
+    if (clientParams.bundling || workerParams.bundling) {
         Ui.log('');
         Ui.title(`BUNDLES`);
     }
     if (workerParams.bundling !== false) {
         await createBundle(Ui, workerBundlingConfig, 'Bundling the Service Worker Build file');
     }
-    if (config.bundling !== false) {
+    if (clientParams.bundling !== false) {
         await createBundle(Ui, clientBundlingConfig, 'Bundling the Client Build file');
     }
     
@@ -192,7 +192,7 @@ export async function build(Ui, flags = {}, layout = {}) {
  */
 const createBundle = (Ui, config, desc) => {
     const intermediateFile = config.intermediate;
-    config = {...config};
+    config = { ...config };
     if (!config.entry) {
         config.entry = config.intermediate;
     }
