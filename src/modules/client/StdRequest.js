@@ -35,39 +35,42 @@ export default class StdRequest extends Request {
     }
             
     // Payload
-    parse() {
-        return new Promise(async resolve => {
-            var request = this.clone();
-            var contentType = request.headers['content-type'];
-            var submits = {
-                payload: null,
-                inputs: {},
-                files: {},
-                type: contentType === 'application/x-www-form-urlencoded' || contentType.startsWith('multipart/') ? 'form-data' 
-                    : (contentType === 'application/json' ? 'json'
-                        : (contentType === 'text/plain' ? 'plain' 
-                            : 'other')),
-            };
-            if (submits.type === 'form-data') {
-                submits.payload = await request.formData();
-                for(var [ name, value ] of submits.payload.entries()) {
-                    if (value instanceof File) {
-                        wwwFormSet(submits.files, name, value);
-                    } else {
-                        wwwFormSet(submits.inputs, name, value);
+    parse(force = false) {
+        if (!this._submits || force) {
+            this._submits = new Promise(async resolve => {
+                var request = this.clone();
+                var contentType = request.headers['content-type'];
+                var submits = {
+                    payload: null,
+                    inputs: {},
+                    files: {},
+                    type: contentType === 'application/x-www-form-urlencoded' || contentType.startsWith('multipart/') ? 'form-data' 
+                        : (contentType === 'application/json' ? 'json'
+                            : (contentType === 'text/plain' ? 'plain' 
+                                : 'other')),
+                };
+                if (submits.type === 'form-data') {
+                    submits.payload = await request.formData();
+                    for(var [ name, value ] of submits.payload.entries()) {
+                        if (value instanceof File) {
+                            wwwFormSet(submits.files, name, value);
+                        } else {
+                            wwwFormSet(submits.inputs, name, value);
+                        }
+                    }
+                } else {
+                    submits.payload = await (submits.type === 'json' 
+                        ? request.json() : (
+                            submits.type === 'plain' ? request.text() : request.arrayBuffer()
+                        )
+                    )
+                    if (submits.type === 'json' && _isTypeObject(submits.payload)) {
+                        submits.inputs = inputs;
                     }
                 }
-            } else {
-                submits.payload = await (submits.type === 'json' 
-                    ? request.json() : (
-                        submits.type === 'plain' ? request.text() : request.arrayBuffer()
-                    )
-                )
-                if (submits.type === 'json' && _isTypeObject(submits.payload)) {
-                    submits.inputs = inputs;
-                }
-            }
-            resolve(submits);
-        });
+                resolve(submits);
+            });
+        }
+        return this._submits;
     }
 }

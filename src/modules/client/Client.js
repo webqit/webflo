@@ -47,7 +47,6 @@ export default function(layout, params) {
         // -------------------
 
 		// The srvice object
-		const clientNavigationEvent = new ClientNavigationEvent(request);
 		const $context = {
 			layout,
 			onHydration: !event && (await window.WebQit.OOHTML.meta.get('isomorphic')),
@@ -55,6 +54,7 @@ export default function(layout, params) {
 		}
 		
 		// The app router
+		const clientNavigationEvent = new ClientNavigationEvent(request, request.url);
 		const requestPath = clientNavigationEvent.url.pathname;
 		const router = new Router(requestPath, layout, $context);
 		if (networkProgressOngoing) {
@@ -68,7 +68,7 @@ export default function(layout, params) {
 			// ROUTE FOR DATA
 			// --------
 			const httpMethodName = clientNavigationEvent.request.method.toLowerCase();
-			$context.response = await router.route([httpMethodName === 'delete' ? 'del' : httpMethodName, 'default'], [clientNavigationEvent], null, async function() {
+			$context.response = await router.route([httpMethodName === 'delete' ? 'del' : httpMethodName, 'default'], clientNavigationEvent, null, async function() {
 				// -----------------
 				var networkProgress = networkProgressOngoing = new RequestHandle();
 				networkProgress.setActive(true);
@@ -88,12 +88,12 @@ export default function(layout, params) {
 					networkProgress.setActive(false);
 					return response.ok ? response.json() : null;
 				});
-			}, []);
+			});
 
 			// --------
 			// Render
 			// --------
-			const rendering = await router.route('render', [clientNavigationEvent], $context.response, async function(data) {
+			const rendering = await router.route('render', clientNavigationEvent, $context.response, async function(data) {
 				// --------
 				// OOHTML would waiting for DOM-ready in order to be initialized
 				await new Promise(res => window.WebQit.DOM.ready(res));
@@ -113,7 +113,7 @@ export default function(layout, params) {
 						res(window);
 					}
 				});
-			}, []);
+			});
 
 			// --------
 			// Render...

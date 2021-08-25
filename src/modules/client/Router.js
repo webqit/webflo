@@ -36,14 +36,13 @@ export default class Router {
      * Performs dynamic routing.
      * 
      * @param array|string      target
-     * @param array             argsA
+     * @param Object            event
      * @param any               input
      * @param function          _default
-     * @param array             argsB
      * 
      * @return object
      */
-     async route(target, argsA, input, _default, argsB = []) {
+     async route(target, event, input, _default) {
 
         target = _arrFrom(target);
         var routeTree = this.layout;
@@ -52,7 +51,7 @@ export default class Router {
         // ----------------
         // The loop
         // ----------------
-        const next = async function(index, input, path) {
+        const next = async function(_event, index, input, path) {
 
             var exports;
             if (index === 0) {
@@ -70,22 +69,25 @@ export default class Router {
                     // Dynamic response
                     // -------------
                     const _next = (..._args) => {
-                        var _index;
+                        var _index, __event;
                         if (_args.length > 1) {
                             if (!_isString(_args[1])) {
                                 throw new Error('Router redirect must be a string!');
                             }
-                            var newPath = Path.join(path.slice(0, index).join('/'), _args[1]);
-                            if (newPath.startsWith('../')) {
-                                throw new Error('Router redirect cannot traverse beyond the routing directory! (' + _args[1] + ' >> ' + newPath + ')');
+                            var _newPath = _args[1].startsWith('/') ? _args[1] : Path.join(path.slice(0, index).join('/'), _args[1]);
+                            if (_newPath.startsWith('../')) {
+                                throw new Error('Router redirect cannot traverse beyond the routing directory! (' + _args[1] + ' >> ' + _newPath + ')');
                             }
+                            var [ newPath, newQuery ] = _newPath.split('?');
+                            __event = _event.withRedirect('/' + _newPath);
                             _args[1] = newPath.split('/').map(a => a.trim()).filter(a => a);
                             _index = path.slice(0, index).reduce((build, seg, i) => build.length === i && seg === _args[1][i] ? build.concat(seg) : build, []).length;
                         } else {
+                            __event = _event;
                             _args[1] = path;
                             _index = index;
                         }
-                        return next(_index + 1, ..._args);
+                        return next(__event, _index + 1, ..._args);
                     };
                     _next.pathname = path.slice(index).join('/');
                     _next.stepname = _next.pathname.split('/').shift();
@@ -96,9 +98,9 @@ export default class Router {
                     };
                     _this.stepname = _this.pathname.split('/').pop();
                     // -------------
-                    return await func.bind(_this)(...argsA.concat([input, _next/*next*/].concat(argsB)));
+                    return await func.bind(_this)(_event, input, _next/*next*/);
                 } else {
-                    return next(index + 1, input, path);
+                    return next(_event, index + 1, input, path);
                 }
             }
 
@@ -116,6 +118,6 @@ export default class Router {
             return;
         };
         
-        return next(0, input, this.path);
+        return next(event, 0, input, this.path);
     } 
 };

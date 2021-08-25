@@ -11,6 +11,7 @@ import _after from '@webqit/util/str/after.js';
 import _before from '@webqit/util/str/before.js';
 import _any from '@webqit/util/arr/any.js';
 import StdRequest from './StdRequest.js';
+import ClientNavigationEvent from './ClientNavigationEvent.js';
 
 
 /**
@@ -106,8 +107,9 @@ export default function(layout, params) {
 		};
 		// The app router
 		const router = new Router(_before(evt.request.url, '?'), layout, $context);
+		const clientNavigationEvent = new ClientNavigationEvent(evt.request, evt.request.url);
 		const httpMethodName = evt.request.method.toLowerCase();
-		return await router.route([httpMethodName === 'delete' ? 'del' : httpMethodName, 'default'], [evt], null, async function() {
+		return await router.route([httpMethodName === 'delete' ? 'del' : httpMethodName, 'default'], clientNavigationEvent, null, async function() {
 			if (_any((params.cache_only_url_list || []).map(c => c.trim()).filter(c => c), pattern => Minimatch.Minimatch(evt.request.url, pattern))) {
 				return cache_fetch(evt);
 			}
@@ -168,7 +170,7 @@ export default function(layout, params) {
 	const refreshCache = (request, response) => {
 
 		// Check if we received a valid response
-		if (!response || response.status !== 200 || (response.type !== 'basic' && response.type !== 'cors')) {
+		if (request.method !== 'GET' || !response || response.status !== 200 || (response.type !== 'basic' && response.type !== 'cors')) {
 			return response;
 		}
 
@@ -195,7 +197,7 @@ export default function(layout, params) {
 		};
 		const router = new Router('/', layout, $context);
 		evt.waitUntil(
-			router.route('postmessage', [evt], null, function() {
+			router.route('postmessage', evt, null, function() {
 				return self;
 			})
 		);
@@ -207,7 +209,7 @@ export default function(layout, params) {
 		};
 		const router = new Router('/', layout, $context);
 		evt.waitUntil(
-			router.route('push', [evt], null, function() {
+			router.route('push', evt, null, function() {
 				return self;
 			})
 		);
@@ -219,7 +221,7 @@ export default function(layout, params) {
 		};
 		const router = new Router('/', layout, $context);
 		evt.waitUntil(
-			router.route('notificationclick', [evt], null, function() {
+			router.route('notificationclick', evt, null, function() {
 				return self;
 			})
 		);
@@ -231,7 +233,7 @@ export default function(layout, params) {
 		};
 		const router = new Router('/', layout, $context);
 		evt.waitUntil(
-			router.route('notificationclose', [evt], null, function() {
+			router.route('notificationclose', evt, null, function() {
 				return self;
 			})
 		);

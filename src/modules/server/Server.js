@@ -189,7 +189,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
     // Request parsing
     // --------
 
-    const serverNavigationEvent = new ServerNavigationEvent(request, protocol);
+    const serverNavigationEvent = new ServerNavigationEvent(request, protocol + '://' + request.headers.host + request.url);
     const $context = {
         rdr: null,
         layout: hostSetup.layout,
@@ -259,9 +259,9 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
 
             if (cmd.origins) {
                 await cmd.origins.hook(Ui, serverNavigationEvent, async (payload, defaultPeployFn) => {
-                    var exitCode = await router.route('deploy', [serverNavigationEvent], payload, function(_payload) {
+                    var exitCode = await router.route('deploy', serverNavigationEvent, payload, function(_payload) {
                         return defaultPeployFn(_payload);
-                    }, [response]);
+                    });
                     // -----------
                     response.statusCode = 200;
                     response.end(exitCode);
@@ -275,7 +275,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
             // --------
 
             const httpMethodName = serverNavigationEvent.request.method.toLowerCase();
-            $context.response = await router.route([httpMethodName === 'delete' ? 'del' : httpMethodName, 'default'], [serverNavigationEvent], null, async function() {
+            $context.response = await router.route([httpMethodName === 'delete' ? 'del' : httpMethodName, 'default'], serverNavigationEvent, null, async function() {
                 var file = await router.fetch(serverNavigationEvent);
                 // JSON request should ignore static files
                 if (file && !serverNavigationEvent.request.accepts.type(file.contentType)) {
@@ -292,7 +292,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                     }
                 }
                 return file;
-            }, [response]);
+            });
             if (!($context.response instanceof serverNavigationEvent.Response)) {
                 $context.response = new serverNavigationEvent.Response({ body: $context.response });
             }
@@ -309,7 +309,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                     // --------
                     // Render
                     // --------
-                    const rendering = await router.route('render', [serverNavigationEvent], $context.response.body, async function(data) {
+                    const rendering = await router.route('render', serverNavigationEvent, $context.response.body, async function(data) {
                         // --------
                         if (!hostSetup.layout.renderFileCache) {
                             hostSetup.layout.renderFileCache = {};
@@ -343,7 +343,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                                 res(window);
                             }
                         });
-                    }, [response]);
+                    });
                     // --------
                     // Serialize rendering?
                     // --------
