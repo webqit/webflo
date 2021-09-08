@@ -79,7 +79,7 @@ export default class Router {
                                 throw new Error('Router redirect cannot traverse beyond the routing directory! (' + _args[1] + ' >> ' + _newPath + ')');
                             }
                             var [ newPath, newQuery ] = _newPath.split('?');
-                            __event = _event.withRedirect('/' + _newPath);
+                            __event = _event.withUrl('/' + _newPath);
                             _args[1] = newPath.split('/').map(a => a.trim()).filter(a => a);
                             _index = path.slice(0, index).reduce((build, seg, i) => build.length === i && seg === _args[1][i] ? build.concat(seg) : build, []).length;
                         } else {

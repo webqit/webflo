@@ -32,14 +32,14 @@ export default class StdIncomingMessage extends Http.IncomingMessage {
     // Payload
     parse(force = false) {
         if (!this._submits || force) {
-            this._submits = new Promise(async resolve => {
+            this._submits = new Promise(async (resolve, reject) => {
                 var request = this;
-                var contentType = request.headers['content-type'];
+                var contentType = request.headers['content-type'] || '';
                 var submits = {
                     payload: null,
                     inputs: {},
                     files: {},
-                    type: contentType === 'application/x-www-form-urlencoded' || contentType.startsWith('multipart/') ? 'form-data' 
+                    type: contentType === 'application/x-www-form-urlencoded' || contentType.startsWith('multipart/') || (!contentType && !['get'].includes(request.method.toLowerCase())) ? 'form-data' 
                         : (contentType === 'application/json' ? 'json'
                             : (contentType === 'text/plain' ? 'plain' 
                                 : 'other')),

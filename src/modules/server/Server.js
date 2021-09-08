@@ -7,6 +7,7 @@ import Path from 'path';
 import Http from 'http';
 import Https from 'https';
 import QueryString from 'querystring';
+import Sessions from 'client-sessions';
 import _each from '@webqit/util/obj/each.js';
 import _arrFrom from '@webqit/util/arr/from.js';
 import _promise from '@webqit/util/js/promise.js';
@@ -15,7 +16,7 @@ import _isArray from '@webqit/util/js/isArray.js';
 import _isTypeObject from '@webqit/util/js/isTypeObject.js';
 import * as config from '../../config/index.js';
 import * as cmd from '../../cmd/index.js';
-import ServerNavigationEvent from './ServerNavigationEvent.js';
+import NavigationEvent from '../NavigationEvent.js';
 import StdIncomingMessage from './StdIncomingMessage.js';
 import Router from './Router.js';
 
@@ -36,11 +37,21 @@ export default async function(Ui, flags = {}) {
         variables: await config.variables.read(flags, layout),
     };
 
-    if (setup.variables.autoload !== false && !setup.server.shared) {
+    if (!setup.server.shared && setup.variables.autoload !== false) {
         Object.keys(setup.variables.entries).forEach(key => {
             process.env[key] = setup.variables.entries[key];
         });
     }
+
+    const getSessionInitializer = (sesskey, hostname = null) => {
+        const secret = sesskey || (hostname ? hostname + '-rand' : '-rand');
+        return Sessions({
+            cookieName: '_session',             // cookie name dictates the key name added to the request object
+            secret,                             // should be a large unguessable string
+            duration: 24 * 60 * 60 * 1000,      // how long the session will stay valid in ms
+            activeDuration: 1000 * 60 * 5       // if expiresIn < activeDuration, the session will be extended by activeDuration milliseconds
+        });
+    };
 
     const instanceSetup = setup;
     
@@ -54,9 +65,12 @@ export default async function(Ui, flags = {}) {
                 variables: await config.variables.read(flags, vlayout),
                 vh,
             };
+            v_setup[vh.host].sessionInit = getSessionInitializer(v_setup[vh.host].variables.entries.sesskey, vh.host),
             resolve();
         })));
-    }
+    } else {
+        setup.sessionInit = getSessionInitializer(setup.variables.entries.sesskey);
+    }    
 
     // ---------------------------------------------
     
@@ -84,6 +98,7 @@ export default async function(Ui, flags = {}) {
             response.setHeader('Location', protocol + '://www.' + hostname + request.url);
             response.end();
         } else {
+            setup.sessionInit(request, response, () => {});
             run(instanceSetup, setup, request, response, Ui, flags, protocol);
         }
     };
@@ -189,7 +204,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
     // Request parsing
     // --------
 
-    const serverNavigationEvent = new ServerNavigationEvent(request, protocol + '://' + request.headers.host + request.url);
+    const serverNavigationEvent = new NavigationEvent(request, protocol + '://' + request.headers.host + request.url, request._session);
     const $context = {
         rdr: null,
         layout: hostSetup.layout,

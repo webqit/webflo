@@ -2,12 +2,15 @@
 /**
  * @imports
  */
+import { OOHTML, Observer } from '@webqit/pseudo-browser/index2.js';
 import _isObject from '@webqit/util/js/isObject.js';
 import _before from '@webqit/util/str/before.js';
+import _unique from '@webqit/util/arr/unique.js';
 import _fetch from '@webqit/browser-pie/src/apis/fetch.js';
-import { OOHTML, Observer } from '@webqit/pseudo-browser/index2.js';
-import ClientNavigationEvent from './ClientNavigationEvent.js';
+import NavigationEvent from '../NavigationEvent.js';
+import WorkerClient from './WorkerClient.js';
 import Router from './Router.js';
+import Storage from './Storage.js';
 import Http from './Http.js';
 
 /**
@@ -26,6 +29,17 @@ OOHTML.call(window);
 
 export default function(layout, params) {
 
+	const session = Storage();
+	const store = Storage(true);
+	const workerClient = new WorkerClient('/worker.js', { onWondowLoad: true, });
+	workerClient.sharedStore(session, false, 2);
+	Observer.observe(workerClient, changes => {
+		console.log('SERVICE_WORKER', ...changes);
+	});
+	Observer.observe(session, changes => {
+		console.log('SESSION', ...changes);
+	});
+
 	// Copy..
 	layout = {...layout};
 	params = {...params};
@@ -38,6 +52,7 @@ export default function(layout, params) {
 	 * Apply routing
 	 * ----------------
 	 */	
+
 	Http.createClient(async function(request, event = null) {
 
 		const httpInstance = this;
@@ -54,7 +69,7 @@ export default function(layout, params) {
 		}
 		
 		// The app router
-		const clientNavigationEvent = new ClientNavigationEvent(request, request.url);
+		const clientNavigationEvent = new NavigationEvent(request, request.url, session);
 		const requestPath = clientNavigationEvent.url.pathname;
 		const router = new Router(requestPath, layout, $context);
 		if (networkProgressOngoing) {
@@ -71,14 +86,19 @@ export default function(layout, params) {
 			$context.response = await router.route([httpMethodName === 'delete' ? 'del' : httpMethodName, 'default'], clientNavigationEvent, null, async function() {
 				// -----------------
 				var networkProgress = networkProgressOngoing = new RequestHandle();
-				networkProgress.setActive(true);
+				networkProgress.setActive(true, clientNavigationEvent.request.method);
 				// -----------------
 				const headers = clientNavigationEvent.request.headers;
 				if (!headers.get('Accept')) {
 					headers.set('Accept', 'application/json');
+				}
+				if (!headers.get('Cache-Control')) {
 					headers.set('Cache-Control', 'no-store');
 				}
+				// -----------------
+				// Sync session data to cache to be available to service-worker routers
 				const response = _fetch(clientNavigationEvent.request, {}, networkProgress.updateProgress.bind(networkProgress));
+				// -----------------
 				// -----------------
 				response.catch(e => networkProgress.throw(e.message));
 				return response.then(response => {
@@ -103,9 +123,10 @@ export default function(layout, params) {
 						onHydration: $context.onHydration,
 						network: networkWatch,
 						url: httpInstance.location,
+						session,
 					}, { update: true });
 				}
-				window.document.setState({page: data}, { update: 'merge' });
+				window.document.setState({ page: data }, { update: 'merge' });
 				window.document.body.setAttribute('template', 'page/' + requestPath.split('/').filter(a => a).map(a => a + '+-').join('/'));
 				return new Promise(res => {
 					window.document.addEventListener('templatesreadystatechange', () => res(window));
@@ -153,12 +174,13 @@ export default function(layout, params) {
 
 const networkWatch = {progress: {}, online: navigator.onLine};
 class RequestHandle {
-	setActive(state) {
+	setActive(state, method = '') {
 		if (this.active === false) {
 			return;
 		}
 		this.active = state;
 		Observer.set(networkWatch, {
+			method,
 			error: '',
 			progress: {
 				active: state, 

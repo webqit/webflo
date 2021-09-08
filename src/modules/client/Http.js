@@ -107,7 +107,7 @@ export default class Http {
 		window.addEventListener('submit', e => {
 			var actionEl = window.document.createElement('a'),
 				form = e.target.closest('form'),
-				submits = _arrFrom(form.elements).filter(el => el.matches('button,input[type="submit"],input[type="image"]'));
+				submits = [e.submitter]; //_arrFrom(form.elements).filter(el => el.matches('button,input[type="submit"],input[type="image"]'));
 			var submitParams = ['action', 'enctype', 'method', 'noValidate', 'target'].reduce((params, prop) => {
 				params[prop] = submits.reduce((val, el) => val || (el.hasAttribute(`form${prop.toLowerCase()}`) ? el[`form${_toTitle(prop)}`] : null), null) || form[prop];
 				return params;
@@ -116,6 +116,9 @@ export default class Http {
 			// Same origin... but...
 			&& (!actionEl.origin || actionEl.origin === instance.location.origin)) {
 				var formData = new FormData(form);
+				if (e.submitter.name) {
+					formData.set(e.submitter.name, e.submitter.value);
+				}
 				if (submitParams.method === 'get') {
 					var query = wwwFormUnserialize(actionEl.search);
 					Array.from(formData.entries()).forEach(_entry => {
@@ -129,7 +132,7 @@ export default class Http {
 				}
 				// Publish everything, including hash
 				Observer.set(instance.location, Url.copy(actionEl), {
-					detail: {type: 'form', src: form, submitParams, data: formData},
+					detail: { type: 'form', src: form, submitParams, data: formData },
 				});
 				// URLs with # will cause a natural navigation
 				// even if pointing to a different page, a natural navigation will still happen
@@ -173,12 +176,9 @@ export default class Http {
 			var options = {
 				method: (detail.submitParams || detail.src || {}).method || 'get',
 				body: detail.data,
-				headers: { 'X-Powered-By': '@webqit/webflo', },
+				headers: { ...(detail.headers || {}), 'X-Powered-By': '@webqit/webflo', },
 				referrer,
 			};
-			if (detail.accept) {
-				options.headers.accept = detail.accept;
-			}
 			return new StdRequest(url, options);
 		};
 		// ----------------------------------

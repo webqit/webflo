@@ -15,16 +15,18 @@ export default class NavigationEvent {
      * 
      * @param Request       request 
      * @param String|XURL   url 
+     * @param Object        sessionStore 
      */
-    constructor(request, url) {
-        this._request = request;
-        if (url instanceof XURL) {
-            this._url = url;
+    constructor(_request, _url, _session = null) {
+        this._request = _request;
+        if (_url instanceof XURL) {
+            this._url = _url;
         } else {
-            this._url = new XURL(url);
+            this._url = new XURL(_url);
         }
+        this._session = _session;
         this.Response = Response;
-        this.Response._request = request; 
+        this.Response._request = _request; 
     }
 
     // request
@@ -37,10 +39,15 @@ export default class NavigationEvent {
         return this._url;
     }
 
+    // session
+    get session() {
+        return this._session;
+    }
+
     // RDR
-    withRedirect(newUri) {
+    withUrl(newUri) {
         return new this.constructor(this._request, new XURL(
             this._url.origin + newUri
-        ));
+        ), this._session);
     }
 }

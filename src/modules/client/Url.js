@@ -159,7 +159,7 @@ export default class Url {
 	 * @return object
 	 */
 	static parseUrl(href) {
-		var a = window.document.createElement('a');
+		var a = document.createElement('a');
 		a.href = href;
 		return this.copy(a);
 	}

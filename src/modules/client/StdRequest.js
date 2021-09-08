@@ -39,25 +39,27 @@ export default class StdRequest extends Request {
         if (!this._submits || force) {
             this._submits = new Promise(async resolve => {
                 var request = this.clone();
-                var contentType = request.headers['content-type'];
+                var contentType = request.headers['content-type'] || '';
                 var submits = {
                     payload: null,
                     inputs: {},
                     files: {},
-                    type: contentType === 'application/x-www-form-urlencoded' || contentType.startsWith('multipart/') ? 'form-data' 
+                    type: contentType === 'application/x-www-form-urlencoded' || contentType.startsWith('multipart/') || (!contentType && !['get'].includes(request.method.toLowerCase())) ? 'form-data' 
                         : (contentType === 'application/json' ? 'json'
                             : (contentType === 'text/plain' ? 'plain' 
                                 : 'other')),
                 };
                 if (submits.type === 'form-data') {
-                    submits.payload = await request.formData();
-                    for(var [ name, value ] of submits.payload.entries()) {
-                        if (value instanceof File) {
-                            wwwFormSet(submits.files, name, value);
-                        } else {
-                            wwwFormSet(submits.inputs, name, value);
+                    try {
+                        submits.payload = await request.formData();
+                        for(var [ name, value ] of submits.payload.entries()) {
+                            if (value instanceof File) {
+                                wwwFormSet(submits.files, name, value);
+                            } else {
+                                wwwFormSet(submits.inputs, name, value);
+                            }
                         }
-                    }
+                    } catch(e) { }
                 } else {
                     submits.payload = await (submits.type === 'json' 
                         ? request.json() : (

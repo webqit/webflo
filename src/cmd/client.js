@@ -6,8 +6,8 @@ import Fs from 'fs';
 import Url from 'url';
 import Path from 'path';
 import Webpack from 'webpack';
-import _isEmpty from '@webqit/util/js/isEmpty.js';
-import _beforeLast from '@webqit/util/str/beforeLast.js';
+import { _beforeLast } from '@webqit/util/str/index.js';
+import { _isObject, _isArray, _isEmpty } from '@webqit/util/js/index.js';
 import * as DotJs from '@webqit/backpack/src/dotfiles/DotJs.js';
 import * as client from '../config/client.js'
 
@@ -23,147 +23,94 @@ export const desc = {
  * @build
  */
 export async function build(Ui, flags = {}, layout = {}) {
+
     const config = await client.read(flags, layout);
     // Consistent forward slashing
     const forwardSlash = str => str.replace(/\\/g, '/');
-    var clientModulesDir = forwardSlash(Url.fileURLToPath(Path.join(import.meta.url, '../../modules/client')));
+    var modulesDir = forwardSlash(Url.fileURLToPath(Path.join(import.meta.url, '../../modules/client')));
+    
+    var workerDirSplit = Path.resolve(layout.WORKER_DIR).replace(/\\/g, '/').split('/');
+    var workerParams = config.worker || {};
+    const workerBundlingConfig = workerParams.bundling || {};
+
     var clientDirSplit = Path.resolve(layout.CLIENT_DIR).replace(/\\/g, '/').split('/');
     var clientParams = config; // Yes root config object
-    var workerParams = config.worker || {};
-    var createWorker = !_isEmpty(workerParams);
+    const clientBundlingConfig = clientParams.bundling || {};
+
     var waiting;
 
     // -------------------
     // Create the Service Worker file
     // -------------------
 
-    if (createWorker) {
-
-        var workerBundlingConfig = workerParams.bundling || {};
-        if (!workerBundlingConfig.intermediate) {
-            workerBundlingConfig.intermediate = clientDirSplit.join('/') + '/worker.js';
-        }
-        if (!workerBundlingConfig.output) {
-            workerBundlingConfig.output = {
-                filename: 'worker.js',
-                path: Path.resolve(layout.PUBLIC_DIR),
-            };
-        }
-
-        var workerBuild = {
-            imports: {},
-            code: [],
-        };
-
-        // >> Import the Webflo Client file
-        var navigatorWorker = clientModulesDir + '/Worker.js';
-        workerBuild.imports[navigatorWorker] = 'Worker';
+    if (!_isEmpty(workerParams)) {
 
         Ui.log('');
         Ui.title(`SERVICE WORKER BUILD`);
-        // >> Routes mapping
-        buildRoutes(Ui, Path.resolve(layout.WORKER_DIR), workerBuild, 'Worker-Side Routing:');
 
-        // >> Params
+        const workerBuild = { imports: {}, code: [], };
+        workerBuild.imports[modulesDir + '/Worker.js'] = 'Worker';
+       
+        // ------------------
+        // >> Routes mapping
+        buildRoutes(workerBuild, Ui, Path.resolve(layout.WORKER_DIR), 'Worker-Side Routing:');
         workerBuild.code.push(``);
         workerBuild.code.push(`// >> Worker Params`);
-        workerBuild.code.push(`const params = {`);
-        Object.keys(workerParams).forEach(name => {
-            if (name !== 'bundling') {
-                workerBuild.code.push(`   ${name}: ${[ 'boolean', 'number' ].includes(typeof workerParams[name]) ? workerParams[name] : (Array.isArray(workerParams[name]) ? (!workerParams[name].length ? `[]` : `['${workerParams[name].join(`', '`)}']`) : `'${workerParams[name]}'`)},`);
-            }
-        });
-        workerBuild.code.push(`};`);
-
-        // >> instantiation
+        buildParams(workerBuild, workerParams, 'params');
         workerBuild.code.push(``);
         workerBuild.code.push(`// >> Worker Instantiation`);
         workerBuild.code.push(`Worker.call(null, layout, params);`);
+        // ------------------
         
+        // ------------------
         // >> Write to file...
+        workerBundlingConfig.intermediate = workerBundlingConfig.intermediate || `${clientDirSplit.join('/')}/worker.js`;
+        workerBundlingConfig.output = workerBundlingConfig.output || {
+            filename: 'worker.js',
+            path: Path.resolve(layout.PUBLIC_DIR),
+        };
         waiting = Ui.waiting(Ui.f`Writing the Service Worker file: ${workerBundlingConfig.intermediate}`);
         waiting.start();
-
-        // Write
         DotJs.write(workerBuild, workerBundlingConfig.intermediate, 'Service Worker File');
-        
         waiting.stop();
         Ui.info(Ui.f`Service Worker file: ${workerBundlingConfig.intermediate}`);
-
+        // ------------------
     }
 
     // -------------------
     // Create the Client file
     // -------------------
 
-    var clientBundlingConfig = clientParams.bundling || {};
-    if (!clientBundlingConfig.intermediate) {
-        clientBundlingConfig.intermediate = clientDirSplit.join('/') + '/bundle.js';
-    }
-    if (!clientBundlingConfig.output) {
-        clientBundlingConfig.output = {
-            filename: 'bundle.js',
-            path: Path.resolve(layout.PUBLIC_DIR),
-        };
-    }
-
-    var clientBuild = {
-        imports: {},
-        code: [],
-    };
-
-    // >> Import the Webflo Client file
-    clientBuild.imports[clientModulesDir + '/Client.js'] = 'Client';
-
     Ui.log('');
     Ui.title(`CLIENT BUILD`);
-    // >> Routes mapping
-    buildRoutes(Ui, Path.resolve(layout.CLIENT_DIR), clientBuild, 'Client-Side Routing:');
 
-    // >> Client Params
+    const clientBuild = { imports: {}, code: [], };
+    clientBuild.imports[modulesDir + '/Client.js'] = 'Client';
+
+    // ------------------
+    // >> Routes mapping
+    buildRoutes(clientBuild, Ui, Path.resolve(layout.CLIENT_DIR), 'Client-Side Routing:');
     clientBuild.code.push(``);
     clientBuild.code.push(`// >> Client Params`);
-    clientBuild.code.push(`const params = {`);
-    clientBuild.code.push(`};`);
-
-    // >> Client Instantiation
+    buildParams(clientBuild, clientParams, 'params');
     clientBuild.code.push(``);
     clientBuild.code.push(`// >> Client Instantiation`);
     clientBuild.code.push(`Client.call(null, layout, params);`);
-
-    // Service Worker registration code?
-    if (createWorker) {
-        if (workerParams.support_push) {
-            clientBuild.imports[clientModulesDir + '/Push.js'] = 'Push';
-        }
-        clientBuild.code.push(...[
-            ``,
-            `// >> Service Worker Registration`,
-            `if ('serviceWorker' in navigator) {`,
-            `    window.addEventListener('load', () => {`,
-            `        navigator.serviceWorker.register('/${workerBundlingConfig.output.filename}', {scope: '${workerParams.scope}'}).then(async registration => {`,
-            `            console.log('Service worker registered.');`,
-            `            await /*SUPPORT_PUSH*/${workerParams.support_push} ? new Push(registration, {`,
-            `                registration_url: '${workerParams.push_registration_url}',`,
-            `                deregistration_url: '${workerParams.push_deregistration_url}',`,
-            `                public_key: '${workerParams.push_public_key}',`,
-            `            }) : null;`,
-            `        });`,
-            `    });`,
-            `}`,
-            ``,
-        ]);
-    }
+    // ------------------
     
+    // ------------------
     // >> Write to file...
+    clientBundlingConfig.intermediate = clientBundlingConfig.intermediate || clientDirSplit.join('/') + '/bundle.js';
+    clientBundlingConfig.output = clientBundlingConfig.output || {
+        filename: 'bundle.js',
+        path: Path.resolve(layout.PUBLIC_DIR),
+    };
     waiting = Ui.waiting(`Writing the client entry file: ${clientBundlingConfig.intermediate}`);
     waiting.start();
-
-    // Write
     DotJs.write(clientBuild, clientBundlingConfig.intermediate, 'Client Build File');
-        
     waiting.stop();
     Ui.info(Ui.f`Client Build file: ${clientBundlingConfig.intermediate}`);
+    // ------------------
 
     // -------------------
     // Run webpack
@@ -230,7 +177,7 @@ const createBundle = (Ui, config, desc) => {
  * 
  * @return void
  */
-const buildRoutes = (Ui, entry, build, desc) => {
+const buildRoutes = (build, Ui, entry, desc) => {
     // -------------------
     // Helper functions
     // -------------------
@@ -256,13 +203,16 @@ const buildRoutes = (Ui, entry, build, desc) => {
 
     var indexCount = 0;
     if (entry && Fs.existsSync(entry)) {
+        var clientDirname = entry.replace(/\\/g, '/').split('/').pop();
         walk(entry, (file, ext) => {
             //relativePath = relativePath.replace(/\\/g, '/');
             if (file.replace(/\\/g, '/').endsWith('/index.js')) {
                 var relativePath = Path.relative(entry, file).replace(/\\/g, '/');
                 // Import code
                 var routeName = 'index' + (++ indexCount);
-                build.imports['./' + relativePath] = '* as ' + routeName;
+                // IMPORTANT: we;re taking a step back here so that the parent-child relationship for 
+                // the directories be involved
+                build.imports[`../${clientDirname}/${relativePath}`] = '* as ' + routeName;
                 // Definition code
                 var routePath = _beforeLast('/' + relativePath, '/index.js');
                 build.code.push(`layout['${routePath || '/'}'] = ${routeName};`);
@@ -275,3 +225,24 @@ const buildRoutes = (Ui, entry, build, desc) => {
         Ui.log(`> (none)`);
     }
 };
+
+const buildParams = (build, params, varName = null, indentation = 0) => {
+    if (varName) build.code.push(`const ${varName} = {`);
+    Object.keys(params).forEach(name => {
+        var _name = `    ${'    '.repeat(indentation)}${(_isArray(params) ? '' : (name.includes(' ') ? `'${name}'` : name) + ': ')}`;
+        if ([ 'boolean', 'number' ].includes(typeof params[name])) {
+            build.code.push(`${_name}${params[name]},`);
+        } else if (_isArray(params[name])) {
+            build.code.push(`${_name}[`);
+            buildParams(build, params[name], null, indentation + 1);
+            build.code.push(`    ${'    '.repeat(indentation)}],`);
+        } else if (_isObject(params[name])) {
+            build.code.push(`${_name}{`);
+            buildParams(build, params[name], null, indentation + 1);
+            build.code.push(`    ${'    '.repeat(indentation)}},`);
+        } else {
+            build.code.push(`${_name}'${params[name]}',`);
+        }
+    });
+    if (varName) build.code.push(`};`);
+}
