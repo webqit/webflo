@@ -42,13 +42,13 @@ export default function(persistent = false) {
             };
             return keys;
         }
-        if (event.type === 'getOwnPropertyDescriptor') {
-            return { enumerable: true, configurable: true };
-        }
         return next();
     });
 
-    return Observer.proxy(_storage);
+    console.log('------------------', Observer.proxy.toString());
+    return Observer.proxy(_storage, {
+        getOwnPropertyDescriptor: (t, prop) => (console.log('getOwnPropertyDescriptor', prop), { enumerable: true, configurable: true }),
+    });
 }
 
 export {

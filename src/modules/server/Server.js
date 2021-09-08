@@ -14,6 +14,7 @@ import _promise from '@webqit/util/js/promise.js';
 import _isObject from '@webqit/util/js/isObject.js';
 import _isArray from '@webqit/util/js/isArray.js';
 import _isTypeObject from '@webqit/util/js/isTypeObject.js';
+import { v4 as uuidv4, v5 as uuidv5 } from 'uuid';
 import * as config from '../../config/index.js';
 import * as cmd from '../../cmd/index.js';
 import NavigationEvent from '../NavigationEvent.js';
@@ -44,7 +45,7 @@ export default async function(Ui, flags = {}) {
     }
 
     const getSessionInitializer = (sesskey, hostname = null) => {
-        const secret = sesskey || (hostname ? hostname + '-rand' : '-rand');
+        const secret = sesskey || (hostname ? uuidv5(hostname, uuidv4()) : uuidv4());
         return Sessions({
             cookieName: '_session',             // cookie name dictates the key name added to the request object
             secret,                             // should be a large unguessable string
