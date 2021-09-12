@@ -9,8 +9,8 @@ import _unique from '@webqit/util/arr/unique.js';
 import _fetch from '@webqit/browser-pie/src/apis/fetch.js';
 import NavigationEvent from '../NavigationEvent.js';
 import WorkerClient from './WorkerClient.js';
-import Router from './Router.js';
 import Storage from './Storage.js';
+import Router from './Router.js';
 import Http from './Http.js';
 
 /**
@@ -30,14 +30,9 @@ OOHTML.call(window);
 export default function(layout, params) {
 
 	const session = Storage();
-	const store = Storage(true);
-	const workerClient = new WorkerClient('/worker.js', { onWondowLoad: true, });
-	workerClient.sharedStore(session, false, 2);
+	const workerClient = new WorkerClient('/worker.js', { startMessages: true });
 	Observer.observe(workerClient, changes => {
-		console.log('SERVICE_WORKER', ...changes);
-	});
-	Observer.observe(session, changes => {
-		console.log('SESSION', ...changes);
+		console.log('SERVICE_WORKER_STATE', changes[0].name, changes[0].value);
 	});
 
 	// Copy..
@@ -139,12 +134,6 @@ export default function(layout, params) {
 			// --------
 			// Render...
 			// --------
-
-			if (_isObject(rendering) && rendering.document) {
-				//$context.response = window.print();
-			} else {
-				//$context.response = rendering;
-			}
 
 			if (event && _isObject(event.detail) && (event.detail.src instanceof Element) && /* do only on url path change */ _before(event.value, '?') !== _before(event.oldValue, '?')) {
 				setTimeout(() => {

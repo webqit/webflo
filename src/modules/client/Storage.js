@@ -45,9 +45,8 @@ export default function(persistent = false) {
         return next();
     });
 
-    console.log('------------------', Observer.proxy.toString());
     return Observer.proxy(_storage, {
-        getOwnPropertyDescriptor: (t, prop) => (console.log('getOwnPropertyDescriptor', prop), { enumerable: true, configurable: true }),
+        getOwnPropertyDescriptor: (t, prop) => ({ enumerable: true, configurable: true }),
     });
 }
 

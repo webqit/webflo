@@ -212,47 +212,6 @@ export default function(layout, params) {
 	// -----------------------------
 	
 	self.addEventListener('message', evt => {
-		
-		// SESSION_SYNC
-		var clientId = evt.source.id;
-		if (evt.data && evt.data._type === 'WHOLE_STORAGE_SYNC') {
-			const storage = evt.data._persistent ? localStores : sessionStores;
-			if (evt.data.store) {
-				storage[clientId] = evt.data.store;
-				// --------------------------
-            	// Get mutations synced TO client
-				Observer.observe(storage[clientId], changes => {
-					changes.forEach(change => {
-						if (!(change.detail || {}).noSync) {
-							self.clients.get(clientId).then(client => {
-								client.postMessage({ _type: 'STORAGE_SYNC', _persistent: evt.data._persistent, ..._copy(change, [ 'type', 'name', 'path', 'value', 'oldValue', 'isUpdate', 'related', ]), });
-							});
-						}
-					});
-				});
-				// --------------------------
-			} else {
-				delete storage[clientId];
-			}
-		} else if (evt.data && evt.data._type === 'STORAGE_SYNC') {
-			// --------------------------
-            // Get mutations synced FROM client
-			const storage = evt.data._persistent ? localStores : sessionStores;
-			if (evt.data.type === 'set') {
-				if (storage[clientId]) Observer.set(storage[clientId], evt.data.name, evt.data.value, { detail: { noSync: true } });
-			} else if (evt.data.type === 'deletion') {
-				if (storage[clientId]) Observer.deleteProperty(storage[clientId], evt.data.name, { detail: { noSync: true } });
-			}
-			// --------------------------
-
-			// --------------------------
-			// Relay to other clients
-			if (evt.data._persistent) {
-				relay(evt, evt.data);
-			}
-			// --------------------------
-			return;
-		}
 
 		// Handle normally
 		const router = new Router('/', layout, { layout });

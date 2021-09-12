@@ -5,7 +5,6 @@
  */
 import { Observer } from '@webqit/pseudo-browser/index2.js';
 import { _isFunction } from '@webqit/util/js/index.js';
-import { _copy } from '@webqit/util/obj/index.js';
 
 export default class WorkerClient {
 
@@ -26,7 +25,8 @@ export default class WorkerClient {
                         Observer.set(this, equivState, target);
                     }
 
-                    // We're always installing at first
+                    // We're always installing at first for a new service worker.
+                    // An existing service would immediately be active
                     const worker = registration.active || registration.waiting || registration.installing;
                     state(worker);
                     worker.addEventListener('statechange', e => state(e.target));
@@ -47,6 +47,9 @@ export default class WorkerClient {
                 window.addEventListener('load', register);
             } else {
                 register();
+            }
+            if (params.startMessages) {
+                navigator.serviceWorker.startMessages();
             }
         });
         // --------
@@ -71,9 +74,6 @@ export default class WorkerClient {
                 return this.post;
             },
             receive: (callback, onAvailability = 1) => {
-                if (!this.active) {
-                    navigator.serviceWorker.startMessages();
-                };
                 navigator.serviceWorker.addEventListener('message', callback);
                 return this.post;
             },
@@ -97,39 +97,6 @@ export default class WorkerClient {
                 return !subscription ? null : subscription.unsubscribe();
             },
         }
-    }
-
-    // Sync Local Storage
-    sharedStore(store, persistent = false, onAvailability = 1) {
-        const storeData = () => Observer.keys(store).reduce((_store, key) => (_store[key] = store[key], _store), {});
-        this.post.send(() => ({ _type: 'WHOLE_STORAGE_SYNC', _persistent: persistent, store: storeData() }), onAvailability);
-        window.addEventListener('beforeunload', e => {
-            this.post.send({ _type: 'WHOLE_STORAGE_SYNC', _persistent: persistent });
-        });
-        // --------
-        Observer.observe(store, changes => {
-            changes.forEach(change => {
-                if (change.type === 'set') {
-                    if (!(change.detail || {}).noSync) {
-                        this.post.send({ _type: 'STORAGE_SYNC', _persistent: persistent, ..._copy(change, [ 'type', 'name', 'path', 'value', 'oldValue', 'isUpdate', 'related', ]) });
-                    }
-                } else if (change.type === 'deletion') {
-                    if (!(change.detail || {}).noSync) {
-                        this.post.send({ _type: 'STORAGE_SYNC', _persistent: persistent, ..._copy(change, [ 'type', 'name', 'path', 'value', 'oldValue', 'isUpdate', 'related', ]) });
-                    }
-                }
-            });
-        });
-        // --------
-        this.post.receive(e => {
-            if (e.data && e.data._type === 'STORAGE_SYNC' && e.data._persistent === persistent) {
-                if (e.data.type === 'set') {
-                    Observer.set(store, e.data.name, e.data.value, { detail: { noSync: true } });
-                } else if (e.data.type === 'deletion') {
-                    Observer.deleteProperty(store, e.data.name, { detail: { noSync: true } });
-                }
-            }
-        }, onAvailability);
     }
 
 }

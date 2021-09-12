@@ -395,6 +395,8 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                 // -------------------
                 // Automatic response headers
                 // -------------------
+                response.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+                response.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
                 $context.headers.filter(header => header.type === 'response').forEach(header => {
                     const { name, value } = resolveSetHeader(header);
                     response.setHeader(name, value);
