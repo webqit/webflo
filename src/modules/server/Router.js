@@ -45,7 +45,7 @@ export default class Router {
         // ----------------
         // ROUTER
         // ----------------
-        const next = async function(_event, index, input, path) {
+        const next = async function(_event, index, input, path, target) {
     
             var exports, routeHandlerFile, wildcardRouteHandlerFile;
             if (index === 0) {
@@ -61,7 +61,7 @@ export default class Router {
             || (wildcardRouteHandlerFile && Fs.existsSync(routeHandlerFile = Path.join(layout.ROOT, layout.SERVER_DIR, wildcardRouteHandlerFile)))) {
                 exports = await import(Url.pathToFileURL(routeHandlerFile));
                 // ---------------
-                const func = target.reduce((func, name) => func || exports[name], null);
+                const func = _arrFrom(target).reduce((func, name) => func || exports[name], null);
                 if (func) {
                     // -------------
                     // Then we can call the handler
@@ -80,10 +80,14 @@ export default class Router {
                             __event = _event.withUrl('/' + _newPath);
                             _args[1] = newPath.split('/').map(a => a.trim()).filter(a => a);
                             _index = path.slice(0, index).reduce((build, seg, i) => build.length === i && seg === _args[1][i] ? build.concat(seg) : build, []).length;
+                            if (!_args[2]) {
+                                _args[2] = target;
+                            }
                         } else {
                             __event = _event;
-                            _args[1] = path;
                             _index = index;
+                            _args[1] = path;
+                            _args[2] = target;
                         }
                         return next(__event, _index + 1, ..._args);
                     };
@@ -99,7 +103,7 @@ export default class Router {
                     // -------------
                     return await func.bind(_this)(_event, input, _next/*next*/);
                 } else {
-                    return next(_event, index + 1, input, path);
+                    return next(_event, index + 1, input, path, target);
                 }
             }
     
@@ -108,7 +112,7 @@ export default class Router {
                 // Local file
                 // -------------
                 const defaultThis = {pathname: '/' + path.join('/'), ...context};
-                return await _default.call(defaultThis, input);
+                return await _default.call(defaultThis, input, path, target);
             }
     
             // -------------
@@ -117,7 +121,7 @@ export default class Router {
             return;
         };
     
-        return next(event, 0, input, this.path);
+        return next(event, 0, input, this.path, target);
     }
 
     /**
