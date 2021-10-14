@@ -4,7 +4,7 @@
  * @imports
  */
 import { Observer } from '@webqit/pseudo-browser/index2.js';
-import { _isUndefined } from '@webqit/util/js/index.js';
+import { _isString, _isUndefined } from '@webqit/util/js/index.js';
 
 export default function(persistent = false) {
 
@@ -15,7 +15,7 @@ export default function(persistent = false) {
 
     const _storage = {};
     Observer.intercept(_storage, (event, received, next) => {
-        if (event.type === 'get') {
+        if (event.type === 'get' && _isString(event.name)) {
             const value = window[storeType].getItem(event.name);
             return !_isUndefined(value) ? JSON.parse(value) : value;
         }

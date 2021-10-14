@@ -12,8 +12,7 @@ import _after from '@webqit/util/str/after.js';
 import _before from '@webqit/util/str/before.js';
 import _any from '@webqit/util/arr/any.js';
 import _copy from '@webqit/util/obj/copy.js';
-import NavigationEvent from '../NavigationEvent.js';
-import StdRequest from './StdRequest.js';
+import NavigationEvent from './NavigationEvent.js';
 
 /**
  * ---------------------------
@@ -97,8 +96,6 @@ export default function(layout, params) {
 
 	// Listen now...
 	self.addEventListener('fetch', async evt => {
-		const _request = new StdRequest(evt.request);
-		Object.defineProperty(evt, 'request', { get: () => _request });
 		// Fetches request
 		const handleFetch = async evt => {
 
@@ -107,12 +104,16 @@ export default function(layout, params) {
 				// Sync session data to cache to be available to service-worker routers
 				// Sync only takes for requests that actually do send the "$session" cookie
 				const sessionData = Observer.proxy(sessionStores[evt.clientId] || {});
-				const clientNavigationEvent = new NavigationEvent(evt.request, evt.request.url, sessionData);
+				const clientNavigationEvent = new NavigationEvent(new NavigationEvent.Request(evt.request), sessionData);
 				// -----------------
 				// The app router
 				const router = new Router(_before(evt.request.url, '?'), layout, { layout });
 				const httpMethodName = evt.request.method.toLowerCase();
-				return await router.route([httpMethodName === 'delete' ? 'del' : httpMethodName, 'default'], clientNavigationEvent, null, () => defaultFetch(evt));
+				const _response = await router.route([httpMethodName === 'delete' ? 'del' : httpMethodName, 'default'], clientNavigationEvent, null, (event, arg) => defaultFetch(evt));
+				if (!(_response instanceof Response)/* _response being a native Response instance is fine */) {
+					return new NavigationEvent.Response(_response);
+				}
+				return _response;
 			}
 
 			return defaultFetch(evt);
@@ -179,7 +180,7 @@ export default function(layout, params) {
 	const refreshCache = (request, response) => {
 
 		// Check if we received a valid response
-		if (request.method !== 'GET' || !response || response.status !== 200 || (response.type !== 'basic' && response.type !== 'cors')) {
+		if ((request._method || request.method) !== 'GET' || !response || response.status !== 200 || (response.type !== 'basic' && response.type !== 'cors')) {
 			return response;
 		}
 

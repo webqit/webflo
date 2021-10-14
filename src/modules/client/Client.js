@@ -7,7 +7,7 @@ import _isObject from '@webqit/util/js/isObject.js';
 import _before from '@webqit/util/str/before.js';
 import _unique from '@webqit/util/arr/unique.js';
 import _fetch from '@webqit/browser-pie/src/apis/fetch.js';
-import NavigationEvent from '../NavigationEvent.js';
+import NavigationEvent from './NavigationEvent.js';
 import WorkerClient from './WorkerClient.js';
 import Storage from './Storage.js';
 import Router from './Router.js';
@@ -64,7 +64,7 @@ export default function(layout, params) {
 		}
 		
 		// The app router
-		const clientNavigationEvent = new NavigationEvent(request, request.url, session);
+		const clientNavigationEvent = new NavigationEvent(request, session);
 		const requestPath = clientNavigationEvent.url.pathname;
 		const router = new Router(requestPath, layout, $context);
 		if (networkProgressOngoing) {
@@ -78,12 +78,12 @@ export default function(layout, params) {
 			// ROUTE FOR DATA
 			// --------
 			const httpMethodName = clientNavigationEvent.request.method.toLowerCase();
-			$context.response = await router.route([httpMethodName === 'delete' ? 'del' : httpMethodName, 'default'], clientNavigationEvent, null, async function() {
+			$context.response = await router.route([httpMethodName === 'delete' ? 'del' : httpMethodName, 'default'], clientNavigationEvent, document.state, async function(event, data) {
 				// -----------------
 				var networkProgress = networkProgressOngoing = new RequestHandle();
-				networkProgress.setActive(true, clientNavigationEvent.request.method);
+				networkProgress.setActive(true, event.request._method || event.request.method);
 				// -----------------
-				const headers = clientNavigationEvent.request.headers;
+				const headers = event.request.headers;
 				if (!headers.get('Accept')) {
 					headers.set('Accept', 'application/json');
 				}
@@ -92,11 +92,12 @@ export default function(layout, params) {
 				}
 				// -----------------
 				// Sync session data to cache to be available to service-worker routers
-				const response = _fetch(clientNavigationEvent.request, {}, networkProgress.updateProgress.bind(networkProgress));
+				const response = _fetch(event.request, {}, networkProgress.updateProgress.bind(networkProgress));
 				// -----------------
 				// -----------------
 				response.catch(e => networkProgress.throw(e.message));
 				return response.then(response => {
+					$context.responseClone = response;
 					if (!networkProgress.active) {
 						return new Promise(() => {});
 					}
@@ -104,11 +105,14 @@ export default function(layout, params) {
 					return response.ok ? response.json() : null;
 				});
 			});
+			if ($context.response instanceof clientNavigationEvent.Response) {
+                $context.response = (await $context.response.jsonBuild())[0];
+            }
 
 			// --------
 			// Render
 			// --------
-			const rendering = await router.route('render', clientNavigationEvent, $context.response, async function(data) {
+			const rendering = await router.route('render', clientNavigationEvent, $context.response, async function(event, data) {
 				// --------
 				// OOHTML would waiting for DOM-ready in order to be initialized
 				await new Promise(res => window.WebQit.DOM.ready(res));
@@ -135,7 +139,7 @@ export default function(layout, params) {
 			// Render...
 			// --------
 
-			if (event && _isObject(event.detail) && (event.detail.src instanceof Element) && /* do only on url path change */ _before(event.value, '?') !== _before(event.oldValue, '?')) {
+			if (!document.activeElement && event && _isObject(event.detail) && (event.detail.src instanceof Element) && /* do only on url path change */ _before(event.value, '?') !== _before(event.oldValue, '?')) {
 				setTimeout(() => {
 					var urlTarget;
 					if (clientNavigationEvent.url.hash && (urlTarget = document.querySelector(clientNavigationEvent.url.hash))) {
@@ -157,11 +161,12 @@ export default function(layout, params) {
 
 		}
 		
+		return $context.responseClone;
 	});
 
 };
 
-const networkWatch = {progress: {}, online: navigator.onLine};
+const networkWatch = { progress: {}, online: navigator.onLine };
 class RequestHandle {
 	setActive(state, method = '') {
 		if (this.active === false) {

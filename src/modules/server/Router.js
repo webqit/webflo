@@ -5,123 +5,50 @@
 import Fs from 'fs';
 import Url from 'url';
 import Path from 'path';
-import _isString from '@webqit/util/js/isString.js';
-import _isArray from '@webqit/util/js/isArray.js';
-import _arrFrom from '@webqit/util/arr/from.js';
+import Mime from 'mime-types';
+import _Router from '../Router.js';
 
-export default class Router {
+/**
+ * ---------------------------
+ * The Router class
+ * ---------------------------
+ */
+			
+export default class Router extends _Router {
 
-    /**
-     * Instantiates a new Router.
-     * 
-     * @param string|array      path
-     * @param object            layout
-     * @param object            context
-     * 
-     * @return void
-     */
-    constructor(path, layout, context) {
-        this.path = _isArray(path) ? path : (path + '').split('/').filter(a => a);
-        this.layout = layout;
-        this.context = context;
+    async readTick(thisTick) {
+        if (thisTick.trail) {
+            thisTick.currentSegment = thisTick.destination[thisTick.trail.length];
+            thisTick.currentSegmentOnFile = [ thisTick.currentSegment, '-' ].reduce((_segmentOnFile, _seg) => {
+                if (_segmentOnFile.index) return _segmentOnFile;
+                var _currentPath = thisTick.trailOnFile.concat(_seg).join('/'),
+                    routeHandlerFile;
+                return Fs.existsSync(routeHandlerFile = Path.join(this.layout.ROOT, this.layout.SERVER_DIR, _currentPath, 'index.js')) ? { seg: _seg, index: routeHandlerFile } : (
+                    Fs.existsSync(Path.join(this.layout.ROOT, this.layout.SERVER_DIR, _currentPath)) ? { seg: _seg, dirExists: true } : _segmentOnFile
+                );
+            }, { seg: null });
+            thisTick.trail.push(thisTick.currentSegment);
+            thisTick.trailOnFile.push(thisTick.currentSegmentOnFile.seg);
+            thisTick.exports = thisTick.currentSegmentOnFile.index ? await import(Url.pathToFileURL(thisTick.currentSegmentOnFile.index)) : undefined;
+        } else {
+            thisTick.trail = [];
+            thisTick.trailOnFile = [];
+            thisTick.currentSegmentOnFile = { index: Path.join(this.layout.ROOT, this.layout.SERVER_DIR, 'index.js') };
+            thisTick.exports = Fs.existsSync(thisTick.currentSegmentOnFile.index) 
+                ? await import(Url.pathToFileURL(thisTick.currentSegmentOnFile.index)) 
+                : null;
+        }
+        return thisTick;
     }
 
-    /**
-     * Performs dynamic routing.
-     * 
-     * @param array|string      target
-     * @param object            event
-     * @param any               input
-     * @param function          _default
-     * 
-     * @return object
-     */
-    async route(target, event, input, _default) {
-        
-        target = _arrFrom(target);
-        var layout = this.layout;
-        var context = this.context;
+    finalizeHandlerContext(context, thisTick) {
+        if (thisTick.currentSegmentOnFile.index) {
+            context.dirname = Path.dirname(thisTick.currentSegmentOnFile.index);
+        }
+    }
 
-        // ----------------
-        // ROUTER
-        // ----------------
-        const next = async function(_event, index, input, path, target) {
-    
-            var exports, routeHandlerFile, wildcardRouteHandlerFile;
-            if (index === 0) {
-                routeHandlerFile = 'index.js';
-            } else if (path[index - 1]) {
-                var routeSlice = path.slice(0, index).join('/');
-                var wildcardRouteSlice = path.slice(0, index - 1).concat('-').join('/');
-                routeHandlerFile = Path.join(routeSlice, './index.js');
-                wildcardRouteHandlerFile = Path.join(wildcardRouteSlice, './index.js');
-            }
-    
-            if ((routeHandlerFile && Fs.existsSync(routeHandlerFile = Path.join(layout.ROOT, layout.SERVER_DIR, routeHandlerFile)))
-            || (wildcardRouteHandlerFile && Fs.existsSync(routeHandlerFile = Path.join(layout.ROOT, layout.SERVER_DIR, wildcardRouteHandlerFile)))) {
-                exports = await import(Url.pathToFileURL(routeHandlerFile));
-                // ---------------
-                const func = _arrFrom(target).reduce((func, name) => func || exports[name], null);
-                if (func) {
-                    // -------------
-                    // Then we can call the handler
-                    // -------------
-                    const _next = (..._args) => {
-                        var _index, __event;
-                        if (_args.length > 1) {
-                            if (!_isString(_args[1])) {
-                                throw new Error('Router redirect must be a string!');
-                            }
-                            var _newPath = _args[1].startsWith('/') ? _args[1] : Path.join(path.slice(0, index).join('/'), _args[1]);
-                            if (_newPath.startsWith('../')) {
-                                throw new Error('Router redirect cannot traverse beyond the routing directory! (' + _args[1] + ' >> ' + _newPath + ')');
-                            }
-                            var [ newPath, newQuery ] = _newPath.split('?');
-                            __event = _event.withUrl('/' + _newPath);
-                            _args[1] = newPath.split('/').map(a => a.trim()).filter(a => a);
-                            _index = path.slice(0, index).reduce((build, seg, i) => build.length === i && seg === _args[1][i] ? build.concat(seg) : build, []).length;
-                            if (!_args[2]) {
-                                _args[2] = target;
-                            }
-                        } else {
-                            __event = _event;
-                            _index = index;
-                            _args[1] = path;
-                            _args[2] = target;
-                        }
-                        return next(__event, _index + 1, ..._args);
-                    };
-                    _next.pathname = path.slice(index).join('/');
-                    _next.stepname = _next.pathname.split('/').shift();
-                    // -------------
-                    const _this = {
-                        pathname: '/' + path.slice(0, index).join('/'),
-                        dirname: Path.dirname(routeHandlerFile),
-                        ...context
-                    };
-                    _this.stepname = _this.pathname.split('/').pop();
-                    // -------------
-                    return await func.bind(_this)(_event, input, _next/*next*/);
-                } else {
-                    return next(_event, index + 1, input, path, target);
-                }
-            }
-    
-            if (_default) {
-                // -------------
-                // Local file
-                // -------------
-                const defaultThis = {pathname: '/' + path.join('/'), ...context};
-                return await _default.call(defaultThis, input, path, target);
-            }
-    
-            // -------------
-            // Recieved response or undefined
-            // -------------
-            return;
-        };
-    
-        return next(event, 0, input, this.path, target);
+    pathJoin(...args) {
+        return Path.join(...args);
     }
 
     /**
@@ -158,14 +85,21 @@ export default class Router {
                             error: 'Error reading static file: ' + filename + '.',
                         });
                     } else {
+
                         // if the file is found, set Content-type and send data
-                        resolve(new event.Response({
-                            contentType: mimeTypes[ext] || 'text/plain',
-                            filename: _filename,
-                            body: ext === '.json' ? data + '' : data,
-                            static: true,
-                            autoIndex,
+                        const type = Mime.lookup(ext);
+                        resolve(new event.Response(data, {
+                            headers: {
+                                contentType: type === 'application/javascript' ? 'text/javascript' : type,
+                                contentLength: Buffer.byteLength(data),
+                            },
+                            meta: {
+                                filename: _filename,
+                                static: true,
+                                autoIndex,
+                            }
                         }));
+                        
                     }
                 });
             });
@@ -212,6 +146,7 @@ const mimeTypes = {
     '.json':    'application/json',
     '.css':     'text/css',
     '.png':     'image/png',
+    '.jpeg':     'image/jpeg',
     '.jpg':     'image/jpeg',
     '.wav':     'audio/wav',
     '.mp3':     'audio/mpeg',
@@ -221,15 +156,3 @@ const mimeTypes = {
 };
 
 export { mimeTypes };
-
-// Static response
-export class FixedResponse {
-    // construct
-    constructor(content, contentType, filename, autoIndex) {
-        this.content = content;
-        this.contentType = contentType;
-        this.filename = filename;
-        this.autoIndex = autoIndex;
-        this.static = true;
-    }
-};

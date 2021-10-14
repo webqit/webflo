@@ -27,7 +27,7 @@ export default class Http {
 	 *
 	 * @return void
 	 */
-	static createClient(client, params = {}) {
+	static async createClient(client, params = {}) {
 
 		/**
 		 * ----------------
@@ -108,10 +108,14 @@ export default class Http {
 			var actionEl = window.document.createElement('a'),
 				form = e.target.closest('form'),
 				submits = [e.submitter]; //_arrFrom(form.elements).filter(el => el.matches('button,input[type="submit"],input[type="image"]'));
-			var submitParams = ['action', 'enctype', 'method', 'noValidate', 'target'].reduce((params, prop) => {
+			var submitParams = [ 'action', 'enctype', 'method', 'noValidate', 'target' ].reduce((params, prop) => {
 				params[prop] = submits.reduce((val, el) => val || (el.hasAttribute(`form${prop.toLowerCase()}`) ? el[`form${_toTitle(prop)}`] : null), null) || form[prop];
 				return params;
 			}, {});
+			// We support method hacking
+			// ---------------
+			submitParams.method = e.submitter.dataset.method || form.dataset.method || submitParams.method;
+			// ---------------
 			if ((actionEl.href = submitParams.action) && !submitParams.target
 			// Same origin... but...
 			&& (!actionEl.origin || actionEl.origin === instance.location.origin)) {
@@ -154,7 +158,7 @@ export default class Http {
 		// -----------------------
 		// Syndicate changes to
 		// the browser;s location bar
-		Observer.observe(instance.location, [['href']], e => {
+		Observer.observe(instance.location, [[ 'href' ]], e => {
 			e = e[0];
 			if ((e.detail || {}).src === window.document.location) {
 				// Already from a "popstate" event as above, so don't push again
@@ -181,19 +185,30 @@ export default class Http {
 			};
 			return new StdRequest(url, options);
 		};
+		const handleResponse = response => {
+			if (response && response.redirected) {
+				var actionEl = window.document.createElement('a');
+				if ((actionEl.href = response.url) && (!actionEl.origin || actionEl.origin === instance.location.origin)) {
+					Observer.set(instance.location, { href: response.url }, {
+						detail: { follow: false },
+					});
+				}
+			}
+		};
 		// ----------------------------------
 
 		// Observe location and route
 		Observer.observe(instance.location, [['href']], async e => {
 			e = e[0];
 			var detail = e.detail || {};
+			if (detail.follow === false) return;
 			var method = (detail.submitParams || detail.src || {}).method;
 			if ((_before(e.value, '#') !== _before(e.oldValue, '#')) || (method && method.toUpperCase() !== 'GET')) {
-				return await client.call(instance, createRequest(e.value, e.oldValue, e), e);
+				return handleResponse(await client.call(instance, createRequest(e.value, e.oldValue, e), e));
 			}
 		}, {diff: false /* method might be the difference */});
 		// Startup route
-		client.call(instance, createRequest(window.document.location.href, document.referrer));
+		handleResponse(await client.call(instance, createRequest(window.document.location.href, document.referrer)));
 
 		return instance;
 	}

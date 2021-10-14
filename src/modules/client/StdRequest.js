@@ -2,7 +2,7 @@
 /**
  * @imports
  */
-import { _isTypeObject } from '@webqit/util/js/index.js';
+import { _isTypeObject, _isFunction } from '@webqit/util/js/index.js';
 import { wwwFormUnserialize, wwwFormSet } from '../util.js';
 
 /**
@@ -41,7 +41,6 @@ export default class StdRequest extends Request {
                 var request = this.clone();
                 var contentType = request.headers['content-type'] || '';
                 var submits = {
-                    payload: null,
                     inputs: {},
                     files: {},
                     type: contentType === 'application/x-www-form-urlencoded' || contentType.startsWith('multipart/') || (!contentType && !['get'].includes(request.method.toLowerCase())) ? 'form-data' 
@@ -51,8 +50,8 @@ export default class StdRequest extends Request {
                 };
                 if (submits.type === 'form-data') {
                     try {
-                        submits.payload = await request.formData();
-                        for(var [ name, value ] of submits.payload.entries()) {
+                        const payload = await request.formData();
+                        for(var [ name, value ] of payload.entries()) {
                             if (value instanceof File) {
                                 wwwFormSet(submits.files, name, value);
                             } else {
@@ -61,14 +60,11 @@ export default class StdRequest extends Request {
                         }
                     } catch(e) { }
                 } else {
-                    submits.payload = await (submits.type === 'json' 
+                    submits.inputs = await (submits.type === 'json' 
                         ? request.json() : (
                             submits.type === 'plain' ? request.text() : request.arrayBuffer()
                         )
                     )
-                    if (submits.type === 'json' && _isTypeObject(submits.payload)) {
-                        submits.inputs = inputs;
-                    }
                 }
                 resolve(submits);
             });

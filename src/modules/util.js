@@ -9,7 +9,7 @@ import _isObject from '@webqit/util/js/isObject.js';
 import _beforeLast from '@webqit/util/str/beforeLast.js';
 import _afterLast from '@webqit/util/str/afterLast.js';
 import _arrFrom from '@webqit/util/arr/from.js';
-
+  
 /**
  * ---------------
  * @wwwFormPathUnserializeCallback
@@ -77,8 +77,8 @@ export function wwwFormUnserialize(str, target = {}, delim = '&') {
  * ---------------
  */
 
-export function wwwFormPathSerializeCallback(wwwFormPath, value, callback) {
-    if (_isObject(value) || _isArray(value)) {
+export function wwwFormPathSerializeCallback(wwwFormPath, value, callback, shouldSerialize = null) {
+    if ((_isObject(value) || _isArray(value)) && (!shouldSerialize || shouldSerialize(value, wwwFormPath))) {
         var isArr = _isArray(value);
         Object.keys(value).forEach(key => {
             wwwFormPathSerializeCallback(`${wwwFormPath}[${!isArr ? key : ''}]`, value[key], callback);
@@ -88,12 +88,12 @@ export function wwwFormPathSerializeCallback(wwwFormPath, value, callback) {
     }
 }
 
-export function wwwFormSerialize(form, delim = '&') {
+export function wwwFormSerialize(form, delim = '&', shouldSerialize = null) {
     var q = [];
     Object.keys(form).forEach(key => {
         wwwFormPathSerializeCallback(key, form[key], (_wwwFormPath, _value) => {
             q.push(`${_wwwFormPath}=${encodeURIComponent(_value)}`);
-        });
+        }, shouldSerialize);
     });
     return q.join(delim);
 }

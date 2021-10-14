@@ -13,13 +13,15 @@ import _arrFrom from '@webqit/util/arr/from.js';
 import _promise from '@webqit/util/js/promise.js';
 import _isObject from '@webqit/util/js/isObject.js';
 import _isArray from '@webqit/util/js/isArray.js';
-import _isTypeObject from '@webqit/util/js/isTypeObject.js';
+import { _isString, _isPlainObject, _isPlainArray } from '@webqit/util/js/index.js';
+import _delay from '@webqit/util/js/delay.js';
+import { slice as _streamSlice } from 'stream-slice';
 import { v4 as uuidv4, v5 as uuidv5 } from 'uuid';
 import * as config from '../../config/index.js';
 import * as cmd from '../../cmd/index.js';
-import NavigationEvent from '../NavigationEvent.js';
-import StdIncomingMessage from './StdIncomingMessage.js';
+import NavigationEvent from './NavigationEvent.js';
 import Router from './Router.js';
+import { File } from 'formdata-node';
 
 /**
  * The default initializer.
@@ -108,7 +110,7 @@ export default async function(Ui, flags = {}) {
     
     if (!flags['https-only']) {
 
-        Http.createServer({IncomingMessage: StdIncomingMessage}, (request, response) => {
+        Http.createServer((request, response) => {
             if (setup.server.shared) {
                 var _setup;
                 if (_setup = getVSetup(request, response)) {
@@ -135,7 +137,7 @@ export default async function(Ui, flags = {}) {
 
     if (!flags['http-only'] && setup.server.https.port) {
 
-        const httpsServer = Https.createServer({IncomingMessage: StdIncomingMessage}, (request, response) => {
+        const httpsServer = Https.createServer((request, response) => {
             if (setup.server.shared) {
                 var _setup;
                 if (_setup = getVSetup(request, response)) {
@@ -205,7 +207,17 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
     // Request parsing
     // --------
 
-    const serverNavigationEvent = new NavigationEvent(request, protocol + '://' + request.headers.host + request.url, request._session);
+    const fullUrl = protocol + '://' + request.headers.host + request.url;
+    const requestInit = { method: request.method, headers: request.headers };
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+        requestInit.body = request;
+    }
+    // The Formidabble thing in NavigationEvent class would still need
+    // a reference to the Nodejs request
+    requestInit._request = request;
+    const _request = new NavigationEvent.Request(fullUrl, requestInit);
+    const serverNavigationEvent = new NavigationEvent(_request, request._session);
+    serverNavigationEvent.File = File;
     const $context = {
         rdr: null,
         layout: hostSetup.layout,
@@ -226,10 +238,10 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
             isAppend = headerName.startsWith('+') ? (headerName = headerName.substr(1), true) : false,
             isPrepend = headerName.endsWith('+') ? (headerName = headerName.substr(0, headerName.length - 1), true) : false;
         if (isAppend || isPrepend) {
-            headerValue = [ serverNavigationEvent.request.headers[headerName] || '' , headerValue].filter(v => v);
+            headerValue = [ serverNavigationEvent.request.headers.get(headerName) || '' , headerValue].filter(v => v);
             headerValue = isPrepend ? headerValue.reverse().join(',') : headerValue.join(','); 
         }
-        return { name:headerName, value:headerValue };
+        return { name: headerName, value: headerValue };
     }
 
     // -------------------
@@ -251,7 +263,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
     
     $context.headers.filter(header => header.type === 'request').forEach(header => {
         const { name, value } = resolveSetHeader(header);
-        serverNavigationEvent.request.headers[name] = value;
+        serverNavigationEvent.request.headers.set(name, value);
     });
 
     // -------------------
@@ -262,20 +274,15 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
 
         try {
 
-            // -------------------
-            // Handle autodeploy events
-            // -------------------
-
             // The app router
             const router = new Router(serverNavigationEvent.url.pathname, hostSetup.layout, $context);
 
             // --------
             // ROUTE FOR DEPLOY
             // --------
-
             if (cmd.origins) {
                 await cmd.origins.hook(Ui, serverNavigationEvent, async (payload, defaultPeployFn) => {
-                    var exitCode = await router.route('deploy', serverNavigationEvent, payload, function(_payload) {
+                    var exitCode = await router.route('deploy', serverNavigationEvent, payload, function(event, _payload) {
                         return defaultPeployFn(_payload);
                     });
                     // -----------
@@ -289,48 +296,46 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
             // --------
             // ROUTE FOR DATA
             // --------
-
             const httpMethodName = serverNavigationEvent.request.method.toLowerCase();
-            $context.response = await router.route([httpMethodName === 'delete' ? 'del' : httpMethodName, 'default'], serverNavigationEvent, null, async function() {
-                var file = await router.fetch(serverNavigationEvent);
+            $context.response = await router.route([httpMethodName === 'delete' ? 'del' : httpMethodName, 'default'], serverNavigationEvent, null, async function(event) {
+                var file = await router.fetch(event);
                 // JSON request should ignore static files
-                if (file && !serverNavigationEvent.request.accepts.type(file.contentType)) {
+                if (file && !event.request.accepts.type(file.contentType)) {
                     return;
                 }
                 // ----------------
                 // PRE-RENDERING
                 // ----------------
                 if (file && file.contentType === 'text/html' && (file.body + '').startsWith(`<!-- PRE-RENDERED -->`)) {
-                    var prerenderMatch = config.prerendering ? await !config.prerendering.match(serverNavigationEvent.url.pathname, flags, hostSetup.layout) : null;
-                    if (!prerenderMatch) {
+                    if (config.prerendering && !(await !config.prerendering.match(serverNavigationEvent.url.pathname, flags, hostSetup.layout))) {
                         router.deletePreRendered(file.filename);
                         return;
                     }
                 }
                 return file;
             });
+
+            // --------
             if (!($context.response instanceof serverNavigationEvent.Response)) {
-                $context.response = new serverNavigationEvent.Response({ body: $context.response });
+                $context.response = new serverNavigationEvent.Response($context.response);
             }
+            // --------
 
             // --------
             // API CALL OR PAGE REQUEST?
             // --------
 
-            if (!$context.response.contentType 
-            && !$context.response.redirect 
-            && !$context.response.static 
-            && _isTypeObject($context.response.body)) {
+            if (!$context.response.meta.static && (_isPlainObject($context.response.original) || _isPlainArray($context.response.original))) {
                 if (serverNavigationEvent.request.accepts.type('text/html')) {
                     // --------
                     // Render
                     // --------
-                    const rendering = await router.route('render', serverNavigationEvent, $context.response.body, async function(data) {
+                    var rendering = await router.route('render', serverNavigationEvent, $context.response.original, async function(event, data) {
                         // --------
                         if (!hostSetup.layout.renderFileCache) {
                             hostSetup.layout.renderFileCache = {};
                         }
-                        var renderFile, pathnameSplit = serverNavigationEvent.url.pathname.split('/');
+                        var renderFile, pathnameSplit = event.url.pathname.split('/');
                         while ((renderFile = Path.join(hostSetup.layout.ROOT, hostSetup.layout.PUBLIC_DIR, './' + pathnameSplit.join('/'), 'index.html')) 
                         && pathnameSplit.length && (hostSetup.layout.renderFileCache[renderFile] === false || !(hostSetup.layout.renderFileCache[renderFile] && Fs.existsSync(renderFile)))) {
                             hostSetup.layout.renderFileCache[renderFile] === false;
@@ -339,7 +344,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                         hostSetup.layout.renderFileCache[renderFile] === true;
                         const instanceParams = QueryString.stringify({
                             SOURCE: renderFile,
-                            URL: serverNavigationEvent.url.href,
+                            URL: event.url.href,
                             ROOT: hostSetup.layout.ROOT,
                         });
                         const { window } = await import('@webqit/pseudo-browser/instance.js?' + instanceParams);
@@ -351,8 +356,8 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                                 env: 'server',
                             }, {update: true});
                         }
-                        window.document.setState({page: data, url: serverNavigationEvent.url}, {update: 'merge'});
-                        window.document.body.setAttribute('template', 'page/' + serverNavigationEvent.url.pathname.split('/').filter(a => a).map(a => a + '+-').join('/'));
+                        window.document.setState({page: data, url: event.url}, {update: 'merge'});
+                        window.document.body.setAttribute('template', 'page/' + event.url.pathname.split('/').filter(a => a).map(a => a + '+-').join('/'));
                         return new Promise(res => {
                             window.document.addEventListener('templatesreadystatechange', () => res(window));
                             if (window.document.templatesReadyState === 'complete') {
@@ -364,26 +369,14 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                     // Serialize rendering?
                     // --------
                     if (_isObject(rendering) && rendering.document) {
-                        $context.response = await _promise(resolve => {
-                            setTimeout(() => {
-                                resolve(new serverNavigationEvent.Response({
-                                    ...$context.response,
-                                    contentType: 'text/html',
-                                    body: rendering.print(),
-                                }));
-                            }, 1000);
-                        });
-                    } else {
-                        if (!(rendering instanceof serverNavigationEvent.Response)) {
-                            throw new Error('render() must return a window object or a response Object corresponding to event.Response')
-                        }
-                        $context.response = rendering;
+                        await _delay(1000);
+                        rendering = rendering.print();
                     }
-                } else if (serverNavigationEvent.request.accepts.type('application/json')) {
-                    // --------
-                    // JSONfy
-                    // --------
-                    $context.response.contentType = 'application/json';
+                    if (!_isString(rendering)) throw new Error('render() must return a window object or a string response.')
+                    $context.response = new serverNavigationEvent.Response(rendering, {
+                        status: $context.response.status,
+                        headers: { ...$context.response.headers.json(), contentType: 'text/html' },
+                    });
                 }
             }
 
@@ -392,19 +385,47 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
             // --------
 
             if (!response.headersSent) {
+                
+                // -------------------
+                // Streaming headers
+                // -------------------
+                // Chrome needs this for audio elements to play
+                response.setHeader('Accept-Ranges', 'bytes');
+                /*
+                if ($context.response.headers.contentLength && !$context.response.headers.contentRange) {
+                    $context.response.headers.contentRange = `bytes 0-${$context.response.headers.contentLength}/${$context.response.headers.contentLength}`;
+                }
+
+                */
                 // -------------------
                 // Automatic response headers
                 // -------------------
-                response.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-                response.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+                //response.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+                //response.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
                 $context.headers.filter(header => header.type === 'response').forEach(header => {
                     const { name, value } = resolveSetHeader(header);
                     response.setHeader(name, value);
                 });
+
                 // -------------------
                 // Route response headers
                 // -------------------
-                const cookieAtts = ['Expires', 'Max-Age', 'Domain', 'Path', 'Secure', 'HttpOnly', 'SameSite' ];
+                _each($context.response.headers.json(), (name, value) => {
+                    if ([ 'autoindex', 'filename', 'static' ].includes(name)) return;
+                    if (name === 'set-cookie') {
+                        setCookies(value);
+                    } else {
+                        if (name.toLowerCase() === 'location' && !$context.response.status) {
+                            response.statusCode = 302 /* Temporary */;
+                        }
+                        response.setHeader(name, value);
+                    }
+                });
+
+                // -------------------
+                // Route response cookies
+                // -------------------
+                const cookieAtts = [ 'Expires', 'Max-Age', 'Domain', 'Path', 'Secure', 'HttpOnly', 'SameSite' ];
                 const setCookies = (cookies, nameContext = null) => {
                     _each(cookies, (name, cookie) => {
                         name = nameContext ? `${nameContext}[${name}]` : name;
@@ -418,9 +439,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                             var __attr = cookieAtts.reduce((match, _attr) => match || (
                                 [_attr.toLowerCase(), _attr.replace('-', '').toLowerCase()].includes(attr.toLowerCase()) ? _attr : null
                             ), null);
-                            if (!__attr) {
-                                throw new Error(`Invalid cookie attribute: ${attr}`);
-                            }
+                            if (!__attr) throw new Error(`Invalid cookie attribute: ${attr}`);
                             expr += cookie[attr] === true ? `; ${__attr}` : `; ${__attr}=${cookie[attr]}`;
                         });
                         response.setHeader('Set-Cookie', expr);
@@ -429,51 +448,81 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                         }
                     });
                 };
-                _each($context.response.headers || {}, (name, value) => {
-                    if (name.toLowerCase() === 'set-cookie') {
-                        setCookies(value);
-                    } else {
-                        if (name.toLowerCase() === 'location' && !$context.response.status) {
-                            $context.response.status = 302 /* Temporary */;
-                        }
-                        response.setHeader(name, value);
-                    }
-                });
-                // -------------------
-                // Status code
-                // -------------------
-                if ($context.response.status) {
-                    response.statusCode = $context.response.status;
-                }
+
                 // -------------------
                 // Send
                 // -------------------
-                if ($context.response.body !== undefined) {
-                    response.end(
-                        $context.response.contentType === 'application/json' && _isTypeObject($context.response.body)
-                            ? JSON.stringify($context.response.body) 
-                            : $context.response.body
-                    );
+                if ($context.response.headers.redirect) {
+                    response.end();
+                } else if ($context.response.original !== undefined) {
+                    response.statusCode = $context.response.status;
+                    response.statusMessage = $context.response.statusText;
+
+                    // ----------------
+                    // SENDING RESPONSE
+                    // ----------------
+                    var body = $context.response.body;
+                    if ((body instanceof serverNavigationEvent.globals.ReadableStream)
+                    || (ArrayBuffer.isView(body) && (body = serverNavigationEvent.globals.ReadableStream.from(body)))) {
+
+                        // We support streaming
+                        const rangeRequest = serverNavigationEvent.request.headers.range;
+                        if (rangeRequest) {
+                            // ...in partials
+                            const totalLength = $context.response.headers.contentLength;
+                            // Validate offsets
+                            if (rangeRequest[0] < 0 || (totalLength && rangeRequest[0] > totalLength) 
+                            || (rangeRequest[1] && (rangeRequest[1] <= rangeRequest[0] || (totalLength && rangeRequest[1] >= totalLength)))) {
+                                response.statusCode = 416;
+                                response.setHeader('Content-Range', `bytes */${totalLength || '*'}`);
+                                response.setHeader('Content-Length', 0);
+                                response.end();
+                            } else {
+                                if (totalLength) {
+                                    rangeRequest.clamp(totalLength);
+                                }
+                                // Set new headers
+                                response.writeHead(206, {
+                                    'Content-Range': `bytes ${rangeRequest[0]}-${rangeRequest[1]}/${totalLength || '*'}`,
+                                    'Content-Length': rangeRequest[1] - rangeRequest[0] + 1,
+                                });
+                                body
+                                    .pipe(_streamSlice(rangeRequest[0], rangeRequest[1]))
+                                    .pipe(response);
+                            }
+                        } else {
+                            // ...as a whole
+                            body.pipe(response);
+                        }
+                    } else {
+                        // The default
+                        if ($context.response.headers.contentType === 'application/json') {
+                            body += '';
+                        }
+                        response.end(body);
+                    }
+
                     // ----------------
                     // PRE-RENDERING
                     // ----------------
-                    if (!$context.response.filename && $context.response.contentType === 'text/html') {
+                    if (!$context.response.meta.filename && $context.response.headers.contentType === 'text/html') {
                         var prerenderMatch = config.prerendering ? await !config.prerendering.match(serverNavigationEvent.url.pathname, flags, hostSetup.layout) : null;
                         if (prerenderMatch) {
-                            router.putPreRendered(serverNavigationEvent.url.pathname, `<!-- PRE-RENDERED -->\r\n` + $context.response.body);
+                            router.putPreRendered(serverNavigationEvent.url.pathname, `<!-- PRE-RENDERED -->\r\n` + $context.response.original);
                         }
                     }
-                } else if (!$context.response.redirect) {
-                    response.statusCode = 404;
+                } else if (!$context.response.headers.redirect) {
+                    response.statusCode = $context.response.status !== 200 ? $context.response.status : 404;
                     response.end(`${serverNavigationEvent.request.url} not found!`);
                 }
+
             }
 
         } catch(e) {
 
             $context.fatal = e;
-            response.statusCode = e.errorCode || 500;
-            response.end(`Internal server error!`);
+            response.statusCode = 500;
+            response.end(`Internal server error: ${e.errorCode}`);
 
         }
 
@@ -487,12 +536,12 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
         Ui.log(''
             + '[' + (hostSetup.vh ? Ui.style.keyword(hostSetup.vh.host) + '][' : '') + Ui.style.comment((new Date).toUTCString()) + '] '
             + Ui.style.keyword(protocol.toUpperCase() + ' ' + serverNavigationEvent.request.method) + ' '
-            + Ui.style.url(serverNavigationEvent.request.url) + ($context.response && $context.response.body && $context.response.autoIndex ? Ui.style.comment((!serverNavigationEvent.request.url.endsWith('/') ? '/' : '') + $context.response.autoIndex) : '') + ' '
-            + (' (' + Ui.style.comment($context.response && $context.response.contentType ? $context.response.contentType : 'unknown') + ') ')
+            + Ui.style.url(serverNavigationEvent.request.url) + ($context.response && ($context.response.meta || {}).autoIndex ? Ui.style.comment((!serverNavigationEvent.request.url.endsWith('/') ? '/' : '') + $context.response.meta.autoIndex) : '') + ' '
+            + (' (' + Ui.style.comment($context.response && ($context.response.headers || {}).contentType ? $context.response.headers.contentType : 'unknown') + ') ')
             + (
-                [404, 500].includes(response.statusCode) 
+                [ 404, 500 ].includes(response.statusCode) 
                 ? Ui.style.err(response.statusCode + ($context.fatal ? ` [ERROR]: ${$context.fatal.error || $context.fatal.toString()}` : ``)) 
-                : Ui.style.val(response.statusCode) + ((response.statusCode + '').startsWith('3') ? ' - ' + Ui.style.val(response.getHeader('Location')) : '')
+                : Ui.style.val(response.statusCode) + ((response.statusCode + '').startsWith('3') ? ' - ' + Ui.style.val(response.getHeader('Location')) : ' (' + Ui.style.keyword(response.getHeader('Content-Range') || response.statusMessage) + ')')
             )
         );
     }

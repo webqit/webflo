@@ -2,11 +2,8 @@
 /**
  * @imports
  */
-import _isString from '@webqit/util/js/isString.js';
-import _isFunction from '@webqit/util/js/isFunction.js';
-import _isArray from '@webqit/util/js/isArray.js';
-import _arrFrom from '@webqit/util/arr/from.js';
 import { path as Path } from '../util.js';
+import _Router from '../Router.js';
 
 /**
  * ---------------------------
@@ -14,115 +11,37 @@ import { path as Path } from '../util.js';
  * ---------------------------
  */
 			
-export default class Router {
+export default class Router extends _Router {
 
-	/**
-	 * Constructs a new Router instance
-     * over route definitions.
-	 *
-	 * @param string|array	    path
-	 * @param object	        layout
-     * @param object            context
-	 *
-	 * @return void
-	 */
-	constructor(path, layout, context) {
-        this.path = _isArray(path) ? path : (path + '').split('/').filter(a => a);
-        this.layout = layout;
-        this.context = context;
+    async readTick(thisTick) {
+        var routeTree = this.layout;
+        var routePaths = Object.keys(this.layout);
+        if (thisTick.trail) {
+            thisTick.currentSegment = thisTick.destination[thisTick.trail.length];
+            thisTick.currentSegmentOnFile = [ thisTick.currentSegment, '-' ].reduce((_segmentOnFile, _seg) => {
+                if (_segmentOnFile.index) return _segmentOnFile;
+                var _currentPath = `/${thisTick.trailOnFile.concat(_seg).join('/')}`;
+                return routeTree[_currentPath] ? { seg: _seg, index: _currentPath } : (
+                    routePaths.filter(p => p.startsWith(`${_currentPath}/`)).length ? { seg: _seg, dirExists: true } : _segmentOnFile
+                );
+            }, { seg: null });
+            thisTick.trail.push(thisTick.currentSegment);
+            thisTick.trailOnFile.push(thisTick.currentSegmentOnFile.seg);
+            thisTick.exports = routeTree[thisTick.currentSegmentOnFile.index];
+        } else {
+            thisTick.trail = [];
+            thisTick.trailOnFile = [];
+            thisTick.currentSegmentOnFile = { index: '/' };
+            thisTick.exports = routeTree['/'];
+        }
+        return thisTick;
     }
 
-    /**
-     * Performs dynamic routing.
-     * 
-     * @param array|string      target
-     * @param Object            event
-     * @param any               input
-     * @param function          _default
-     * 
-     * @return object
-     */
-     async route(target, event, input, _default) {
+    finalizeHandlerContext(context, thisTick) {
+        return context.dirname = thisTick.currentSegmentOnFile.index;
+    }
 
-        target = _arrFrom(target);
-        var routeTree = this.layout;
-        var context = this.context;
-
-        // ----------------
-        // The loop
-        // ----------------
-        const next = async function(_event, index, input, path, target) {
-
-            var exports;
-            if (index === 0) {
-                exports = routeTree['/'];
-            } else if (path[index - 1]) {
-                var currentHandlerPath = '/' + path.slice(0, index).join('/');
-                var wildcardCurrentHandlerPath = '/' + path.slice(0, index - 1).concat('-').join('/');
-                exports = routeTree[currentHandlerPath] || routeTree[wildcardCurrentHandlerPath];
-            }
-
-            if (exports) {
-                const _target = _arrFrom(target);
-                const func = _isFunction(exports) && _target.includes('default') ? exports : _target.reduce((func, name) => func || exports[name], null);
-                if (func) {
-                    // -------------
-                    // Dynamic response
-                    // -------------
-                    const _next = (..._args) => {
-                        var _index, __event;
-                        if (_args.length > 1) {
-                            if (!_isString(_args[1])) {
-                                throw new Error('Router redirect must be a string!');
-                            }
-                            var _newPath = _args[1].startsWith('/') ? _args[1] : Path.join(path.slice(0, index).join('/'), _args[1]);
-                            if (_newPath.startsWith('../')) {
-                                throw new Error('Router redirect cannot traverse beyond the routing directory! (' + _args[1] + ' >> ' + _newPath + ')');
-                            }
-                            var [ newPath, newQuery ] = _newPath.split('?');
-                            __event = _event.withUrl('/' + _newPath);
-                            _args[1] = newPath.split('/').map(a => a.trim()).filter(a => a);
-                            _index = path.slice(0, index).reduce((build, seg, i) => build.length === i && seg === _args[1][i] ? build.concat(seg) : build, []).length;
-                            if (!_args[2]) {
-                                _args[2] = target;
-                            }
-                        } else {
-                            __event = _event;
-                            _index = index;
-                            _args[1] = path;
-                            _args[2] = target;
-                        }
-                        return next(__event, _index + 1, ..._args);
-                    };
-                    _next.pathname = path.slice(index).join('/');
-                    _next.stepname = _next.pathname.split('/').shift();
-                    // -------------
-                    const _this = {
-                        pathname: '/' + path.slice(0, index).join('/'),
-                        ...context
-                    };
-                    _this.stepname = _this.pathname.split('/').pop();
-                    // -------------
-                    return await func.bind(_this)(_event, input, _next/*next*/);
-                } else {
-                    return next(_event, index + 1, input, path, target);
-                }
-            }
-
-            if (_default) {
-                // -------------
-                // Local file
-                // -------------
-                const defaultThis = {pathname: '/' + path.join('/'), ...context};
-                return await _default.call(defaultThis, input, path, target);
-            }
-    
-            // -------------
-            // Recieved response or undefined
-            // -------------
-            return;
-        };
-        
-        return next(event, 0, input, this.path, target);
-    } 
+    pathJoin(...args) {
+        return Path.join(...args);
+    }
 };
