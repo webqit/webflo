@@ -2,25 +2,40 @@
 /**
  * @imports
  */
-import { _isArray, _isEmpty, _isNumber, _isObject, _isPlainArray, _isPlainObject, _isString, _isTypeObject, _getType } from '@webqit/util/js/index.js';
-import { wwwFormSet, wwwFormPathSerializeCallback } from './util.js';
+import { _isArray, _isEmpty, _isNumber, _isObject, _isPlainArray, _isPlainObject, _isString } from '@webqit/util/js/index.js';
+import { formDataType } from './_FormData.js';
 
 /**
  * The _Request Mixin
  */
-const _MessageStream = (NativeMessageStream, Headers) => {
+const _MessageStream = (NativeMessageStream, Headers, FormData) => {
     const MessageStream = class extends NativeMessageStream {
         
         constructor(input, init = {}) {
-            if ('headers' in init && !(init instanceof Headers)) {
-                arguments[1] = { ...init, headers: new Headers(init.headers) };
+            var _proxy = {}, _meta = {};
+            if ((('headers' in init) && !(init instanceof Headers)) || ('_proxy' in init) || ('meta' in init)) {
+                init = { ...init };
+                if (('headers' in init) && !(init instanceof Headers)) {
+                    init.headers = new Headers(init.headers);
+                }
+                if (('_proxy' in init)) {
+                    _proxy = init._proxy;
+                    delete init._proxy;
+                }
+                if (('meta' in init)) {
+                    _meta = init.meta;
+                    delete init.meta;
+                }
+                arguments[1] = init;
             }
             super(...arguments);
+            this._proxy = _proxy;
+            this._meta = _meta;
         }
 
         clone() {
             const clone = new this.constructor(super.clone());
-            clone._url = this._url;
+            clone._proxy = this._proxy;
             clone._headers = this._headers;
             clone._typedDataCache = this._typedDataCache;
             clone._meta = this._meta;
@@ -28,7 +43,7 @@ const _MessageStream = (NativeMessageStream, Headers) => {
         }
 
         get url() {
-            return this._url || super.url;
+            return 'url' in this._proxy ? this._proxy.url : super.url;
         }
 
         get headers() {
@@ -68,7 +83,10 @@ const _MessageStream = (NativeMessageStream, Headers) => {
             if (this._typedDataCache.formData) {
                 return this._typedDataCache.formData;
             }
-            return super.formData();
+            const formData = await super.formData();
+            formData.tee = FormData.prototype.tee.bind(formData);
+            formData.json = FormData.prototype.json.bind(formData);
+            return formData;
         }
 
         async json() {
@@ -89,23 +107,19 @@ const _MessageStream = (NativeMessageStream, Headers) => {
         jsonBuild(force = false) {
             if (!this._typedDataCache.jsonBuild || force) {
                 this._typedDataCache.jsonBuild = new Promise(async resolve => {
-                    var request = this;
-                    var jsonBuild = [ {}, {} ];
-                    var contentType = request.headers.get('content-type') || '';
-                    jsonBuild.type = contentType === 'application/json' || this._typedDataCache.json ? 'json' : (
-                        contentType === 'application/x-www-form-urlencoded' || contentType.startsWith('multipart/') || this._typedDataCache.formData || (!contentType && !['get'].includes(request.method.toLowerCase())) ? 'formData' : (
-                            contentType === 'text/plain' ? 'plain' : 'other'));
-                    if (jsonBuild.type === 'formData') {
-                        const payload = await request.formData();
-                        for(var [ name, value ] of payload.entries()) {
-                            if (formDataType(value)) {
-                                wwwFormSet(jsonBuild[1], name, value);
-                            } else {
-                                wwwFormSet(jsonBuild[0], name, value);
-                            }
-                        }
+                    var request = this, jsonBuild, contentType = request.headers.get('content-type') || '';
+                    var type = contentType === 'application/json' || this._typedDataCache.json ? 'json' : (
+                        contentType === 'application/x-www-form-urlencoded' || contentType.startsWith('multipart/') || this._typedDataCache.formData || (!contentType && !['get'].includes((request.method || '').toLowerCase())) ? 'formData' : (
+                            contentType === 'text/plain' ? 'plain' : 'other'
+                        )
+                    );
+                    console.log(':::::::::::', contentType)
+                    if (type === 'formData') {
+                        jsonBuild = (await request.formData()).json();
                     } else {
-                        jsonBuild[0] = jsonBuild.type === 'json' ? await request.json() : await request.text();
+                        jsonBuild = type === 'json' ? await request.json() : (
+                            type === 'plain' ? await request.text() : request.body
+                        );
                     }
                     resolve(jsonBuild);
                 });
@@ -128,7 +142,6 @@ export function encodeBody(body, globals) {
         detailsObj.originalType = 'text';
         detailsObj.text = body;
         detailsObj.headers = {
-            contentType: 'text/plain',
             contentLength: (body + '').length,
         };
         return detailsObj;
@@ -150,42 +163,26 @@ export function encodeBody(body, globals) {
         encodeFormData(detailsObj, body, globals);
     } else if ((_isObject(body) && _isPlainObject(body)) || (_isArray(body) && _isPlainArray(body))) {
         // Deserialize object while detecting if multipart
-        detailsObj.jsonBuild = [ {}, {} ];
-        const formData = new globals.FormData;
-        Object.keys(body).forEach(key => {
-            wwwFormPathSerializeCallback(key, body[key], (_wwwFormPath, _value) => {
-                formData.append(_wwwFormPath, _value);
-                wwwFormSet(_isTypeObject(_value) ? detailsObj.jsonBuild[1] : detailsObj.jsonBuild[0], _wwwFormPath, _value);
-            }, value => !formDataType(value));
+        var hasBlobs, formData = new globals.FormData;
+        formData.json(body, (path, value, objectType) => {
+            hasBlobs = hasBlobs || objectType;
+            return true;
         });
-        // Now decide the appropriate body type
-        if (_isEmpty(detailsObj.jsonBuild[1])) {
-            detailsObj.jsonBuild.type = 'json';
-            detailsObj.json = detailsObj.jsonBuild[0];
-            detailsObj.body = JSON.stringify(detailsObj.jsonBuild[0]);
+        if (hasBlobs) {
+            detailsObj.formData = formData;
+            encodeFormData(detailsObj, formData, globals);
+        } else {
+            detailsObj.json = body;
+            detailsObj.body = JSON.stringify(body);
             detailsObj.headers = {
                 contentType: 'application/json',
-                contentLength: body.length,
+                contentLength: Buffer.byteLength(detailsObj.body, 'utf8'), // Buffer.from(string).length
             };
-        } else {
-            detailsObj.jsonBuild.type = 'formData';
-            detailsObj.formData = formData;
-            detailsObj.body = formData;
-            encodeFormData(detailsObj, formData, globals);
         }
+        detailsObj.jsonBuild = body;
     }
     return detailsObj;
 }
-
-const formDataType = (value, list = null) => {
-    if (!_isTypeObject(value)) {
-        return;
-    }
-    const toStringTag = value[Symbol.toStringTag];
-    return (list || [
-        'Uint8Array', 'Uint16Array', 'Uint32Array', 'ArrayBuffer', 'Blob', 'File', 'FormData', 'Stream'
-    ]).reduce((_toStringTag, type) => _toStringTag || (toStringTag === type ? type : null), null);
-};
 
 const encodeFormData = (detailsObj, formData, globals) => {
     if (!globals.FormDataEncoder || !globals.ReadableStream) return;

@@ -5,12 +5,13 @@
 import _URL from './_URL.js';
 import _Request from "./_Request.js";
 import _Response from "./_Response.js";
+import _FormData from "./_FormData.js";
 import { _isEmpty } from '@webqit/util/js/index.js';
 
 /**
  * The _NavigationEvent Mixin
  */
-const _NavigationEvent = (globals) => {
+const _NavigationEvent = globals => {
     // ----------
     const URL = _URL(globals.URL);
     const Request = _Request(globals);
@@ -67,8 +68,11 @@ const _NavigationEvent = (globals) => {
                     request = url;
                 }
             } else {
-                request = new NavigationEvent.Request(this._request, { ...init, url: `${this.url.origin}${url}` });
-            }
+                init = { _proxy: {}, ...init };
+                init._proxy.url = `${this.url.origin}${url}`;
+                init._proxy.referrer = this.request.url;
+                request = new NavigationEvent.Request(this._request, init);
+            }            
             return new NavigationEvent(request, this._session);
         }
 

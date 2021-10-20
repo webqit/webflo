@@ -4,28 +4,29 @@
  */
 import { _after } from "@webqit/util/str/index.js";
 import _Headers from './_Headers.js';
+import { wwwFormUnserialize } from './util.js';
 
 /**
  * The _Headers Mixin
  */
 const _RequestHeaders = NativeHeaders => class extends _Headers(NativeHeaders) {
 
-    set accepts(value) {
-        return this.set('Accepts', value);
+    set accept(value) {
+        return this.set('Accept', value);
     }
 
-    get accepts() {
-        const value = this.get('Accepts');
-        const AcceptsArr = class extends Array {
-            match(max) {
-                const _clone = this.slice();
-                if (_clone[1] > max - 1) {
-                    _clone[1] = max - 1;
-                }
-                return _clone;
+    get accept() {
+        const list = (this.get('Accept') || '')
+            .split(',').map(a => (a = a.trim().split(';').map(a => a.trim()), [a.shift(), parseFloat((a.pop() || '1').replace('q=', ''))]))
+            .sort((a, b) => a[1] > b[1] ? -1 : 1);
+        return {
+            match(mime) {
+                mime = (mime + '').split('/');
+                return list.reduce((prev, entry) => prev || (
+                    (entry = entry[0].split('/')) && [0, 1].every(i => ((mime[i] === entry[i]) || mime[i] === '*' || entry[i] === '*'))
+                ), false);
             }
         };
-        return value;
     }
 
     set cookies(cookies) {
@@ -34,7 +35,10 @@ const _RequestHeaders = NativeHeaders => class extends _Headers(NativeHeaders) {
     }
 
     get cookies() {
-        return this.get('Cookie');
+        if (!this._cookies) {
+            this._cookies = wwwFormUnserialize(this.get('cookie'), {}, ';');
+        }
+        return this._cookies;
     }
 
     set cors(value) {

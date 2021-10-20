@@ -64,7 +64,7 @@ export default class Router {
                         // -------------
                         // Dynamic response
                         // -------------
-                        const _next = (..._args) => {
+                        const _next = async (..._args) => {
                             const nextTick = { ...thisTick, arg: _args[0] };
                             if (_args.length > 1) {
                                 var _url = _args[1], _request, requestInit = { ...(_args[2] || {}) };
@@ -85,10 +85,11 @@ export default class Router {
                                     }
                                 }
                                 if (_request) {
-                                    nextTick.event = thisTick.event.retarget(_request, { ...requestInit, url: newDestination/** non-standard but works */ });
+                                    nextTick.event = thisTick.event.retarget(_request, { ...requestInit, _proxy: { url: newDestination/** non-standard but works */ } });
                                 } else {
                                     nextTick.event = thisTick.event.retarget(newDestination, requestInit);
                                 }
+                                
                                 nextTick.source = thisTick.destination.join('/');
                                 nextTick.destination = newDestination.split('?').shift().split('/').map(a => a.trim()).filter(a => a);
                                 nextTick.trail = _args[1].startsWith('/') ? [] : thisTick.trail.reduce((_commonRoot, _seg, i) => _commonRoot.length === i && _seg === nextTick.destination[i] ? _commonRoot.concat(_seg) : _commonRoot, []);

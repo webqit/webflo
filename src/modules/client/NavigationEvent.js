@@ -3,6 +3,7 @@
  * @imports
  */
 import _NavigationEvent from '../_NavigationEvent.js';
+import _FormData from '../_FormData.js';
 
 /**
  * The ClientNavigationEvent class
@@ -12,7 +13,7 @@ export default _NavigationEvent({
     Request,
     Response,
     Headers,
-    FormData,
+    FormData: _FormData(FormData),
     File,
     Blob,
     ReadableStream,

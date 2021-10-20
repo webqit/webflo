@@ -6,6 +6,7 @@ import Fs from 'fs';
 import Path from 'path';
 import Http from 'http';
 import Https from 'https';
+import Formidable from 'formidable';
 import QueryString from 'querystring';
 import Sessions from 'client-sessions';
 import _each from '@webqit/util/obj/each.js';
@@ -21,7 +22,6 @@ import * as config from '../../config/index.js';
 import * as cmd from '../../cmd/index.js';
 import NavigationEvent from './NavigationEvent.js';
 import Router from './Router.js';
-import { File } from 'formdata-node';
 
 /**
  * The default initializer.
@@ -210,14 +210,55 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
     const fullUrl = protocol + '://' + request.headers.host + request.url;
     const requestInit = { method: request.method, headers: request.headers };
     if (request.method !== 'GET' && request.method !== 'HEAD') {
-        requestInit.body = request;
+        requestInit.body = await new Promise((resolve, reject) => {
+            var formidable = new Formidable.IncomingForm({ multiples: true, allowEmptyFiles: false, keepExtensions: true });
+            formidable.parse(request, (error, fields, files) => {
+                if (error) {
+                    reject(error);
+                    return;
+                }
+                if (request.headers['content-type'] === 'application/json') {
+                    return resolve(fields);
+                }
+                const formData = new NavigationEvent.globals.FormData;
+                Object.keys(fields).forEach(name => {
+                    if (Array.isArray(fields[name])) {
+                        const values = Array.isArray(fields[name][0]) 
+                            ? fields[name][0]/* bugly a nested array when there are actually more than entry */ 
+                            : fields[name];
+                        values.forEach(value => {
+                            formData.append(!name.endsWith(']') ? name + '[]' : name, value);
+                        });
+                    } else {
+                        formData.append(name, fields[name]);
+                    }
+                });
+                Object.keys(files).forEach(name => {
+                    const fileCompat = file => {
+                        // IMPORTANT
+                        // Path up the "formidable" file in a way that "formdata-node"
+                        // to can translate it into its own file instance
+                        file[Symbol.toStringTag] = 'File';
+                        file.stream = () => Fs.createReadStream(file.path);
+                        // Done pathcing
+                        return file;
+                    }
+                    if (Array.isArray(files[name])) {
+                        files[name].forEach(value => {
+                            formData.append(name, fileCompat(value));
+                        });
+                    } else {
+                        formData.append(name, fileCompat(files[name]));
+                    }
+                });
+                resolve(formData);
+            });
+        });
     }
     // The Formidabble thing in NavigationEvent class would still need
     // a reference to the Nodejs request
-    requestInit._request = request;
     const _request = new NavigationEvent.Request(fullUrl, requestInit);
     const serverNavigationEvent = new NavigationEvent(_request, request._session);
-    serverNavigationEvent.File = File;
     const $context = {
         rdr: null,
         layout: hostSetup.layout,
@@ -300,13 +341,13 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
             $context.response = await router.route([httpMethodName === 'delete' ? 'del' : httpMethodName, 'default'], serverNavigationEvent, null, async function(event) {
                 var file = await router.fetch(event);
                 // JSON request should ignore static files
-                if (file && !event.request.accepts.type(file.contentType)) {
+                if (file && !event.request.headers.accept.match(file.headers.contentType)) {
                     return;
                 }
                 // ----------------
                 // PRE-RENDERING
                 // ----------------
-                if (file && file.contentType === 'text/html' && (file.body + '').startsWith(`<!-- PRE-RENDERED -->`)) {
+                if (file && file.headers.contentType === 'text/html' && (file.body + '').startsWith(`<!-- PRE-RENDERED -->`)) {
                     if (config.prerendering && !(await !config.prerendering.match(serverNavigationEvent.url.pathname, flags, hostSetup.layout))) {
                         router.deletePreRendered(file.filename);
                         return;
@@ -326,7 +367,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
             // --------
 
             if (!$context.response.meta.static && (_isPlainObject($context.response.original) || _isPlainArray($context.response.original))) {
-                if (serverNavigationEvent.request.accepts.type('text/html')) {
+                if (serverNavigationEvent.request.headers.accept.match('text/html')) {
                     // --------
                     // Render
                     // --------
@@ -408,21 +449,6 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                 });
 
                 // -------------------
-                // Route response headers
-                // -------------------
-                _each($context.response.headers.json(), (name, value) => {
-                    if ([ 'autoindex', 'filename', 'static' ].includes(name)) return;
-                    if (name === 'set-cookie') {
-                        setCookies(value);
-                    } else {
-                        if (name.toLowerCase() === 'location' && !$context.response.status) {
-                            response.statusCode = 302 /* Temporary */;
-                        }
-                        response.setHeader(name, value);
-                    }
-                });
-
-                // -------------------
                 // Route response cookies
                 // -------------------
                 const cookieAtts = [ 'Expires', 'Max-Age', 'Domain', 'Path', 'Secure', 'HttpOnly', 'SameSite' ];
@@ -450,11 +476,26 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                 };
 
                 // -------------------
+                // Route response headers
+                // -------------------
+                _each($context.response.headers.json(), (name, value) => {
+                    if ([ 'autoindex', 'filename', 'static' ].includes(name)) return;
+                    if (name === 'set-cookie') {
+                        setCookies(value);
+                    } else {
+                        if (name.toLowerCase() === 'location' && !$context.response.status) {
+                            response.statusCode = 302 /* Temporary */;
+                        }
+                        response.setHeader(name, value);
+                    }
+                });
+                
+                // -------------------
                 // Send
                 // -------------------
                 if ($context.response.headers.redirect) {
                     response.end();
-                } else if ($context.response.original !== undefined) {
+                } else if ($context.response.original !== undefined && $context.response.original !== null) {
                     response.statusCode = $context.response.status;
                     response.statusMessage = $context.response.statusText;
 
@@ -472,7 +513,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                             const totalLength = $context.response.headers.contentLength;
                             // Validate offsets
                             if (rangeRequest[0] < 0 || (totalLength && rangeRequest[0] > totalLength) 
-                            || (rangeRequest[1] && (rangeRequest[1] <= rangeRequest[0] || (totalLength && rangeRequest[1] >= totalLength)))) {
+                            || (rangeRequest[1] > -1 && (rangeRequest[1] <= rangeRequest[0] || (totalLength && rangeRequest[1] >= totalLength)))) {
                                 response.statusCode = 416;
                                 response.setHeader('Content-Range', `bytes */${totalLength || '*'}`);
                                 response.setHeader('Content-Length', 0);

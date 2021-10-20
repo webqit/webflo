@@ -78,7 +78,7 @@ export default function(layout, params) {
 			// ROUTE FOR DATA
 			// --------
 			const httpMethodName = clientNavigationEvent.request.method.toLowerCase();
-			$context.response = await router.route([httpMethodName === 'delete' ? 'del' : httpMethodName, 'default'], clientNavigationEvent, document.state, async function(event, data) {
+			$context.response = await router.route([httpMethodName === 'delete' ? 'del' : httpMethodName, 'default'], clientNavigationEvent, document.state, async function(event) {
 				// -----------------
 				var networkProgress = networkProgressOngoing = new RequestHandle();
 				networkProgress.setActive(true, event.request._method || event.request.method);
@@ -92,21 +92,34 @@ export default function(layout, params) {
 				}
 				// -----------------
 				// Sync session data to cache to be available to service-worker routers
-				const response = _fetch(event.request, {}, networkProgress.updateProgress.bind(networkProgress));
+				const response = fetch(event.request, {}, networkProgress.updateProgress.bind(networkProgress));
 				// -----------------
 				// -----------------
 				response.catch(e => networkProgress.throw(e.message));
-				return response.then(response => {
-					$context.responseClone = response;
+				return response.then(async _response => {
+					_response = new clientNavigationEvent.Response(_response.body, {
+						status: _response.status,
+						statusText: _response.statusText,
+						headers: _response.headers,
+						_proxy: {
+							url: _response.url,
+							ok: _response.ok,
+							redirected: _response.redirected
+						},
+					});
+					// Save a reference to this
+					$context.responseClone = _response;
+					// Return a promise that never resolves as a new response is underway
 					if (!networkProgress.active) {
 						return new Promise(() => {});
 					}
+					// Stop loading status
 					networkProgress.setActive(false);
-					return response.ok ? response.json() : null;
+					return _response;
 				});
 			});
 			if ($context.response instanceof clientNavigationEvent.Response) {
-                $context.response = (await $context.response.jsonBuild())[0];
+                $context.response = await $context.response.jsonBuild();
             }
 
 			// --------

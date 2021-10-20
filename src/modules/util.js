@@ -81,7 +81,7 @@ export function wwwFormPathSerializeCallback(wwwFormPath, value, callback, shoul
     if ((_isObject(value) || _isArray(value)) && (!shouldSerialize || shouldSerialize(value, wwwFormPath))) {
         var isArr = _isArray(value);
         Object.keys(value).forEach(key => {
-            wwwFormPathSerializeCallback(`${wwwFormPath}[${!isArr ? key : ''}]`, value[key], callback);
+            wwwFormPathSerializeCallback(`${wwwFormPath}[${key}]`, value[key], callback, shouldSerialize);
         });
     } else {
         callback(wwwFormPath, !value && value !== 0 ? '' : value);
