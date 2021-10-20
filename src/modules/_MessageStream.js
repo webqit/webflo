@@ -113,7 +113,6 @@ const _MessageStream = (NativeMessageStream, Headers, FormData) => {
                             contentType === 'text/plain' ? 'plain' : 'other'
                         )
                     );
-                    console.log(':::::::::::', contentType)
                     if (type === 'formData') {
                         jsonBuild = (await request.formData()).json();
                     } else {
