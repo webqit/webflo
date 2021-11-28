@@ -93,9 +93,11 @@ export default function(layout, params) {
 	 * ONFETCH
 	 * -------------
 	 */
-
+	
 	// Listen now...
 	self.addEventListener('fetch', async evt => {
+		// URL schemes that might arrive here but not supported; e.g.: chrome-extension://
+		if (!evt.request.url.startsWith('http')) return;
 		// Fetches request
 		const handleFetch = async evt => {
 

@@ -64,9 +64,9 @@ export async function deploy(Ui, origin, flags = {}, layout = {}) {
             Fs.mkdirSync(origin.deploy_path, {recursive: true});
         }
     }
-    git.cwd(origin.deploy_path);
+    await git.cwd(origin.deploy_path);
     // Must come after git.cwd()
-    git.init();
+    await git.init();
 
     const hosts = {
         github: 'https://github.com',
