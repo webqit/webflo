@@ -2,9 +2,6 @@
 FROM node:12-alpine
 RUN apk --no-cache add git
 
-# NODE_ENV for installation
-ENV NODE_ENV development
-
 # We'll install npm packages at one-level higher than
 # actuall app root, so that we can bind-mount host system's app root
 # without overriding the container's node_modules directory
@@ -17,10 +14,10 @@ RUN npm install @webqit/playui-cli -g
 WORKDIR /home/www/app
 
 # To auto-start app (flags optional), we would add...
-# CMD ["webflo", "start", "--dev", "--http-only"]
+# CMD ["webflo", "start", "--env=dev", "--http-only"]
 
 # To build the image locally...
-# docker build --no-cache -t webflo .
+# docker build --no-cache -t webflo ./docker
 
 # To publish to docker hub...
 # docker login -u webqit
