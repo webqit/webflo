@@ -7,7 +7,7 @@ RUN apk --no-cache add git
 # without overriding the container's node_modules directory
 WORKDIR /home/www
 RUN npm install
-RUN npm install @webqit/webflo -g 
+RUN npm install @webqit/webflo -g
 RUN npm install @webqit/playui-cli -g
 
 # Move one-level in, for the reasons above

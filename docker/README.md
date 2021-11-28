@@ -26,7 +26,7 @@ Start the container using `docker run`; map a port (e.g `80`) of your host machi
 docker run -d -p 80:3000 --name my-app webqit/webflo webflo start
 ```
 
-Visit [localhost](http://localhost) to view your app.
+Visit [localhost](http://localhost) to view your app. 
 
 #### To Start In Dev Mode
 Webflo's *dev* mode is the perfect mode for developing locally. All you do is append the `--env=dev` flag to your webflo commands. [(Learn more)](#)
