@@ -61,7 +61,7 @@ export async function start(Ui, flags = {}, layout = {}) {
     if (flags.env !== 'prod' && flags.watch) {
         var nodemon, ecpt;
         try {
-            nodemon = await import('nodemon');
+            nodemon = await import('./node_modules/nodemon');
         } catch(e) {
             ecpt = e;
         }

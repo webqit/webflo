@@ -29,17 +29,19 @@ docker run -d -p 80:3000 --name my-app webqit/webflo webflo start
 Visit [localhost](http://localhost) to view your app. 
 
 #### To Start In Dev Mode
-Webflo's *dev* mode is the perfect mode for developing locally. All you do is append the `--env=dev` flag to your webflo commands. [(Learn more)](#)
+Webflo's *dev* mode is the perfect mode for developing locally. All you do is append the `--env=dev --watch` flags to your webflo commands. [(Learn more)](#)
 
 ```shell
-docker run -d -p 80:3000 --name my-app webqit/webflo webflo start --env=dev
+docker run -d -p 80:3000 --name my-app webqit/webflo webflo start --env=dev --watch
 ```
 
 In *dev* mode, webflo automatically restarts as you make changes to your codebase. Since webflo now lives inside a container, you'll need to *bind* the directory of your source code on your host machine to the `/home/www/app` directory of the container.
 
 ```shell
-docker run -d -v /Users/me/my-app:/home/www/app -p 80:3000 --name my-app webqit/webflo webflo start --env=dev
+docker run -d -v /Users/me/my-app:/home/www/app -p 80:3000 --name my-app webqit/webflo webflo start --env=dev --watch
 ```
+
+docker run -d -v /Users/ox-harris/Documents/CODE/webqit/webqit.io:/home/www/app -p 80:3000 --name my-app webqit/webflo webflo start --env=dev --watch
 
 ### To Use In the Cloud
 TODO

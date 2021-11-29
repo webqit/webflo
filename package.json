@@ -58,9 +58,6 @@
     "uuid": "^8.3.2",
     "webpack": "^5.50.0"
   },
-  "devDependencies": {
-    "nodemon": "^2.0.7"
-  },
   "author": "Oxford Harrison <oxharris.dev@gmail.com>",
   "maintainers": [
     "Oxford Harrison <oxharris.dev@gmail.com>"

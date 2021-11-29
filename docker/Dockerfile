@@ -14,7 +14,7 @@ RUN npm install @webqit/playui-cli -g
 WORKDIR /home/www/app
 
 # To auto-start app (flags optional), we would add...
-# CMD ["webflo", "start", "--env=dev", "--http-only"]
+# CMD ["webflo", "start", "--env=dev", "--watch", "--http-only"]
 
 # To build the image locally...
 # docker build --no-cache -t webflo ./docker
