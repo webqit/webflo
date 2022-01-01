@@ -188,31 +188,3 @@ export async function hook(Ui, event, deployCallback, flags = {}, layout = {}) {
         });
     }
 }
--------------------------event.request.headers Headers {
-    [Symbol(map)]: [Object: null prototype] {
-      host: [ 'webqit.io' ],
-      'user-agent': [ 'GitHub-Hookshot/0b09aa9' ],
-      'content-length': [ '8832' ],
-      Accept: [ '*/*' ],
-      'x-github-delivery': [ 'df789d9e-6a54-11ec-8718-4cd5824afac9' ],
-      'x-github-event': [ 'push' ],
-      'x-github-hook-id': [ '276190607' ],
-      'x-github-hook-installation-target-id': [ '319800404' ],
-      'x-github-hook-installation-target-type': [ 'repository' ],
-      'x-hub-signature': [ 'sha1=498b45d6bf3403f5e28c17c9c77ff6666e9e4529' ],
-      'x-hub-signature-256': [
-        'sha256=034225e0d05dedd523bb429ddf9e61a4863ac7b45de3bb0b429205664e795b8f'
-      ],
-      'content-type': [ 'application/json' ],
-      connection: [ 'close' ]
-    }
-  }
-  -------------------------event.request.headers Headers {
-    [Symbol(map)]: [Object: null prototype] {
-      Accept: [ '*/*' ],
-      'user-agent': [ 'node-fetch/1.0 (+https://github.com/bitinn/node-fetch)' ],
-      'accept-encoding': [ 'gzip,deflate' ],
-      connection: [ 'close' ],
-      host: [ 'webqit.io' ]
-    }
-  }
