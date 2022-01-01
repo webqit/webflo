@@ -9,7 +9,7 @@ import Webpack from 'webpack';
 import { _beforeLast } from '@webqit/util/str/index.js';
 import { _isObject, _isArray, _isEmpty } from '@webqit/util/js/index.js';
 import * as DotJs from '@webqit/backpack/src/dotfiles/DotJs.js';
-import * as client from '../config/client.js'
+import * as client from '../../config/client.js'
 
 
 /**
@@ -27,7 +27,7 @@ export async function build(Ui, flags = {}, layout = {}) {
     const config = await client.read(flags, layout);
     // Consistent forward slashing
     const forwardSlash = str => str.replace(/\\/g, '/');
-    var modulesDir = forwardSlash(Url.fileURLToPath(Path.join(import.meta.url, '../../modules/client')));
+    var modulesDir = forwardSlash(Url.fileURLToPath(Path.join(import.meta.url, '../../../runtime/client')));
     
     var workerDirSplit = Path.resolve(layout.WORKER_DIR).replace(/\\/g, '/').split('/');
     var workerParams = config.worker || {};
@@ -85,17 +85,17 @@ export async function build(Ui, flags = {}, layout = {}) {
     Ui.title(`CLIENT BUILD`);
 
     const clientBuild = { imports: {}, code: [], };
-    clientBuild.imports[modulesDir + '/Client.js'] = 'Client';
+    clientBuild.imports[modulesDir + '/Runtime.js'] = 'Runtime';
 
     // ------------------
     // >> Routes mapping
     buildRoutes(clientBuild, Ui, Path.resolve(layout.CLIENT_DIR), 'Client-Side Routing:');
     clientBuild.code.push(``);
-    clientBuild.code.push(`// >> Client Params`);
+    clientBuild.code.push(`// >> Runtime Params`);
     buildParams(clientBuild, clientParams, 'params');
     clientBuild.code.push(``);
-    clientBuild.code.push(`// >> Client Instantiation`);
-    clientBuild.code.push(`Client.call(null, layout, params);`);
+    clientBuild.code.push(`// >> Runtime Instantiation`);
+    clientBuild.code.push(`Runtime.call(null, layout, params);`);
     // ------------------
     
     // ------------------
@@ -107,9 +107,9 @@ export async function build(Ui, flags = {}, layout = {}) {
     };
     waiting = Ui.waiting(`Writing the client entry file: ${clientBundlingConfig.intermediate}`);
     waiting.start();
-    DotJs.write(clientBuild, clientBundlingConfig.intermediate, 'Client Build File');
+    DotJs.write(clientBuild, clientBundlingConfig.intermediate, 'Runtime Build File');
     waiting.stop();
-    Ui.info(Ui.f`Client Build file: ${clientBundlingConfig.intermediate}`);
+    Ui.info(Ui.f`Runtime Build file: ${clientBundlingConfig.intermediate}`);
     // ------------------
 
     // -------------------
@@ -124,10 +124,23 @@ export async function build(Ui, flags = {}, layout = {}) {
         await createBundle(Ui, workerBundlingConfig, 'Bundling the Service Worker Build file');
     }
     if (clientParams.bundling !== false) {
-        await createBundle(Ui, clientBundlingConfig, 'Bundling the Client Build file');
+        clientBundlingConfig.experiments = clientBundlingConfig.experiments || {};
+        if (!('outputModule' in clientBundlingConfig.experiments)) {
+            clientBundlingConfig.experiments.outputModule = true;
+            clientBundlingConfig.externalsType = 'module';
+        }
+        if (clientBundlingConfig.experiments.outputModule !== false) {
+            clientBundlingConfig.output = clientBundlingConfig.output || {};
+            clientBundlingConfig.output.environment = clientBundlingConfig.output.environment || {};
+            if (!('module' in clientBundlingConfig.output)) {
+                clientBundlingConfig.output.module = true;
+                clientBundlingConfig.output.environment.module = true;
+            }
+        }
+        await createBundle(Ui, clientBundlingConfig, 'Bundling the Runtime Build file');
     }
     
-};
+}
 
 /**
  * Creates a bundle using webpack
@@ -245,4 +258,4 @@ const buildParams = (build, params, varName = null, indentation = 0) => {
         }
     });
     if (varName) build.code.push(`};`);
-}
+};

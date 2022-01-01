@@ -10,7 +10,7 @@ import _beforeLast from '@webqit/util/str/beforeLast.js';
 import _isObject from '@webqit/util/js/isObject.js';
 import SimpleGit from 'simple-git';
 import Webhooks from '@octokit/webhooks';
-import * as origins from '../config/origins.js'
+import * as origins from '../../config/origins.js';
 
 /**
  * @description
@@ -133,7 +133,7 @@ export async function deploy(Ui, origin, flags = {}, layout = {}) {
             return pull();
         }
     });
-};
+}
 
 /**
  * @hook
@@ -183,4 +183,4 @@ export async function hook(Ui, event, deployCallback, flags = {}, layout = {}) {
             payload: submits.payload /* JSON object */,
         });
     }
-};
+}

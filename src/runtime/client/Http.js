@@ -172,7 +172,7 @@ export default class Http {
 					instance.history.pushState(instance.history.state, '', instance.location.href);
 				} catch(e) {}
 			}
-		}, {diff: true});
+		}, { diff: true });
 
 		// ----------------------------------
 		const createRequest = (url, referrer, e = {}) => {

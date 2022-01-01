@@ -152,7 +152,7 @@ export default function(layout, params) {
 			// Render...
 			// --------
 
-			if (!document.activeElement && event && _isObject(event.detail) && (event.detail.src instanceof Element) && /* do only on url path change */ _before(event.value, '?') !== _before(event.oldValue, '?')) {
+			if (/*document.activeElement === document.body && */event && _isObject(event.detail) && (event.detail.src instanceof Element) && /* do only on url path change */ _before(event.value, '?') !== _before(event.oldValue, '?')) {
 				setTimeout(() => {
 					var urlTarget;
 					if (clientNavigationEvent.url.hash && (urlTarget = document.querySelector(clientNavigationEvent.url.hash))) {

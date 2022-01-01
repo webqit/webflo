@@ -3,10 +3,9 @@
  * imports
  */
 import Fs from 'fs';
-import Readline from 'readline';
 import { spawn } from 'child_process';
 import _arrFrom from '@webqit/util/arr/from.js';
-import * as _server from '../config/server.js';
+import * as _server from '../../config/server.js';
 
 /**
  * @description
@@ -72,4 +71,4 @@ export async function generate(Ui, allDomains, flags = {}, layout = {}) {
         }
         process.exit();
     });
-};
+}

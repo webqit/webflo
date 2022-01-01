@@ -9,16 +9,18 @@ import parseArgs from '@webqit/backpack/src/cli/parseArgs.js';
 import Ui from '@webqit/backpack/src/cli/Ui.js';
 import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
 import { Promptx } from '@webqit/backpack/src/cli/Promptx.js';
+import * as build from './build/index.js';
 import * as config from './config/index.js';
-import * as cmd from './cmd/index.js';
+import * as runtime from './runtime/index.js';
+import * as services from './services/index.js';
 
 // ------------------------------------------
 
 const commands = {
     config: 'Starts a configuration process.',
-    build: cmd.client.desc.build,
-    deploy: cmd.origins.desc.deploy,
-    ...cmd.server.desc,
+    build: build.client.desc.build,
+    deploy: services.origins.desc.deploy,
+    ...runtime.server.desc,
 };
 
 // ------------------------------------------
@@ -37,69 +39,7 @@ console.log('');
         // --------------------------
 
         case 'build':
-            cmd.client.build(Ui, flags, layout);
-        break;
-
-        // --------------------------
-
-        case 'deploy':
-            var origin = Object.keys(keywords)[0],
-                options;
-            // ----------------
-            if (!origin && ellipsis) {
-                if (!(options = (await config.origins.read(flags, layout)).REPOS) || _isEmpty(options)) {
-                    Ui.log(Ui.f`Please configure an origin (${'webflo config ...'}) to use the ${'deploy'} command.`);
-                    return;
-                }
-                origin = await Promptx({
-                    name: 'origin',
-                    type: 'select',
-                    choices: options.map(r => ({value: r.TAG})),
-                    message: 'Please select a origin',
-                }).then(d => d.origin);
-            }
-            if (!origin) {
-                Ui.log(Ui.f`Please add an origin name to the ${command} command. For options, use the ellipsis ${'...'}`);
-                return;
-            }
-            // ----------------
-            cmd.origins.deploy(Ui, origin, flags, layout);
-        break;
-
-        // --------------------------
-
-        case 'start':
-           cmd.server.start(Ui, flags, layout);
-        break;
-        
-        case 'stop':
-        case 'restart':
-            var runtime = Object.keys(keywords)[0];
-            // ----------------
-            if (!runtime && ellipsis) {
-                runtime = await Promptx({
-                    name: 'runtime',
-                    type: 'select',
-                    choices: (await cmd.server.processes(Ui)).map(r => ({title: r.name, description: r.status, value: r.name})).concat({description: 'All of the above', value: 'all'}),
-                    message: 'Please select a runtime name',
-                }).then(d => d.runtime);
-            }
-            // ----------------
-            await cmd.server[command](Ui, runtime || 'all', flags);
-            process.exit();
-        break;
-
-        case 'processes':
-            const processes = await cmd.server.processes(Ui, flags);
-            Ui.title(`SERVERS`);
-            if (processes.length) {
-                processes.forEach(service => {
-                    Ui.log(Ui.f`> ${service}`);
-                });
-            } else {
-                Ui.log(Ui.f`> (empty)`);
-            }
-            process.exit();
+            build.client.build(Ui, flags, layout);
         break;
 
         // --------------------------
@@ -130,9 +70,71 @@ console.log('');
 
         // --------------------------
 
+        case 'start':
+           runtime.server.start(Ui, flags, layout);
+        break;
+        
+        case 'stop':
+        case 'restart':
+            var _runtime = Object.keys(keywords)[0];
+            // ----------------
+            if (!_runtime && ellipsis) {
+                _runtime = await Promptx({
+                    name: 'runtime',
+                    type: 'select',
+                    choices: (await runtime.server.processes(Ui)).map(r => ({title: r.name, description: r.status, value: r.name})).concat({description: 'All of the above', value: 'all'}),
+                    message: 'Please select a runtime name',
+                }).then(d => d.runtime);
+            }
+            // ----------------
+            await runtime.server[command](Ui, _runtime || 'all', flags);
+            process.exit();
+        break;
+
+        case 'processes':
+            const processes = await runtime.server.processes(Ui, flags);
+            Ui.title(`SERVERS`);
+            if (processes.length) {
+                processes.forEach(service => {
+                    Ui.log(Ui.f`> ${service}`);
+                });
+            } else {
+                Ui.log(Ui.f`> (empty)`);
+            }
+            process.exit();
+        break;
+
+        // --------------------------
+
+        case 'deploy':
+            var origin = Object.keys(keywords)[0],
+                options;
+            // ----------------
+            if (!origin && ellipsis) {
+                if (!(options = (await config.origins.read(flags, layout)).REPOS) || _isEmpty(options)) {
+                    Ui.log(Ui.f`Please configure an origin (${'webflo config ...'}) to use the ${'deploy'} command.`);
+                    return;
+                }
+                origin = await Promptx({
+                    name: 'origin',
+                    type: 'select',
+                    choices: options.map(r => ({value: r.TAG})),
+                    message: 'Please select a origin',
+                }).then(d => d.origin);
+            }
+            if (!origin) {
+                Ui.log(Ui.f`Please add an origin name to the ${command} command. For options, use the ellipsis ${'...'}`);
+                return;
+            }
+            // ----------------
+            services.origins.deploy(Ui, origin, flags, layout);
+        break;
+
+        // --------------------------
+
         case 'cert':
             var domains = Object.keys(keywords);
-           cmd.certbot.generate(Ui, domains, flags, layout);
+           services.certbot.generate(Ui, domains, flags, layout);
         break;
         
         case 'help':

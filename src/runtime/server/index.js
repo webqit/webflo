@@ -7,8 +7,8 @@ import Path from 'path';
 import Pm2 from 'pm2';
 import _promise from '@webqit/util/js/promise.js';
 import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
-import * as server from '../config/server.js'
-import Server from '../modules/server/Server.js';
+import * as server from '../../config/server.js'
+import Runtime from './Runtime.js';
 
 /**
  * @description
@@ -26,7 +26,7 @@ export const desc = {
 export async function start(Ui, flags = {}, layout = {}) {
     const config = await server.read(flags, layout);
     const currentDir = Path.dirname(Url.fileURLToPath(import.meta.url));
-    const script = Path.resolve(currentDir, '../modules/server/start.mjs');
+    const script = Path.resolve(currentDir, './index.mjs');
      // -------------------
     // Splash screen
     // -------------------
@@ -34,7 +34,7 @@ export async function start(Ui, flags = {}, layout = {}) {
         // -------------------
         // Splash screen
         // -------------------
-        const WEBFLO = DotJson.read(Path.join(currentDir, '../../package.json'));
+        const WEBFLO = DotJson.read(Path.join(currentDir, '../../../package.json'));
         Ui.banner(WEBFLO.title, WEBFLO.version);
         Ui.log('');
         Ui.log(Ui.f`${'-------------------------------'}`);
@@ -51,7 +51,7 @@ export async function start(Ui, flags = {}, layout = {}) {
         Ui.log(Ui.f`${'-------------------------------'}`);
         Ui.log('');
         if (processName) {
-            Ui.success(`Server running in ${Ui.style.keyword('production')}; ${(processAutoRestart ? 'will' : 'wo\'nt')} autorestart on crash!`);
+            Ui.success(`Runtime running in ${Ui.style.keyword('production')}; ${(processAutoRestart ? 'will' : 'wo\'nt')} autorestart on crash!`);
             Ui.info(Ui.f`Process name: ${processName}`);
             Ui.log('');
         }
@@ -109,7 +109,7 @@ export async function start(Ui, flags = {}, layout = {}) {
             });
         });    
     }
-    await Server.call(null, Ui, flags);
+    await Runtime.call(null, Ui, flags);
     showRunning();
 };
 
@@ -124,7 +124,7 @@ export function stop(Ui, name, flags = {}) {
             if (err) {
                 Ui.error(err);
             } else {
-                Ui.success(Ui.f`Server ${flags.kill ? 'killed' : 'stopped'}: ${name}`);
+                Ui.success(Ui.f`Runtime ${flags.kill ? 'killed' : 'stopped'}: ${name}`);
             }
             resolve();
         };
@@ -148,7 +148,7 @@ export function restart(Ui, name, flags = {}) {
             if (err) {
                 Ui.error(err);
             } else {
-                Ui.success(Ui.f`Server restarted: ${name}`);
+                Ui.success(Ui.f`Runtime restarted: ${name}`);
             }
             resolve();
         });

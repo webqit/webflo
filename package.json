@@ -29,8 +29,8 @@
   },
   "bin": {
     "webflo": "src/index.js",
-    "webflo-certbot-http-auth-hook": "src/modules/certbot/http-auth-hook.js",
-    "webflo-certbot-http-cleanup-hook": "src/modules/certbot/http-cleanup-hook.js"
+    "webflo-certbot-http-auth-hook": "src/services/certbot/http-auth-hook.js",
+    "webflo-certbot-http-cleanup-hook": "src/services/certbot/http-cleanup-hook.js"
   },
   "dependencies": {
     "@octokit/auth-basic": "^1.4.6",

@@ -1,6 +1,6 @@
 # Base installations
 FROM node:12-alpine
-RUN apk --no-cache add git
+RUN apk add git
 
 # We'll install npm packages at one-level higher than
 # actuall app root, so that we can bind-mount host system's app root
@@ -12,6 +12,7 @@ RUN npm install @webqit/playui-cli -g
 
 # Move one-level in, for the reasons above
 WORKDIR /home/www/app
+ENV NODE_OPTIONS=--openssl-legacy-provider
 
 # To auto-start app (flags optional), we would add...
 # CMD ["webflo", "start", "--env=dev", "--watch", "--http-only"]

@@ -19,7 +19,7 @@ import _delay from '@webqit/util/js/delay.js';
 import { slice as _streamSlice } from 'stream-slice';
 import { v4 as uuidv4, v5 as uuidv5 } from 'uuid';
 import * as config from '../../config/index.js';
-import * as cmd from '../../cmd/index.js';
+import * as services from '../../services/index.js';
 import NavigationEvent from './NavigationEvent.js';
 import Router from './Router.js';
 
@@ -321,8 +321,8 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
             // --------
             // ROUTE FOR DEPLOY
             // --------
-            if (cmd.origins) {
-                await cmd.origins.hook(Ui, serverNavigationEvent, async (payload, defaultPeployFn) => {
+            if (services.origins) {
+                await services.origins.hook(Ui, serverNavigationEvent, async (payload, defaultPeployFn) => {
                     var exitCode = await router.route('deploy', serverNavigationEvent, payload, function(event, _payload) {
                         return defaultPeployFn(_payload);
                     });
