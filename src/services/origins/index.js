@@ -140,13 +140,9 @@ export async function deploy(Ui, origin, flags = {}, layout = {}) {
  */
 export async function hook(Ui, event, deployCallback, flags = {}, layout = {}) {
     const eventHandler = Webhooks.createEventHandler();
-    console.log('-------------------------event.request.headers', event.request.headers)
     if (event.request.headers.has('user-agent') && event.request.headers.get('user-agent').startsWith('GitHub-Hookshot/')) {
-        console.log('-------------------------111111111111111111')
         const payload = await event.request.json();
-        console.log('-------------------------payload', payload)
         const matches = (await origins.match(payload.repository.full_name, flags, layout)).filter(o => o.autodeploy);
-        console.log('-------------------------matches', matches)
         var deployParams;
         if (!(deployParams = matches[0])) {
             return;
@@ -157,7 +153,7 @@ export async function hook(Ui, event, deployCallback, flags = {}, layout = {}) {
         if (!deployParams.autodeploy_secret) {
             throw new Error(`Failed deploy attempt (${payload.repository.full_name}): The deploy settings do not contain a secret.`);
         }
-        if (!Webhooks.verify(deployParams.autodeploy_secret, payload, event.request.headers['x-hub-signature'])) {
+        if (!Webhooks.verify(deployParams.autodeploy_secret, payload, event.request.headers.get('x-hub-signature'))) {
             throw new Error(`Failed deploy attempt (${payload.repository.full_name}): Signature mismatch.`);
         }
         if (payload.repository.disabled || payload.repository.archived) {
@@ -182,8 +178,8 @@ export async function hook(Ui, event, deployCallback, flags = {}, layout = {}) {
             }
         });
         return eventHandler.receive({
-            id: event.request.headers['x-github-delivery'],
-            name: event.request.headers['x-github-event'],
+            id: event.request.headers.get('x-github-delivery'),
+            name: event.request.headers.get('x-github-event'),
             payload: payload /* JSON object */,
         });
     }
