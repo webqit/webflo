@@ -140,6 +140,7 @@ export async function deploy(Ui, origin, flags = {}, layout = {}) {
  */
 export async function hook(Ui, event, deployCallback, flags = {}, layout = {}) {
     const eventHandler = Webhooks.createEventHandler();
+    console.log('-------------------------event.request.headers', event.request.headers)
     if (event.request.headers['user-agent'] && event.request.headers['user-agent'].startsWith('GitHub-Hookshot/')) {
         console.log('-------------------------111111111111111111')
         const submits = await event.request.parse();
