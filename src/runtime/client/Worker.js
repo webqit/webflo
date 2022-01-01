@@ -133,7 +133,7 @@ export default function(layout, params) {
 		// Thus the origin server would still not be contacted by the self.fetch() below, leading to inconsistencies in responses.
 		// So, we detect this scenerio and avoid it.
 		if (evt.request.mode === 'navigate' && evt.request.cache === 'force-cache' && evt.request.destination === 'document') {
-			return cache_fetch(evt, true/** cacheRefresh */);
+			return cache_fetch(evt/** , truecacheRefresh */);
 		}
 		if (_any((params.cache_first_url_list || []).map(c => c.trim()).filter(c => c), pattern => Minimatch.Minimatch(evt.request.url, pattern))) {
 			return cache_fetch(evt, true/** cacheRefresh */);
@@ -143,6 +143,9 @@ export default function(layout, params) {
 		}
 		return network_fetch(evt);
 	};
+
+	//evt.request.mode navigate evt.request.cache force-cache evt.request.destination document request.headers.get('Accept') text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9
+	//evt.request.mode navigate evt.request.cache force-cache evt.request.destination document request.headers.get('Accept') text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9
 
 	const getCacheName = request => request.headers.get('Accept') === 'application/json'
 			? params.cache_name + '_json' 
