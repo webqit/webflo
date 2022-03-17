@@ -54,3 +54,5 @@ certbot certonly --manual --preferred-challenges http -d neatly.fit --manual-aut
 
 An unexpected error occurred:
 There were too many requests of a given type :: Error creating new order :: too many failed authorizations recently: see https://letsencrypt.org/docs/rate-limits/
+
+sudo launchctl list | grep postgres

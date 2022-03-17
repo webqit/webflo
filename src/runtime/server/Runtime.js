@@ -341,7 +341,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
             $context.response = await router.route([httpMethodName === 'delete' ? 'del' : httpMethodName, 'default'], serverNavigationEvent, null, async function(event) {
                 var file = await router.fetch(event);
                 // JSON request should ignore static files
-                if (file && !event.request.headers.accept.match(file.headers.contentType)) {
+                if (file && event.request.headers.get('Accept') && !event.request.headers.accept.match(file.headers.contentType)) {
                     return;
                 }
                 // ----------------

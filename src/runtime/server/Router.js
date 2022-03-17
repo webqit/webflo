@@ -88,7 +88,7 @@ export default class Router extends _Router {
 
                         // if the file is found, set Content-type and send data
                         const type = Mime.lookup(ext);
-                        resolve(new event.Response(data, {
+                        resolve( new event.Response(data, {
                             headers: {
                                 contentType: type === 'application/javascript' ? 'text/javascript' : type,
                                 contentLength: Buffer.byteLength(data),
@@ -98,7 +98,7 @@ export default class Router extends _Router {
                                 static: true,
                                 autoIndex,
                             }
-                        }));
+                        } ) );
                         
                     }
                 });

@@ -2,7 +2,6 @@
 /**
  * @imports
  */
-import { Observer } from '@webqit/pseudo-browser/index2.js';
 import _isArray from '@webqit/util/js/isArray.js';
 import _isObject from '@webqit/util/js/isObject.js';
 import { wwwFormUnserialize, wwwFormSerialize } from './util.js';
@@ -70,6 +69,7 @@ const _URL = NativeURL => {
 	
 		constructor() {
 			super(...arguments);
+			const { Observer } = WebQit;
 			Observer.accessorize(this, [
 				'protocol', 
 				'username',

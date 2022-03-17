@@ -5,7 +5,7 @@
 import Router from './Router.js';
 import _isGlobe from 'is-glob';
 import Minimatch from 'minimatch';
-import { Observer } from '@webqit/pseudo-browser/index2.js';
+import Observer from '@webqit/observer';
 import _isArray from '@webqit/util/js/isArray.js';
 import _afterLast from '@webqit/util/str/afterLast.js';
 import _after from '@webqit/util/str/after.js';
@@ -19,7 +19,7 @@ import NavigationEvent from './NavigationEvent.js';
  * The Worker Initializer
  * ---------------------------
  */
-			
+
 export default function(layout, params) {
 
 	// Copy...
@@ -133,7 +133,7 @@ export default function(layout, params) {
 		// Thus the origin server would still not be contacted by the self.fetch() below, leading to inconsistencies in responses.
 		// So, we detect this scenerio and avoid it.
 		if (evt.request.mode === 'navigate' && evt.request.cache === 'force-cache' && evt.request.destination === 'document') {
-			return cache_fetch(evt/** , truecacheRefresh */);
+			return cache_fetch(evt, false, true);
 		}
 		if (_any((params.cache_first_url_list || []).map(c => c.trim()).filter(c => c), pattern => Minimatch.Minimatch(evt.request.url, pattern))) {
 			return cache_fetch(evt, true/** cacheRefresh */);
@@ -152,18 +152,37 @@ export default function(layout, params) {
 			: params.cache_name;
 			
 	// Caching strategy: cache_first
-	const cache_fetch = (evt, cacheRefresh = false) => {
+	const cache_fetch = (evt, cacheRefresh = false, is_Navigate_ForceCache_Document = false) => {
 
 		return self.caches.open(getCacheName(evt.request)).then(cache => {
 			return cache.match(evt.request).then(response => {
+				const force_network_fetch = evt => {
+					let request = evt.request;
+					if (is_Navigate_ForceCache_Document) {
+						let url = new URL(request.url);
+						url.searchParams.set('$force-cache', '1');
+						request = new Request(url, {
+							method: request.method,
+							headers: request.headers,
+							body: request.body,
+							mode: request.mode,
+							credentials: request.credentials,
+							cache: request.cache,
+							redirect: request.redirect,
+							referrer: request.referrer,
+							integrity: request.integrity,
+						});
+					}
+					return self.fetch(request);
+				}
 				if (response) {
 					if (cacheRefresh) {
 						// Fetch, but return this immediately
-						self.fetch(evt.request).then(response => refreshCache(evt.request, response));
+						force_network_fetch(evt).then(response => refreshCache(evt.request, response));
 					}
 					return response;
 				}
-				return self.fetch(evt.request).then(response => refreshCache(evt.request, response));
+				return force_network_fetch(evt).then(response => refreshCache(evt.request, response));
 			});
 		});
 		
@@ -204,6 +223,8 @@ export default function(layout, params) {
 		return response;
 	};
 
+	// -----------------------------
+
 	const relay = function(evt, messageData) {
 		return self.clients.matchAll().then(clientList => {
 			clientList.forEach(client => {
@@ -214,8 +235,6 @@ export default function(layout, params) {
 			});
 		});
 	};
-
-	// -----------------------------
 	
 	self.addEventListener('message', evt => {
 

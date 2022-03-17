@@ -2,7 +2,6 @@
 /**
  * @imports
  */
-import { OOHTML, Observer } from '@webqit/pseudo-browser/index2.js';
 import _isObject from '@webqit/util/js/isObject.js';
 import _before from '@webqit/util/str/before.js';
 import _unique from '@webqit/util/arr/unique.js';
@@ -15,18 +14,11 @@ import Http from './Http.js';
 
 /**
  * ---------------------------
- * OOHTML
- * ---------------------------
- */
-
-OOHTML.call(window);
-
-/**
- * ---------------------------
  * The Client Initializer
  * ---------------------------
  */
 
+export const { Observer } = window.WebQit;
 export default function(layout, params) {
 
 	const session = Storage();
@@ -162,7 +154,7 @@ export default function(layout, params) {
 						window.scroll({top: 0, left: 0});
 						setTimeout(() => {
 							document.documentElement.classList.remove('scroll-reset');
-						}, 200);
+						}, 50);
 					}
 				}, 0);
 			}

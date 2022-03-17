@@ -3,8 +3,8 @@
 /**
  * @imports
  */
-import { Observer } from '@webqit/pseudo-browser/index2.js';
 import { _isFunction } from '@webqit/util/js/index.js';
+import { Observer } from './Runtime.js';
 
 export default class WorkerClient {
 

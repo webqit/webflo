@@ -2,13 +2,13 @@
 /**
  * @imports
  */
-import { Observer } from '@webqit/pseudo-browser/index2.js';
 import _before from '@webqit/util/str/before.js';
 import _after from '@webqit/util/str/after.js';
 import _toTitle from '@webqit/util/str/toTitle.js';
 import _arrFrom from '@webqit/util/arr/from.js';
 import { wwwFormUnserialize, wwwFormSet, wwwFormSerialize } from '../util.js';
 import StdRequest from './StdRequest.js';
+import { Observer } from './Runtime.js';
 import Url from './Url.js';
 
 /**
@@ -16,7 +16,7 @@ import Url from './Url.js';
  * The Client class
  * ---------------------------
  */
-			
+
 export default class Http {
 
 	/**
@@ -208,6 +208,7 @@ export default class Http {
 			}
 		}, {diff: false /* method might be the difference */});
 		// Startup route
+
 		handleResponse(await client.call(instance, createRequest(window.document.location.href, document.referrer)));
 
 		return instance;

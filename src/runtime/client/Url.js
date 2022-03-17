@@ -2,7 +2,6 @@
 /**
  * @imports
  */
-import { Observer } from '@webqit/pseudo-browser/index2.js';
 import _isArray from '@webqit/util/js/isArray.js';
 import _isObject from '@webqit/util/js/isObject.js';
 import _isTypeObject from '@webqit/util/js/isTypeObject.js';
@@ -10,12 +9,14 @@ import _isString from '@webqit/util/js/isString.js';
 import _isEmpty from '@webqit/util/js/isEmpty.js';
 import _with from '@webqit/util/obj/with.js';
 import { wwwFormUnserialize, wwwFormSerialize } from '../util.js';
+import { Observer } from './Runtime.js';
 
 /**
  * ---------------------------
  * The Url class
  * ---------------------------
  */
+
 export default class Url {
 
 	/**
