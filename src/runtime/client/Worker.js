@@ -165,7 +165,7 @@ export default function(layout, params) {
 							method: request.method,
 							headers: request.headers,
 							body: request.body,
-							mode: request.mode,
+							mode: request.mode === 'navigate' ? null : request.mode,
 							credentials: request.credentials,
 							cache: request.cache,
 							redirect: request.redirect,

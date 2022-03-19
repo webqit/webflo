@@ -410,7 +410,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                     // Serialize rendering?
                     // --------
                     if (_isObject(rendering) && rendering.document) {
-                        await _delay(1000);
+                        await _delay(2000);
                         rendering = rendering.print();
                     }
                     if (!_isString(rendering)) throw new Error('render() must return a window object or a string response.')

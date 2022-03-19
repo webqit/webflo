@@ -145,17 +145,16 @@ export default function(layout, params) {
 			// --------
 
 			if (/*document.activeElement === document.body && */event && _isObject(event.detail) && (event.detail.src instanceof Element) && /* do only on url path change */ _before(event.value, '?') !== _before(event.oldValue, '?')) {
+				document.documentElement.classList.add('scroll-reset');
 				setTimeout(() => {
-					var urlTarget;
 					if (clientNavigationEvent.url.hash && (urlTarget = document.querySelector(clientNavigationEvent.url.hash))) {
 						urlTarget.scrollIntoView(true);
 					} else {
-						document.documentElement.classList.add('scroll-reset');
 						window.scroll({top: 0, left: 0});
-						setTimeout(() => {
-							document.documentElement.classList.remove('scroll-reset');
-						}, 50);
 					}
+					setTimeout(() => {
+						document.documentElement.classList.remove('scroll-reset');
+					}, 400);
 				}, 0);
 			}
 
