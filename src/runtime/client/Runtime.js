@@ -147,14 +147,17 @@ export default function(layout, params) {
 			if (/*document.activeElement === document.body && */event && _isObject(event.detail) && (event.detail.src instanceof Element) && /* do only on url path change */ _before(event.value, '?') !== _before(event.oldValue, '?')) {
 				document.documentElement.classList.add('scroll-reset');
 				setTimeout(() => {
+					let vieportTop;
 					if (clientNavigationEvent.url.hash && (urlTarget = document.querySelector(clientNavigationEvent.url.hash))) {
-						urlTarget.scrollIntoView(true);
+						urlTarget.scrollIntoView();
+					} else if (vieportTop = Array.from(document.querySelectorAll('[data-viewport-top]')).pop()) {
+						vieportTop.focus();
 					} else {
-						window.scroll({top: 0, left: 0});
+						document.body.scrollIntoView();
 					}
 					setTimeout(() => {
 						document.documentElement.classList.remove('scroll-reset');
-					}, 400);
+					}, 600);
 				}, 0);
 			}
 
