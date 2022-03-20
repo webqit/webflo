@@ -145,7 +145,6 @@ export default function(layout, params) {
 			// --------
 
 			if (/*document.activeElement === document.body && */event && _isObject(event.detail) && (event.detail.src instanceof Element) && /* do only on url path change */ _before(event.value, '?') !== _before(event.oldValue, '?')) {
-				document.documentElement.classList.add('scroll-reset');
 				setTimeout(() => {
 					let vieportTop;
 					if (clientNavigationEvent.url.hash && (urlTarget = document.querySelector(clientNavigationEvent.url.hash))) {
@@ -153,11 +152,12 @@ export default function(layout, params) {
 					} else if (vieportTop = Array.from(document.querySelectorAll('[data-viewport-top]')).pop()) {
 						vieportTop.focus();
 					} else {
+						document.documentElement.classList.add('scroll-reset');
 						document.body.scrollIntoView();
+						setTimeout(() => {
+							document.documentElement.classList.remove('scroll-reset');
+						}, 600);
 					}
-					setTimeout(() => {
-						document.documentElement.classList.remove('scroll-reset');
-					}, 600);
 				}, 0);
 			}
 
