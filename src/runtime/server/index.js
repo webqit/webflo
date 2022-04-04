@@ -4,7 +4,7 @@
  */
 import Url from 'url';
 import Path from 'path';
-//import Pm2 from 'pm2';
+import Pm2 from 'pm2';
 import _promise from '@webqit/util/js/promise.js';
 import * as DotJson from '@webqit/backpack/src/dotfiles/DotJson.js';
 import * as server from '../../config/server.js'
