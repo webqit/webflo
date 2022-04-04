@@ -108,6 +108,7 @@ export default async function(Ui, flags = {}) {
 
     // ---------------------------------------------
     
+    console.log('-----------------------------------', setup.server);
     if (!flags['https-only']) {
 
         Http.createServer((request, response) => {
