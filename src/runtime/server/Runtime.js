@@ -42,7 +42,9 @@ export default async function(Ui, flags = {}) {
 
     if (!setup.server.shared && setup.variables.autoload !== false) {
         Object.keys(setup.variables.entries).forEach(key => {
-            process.env[key] = setup.variables.entries[key];
+            if (!(key in process.env) || setup.variables.autoload === 2) {
+                process.env[key] = setup.variables.entries[key];
+            }
         });
     }
 
@@ -108,7 +110,6 @@ export default async function(Ui, flags = {}) {
 
     // ---------------------------------------------
     
-    console.log('-----------------------------------', setup.server);
     if (!flags['https-only']) {
 
         Http.createServer((request, response) => {
@@ -120,7 +121,7 @@ export default async function(Ui, flags = {}) {
             } else {
                 goOrForceHttps(setup, request, response);
             }
-        }).listen(setup.server.port);
+        }).listen(process.env.PORT || setup.server.port);
 
         const goOrForceHttps = ($setup, $request, $response) => {
             if ($setup.server.https.force && !flags['http-only'] && /** main server */setup.server.https.port) {
@@ -185,7 +186,7 @@ export default async function(Ui, flags = {}) {
             }
         }
 
-        httpsServer.listen(setup.server.https.port);
+        httpsServer.listen(process.env.PORT2 || setup.server.https.port);
     }
 };
 

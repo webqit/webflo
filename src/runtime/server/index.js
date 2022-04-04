@@ -39,7 +39,10 @@ export async function start(Ui, flags = {}, layout = {}) {
         Ui.log('');
         Ui.log(Ui.f`${'-------------------------------'}`);
         Ui.log('');
-        const runtimeDetails = {HTTP: config.port, HTTPS: config.https.port || 0,};
+        const runtimeDetails = {
+            HTTP: process.env.PORT ? `${process.env.PORT} (Overriding ${config.port})` : config.port, 
+            HTTPS: process.env.PORT2 ? `${process.env.PORT2} (Overriding ${config.https.port || 0})` : config.https.port || 0, 
+        };
         if (config.shared) {
             runtimeDetails.MODE = 'Virtual Hosts';
         } else {
