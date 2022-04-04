@@ -83,7 +83,7 @@ export async function start(Ui, flags = {}, layout = {}) {
 
     if (flags.env === 'prod') {
         return new Promise(resolve => {
-            Pm2.connect(err => {
+            Pm2.connect(true/* no_daemon_mode */, err => {
                 if (err) {
                     Ui.error(err);
                     resolve();
@@ -106,7 +106,7 @@ export async function start(Ui, flags = {}, layout = {}) {
                             Ui.log('');
                             showRunning(name, autorestart);
                         }
-                        Pm2.disconnect(resolve);
+                        //Pm2.disconnect(resolve);
                     });
                 }
             });
