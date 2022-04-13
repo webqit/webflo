@@ -22,12 +22,14 @@ const _NavigationEvent = globals => {
         /**
          * Initializes a new NavigationEvent instance.
          * 
-         * @param Request       request 
-         * @param Object        sessionStore 
+         * @param Request       _request 
+         * @param Object        _session 
+         * @param Function      _sessionFactory 
          */
-        constructor(_request, _session = null) {
+        constructor(_request, _session = {}, _sessionFactory = null) {
             this._request = _request;
             this._session = _session;
+            this.sessionFactory = _sessionFactory;
             // -------
             this.URL = URL;
             // -------
@@ -73,7 +75,7 @@ const _NavigationEvent = globals => {
                 init._proxy.referrer = this.request.url;
                 request = new NavigationEvent.Request(this._request, init);
             }            
-            return new NavigationEvent(request, this._session);
+            return new NavigationEvent(request, this._session, this.sessionFactory);
         }
 
     }

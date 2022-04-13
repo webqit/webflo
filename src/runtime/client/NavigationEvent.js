@@ -17,4 +17,5 @@ export default _NavigationEvent({
     File,
     Blob,
     ReadableStream,
+    fetch,
 });

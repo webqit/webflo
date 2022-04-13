@@ -34,33 +34,11 @@ import Router from './Router.js';
 export default async function(Ui, flags = {}) {
 
     const layout = await config.layout.read(flags, {});
-    const setup = {
+    const v_setup = {}, setup = {
         layout,
         server: await config.server.read(flags, layout),
         variables: await config.variables.read(flags, layout),
     };
-
-    if (!setup.server.shared && setup.variables.autoload !== false) {
-        Object.keys(setup.variables.entries).forEach(key => {
-            if (!(key in process.env) || setup.variables.autoload === 2) {
-                process.env[key] = setup.variables.entries[key];
-            }
-        });
-    }
-
-    const getSessionInitializer = (sesskey, hostname = null) => {
-        const secret = sesskey || (hostname ? uuidv5(hostname, uuidv4()) : uuidv4());
-        return Sessions({
-            cookieName: '_session',             // cookie name dictates the key name added to the request object
-            secret,                             // should be a large unguessable string
-            duration: 24 * 60 * 60 * 1000,      // how long the session will stay valid in ms
-            activeDuration: 1000 * 60 * 5       // if expiresIn < activeDuration, the session will be extended by activeDuration milliseconds
-        });
-    };
-
-    const instanceSetup = setup;
-    
-    const v_setup = {};
     if (setup.server.shared) {
         await Promise.all(((await config.vhosts.read(flags, setup.layout)).entries || []).map(vh => new Promise(async resolve => {
             const vlayout = await config.layout.read(flags, {ROOT: Path.join(setup.layout.ROOT, vh.path)});
@@ -70,86 +48,57 @@ export default async function(Ui, flags = {}) {
                 variables: await config.variables.read(flags, vlayout),
                 vh,
             };
-            v_setup[vh.host].sessionInit = getSessionInitializer(v_setup[vh.host].variables.entries.sesskey, vh.host),
             resolve();
         })));
-    } else {
-        setup.sessionInit = getSessionInitializer(setup.variables.entries.sesskey);
-    }    
+    }  else if (setup.variables.autoload !== false) {
+        Object.keys(setup.variables.entries).forEach(key => {
+            if (!(key in process.env) || setup.variables.autoload === 2) {
+                process.env[key] = setup.variables.entries[key];
+            }
+        });
+    }
 
     // ---------------------------------------------
-    
-    const getVSetup = (request, response) => {
-        var _setup, v_hostname = (request.headers.host || '').split(':')[0];
-        if (_setup = v_setup[v_hostname]) {
-            return _setup;
+     
+    function handleRequest(protocol, request, response) {
+        let _setup = setup, hostname = (request.headers.host || '').split(':')[0];
+        if (setup.server.shared) {
+            if (!(_setup = v_setup[hostname])
+            && ((hostname.startsWith('www.') && (_setup = v_setup[hostname.substr(4)]) && _setup.server.force_www)
+            && (!hostname.startsWith('www.') && (_setup = v_setup['www.' + hostname]) && _setup.server.force_www))) {
+                response.statusCode = 500;
+                response.end('Unrecognized host');
+                return;
+            }
         }
-        if ((v_hostname.startsWith('www.') && (_setup = v_setup[v_hostname.substr(4)]) && _setup.server.force_www)
-        || (!v_hostname.startsWith('www.') && (_setup = v_setup['www.' + v_hostname]) && _setup.server.force_www)) {
-            return _setup;
+        if (protocol === 'http' && _setup.server.https.force && !flags['http-only'] && /** main server */setup.server.https.port) {
+            response.statusCode = 302;
+            response.setHeader('Location', 'https://' + request.headers.host + request.url);
+            response.end();
+            return;
         }
-        response.statusCode = 500;
-        response.end('Unrecognized host');
-    };
-
-    const goOrForceWww = (setup, request, response, protocol) => {
-        var hostname = request.headers.host || '';
         if (hostname.startsWith('www.') && setup.server.force_www === 'remove') {
             response.statusCode = 302;
             response.setHeader('Location', protocol + '://' + hostname.substr(4) + request.url);
             response.end();
-        } else if (!hostname.startsWith('www.') && setup.server.force_www === 'add') {
+            return;
+        }
+        if (!hostname.startsWith('www.') && setup.server.force_www === 'add') {
             response.statusCode = 302;
             response.setHeader('Location', protocol + '://www.' + hostname + request.url);
             response.end();
-        } else {
-            setup.sessionInit(request, response, () => {});
-            run(instanceSetup, setup, request, response, Ui, flags, protocol);
+            return;
         }
+        run(_setup, request, response, Ui, flags, protocol);
     };
 
     // ---------------------------------------------
-    
+
     if (!flags['https-only']) {
-
-        Http.createServer((request, response) => {
-            if (setup.server.shared) {
-                var _setup;
-                if (_setup = getVSetup(request, response)) {
-                    goOrForceHttps(_setup, request, response);
-                }
-            } else {
-                goOrForceHttps(setup, request, response);
-            }
-        }).listen(process.env.PORT || setup.server.port);
-
-        const goOrForceHttps = ($setup, $request, $response) => {
-            if ($setup.server.https.force && !flags['http-only'] && /** main server */setup.server.https.port) {
-                $response.statusCode = 302;
-                $response.setHeader('Location', 'https://' + $request.headers.host + $request.url);
-                $response.end();
-            } else {
-                goOrForceWww($setup, $request, $response, 'http');
-            }
-        };
-
+        Http.createServer((request, response) => handleRequest('http', request, response)).listen(process.env.PORT || setup.server.port);
     }
-
-    // ---------------------------------------------
-
     if (!flags['http-only'] && setup.server.https.port) {
-
-        const httpsServer = Https.createServer((request, response) => {
-            if (setup.server.shared) {
-                var _setup;
-                if (_setup = getVSetup(request, response)) {
-                    goOrForceWww(_setup, request, response, 'https');
-                }
-            } else {
-                goOrForceWww(setup, request, response, 'https');
-            }
-        });
-
+        const httpsServer = Https.createServer((request, response) => handleRequest('https', request, response));
         if (setup.server.shared) {
             _each(v_setup, (host, _setup) => {
                 if (Fs.existsSync(_setup.server.https.keyfile)) {
@@ -185,7 +134,6 @@ export default async function(Ui, flags = {}) {
                 });
             }
         }
-
         httpsServer.listen(process.env.PORT2 || setup.server.https.port);
     }
 };
@@ -193,7 +141,6 @@ export default async function(Ui, flags = {}) {
 /**
  * The Server.
  * 
- * @param Object    instanceSetup
  * @param Object    hostSetup
  * @param Request   request
  * @param Response  response
@@ -203,13 +150,12 @@ export default async function(Ui, flags = {}) {
  * 
  * @return void
  */
-export async function run(instanceSetup, hostSetup, request, response, Ui, flags = {}, protocol = 'http') {
+export async function run(hostSetup, request, response, Ui, flags = {}, protocol = 'http') {
 
     // --------
     // Request parsing
     // --------
 
-    const fullUrl = protocol + '://' + request.headers.host + request.url;
     const requestInit = { method: request.method, headers: request.headers };
     if (request.method !== 'GET' && request.method !== 'HEAD') {
         requestInit.body = await new Promise((resolve, reject) => {
@@ -257,10 +203,38 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
             });
         });
     }
-    // The Formidabble thing in NavigationEvent class would still need
-    // a reference to the Nodejs request
+
+    // --------
+    // NavigationEvent instance
+    // --------
+
+    const fullUrl = protocol + '://' + request.headers.host + request.url;
     const _request = new NavigationEvent.Request(fullUrl, requestInit);
-    const serverNavigationEvent = new NavigationEvent(_request, request._session);
+    const _sessionFactory = function(id, params = {}, callback = null) {
+        let factory, secret = hostSetup.variables.entries.SESSION_KEY;
+        Sessions({
+            duration: 0,                        // how long the session will stay valid in ms
+            activeDuration: 0,                  // if expiresIn < activeDuration, the session will be extended by activeDuration milliseconds
+            ...params,
+            cookieName: id,                     // cookie name dictates the key name added to the request object
+            secret,                             // should be a large unguessable string
+        })(request, response, e => {
+            factory = Object.getOwnPropertyDescriptor(request, id);
+            if (callback) {
+                callback(e, factory);
+            } else if (e) {
+                // TODO
+            }
+        });
+        // Where theres no error, factory is available Sync
+        return !callback ? factory : undefined;
+    };
+    const serverNavigationEvent = new NavigationEvent(
+        _request,
+        _sessionFactory('_session', {duration: 60 * 60 * 24 * 30}).get(),
+        _sessionFactory
+    );
+
     const $context = {
         rdr: null,
         layout: hostSetup.layout,
@@ -485,7 +459,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                     if (name === 'set-cookie') {
                         setCookies(value);
                     } else {
-                        if (name.toLowerCase() === 'location' && !$context.response.status) {
+                        if (name.toLowerCase() === 'location' && $context.response.status === 200) {
                             response.statusCode = 302 /* Temporary */;
                         }
                         response.setHeader(name, value);
@@ -496,6 +470,7 @@ export async function run(instanceSetup, hostSetup, request, response, Ui, flags
                 // Send
                 // -------------------
                 if ($context.response.headers.redirect) {
+                    response.statusCode = $context.response.status;
                     response.end();
                 } else if ($context.response.original !== undefined && $context.response.original !== null) {
                     response.statusCode = $context.response.status;

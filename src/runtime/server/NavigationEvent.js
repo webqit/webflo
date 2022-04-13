@@ -6,7 +6,7 @@ import { URL } from 'url';
 import { Readable } from "stream";
 import { FormData, File, Blob } from 'formdata-node';
 import { FormDataEncoder } from 'form-data-encoder';
-import { Request, Response, Headers } from 'node-fetch';
+import fetch, { Request, Response, Headers } from 'node-fetch';
 import _NavigationEvent from '../_NavigationEvent.js';
 import _FormData from '../_FormData.js';
 
@@ -34,5 +34,6 @@ export default _NavigationEvent({
     File,
     Blob,
     ReadableStream: Readable,
-    FormDataEncoder
+    FormDataEncoder,
+    fetch
 });

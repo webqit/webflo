@@ -104,26 +104,26 @@ const _MessageStream = (NativeMessageStream, Headers, FormData) => {
         }
                 
         // Payload
-        jsonBuild(force = false) {
-            if (!this._typedDataCache.jsonBuild || force) {
-                this._typedDataCache.jsonBuild = new Promise(async resolve => {
-                    var request = this, jsonBuild, contentType = request.headers.get('content-type') || '';
+        data(force = false) {
+            if (!this._typedDataCache.data || force) {
+                this._typedDataCache.data = new Promise(async resolve => {
+                    var request = this, data, contentType = request.headers.get('content-type') || '';
                     var type = contentType === 'application/json' || this._typedDataCache.json ? 'json' : (
                         contentType === 'application/x-www-form-urlencoded' || contentType.startsWith('multipart/') || this._typedDataCache.formData || (!contentType && !['get'].includes((request.method || '').toLowerCase())) ? 'formData' : (
                             contentType === 'text/plain' ? 'plain' : 'other'
                         )
                     );
                     if (type === 'formData') {
-                        jsonBuild = (await request.formData()).json();
+                        data = (await request.formData()).json();
                     } else {
-                        jsonBuild = type === 'json' ? await request.json() : (
+                        data = type === 'json' ? await request.json() : (
                             type === 'plain' ? await request.text() : request.body
                         );
                     }
-                    resolve(jsonBuild);
+                    resolve(data);
                 });
             }
-            return this._typedDataCache.jsonBuild;
+            return this._typedDataCache.data;
         }
 
     };
@@ -178,7 +178,7 @@ export function encodeBody(body, globals) {
                 contentLength: Buffer.byteLength(detailsObj.body, 'utf8'), // Buffer.from(string).length
             };
         }
-        detailsObj.jsonBuild = body;
+        detailsObj.data = body;
     }
     return detailsObj;
 }

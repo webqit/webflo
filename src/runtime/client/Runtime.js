@@ -111,7 +111,7 @@ export default function(layout, params) {
 				});
 			});
 			if ($context.response instanceof clientNavigationEvent.Response) {
-                $context.response = await $context.response.jsonBuild();
+                $context.response = await $context.response.data();
             }
 
 			// --------

@@ -81,7 +81,7 @@ export default class Http {
 			var anchor, href;
 			if ((anchor = e.target.closest('a')) && (href = anchor.href)
 			// And not towards any target nor have a download directive
-			&& !anchor.target && !anchor.download
+			&& !anchor.target && !anchor.download && !href.includes('/my-account')
 			// Same origin... but...
 			&& (!anchor.origin || anchor.origin === instance.location.origin)) {
 				if (e.metaKey || e.altKey || e.ctrlKey || e.shiftKey) {
@@ -187,6 +187,8 @@ export default class Http {
 		};
 		const handleResponse = response => {
 			if (response && response.redirected) {
+				window.location = response.url;
+				return;
 				var actionEl = window.document.createElement('a');
 				if ((actionEl.href = response.url) && (!actionEl.origin || actionEl.origin === instance.location.origin)) {
 					Observer.set(instance.location, { href: response.url }, {
