@@ -106,21 +106,25 @@ const _MessageStream = (NativeMessageStream, Headers, FormData) => {
         // Payload
         data(force = false) {
             if (!this._typedDataCache.data || force) {
-                this._typedDataCache.data = new Promise(async resolve => {
-                    var request = this, data, contentType = request.headers.get('content-type') || '';
+                this._typedDataCache.data = new Promise(async (resolve, reject) => {
+                    var messageInstance = this, data, contentType = messageInstance.headers.get('content-type') || '';
                     var type = contentType === 'application/json' || this._typedDataCache.json ? 'json' : (
-                        contentType === 'application/x-www-form-urlencoded' || contentType.startsWith('multipart/') || this._typedDataCache.formData || (!contentType && !['get'].includes((request.method || '').toLowerCase())) ? 'formData' : (
+                        contentType === 'application/x-www-form-urlencoded' || contentType.startsWith('multipart/') || this._typedDataCache.formData ? 'formData' : (
                             contentType === 'text/plain' ? 'plain' : 'other'
                         )
                     );
-                    if (type === 'formData') {
-                        data = (await request.formData()).json();
-                    } else {
-                        data = type === 'json' ? await request.json() : (
-                            type === 'plain' ? await request.text() : request.body
-                        );
+                    try {
+                        if (type === 'formData') {
+                            data = (await messageInstance.formData()).json();
+                        } else {
+                            data = type === 'json' ? await messageInstance.json() : (
+                                type === 'plain' ? await messageInstance.text() : messageInstance.body
+                            );
+                        }
+                        resolve(data);
+                    } catch(e) {
+                        reject(e);
                     }
-                    resolve(data);
                 });
             }
             return this._typedDataCache.data;

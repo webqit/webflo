@@ -74,50 +74,39 @@ export default function(layout, params) {
 				// -----------------
 				var networkProgress = networkProgressOngoing = new RequestHandle();
 				networkProgress.setActive(true, event.request._method || event.request.method);
-				// -----------------
-				const headers = event.request.headers;
-				if (!headers.get('Accept')) {
-					headers.set('Accept', 'application/json');
-				}
-				if (!headers.get('Cache-Control')) {
-					headers.set('Cache-Control', 'no-store');
-				}
-				// -----------------
-				// Sync session data to cache to be available to service-worker routers
-				const response = fetch(event.request, {}, networkProgress.updateProgress.bind(networkProgress));
-				// -----------------
-				// -----------------
-				response.catch(e => networkProgress.throw(e.message));
-				return response.then(async _response => {
-					_response = new clientNavigationEvent.Response(_response.body, {
-						status: _response.status,
-						statusText: _response.statusText,
-						headers: _response.headers,
+				const _response = fetch(event.request);
+				// This catch() is NOT intended to handle failure of the fetch
+				_response.catch(e => networkProgress.throw(e.message));
+				// Save a reference to this
+				return _response.then(async response => {
+					response = new clientNavigationEvent.Response(response.body, {
+						status: response.status,
+						statusText: response.statusText,
+						headers: response.headers,
 						_proxy: {
-							url: _response.url,
-							ok: _response.ok,
-							redirected: _response.redirected
+							url: response.url,
+							ok: response.ok,
+							redirected: response.redirected
 						},
 					});
-					// Save a reference to this
-					$context.responseClone = _response;
-					// Return a promise that never resolves as a new response is underway
-					if (!networkProgress.active) {
-						return new Promise(() => {});
+					if (response.headers.get('Location')) {
+						networkProgress.redirecting(response.headers.get('Location'));
 					}
 					// Stop loading status
 					networkProgress.setActive(false);
-					return _response;
+					return response;
 				});
 			});
 			if ($context.response instanceof clientNavigationEvent.Response) {
-                $context.response = await $context.response.data();
-            }
+				$context.data = await $context.response.data();
+            } else {
+				$context.data = $context.response;
+			}
 
 			// --------
 			// Render
 			// --------
-			const rendering = await router.route('render', clientNavigationEvent, $context.response, async function(event, data) {
+			const rendering = await router.route('render', clientNavigationEvent, $context.data, async function(event, data) {
 				// --------
 				// OOHTML would waiting for DOM-ready in order to be initialized
 				await new Promise(res => window.WebQit.DOM.ready(res));
@@ -168,7 +157,7 @@ export default function(layout, params) {
 
 		}
 		
-		return $context.responseClone;
+		return $context.response;
 	});
 
 };
@@ -201,6 +190,9 @@ class RequestHandle {
 			valuenow,
 			valuetotal,
 		});
+	}
+	redirecting(location) {
+		Observer.set(networkWatch, 'redirecting', location);
 	}
 	throw(message) {
 		if (this.active === false) {

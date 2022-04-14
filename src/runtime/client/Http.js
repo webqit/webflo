@@ -39,25 +39,97 @@ export default class Http {
 			/**
 			 * Performs a request.
 			 *
-			 * @param string 	href
-			 * @param object 	request
-			 * @param object 	src
+			 * @param object|string 	href
+			 * @param object 			options
 			 *
-			 * @return UserEvent
+			 * @return void
 			 */
-			go(href, request = {}, src = null) {
-				return Observer.set(this.location, 'href', href, {
-					detail: {request, src,},
-				});
+			async go(url, options = {}) {
+				if (this.activeController) {
+					this.activeController.abort();
+				}
+				this.activeController = new AbortController();
+				// Generates request object
+				let generateRequest = (url, options) => {
+					return new StdRequest(url, {
+						...options,
+						headers: {
+							'Accept': 'application/json',
+							'X-No-Cors-Redirect': 'manual',
+							'X-Powered-By': '@webqit/webflo',
+							...(options.headers || {}),
+						},
+						referrer: window.document.location.href,
+						signal: this.activeController.signal,
+					});
+				};
+				// Handles response object
+				let handleResponse = (response) => {
+					if (!response) return;
+					if (response.redirected && this.isSameOrigin(response.url)) {
+						Observer.set(this.location, { href: response.url }, {
+							detail: { isRedirect: true },
+						});
+					} else if (response.headers.get('X-No-Cors-Redirect')) {
+						window.location = response.headers.get('Location');
+					}
+				};
+				url = typeof url === 'string' ? { href: url } : url;
+				options = { referrer: window.document.location.href, ...options };
+				Observer.set(this.location, url, { detail: options, });
+				if (options.srcType === 'history' || !(_before(url.href, '#') === _before(options.referrer, '#') && (options.method || 'GET').toUpperCase() === 'GET')) {
+					handleResponse(await client.call(this, generateRequest(url.href, options)));
+				}
+			},
+
+			/**
+			 * Checks if an URL is same origin.
+			 *
+			 * @param object|string 	url
+			 *
+			 * @return Bool
+			 */
+			isSameOrigin(url) {
+				if (typeof url === 'string') {
+					let href = url;
+					url = window.document.createElement('a');
+					url.href = href
+				}
+				return !url.origin || url.origin === this.location.origin;
+			},
+
+			/**
+			 * History object
+			 */
+			get history() {
+				return window.history;
 			}
+
 		};
+
+		// -----------------------
+		// Initialize instance
+		Observer.set(instance, 'location', new Url(window.document.location));
+		// -----------------------
+		// Syndicate changes to the browser;s location bar
+		Observer.observe(instance.location, [[ 'href' ]], ([e]) => {
+			if (e.value === 'http:' || (e.detail || {}).src === window.document.location) {
+				// Already from a "popstate" event as above, so don't push again
+				return;
+			}
+			if (e.value === window.document.location.href || e.value + '/' === window.document.location.href) {
+				instance.history.replaceState(instance.history.state, '', instance.location.href);
+			} else {
+				try { instance.history.pushState(instance.history.state, '', instance.location.href); } catch(e) {}
+			}
+		}, { diff: true });
 
 		/**
 		 * ----------------
-		 * instance.location
+		 * Navigation Interception
 		 * ----------------
 		 */
-		Observer.set(instance, 'location', new Url(window.document.location));
+
 		// -----------------------
 		// This event is triggered by
 		// either the browser back button,
@@ -67,10 +139,9 @@ export default class Http {
 		window.addEventListener('popstate', e => {
 			// Needed to allow window.document.location
 			// to update to window.location
+			let referrer = window.document.location.href;
 			window.setTimeout(() => {
-				Observer.set(instance.location, Url.copy(window.document.location), {
-					detail: { type: 'history', src: window.document.location },
-				});
+				instance.go(Url.copy(window.document.location), { referrer, src: window.document.location, srcType: 'history', });
 			}, 0);
 		});
 
@@ -78,24 +149,17 @@ export default class Http {
 		// Capture all link-clicks
 		// and fire to this router.
 		window.addEventListener('click', e => {
-			var anchor, href;
-			if ((anchor = e.target.closest('a')) && (href = anchor.href)
-			// And not towards any target nor have a download directive
-			&& !anchor.target && !anchor.download && !href.includes('/my-account')
-			// Same origin... but...
-			&& (!anchor.origin || anchor.origin === instance.location.origin)) {
-				if (e.metaKey || e.altKey || e.ctrlKey || e.shiftKey) {
-					return;
-				}
+			var anchor = e.target.closest('a');
+			if (!anchor || !anchor.href) return;
+			if (!anchor.target && !anchor.download && (!anchor.origin || anchor.origin === instance.location.origin)) {
+				if (e.metaKey || e.altKey || e.ctrlKey || e.shiftKey) return;
 				// Publish everything, including hash
-				Observer.set(instance.location, Url.copy(anchor), {
-					detail: { type: 'link', src: anchor, },
-				});
+				instance.go(Url.copy(anchor), { src: anchor, srcType: 'link', });
 				// URLs with # will cause a natural navigation
 				// even if pointing to a different page, a natural navigation will still happen
 				// because with the Observer.set() above, window.document.location.href would have become
 				// the destination page, which makes it look like same page navigation
-				if (!href.includes('#')) {
+				if (!anchor.href.includes('#')) {
 					e.preventDefault();
 				}
 			}
@@ -105,25 +169,27 @@ export default class Http {
 		// Capture all form-submit
 		// and fire to this router.
 		window.addEventListener('submit', e => {
-			var actionEl = window.document.createElement('a'),
-				form = e.target.closest('form'),
+			var form = e.target.closest('form'),
 				submits = [e.submitter]; //_arrFrom(form.elements).filter(el => el.matches('button,input[type="submit"],input[type="image"]'));
 			var submitParams = [ 'action', 'enctype', 'method', 'noValidate', 'target' ].reduce((params, prop) => {
 				params[prop] = submits.reduce((val, el) => val || (el.hasAttribute(`form${prop.toLowerCase()}`) ? el[`form${_toTitle(prop)}`] : null), null) || form[prop];
 				return params;
 			}, {});
 			// We support method hacking
-			// ---------------
 			submitParams.method = e.submitter.dataset.method || form.dataset.method || submitParams.method;
 			// ---------------
-			if ((actionEl.href = submitParams.action) && !submitParams.target
-			// Same origin... but...
-			&& (!actionEl.origin || actionEl.origin === instance.location.origin)) {
+			var actionEl = window.document.createElement('a');
+			actionEl.href = submitParams.action;
+			// ---------------
+			// If not targeted and same origin...
+			if (!submitParams.target && (!actionEl.origin || actionEl.origin === instance.location.origin)) {
+				if (e.metaKey || e.altKey || e.ctrlKey || e.shiftKey) return;
+				// Build data
 				var formData = new FormData(form);
 				if (e.submitter.name) {
 					formData.set(e.submitter.name, e.submitter.value);
 				}
-				if (submitParams.method === 'get') {
+				if (submitParams.method.toUpperCase() === 'GET') {
 					var query = wwwFormUnserialize(actionEl.search);
 					Array.from(formData.entries()).forEach(_entry => {
 						wwwFormSet(query, _entry[0], _entry[1], false);
@@ -131,13 +197,7 @@ export default class Http {
 					actionEl.search = wwwFormSerialize(query);
 					formData = null;
 				}
-				if (e.metaKey || e.altKey || e.ctrlKey || e.shiftKey) {
-					return;
-				}
-				// Publish everything, including hash
-				Observer.set(instance.location, Url.copy(actionEl), {
-					detail: { type: 'form', src: form, submitParams, data: formData },
-				});
+				instance.go(Url.copy(actionEl), { ...submitParams, body: formData, src: form, srcType: 'form', });
 				// URLs with # will cause a natural navigation
 				// even if pointing to a different page, a natural navigation will still happen
 				// because with the Observer.set() above, window.document.location.href would have become
@@ -148,71 +208,9 @@ export default class Http {
 			}
 		});
 
-		/**
-		 * ----------------
-		 * instance.history
-		 * ----------------
-		 */
-
-		instance.history = window.history;
 		// -----------------------
-		// Syndicate changes to
-		// the browser;s location bar
-		Observer.observe(instance.location, [[ 'href' ]], e => {
-			e = e[0];
-			if ((e.detail || {}).src === window.document.location) {
-				// Already from a "popstate" event as above, so don't push again
-				return;
-			}
-			if (e.value === 'http:') return;
-			if (e.value === window.document.location.href || e.value + '/' === window.document.location.href) {
-				instance.history.replaceState(instance.history.state, '', instance.location.href);
-			} else {
-				try {
-					instance.history.pushState(instance.history.state, '', instance.location.href);
-				} catch(e) {}
-			}
-		}, { diff: true });
-
-		// ----------------------------------
-		const createRequest = (url, referrer, e = {}) => {
-			var detail = e.detail || {};
-			var options = {
-				method: (detail.submitParams || detail.src || {}).method || 'get',
-				body: detail.data,
-				headers: { ...(detail.headers || {}), 'X-Powered-By': '@webqit/webflo', },
-				referrer,
-			};
-			return new StdRequest(url, options);
-		};
-		const handleResponse = response => {
-			if (response && response.redirected) {
-				window.location = response.url;
-				return;
-				var actionEl = window.document.createElement('a');
-				if ((actionEl.href = response.url) && (!actionEl.origin || actionEl.origin === instance.location.origin)) {
-					Observer.set(instance.location, { href: response.url }, {
-						detail: { follow: false },
-					});
-				}
-			}
-		};
-		// ----------------------------------
-
-		// Observe location and route
-		Observer.observe(instance.location, [['href']], async e => {
-			e = e[0];
-			var detail = e.detail || {};
-			if (detail.follow === false) return;
-			var method = (detail.submitParams || detail.src || {}).method;
-			if ((_before(e.value, '#') !== _before(e.oldValue, '#')) || (method && method.toUpperCase() !== 'GET')) {
-				return handleResponse(await client.call(instance, createRequest(e.value, e.oldValue, e), e));
-			}
-		}, {diff: false /* method might be the difference */});
 		// Startup route
-
-		handleResponse(await client.call(instance, createRequest(window.document.location.href, document.referrer)));
-
+		instance.go(window.document.location.href, { referrer: document.referrer });
 		return instance;
 	}
 

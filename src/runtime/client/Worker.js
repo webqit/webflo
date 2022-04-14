@@ -117,7 +117,7 @@ export default function(layout, params) {
 				}
 				return _response;
 			}
-
+			
 			return defaultFetch(evt);
 		};
 		evt.respondWith(handleFetch(evt));
@@ -145,12 +145,11 @@ export default function(layout, params) {
 	};
 
 	//evt.request.mode navigate evt.request.cache force-cache evt.request.destination document request.headers.get('Accept') text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9
-	//evt.request.mode navigate evt.request.cache force-cache evt.request.destination document request.headers.get('Accept') text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9
 
 	const getCacheName = request => request.headers.get('Accept') === 'application/json'
 			? params.cache_name + '_json' 
 			: params.cache_name;
-			
+
 	// Caching strategy: cache_first
 	const cache_fetch = (evt, cacheRefresh = false, is_Navigate_ForceCache_Document = false) => {
 
@@ -162,10 +161,10 @@ export default function(layout, params) {
 						let url = new URL(request.url);
 						url.searchParams.set('$force-cache', '1');
 						request = new Request(url, {
-							method: request.method,
+							method: request.method, 
 							headers: request.headers,
 							body: request.body,
-							mode: request.mode === 'navigate' ? null : request.mode,
+							mode: request.mode === 'navigate'/* throws */ ? null : request.mode,
 							credentials: request.credentials,
 							cache: request.cache,
 							redirect: request.redirect,

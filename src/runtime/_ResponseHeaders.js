@@ -69,6 +69,14 @@ const _ResponseHeaders = NativeHeaders => class extends _Headers(NativeHeaders) 
         return value;
     }
 
+    get location() {
+        return this.get('Location');
+    }
+
+    set location(value) {
+        return this.set('Location', value);
+    }
+
     get redirect() {
         return this.get('Location');
     }
@@ -76,6 +84,7 @@ const _ResponseHeaders = NativeHeaders => class extends _Headers(NativeHeaders) 
     set redirect(value) {
         return this.set('Location', value);
     }
+
 }
 
 export default _ResponseHeaders;

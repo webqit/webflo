@@ -17,7 +17,6 @@ import _isArray from '@webqit/util/js/isArray.js';
 import { _isString, _isPlainObject, _isPlainArray } from '@webqit/util/js/index.js';
 import _delay from '@webqit/util/js/delay.js';
 import { slice as _streamSlice } from 'stream-slice';
-import { v4 as uuidv4, v5 as uuidv5 } from 'uuid';
 import * as config from '../../config/index.js';
 import * as services from '../../services/index.js';
 import NavigationEvent from './NavigationEvent.js';
@@ -408,12 +407,7 @@ export async function run(hostSetup, request, response, Ui, flags = {}, protocol
                 // -------------------
                 // Chrome needs this for audio elements to play
                 response.setHeader('Accept-Ranges', 'bytes');
-                /*
-                if ($context.response.headers.contentLength && !$context.response.headers.contentRange) {
-                    $context.response.headers.contentRange = `bytes 0-${$context.response.headers.contentLength}/${$context.response.headers.contentLength}`;
-                }
 
-                */
                 // -------------------
                 // Automatic response headers
                 // -------------------
@@ -470,8 +464,15 @@ export async function run(hostSetup, request, response, Ui, flags = {}, protocol
                 // Send
                 // -------------------
                 if ($context.response.headers.redirect) {
-                    response.statusCode = $context.response.status;
-                    response.end();
+                    if (serverNavigationEvent.request.headers.get('X-No-Cors-Redirect') === 'manual' 
+                    && (new serverNavigationEvent.globals.URL($context.response.headers.location)).origin !== serverNavigationEvent.url.origin) {
+                        response.statusCode = 200;
+                        response.setHeader('X-No-Cors-Redirect', $context.response.status);
+                        response.end();
+                    } else {
+                        response.statusCode = $context.response.status;
+                        response.end();
+                    }
                 } else if ($context.response.original !== undefined && $context.response.original !== null) {
                     response.statusCode = $context.response.status;
                     response.statusMessage = $context.response.statusText;
@@ -551,15 +552,23 @@ export async function run(hostSetup, request, response, Ui, flags = {}, protocol
     // --------
 
     if (flags.logs !== false) {
+        let errorCode = [ 404, 500 ].includes(response.statusCode) ? response.statusCode : 0;
+        let noCorsRedirect = response.getHeader('X-No-Cors-Redirect');
+        let redirectCode = noCorsRedirect || ((response.statusCode + '').startsWith('3') ? response.statusCode : 0);
+        let statusCode = noCorsRedirect || response.statusCode;
         Ui.log(''
             + '[' + (hostSetup.vh ? Ui.style.keyword(hostSetup.vh.host) + '][' : '') + Ui.style.comment((new Date).toUTCString()) + '] '
             + Ui.style.keyword(protocol.toUpperCase() + ' ' + serverNavigationEvent.request.method) + ' '
             + Ui.style.url(serverNavigationEvent.request.url) + ($context.response && ($context.response.meta || {}).autoIndex ? Ui.style.comment((!serverNavigationEvent.request.url.endsWith('/') ? '/' : '') + $context.response.meta.autoIndex) : '') + ' '
             + (' (' + Ui.style.comment($context.response && ($context.response.headers || {}).contentType ? $context.response.headers.contentType : 'unknown') + ') ')
             + (
-                [ 404, 500 ].includes(response.statusCode) 
-                ? Ui.style.err(response.statusCode + ($context.fatal ? ` [ERROR]: ${$context.fatal.error || $context.fatal.toString()}` : ``)) 
-                : Ui.style.val(response.statusCode) + ((response.statusCode + '').startsWith('3') ? ' - ' + Ui.style.val(response.getHeader('Location')) : ' (' + Ui.style.keyword(response.getHeader('Content-Range') || response.statusMessage) + ')')
+                errorCode
+                    ? Ui.style.err(errorCode + ($context.fatal ? ` [ERROR]: ${$context.fatal.error || $context.fatal.toString()}` : ``)) 
+                    : Ui.style.val(statusCode) + (
+                    redirectCode 
+                        ? ' - ' + Ui.style.val(response.getHeader('Location')) 
+                        : ' (' + Ui.style.keyword(response.getHeader('Content-Range') || response.statusMessage) + ')'
+                    )
             )
         );
     }
