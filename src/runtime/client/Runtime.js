@@ -67,7 +67,6 @@ export default function(layout, params) {
 		// Render
 		// --------
 		const data = response instanceof clientNavigationEvent.Response ? await response.data() : response;
-		console.log('----------------data', data);
 		await router.route('render', clientNavigationEvent, data, async function(event, data) {
 			// --------
 			// OOHTML would waiting for DOM-ready in order to be initialized

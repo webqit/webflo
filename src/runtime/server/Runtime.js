@@ -229,7 +229,7 @@ export async function run(hostSetup, request, response, Ui, flags = {}, protocol
     };
     const serverNavigationEvent = new NavigationEvent(
         new NavigationEvent.Request(fullUrl, requestInit),
-        _sessionFactory('_session', { duration: 60 * 60 }).get(),
+        _sessionFactory('_session', { duration: 60 * 60, activeDuration: 60 * 60 }).get(),
         _sessionFactory
     );
 
