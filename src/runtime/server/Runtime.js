@@ -208,7 +208,6 @@ export async function run(hostSetup, request, response, Ui, flags = {}, protocol
     // --------
 
     const fullUrl = protocol + '://' + request.headers.host + request.url;
-    const _request = new NavigationEvent.Request(fullUrl, requestInit);
     const _sessionFactory = function(id, params = {}, callback = null) {
         let factory, secret = hostSetup.variables.entries.SESSION_KEY;
         Sessions({
@@ -229,8 +228,8 @@ export async function run(hostSetup, request, response, Ui, flags = {}, protocol
         return !callback ? factory : undefined;
     };
     const serverNavigationEvent = new NavigationEvent(
-        _request,
-        _sessionFactory('_session', {duration: 60 * 60 * 24 * 30}).get(),
+        new NavigationEvent.Request(fullUrl, requestInit),
+        _sessionFactory('_session', { duration: 60 * 60 }).get(),
         _sessionFactory
     );
 
@@ -464,15 +463,16 @@ export async function run(hostSetup, request, response, Ui, flags = {}, protocol
                 // Send
                 // -------------------
                 if ($context.response.headers.redirect) {
-                    if (serverNavigationEvent.request.headers.get('X-No-Cors-Redirect') === 'manual' 
-                    && (new serverNavigationEvent.globals.URL($context.response.headers.location)).origin !== serverNavigationEvent.url.origin) {
-                        response.statusCode = 200;
-                        response.setHeader('X-No-Cors-Redirect', $context.response.status);
-                        response.end();
+                    let xRedirectPolicy = serverNavigationEvent.request.headers.get('X-Redirect-Policy');
+                    let xRedirectCode = serverNavigationEvent.request.headers.get('X-Redirect-Code') || 300;
+                    let isSameOriginRedirect = (new serverNavigationEvent.globals.URL($context.response.headers.location)).origin === serverNavigationEvent.url.origin;
+                    if (xRedirectPolicy === 'manual' || (!isSameOriginRedirect && xRedirectPolicy === 'manual-when-cross-origin') || (isSameOriginRedirect && xRedirectPolicy === 'manual-when-same-origin')) {
+                        response.statusCode = xRedirectCode;
+                        response.setHeader('X-Redirect-Code', $context.response.status);
                     } else {
                         response.statusCode = $context.response.status;
-                        response.end();
                     }
+                    response.end();
                 } else if ($context.response.original !== undefined && $context.response.original !== null) {
                     response.statusCode = $context.response.status;
                     response.statusMessage = $context.response.statusText;
@@ -553,9 +553,9 @@ export async function run(hostSetup, request, response, Ui, flags = {}, protocol
 
     if (flags.logs !== false) {
         let errorCode = [ 404, 500 ].includes(response.statusCode) ? response.statusCode : 0;
-        let noCorsRedirect = response.getHeader('X-No-Cors-Redirect');
-        let redirectCode = noCorsRedirect || ((response.statusCode + '').startsWith('3') ? response.statusCode : 0);
-        let statusCode = noCorsRedirect || response.statusCode;
+        let xRedirectCode = response.getHeader('X-Redirect-Code');
+        let redirectCode = xRedirectCode || ((response.statusCode + '').startsWith('3') ? response.statusCode : 0);
+        let statusCode = xRedirectCode || response.statusCode;
         Ui.log(''
             + '[' + (hostSetup.vh ? Ui.style.keyword(hostSetup.vh.host) + '][' : '') + Ui.style.comment((new Date).toUTCString()) + '] '
             + Ui.style.keyword(protocol.toUpperCase() + ' ' + serverNavigationEvent.request.method) + ' '

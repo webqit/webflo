@@ -45,22 +45,24 @@ export default class Http {
 			 * @return void
 			 */
 			async go(url, options = {}) {
-				if (this.activeController) {
-					this.activeController.abort();
+				if (this.abortController) {
+					this.abortController.abort();
 				}
-				this.activeController = new AbortController();
+				this.abortController = new AbortController();
+				let xRedirectCode = 300;
 				// Generates request object
 				let generateRequest = (url, options) => {
 					return new StdRequest(url, {
 						...options,
 						headers: {
 							'Accept': 'application/json',
-							'X-No-Cors-Redirect': 'manual',
+							'X-Redirect-Policy': 'manual-when-cross-origin',
+							'X-Redirect-Code': xRedirectCode,
 							'X-Powered-By': '@webqit/webflo',
 							...(options.headers || {}),
 						},
 						referrer: window.document.location.href,
-						signal: this.activeController.signal,
+						signal: this.abortController.signal,
 					});
 				};
 				// Handles response object
@@ -70,14 +72,14 @@ export default class Http {
 						Observer.set(this.location, { href: response.url }, {
 							detail: { isRedirect: true },
 						});
-					} else if (response.headers.get('X-No-Cors-Redirect')) {
+					} else if (response.headers.get('Location') && response.status === xRedirectCode) {
 						window.location = response.headers.get('Location');
 					}
 				};
 				url = typeof url === 'string' ? { href: url } : url;
-				options = { referrer: window.document.location.href, ...options };
+				options = { referrer: this.location.href, ...options };
 				Observer.set(this.location, url, { detail: options, });
-				if (options.srcType === 'history' || !(_before(url.href, '#') === _before(options.referrer, '#') && (options.method || 'GET').toUpperCase() === 'GET')) {
+				if (!(_before(url.href, '#') === _before(options.referrer, '#') && (options.method || 'GET').toUpperCase() === 'GET')) {
 					handleResponse(await client.call(this, generateRequest(url.href, options)));
 				}
 			},
@@ -108,7 +110,13 @@ export default class Http {
 		};
 
 		// -----------------------
-		// Initialize instance
+		// Initialize network
+		Observer.set(instance, 'network', {});
+		window.addEventListener('online', () => Observer.set(instance.network, 'online', navigator.onLine));
+		window.addEventListener('offline', () => Observer.set(instance.network, 'online', navigator.onLine));
+
+		// -----------------------
+		// Initialize location
 		Observer.set(instance, 'location', new Url(window.document.location));
 		// -----------------------
 		// Syndicate changes to the browser;s location bar
@@ -169,14 +177,14 @@ export default class Http {
 		// Capture all form-submit
 		// and fire to this router.
 		window.addEventListener('submit', e => {
-			var form = e.target.closest('form'),
-				submits = [e.submitter]; //_arrFrom(form.elements).filter(el => el.matches('button,input[type="submit"],input[type="image"]'));
+			var form = e.target.closest('form'), submitter = e.submitter;
 			var submitParams = [ 'action', 'enctype', 'method', 'noValidate', 'target' ].reduce((params, prop) => {
-				params[prop] = submits.reduce((val, el) => val || (el.hasAttribute(`form${prop.toLowerCase()}`) ? el[`form${_toTitle(prop)}`] : null), null) || form[prop];
+				params[prop] = submitter && submitter.hasAttribute(`form${prop.toLowerCase()}`) ? submitter[`form${_toTitle(prop)}`] : form[prop];
 				return params;
 			}, {});
 			// We support method hacking
-			submitParams.method = e.submitter.dataset.method || form.dataset.method || submitParams.method;
+			submitParams.method = (submitter && submitter.dataset.method) || form.dataset.method || submitParams.method;
+			submitParams.submitter = submitter;
 			// ---------------
 			var actionEl = window.document.createElement('a');
 			actionEl.href = submitParams.action;
@@ -186,8 +194,8 @@ export default class Http {
 				if (e.metaKey || e.altKey || e.ctrlKey || e.shiftKey) return;
 				// Build data
 				var formData = new FormData(form);
-				if (e.submitter.name) {
-					formData.set(e.submitter.name, e.submitter.value);
+				if ((submitter || {}).name) {
+					formData.set(submitter.name, submitter.value);
 				}
 				if (submitParams.method.toUpperCase() === 'GET') {
 					var query = wwwFormUnserialize(actionEl.search);
