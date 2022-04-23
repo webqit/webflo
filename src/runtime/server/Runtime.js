@@ -460,6 +460,13 @@ export async function run(hostSetup, request, response, Ui, flags = {}, protocol
                 });
                 
                 // -------------------
+                // Important no-caching for non-"get" requests
+                // -------------------
+                if (httpMethodName !== 'get' && !response.getHeader('Cache-Control')) {
+                    response.setHeader('Cache-Control', 'no-store');
+                }
+
+                // -------------------
                 // Send
                 // -------------------
                 if ($context.response.headers.redirect) {
