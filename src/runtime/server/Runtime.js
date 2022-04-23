@@ -472,6 +472,7 @@ export async function run(hostSetup, request, response, Ui, flags = {}, protocol
                     } else {
                         response.statusCode = $context.response.status;
                     }
+                    response.setHeader('Cache-Control', 'no-store');
                     response.end();
                 } else if ($context.response.original !== undefined && $context.response.original !== null) {
                     response.statusCode = $context.response.status;

@@ -120,7 +120,8 @@ export default function(layout, params) {
 			
 			return defaultFetch(evt);
 		};
-		evt.respondWith(handleFetch(evt));
+		let response = handleFetch(evt);
+		evt.respondWith(response);
 	});
 
 	const defaultFetch = function(evt) {
