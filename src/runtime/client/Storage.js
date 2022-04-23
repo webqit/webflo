@@ -6,30 +6,31 @@
 import { _isString, _isUndefined } from '@webqit/util/js/index.js';
 import { Observer } from './Runtime.js';
 
-export default function(persistent = false) {
+export default function(persistent = false, namespace = null) {
 
     const storeType = persistent ? 'localStorage' : 'sessionStorage';
     if (!window[storeType]) {
-        throw new Error(`The specified Web Storage API ${storeType} is invalid or not supported`)
+        throw new Error(`The specified Web Storage API ${storeType} is invalid or not supported`);
     }
 
     const _storage = {};
     Observer.intercept(_storage, (event, received, next) => {
-        if (event.type === 'get' && _isString(event.name)) {
-            const value = window[storeType].getItem(event.name);
+        const key = namespace ? `${namespace}.${event.name}` : event.name;
+        if (event.type === 'get' && _isString(key)) {
+            const value = window[storeType].getItem(key);
             return !_isUndefined(value) ? JSON.parse(value) : value;
         }
         if (event.type === 'set') {
-            window[storeType].setItem(event.name, !_isUndefined(event.value) ? JSON.stringify(event.value) : event.value);
+            window[storeType].setItem(key, !_isUndefined(event.value) ? JSON.stringify(event.value) : event.value);
             return true;
         }
         if (event.type === 'deleteProperty') {
-            window[storeType].removeItem(event.name);
+            window[storeType].removeItem(key);
             return true;
         }
         if (event.type === 'has') {
             for(var i = 0; i < window[storeType].length; i ++){
-                if (window[storeType].key(i) === event.name) {
+                if (window[storeType].key(i) === key) {
                     return true;
                 }
             };

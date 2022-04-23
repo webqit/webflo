@@ -157,7 +157,6 @@ export default class Navigator {
                 ...params,
                 headers: {
                     'Accept': 'application/json',
-					'Cache-Control': 'no-store',
                     'X-Redirect-Policy': 'manual-when-cross-origin',
                     'X-Redirect-Code': xRedirectCode,
                     'X-Powered-By': '@webqit/webflo',
@@ -223,6 +222,7 @@ export default class Navigator {
         }
         this._abortController = new AbortController();
         let xRedirectCode = 300;
+
 
         if (params.srcType === 'init' || !(_before(url.href, '#') === _before(params.referrer, '#') && (params.method || 'GET').toUpperCase() === 'GET')) {
             handleResponse(this.client.call(this, generateRequest(url.href, params), params, remoteRequest), params);

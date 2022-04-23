@@ -103,10 +103,15 @@ export default function(layout, params) {
 
 			if (evt.request.url.startsWith(self.origin) && (evt.request.mode === 'navigate' || evt.request.headers.get('X-Powered-By') === '@webqit/webflo')) {
 				// -----------------
+				// We must patch the event object with the new request instance
+				// cos the body of the original gets consumed (thus invalidated) by the new instance
+				Object.defineProperty(evt, 'request', {
+					value: new NavigationEvent.Request(evt.request),
+				});
 				// Sync session data to cache to be available to service-worker routers
 				// Sync only takes for requests that actually do send the "$session" cookie
 				const sessionData = Observer.proxy(sessionStores[evt.clientId] || {});
-				const clientNavigationEvent = new NavigationEvent(new NavigationEvent.Request(evt.request), sessionData);
+				const clientNavigationEvent = new NavigationEvent(evt.request, sessionData);
 				// -----------------
 				// The app router
 				const router = new Router(_before(evt.request.url, '?'), layout, { layout });

@@ -32,10 +32,8 @@ const _Request = globals => class extends _MessageStream(globals.Request, _Reque
         // Init can contain "already-parsed request content"
         if (('body' in init)) {
             init = { ...init };
-            if (('body' in init)) {
-                _typedDataCache = encodeBody(init.body, globals);
-                init.body = _typedDataCache.body;
-            }
+            _typedDataCache = encodeBody(init.body, globals);
+            init.body = _typedDataCache.body;
         }
         if (!_isEmpty(init)) {
             super(input, init);
