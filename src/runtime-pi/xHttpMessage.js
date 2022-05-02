@@ -123,7 +123,7 @@ const xHttpMessage = (whatwagHttpMessage, Headers, FormData) => {
 }
 
 export default xHttpMessage;
-export function encodeBody(body, FormData) {
+export function encodeBody(body, FormData, Blob) {
     const detailsObj = { body, input: body };
     const encodeFormData = (detailsObj, formData) => {
         if (!FormData.encode) return;
@@ -170,7 +170,7 @@ export function encodeBody(body, FormData) {
             detailsObj.body = JSON.stringify(body);
             detailsObj.headers = {
                 contentType: 'application/json',
-                contentLength: Buffer.byteLength(detailsObj.body, 'utf8'), // Buffer.from(string).length
+                contentLength: (new Blob([ detailsObj.body ])).size, // Buffer.byteLength(detailsObj.body, 'utf8') isn't cross-environment
             };
         }
         detailsObj.resolved = body;

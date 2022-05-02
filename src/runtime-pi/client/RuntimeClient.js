@@ -83,7 +83,7 @@ export default class RuntimeClient {
 			window.document.setState({ page: data }, { update: 'merge' });
 			window.document.body.setAttribute('template', 'page/' + httpEvent.url.pathname.split('/').filter(a => a).map(a => a + '+-').join('/'));
             await new Promise(res => (window.document.templatesReadyState === 'complete' && res(), window.document.addEventListener('templatesreadystatechange', res)));
-			return true;
+			return window;
 		});
 	}
 
@@ -97,7 +97,7 @@ export default class RuntimeClient {
 	async scrollIntoView(httpEvent) {
 		if (!(httpEvent.detail.src instanceof Element)) return;
 		await new Promise(res => setTimeout(res, 10));
-		let viewportTop;
+		let viewportTop, urlTarget;
 		if (httpEvent.url.hash && (urlTarget = document.querySelector(httpEvent.url.hash))) {
 			urlTarget.scrollIntoView();
 		} else if (viewportTop = Array.from(document.querySelectorAll('[data-viewport-top]')).pop()) {

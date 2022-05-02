@@ -7,7 +7,7 @@ import xHttpMessage, { encodeBody } from './xHttpMessage.js';
 /**
  * The xResponse Mixin
  */
-const xResponse = (whatwagResponse, Headers, FormData) => class extends xHttpMessage(whatwagResponse, Headers, FormData) {
+const xResponse = (whatwagResponse, Headers, FormData, Blob) => class extends xHttpMessage(whatwagResponse, Headers, FormData) {
 
     // construct
     constructor(body = null, init = {}) {
@@ -22,7 +22,7 @@ const xResponse = (whatwagResponse, Headers, FormData) => class extends xHttpMes
                 bodyAttrs = body.bodyAttrs || {};
                 body = body.body;
             } else {
-                bodyAttrs = encodeBody(body, FormData);
+                bodyAttrs = encodeBody(body, FormData, Blob);
                 body = bodyAttrs.body;
             }
         }

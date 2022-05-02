@@ -22,8 +22,8 @@ const FormData = xFormData(whatwag.FormData);
 const ReadableStream = whatwag.ReadableStream;
 const RequestHeaders = xRequestHeaders(whatwag.Headers);
 const ResponseHeaders = xResponseHeaders(whatwag.Headers);
-const Request = xRequest(whatwag.Request, RequestHeaders, FormData);
-const Response = xResponse(whatwag.Response, ResponseHeaders, FormData);
+const Request = xRequest(whatwag.Request, RequestHeaders, FormData, whatwag.Blob);
+const Response = xResponse(whatwag.Response, ResponseHeaders, FormData, whatwag.Blob);
 const fetch = xfetch(whatwag.fetch);
 const HttpEvent = xHttpEvent(Request, Response, URL);
 
@@ -101,7 +101,7 @@ export default class Runtime {
 			if (!anchor.target && !anchor.download && (!anchor.origin || anchor.origin === this.location.origin)) {
 				if (e.metaKey || e.altKey || e.ctrlKey || e.shiftKey) return;
 				// Publish everything, including hash
-				this.go(Url.copy(anchor), { src: anchor, srcType: 'link', });
+				this.go(Url.copy(anchor), {}, { src: anchor, srcType: 'link', });
 				// URLs with # will cause a natural navigation
 				// even if pointing to a different page, a natural navigation will still happen
 				// because with the Observer.set() above, window.document.location.href would have become
@@ -144,7 +144,11 @@ export default class Runtime {
 					actionEl.search = wwwFormSerialize(query);
 					formData = null;
 				}
-				this.go(Url.copy(actionEl), { ...submitParams, body: formData, src: form, srcType: 'form', });
+				this.go(Url.copy(actionEl), {
+					method: submitParams.method,
+					body: formData,
+					headers: { contentType: submitParams.enctype },
+				}, { ...submitParams, src: form, srcType: 'form', });
 				// URLs with # will cause a natural navigation
 				// even if pointing to a different page, a natural navigation will still happen
 				// because with the Observer.set() above, window.document.location.href would have become

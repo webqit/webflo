@@ -70,7 +70,7 @@ export default class RuntimeClient {
     // Renderer
     async render(httpEvent, router, response) {
         let data = await response.json();
-        return router.route('render', httpEvent, data, async (httpEvent, data) => {
+        let rendering = await router.route('render', httpEvent, data, async (httpEvent, data) => {
             var renderFile, pathnameSplit = httpEvent.url.pathname.split('/');
             while ((renderFile = Path.join(this.cx.CWD, this.cx.layout.PUBLIC_DIR, './' + pathnameSplit.join('/'), 'index.html')) 
             && (this.renderFileCache[renderFile] === false/* false on previous runs */ || !Fs.existsSync(renderFile))) {
@@ -95,8 +95,9 @@ export default class RuntimeClient {
             window.document.setState({ page: data, url: httpEvent.url }, { update: 'merge' });
             window.document.body.setAttribute('template', 'page/' + httpEvent.url.pathname.split('/').filter(a => a).map(a => a + '+-').join('/'));
             await new Promise(res => setTimeout(res, 10));
-            return window.print();
+            return window;
         });
+        return rendering + '';
     }
 
 }

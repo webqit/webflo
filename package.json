@@ -37,7 +37,7 @@
   "dependencies": {
     "@octokit/webhooks": "^7.15.1",
     "@webqit/backpack": "^0.0.37",
-    "@webqit/oohtml-ssr": "^1.0.2",
+    "@webqit/oohtml-ssr": "^1.0.3",
     "@webqit/util": "^0.8.9",
     "client-sessions": "^0.8.0",
     "form-data-encoder": "^1.6.0",

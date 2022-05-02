@@ -7,7 +7,7 @@ import xHttpMessage, { encodeBody } from './xHttpMessage.js';
 /**
  * The xRequest Mixin
  */
-const xRequest = (whatwagRequest, Headers, FormData) => class extends xHttpMessage(whatwagRequest, Headers, FormData) {
+const xRequest = (whatwagRequest, Headers, FormData, Blob) => class extends xHttpMessage(whatwagRequest, Headers, FormData) {
         
     constructor(input, init = {}) {
         init = { ...init };
@@ -30,7 +30,7 @@ const xRequest = (whatwagRequest, Headers, FormData) => class extends xHttpMessa
         }
         // Init can contain "already-parsed request content"
         if (('body' in init)) {
-            bodyAttrs = encodeBody(init.body, FormData);
+            bodyAttrs = encodeBody(init.body, FormData, Blob);
             init.body = bodyAttrs.body;
         }
         let isNavigateMode;
