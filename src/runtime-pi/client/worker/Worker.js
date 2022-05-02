@@ -88,6 +88,9 @@ export default class Worker {
         Observer.set(this, 'location', {});
         Observer.set(this, 'network', {});
         // ---------------
+		Observer.observe(this.network, es => {
+			//console.log('//////////', ...es.map(e => `${e.name}: ${e.value}`))
+		});
 	}
 
 	/**

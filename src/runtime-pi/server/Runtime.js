@@ -247,7 +247,7 @@ export default class Runtime {
         if (this.cx.app.title && this.cx.logger) {
             this.cx.logger.info(`> Server running (${this.cx.app.title || ''})`);
         }
-    }
+     }
 
     /**
      * Performs a request.
@@ -303,7 +303,7 @@ export default class Runtime {
         if (this.cx.server.shared) {
             client = this.clients.get(url.hostname);
         }
-        let response = await client.handle(httpEvent, (...args) => this.remoteFetch(...args));
+        let response = await client.handle(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
         let finalResponse = await this.handleResponse(httpEvent, response, autoHeaders.filter(header => header.type === 'response'));
         // Logging
         if (this.cx.logger) {
@@ -335,7 +335,6 @@ export default class Runtime {
                 });
             }
         } else {
-            baseObject = e.detail.request;
             Sessions({
                 duration: 0,                                            // how long the session will stay valid in ms
                 activeDuration: 0,                                      // if expiresIn < activeDuration, the session will be extended by activeDuration milliseconds
@@ -348,6 +347,7 @@ export default class Runtime {
                     callback(e);
                 }
             });
+            baseObject = e.detail.request;
         }
         // Where theres no error, instance is available
         let instance = Object.getOwnPropertyDescriptor(baseObject, id);
