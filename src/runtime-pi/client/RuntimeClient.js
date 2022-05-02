@@ -103,10 +103,7 @@ export default class RuntimeClient {
 		} else if (viewportTop = Array.from(document.querySelectorAll('[data-viewport-top]')).pop()) {
 			viewportTop.focus();
 		} else {
-			document.documentElement.classList.add('scroll-reset');
 			document.body.scrollIntoView();
-			await new Promise(res => setTimeout(res, 600));
-			document.documentElement.classList.remove('scroll-reset');
 		}
 	}
 
