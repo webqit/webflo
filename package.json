@@ -24,6 +24,8 @@
   "type": "module",
   "main": "./src/index.js",
   "scripts": {
+    "test": "mocha --extension .test.js --exit",
+    "test:coverage": "c8 --reporter=text-lcov npm run test | coveralls",
     "postversion": "npm publish",
     "postpublish": "git push && git push --tags"
   },
@@ -33,16 +35,11 @@
     "webflo-certbot-http-cleanup-hook": "src/services/certbot/http-cleanup-hook.js"
   },
   "dependencies": {
-    "@octokit/auth-basic": "^1.4.6",
-    "@octokit/rest": "^17.11.2",
     "@octokit/webhooks": "^7.15.1",
     "@webqit/backpack": "^0.0.37",
-    "@webqit/browser-pie": "^0.0.16",
-    "@webqit/observer": "^1.7.5",
-    "@webqit/pseudo-browser": "^1.0.0",
-    "@webqit/util": "^0.8.7",
+    "@webqit/oohtml-ssr": "^1.0.2",
+    "@webqit/util": "^0.8.9",
     "client-sessions": "^0.8.0",
-    "cookie": "^0.4.1",
     "form-data-encoder": "^1.6.0",
     "formdata-node": "^4.3.0",
     "formidable": "^2.0.0-dev.20200131.2",
@@ -51,12 +48,8 @@
     "mime-types": "^2.1.33",
     "minimatch": "^3.0.4",
     "node-fetch": "^2.6.1",
-    "pm2": "^5.2.0",
     "simple-git": "^2.20.1",
     "stream-slice": "^0.1.2",
-    "touch": "^3.1.0",
-    "undici": "^4.3.1",
-    "uuid": "^8.3.2",
     "webpack": "^5.50.0"
   },
   "author": "Oxford Harrison <oxharris.dev@gmail.com>",
