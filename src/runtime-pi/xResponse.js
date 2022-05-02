@@ -13,7 +13,7 @@ const xResponse = (whatwagResponse, Headers, FormData) => class extends xHttpMes
     constructor(body = null, init = {}) {
         let bodyAttrs = {}, isResponseInput;
         if (arguments.length) {
-            if ((body instanceof whatwagResponse)) {
+            if (body instanceof whatwagResponse) {
                 isResponseInput = body;
                 // Inherit init
                 init = { status: body.status, statusText: body.statusText, headers: body.headers, ...init };
@@ -29,6 +29,7 @@ const xResponse = (whatwagResponse, Headers, FormData) => class extends xHttpMes
         super(body, init, bodyAttrs);
         if (isResponseInput) {
             // Through the backdoor
+            this.attrs.url = isResponseInput.url;
             this.attrs.ok = isResponseInput.ok;
             this.attrs.status = isResponseInput.status; // In case it was earlier deleted
             this.attrs.type = isResponseInput.type;

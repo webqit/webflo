@@ -9,28 +9,25 @@ import { FormDataEncoder } from 'form-data-encoder';
 import { Readable } from "stream";
 
 /**
- * Patch MessageStream with formData()
- */
-const _streamFormDataPatch = MessageStream => class extends MessageStream {
-    // formData() polyfill
-    async formData() { return null;  }
-};
-
-/**
  * The NavigationEvent class
  */
-const Request2 = _streamFormDataPatch(Request);
-const Response2 = _streamFormDataPatch(Response);
+if (!Request.prototype.formData) {
+    Request.prototype.formData = async function() { return null }
+}
+if (!Response.prototype.formData) {
+    Response.prototype.formData = async function() { return null }
+}
 FormData.encode = formData => {
     const encoder = new FormDataEncoder(formData);
     return [ Readable.from(encoder.encode()), encoder.headers ];
 };
+
 export {
     URL,
     fetch,
     Headers,
-    Request2 as Request,
-    Response2 as Response,
+    Request,
+    Response,
     FormData,
     Readable as ReadableStream,
     File,
