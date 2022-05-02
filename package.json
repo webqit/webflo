@@ -30,7 +30,7 @@
     "postpublish": "git push && git push --tags"
   },
   "bin": {
-    "webflo": "src/index.js",
+    "webflo": "src/webflo.js",
     "webflo-certbot-http-auth-hook": "src/services/certbot/http-auth-hook.js",
     "webflo-certbot-http-cleanup-hook": "src/services/certbot/http-cleanup-hook.js"
   },
