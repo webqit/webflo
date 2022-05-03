@@ -235,7 +235,7 @@ function bundle(gen, output, asModule = false) {
             let log = stats.toString({ colors: true, });
             cx.logger && cx.logger.log(log);
             // Remove moduleFile build
-            //Fs.unlinkSync(bundlingConfig.entry);
+            Fs.unlinkSync(bundlingConfig.entry);
             resolve(log);
         });
     });
