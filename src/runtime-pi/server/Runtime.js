@@ -356,9 +356,9 @@ export default class Runtime {
     }
 
     // Initiates remote fetch and sets the status
-    remoteFetch(request) {
+    remoteFetch(request, ...args) {
         Observer.set(this.network, 'remote', true);
-        let _response = fetch(request);
+        let _response = fetch(request, ...args);
         // This catch() is NOT intended to handle failure of the fetch
         _response.catch(e => Observer.set(this.network, 'error', e.message));
         // Save a reference to this
@@ -401,6 +401,7 @@ export default class Runtime {
                 response.attrs.status = xRedirectCode;
                 response.headers.json({
                     'X-Redirect-Code': response.status,
+                    'Access-Control-Allow-Origin': '*',
                     'Cache-Control': 'no-store',
                 });
             }

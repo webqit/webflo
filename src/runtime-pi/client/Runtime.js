@@ -191,7 +191,7 @@ export default class Runtime {
             this._abortController.abort();
         }
         this._abortController = new AbortController();
-        this._xRedirectCode = 300;
+        this._xRedirectCode = 200;
         // ------------
         url = typeof url === 'string' ? new whatwag.URL(url) : url;
         init = { referrer: this.location.href, ...init };
@@ -213,7 +213,7 @@ export default class Runtime {
 		// The navigation event
 		let httpEvent = new HttpEvent(request, detail, (id = null, persistent = false) => this.getSession(httpEvent, id, persistent));
 		// Response
-		let response = await this.clients.get('*').handle(httpEvent, (...args) => this.remoteFetch(...args));
+		let response = await this.clients.get('*').handle(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
 		let finalResponse = this.handleResponse(httpEvent, response);
         // Return value
 		return finalResponse;
@@ -240,9 +240,9 @@ export default class Runtime {
 	}
 
 	// Initiates remote fetch and sets the status
-	remoteFetch(request) {
+	remoteFetch(request, ...args) {
 		Observer.set(this.network, 'remote', true);
-		let _response = fetch(request);
+		let _response = fetch(request, ...args);
 		// This catch() is NOT intended to handle failure of the fetch
 		_response.catch(e => Observer.set(this.network, 'error', e.message));
 		// Return xResponse

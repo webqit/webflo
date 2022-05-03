@@ -76,6 +76,7 @@ export default class Worker {
 		// -------------
 		// ONFETCH		
 		self.addEventListener('fetch', async evt => {
+			return; // TODO
 			// URL schemes that might arrive here but not supported; e.g.: chrome-extension://
 			if (!evt.request.url.startsWith('http')) return;
 			const requestInit = [
@@ -109,6 +110,10 @@ export default class Worker {
         // ------------
 		// The request object
 		let request = this.generateRequest(url.href, init);
+		if (detail.event instanceof self.Request) {
+			request = detail.event.request;
+			//Object.defineProperty(detail.event, 'request', { value: request });
+		}
 		// The navigation event
 		let httpEvent = new HttpEvent(request, detail, (id = null, persistent = false) => this.getSession(httpEvent, id, persistent));
 		httpEvent.port.listen(message => {
@@ -120,7 +125,7 @@ export default class Worker {
 		// Response
 		let response;
 		if (httpEvent.request.url.startsWith(self.origin)/* && httpEvent.request.mode === 'navigate'*/) {
-			response = await this.clients.get('*').handle(httpEvent, (...args) => this.remoteFetch(...args));
+			response = await this.clients.get('*').handle(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
 		} else {
 			response = await this.remoteFetch(httpEvent.request);
 		}
@@ -152,7 +157,10 @@ export default class Worker {
 	}
 
 	// Initiates remote fetch and sets the status
-	remoteFetch(request) {
+	remoteFetch(request, ...args) {
+		if (arguments.length > 1) {
+			request = this.generateRequest(request, ...args);
+		}
 		const execFetch = () => {
 			if (_any((this.cx.params.cache_only_urls || []).map(c => c.trim()).filter(c => c), pattern => Minimatch.Minimatch(request.url, pattern))) {
 				Observer.set(this.network, 'strategy', 'cache-only');
