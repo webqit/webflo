@@ -147,7 +147,6 @@ export default class Runtime {
 				this.go(Url.copy(actionEl), {
 					method: submitParams.method,
 					body: formData,
-					headers: { contentType: submitParams.enctype },
 				}, { ...submitParams, src: form, srcType: 'form', });
 				// URLs with # will cause a natural navigation
 				// even if pointing to a different page, a natural navigation will still happen

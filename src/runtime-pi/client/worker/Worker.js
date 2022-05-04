@@ -76,6 +76,7 @@ export default class Worker {
 		// -------------
 		// ONFETCH		
 		self.addEventListener('fetch', async evt => {
+			return;
 			// URL schemes that might arrive here but not supported; e.g.: chrome-extension://
 			if (!evt.request.url.startsWith('http') || evt.request.mode === 'navigate') return;
 			const requestInit = [
