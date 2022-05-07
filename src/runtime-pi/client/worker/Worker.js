@@ -76,12 +76,12 @@ export default class Worker {
 		// -------------
 		// ONFETCH		
 		self.addEventListener('fetch', async evt => {
-			return;
 			// URL schemes that might arrive here but not supported; e.g.: chrome-extension://
-			if (!evt.request.url.startsWith('http') || evt.request.mode === 'navigate') return;
-			const requestInit = [
+			if (!evt.request.url.startsWith('http')) return;
+			const deriveInit = req => [
 				'method', 'headers', 'body', 'mode', 'credentials', 'cache', 'redirect', 'referrer', 'integrity',
-			].reduce((init, prop) => ({ [prop]: evt.request[prop], ...init }), {});
+			].reduce((init, prop) => ({ [prop]: req[prop], ...init }), {});
+			const requestInit = deriveInit(evt.request);
 			evt.respondWith(this.go(evt.request.url, requestInit, { event: evt }));
 		});
 
@@ -92,6 +92,7 @@ export default class Worker {
 		Observer.observe(this.network, es => {
 			//console.log('//////////', ...es.map(e => `${e.name}: ${e.value}`))
 		});
+		
 	}
 
 	/**
@@ -112,7 +113,7 @@ export default class Worker {
 		let request = this.generateRequest(url.href, init);
 		if (detail.event instanceof self.Request) {
 			request = detail.event.request;
-			//Object.defineProperty(detail.event, 'request', { value: request });
+			Object.defineProperty(detail.event, 'request', { value: request });
 		}
 		// The navigation event
 		let httpEvent = new HttpEvent(request, detail, (id = null, persistent = false) => this.getSession(httpEvent, id, persistent));
@@ -129,6 +130,7 @@ export default class Worker {
 		} else {
 			response = await this.remoteFetch(httpEvent.request);
 		}
+		return response;
 		let finalResponse = this.handleResponse(httpEvent, response);
         // Return value
         return finalResponse;
@@ -183,7 +185,7 @@ export default class Worker {
 		// This catch() is NOT intended to handle failure of the fetch
 		response.catch(e => Observer.set(this.network, 'error', e.message));
 		// Return xResponse
-		return response.then(_response => new Response(_response));
+		return response.then(_response => Response.compat(_response));
 	}
 
 	// Caching strategy: cache_first
@@ -200,11 +202,6 @@ export default class Worker {
 
 	// Caching strategy: network_first
 	networkFetch(request, params = {}) {
-		if (params.forceNetwork) {
-			let url = new URL(request.url);
-			url.searchParams.set('$force-cache', '1');
-			request.attr.url = url.toString();
-		}
 		if (!params.cacheFallback) {
 			Observer.set(this.network, 'remote', true);
 			return self.fetch(request);
@@ -247,7 +244,7 @@ export default class Worker {
 
 	// Handles response object
 	handleResponse(e, response) {
-		if (!(response instanceof Response)) { response = new Response(response); }
+		if (!(response instanceof Response)) { response = Response.compat(response); }
 		return response;
 	}
 

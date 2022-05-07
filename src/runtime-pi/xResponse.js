@@ -57,6 +57,13 @@ const xResponse = (whatwagResponse, Headers, FormData, Blob) => class extends xH
         return 'redirected' in this.attrs ? this.attrs.redirected : super.redirected;
     }
 
+    static compat(response) {
+        if (response instanceof whatwagResponse) {
+            return Object.setPrototypeOf(response, new this);
+        }
+        return new this(response);
+    }
+
 };
 
 export default xResponse;

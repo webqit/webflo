@@ -35,7 +35,7 @@ export default class WorkerClient {
 				return remoteFetch(event.request);
 			}, remoteFetch);
 			if (!(response instanceof httpEvent.Response)) {
-                response = new httpEvent.Response(response);
+                response = httpEvent.Response.compat(response);
             }
             return response;
 		};
