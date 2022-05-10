@@ -186,19 +186,21 @@ export default class Runtime {
      * @return Response
      */
     async go(url, init = {}, detail = {}) {
+        url = typeof url === 'string' ? new whatwag.URL(url) : url;
+        init = { referrer: this.location.href, ...init };
+        // ------------
+		// Put his forward before instantiating a request and aborting previous
+		// Same-page hash-links clicks on chrome recurse here from histroy popstate
+        if (detail.srcType !== 'init' && (_before(url.href, '#') === _before(init.referrer, '#') && (init.method || 'GET').toUpperCase() === 'GET')) {
+			return;
+        }
+		// ------------
         if (this._abortController) {
             this._abortController.abort();
         }
         this._abortController = new AbortController();
         this._xRedirectCode = 200;
         // ------------
-        url = typeof url === 'string' ? new whatwag.URL(url) : url;
-        init = { referrer: this.location.href, ...init };
-        // ------------
-        if (detail.srcType !== 'init' && (_before(url.href, '#') === _before(init.referrer, '#') && (init.method || 'GET').toUpperCase() === 'GET')) {
-			return;
-        }
-		// ------------
         if (['link', 'form'].includes(detail.srcType)) {
             Observer.set(detail.src, 'active', true);
             Observer.set(detail.submitter || {}, 'active', true);
