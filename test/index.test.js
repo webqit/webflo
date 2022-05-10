@@ -1,8 +1,7 @@
 /**
  * @imports
  */
-import Context from "../src/Context.js";
-import * as WebfloPI from '../src/index.js';
+import { config, runtime, Context } from '../src/index.js';
 
 let client = {
     handle: function(httpEvent) {
@@ -19,8 +18,8 @@ let client = {
     },
 };
 
-const cx = Context.create({ config: WebfloPI.config, });
+const cx = Context.create({ config: config, });
 const clientCallback = (_cx, hostName, defaultClientCallback) => client;
-const app = await WebfloPI.runtime.server.start.call(cx, clientCallback);
+const app = await runtime.server.start.call(cx, clientCallback);
 
 const response = await app.go('http://localhost/', { headers: { range: 'bytes=0-5, 6' } } );

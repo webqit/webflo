@@ -3,7 +3,6 @@
  * imports
  */
 import Url from 'url';
-import Micromatch from 'micromatch';
 import { _merge } from '@webqit/util/obj/index.js';
 import { _isObject } from '@webqit/util/js/index.js';
 import Configurator from '../../../Configurator.js';
@@ -25,18 +24,6 @@ export default class Headers extends Configurator {
         return _merge(true, {
             entries: [],
         }, config);
-    }
-
-    // Match
-    async match(url) {
-        if (!_isObject(url)) {
-            url = Url.parse(url);
-        }
-        return ((await this.read()).entries || []).filter(header => {
-            var regex = Micromatch.makeRe(header.url, {dot: true});
-            var rootMatch = url.pathname.split('/').filter(seg => seg).map(seg => seg.trim()).reduce((str, seg) => str.endsWith(' ') ? str : ((str = str + '/' + seg) && str.match(regex) ? str + ' ' : str), '');
-            return rootMatch.endsWith(' ');
-        });
     }
 
     // Questions generator

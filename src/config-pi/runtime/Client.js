@@ -22,9 +22,11 @@ export default class Client extends Configurator {
     // Defaults merger
     withDefaults(config) {
         return _merge(true, {
+            bundle_filename: 'bundle.js',
             support_oohtml: true,
             support_service_worker: true,
             worker_scope: '/',
+            worker_filename: 'worker.js',
         }, config);
     }
 
@@ -32,6 +34,12 @@ export default class Client extends Configurator {
     questions(config, choices = {}) {
         // Questions
         return [
+            {
+                name: 'bundle_filename',
+                type: 'text',
+                message: 'Specify the bundle filename',
+                initial: config.bundle_filename,
+            },
             {
                 name: 'support_oohtml',
                 type: 'toggle',
@@ -53,6 +61,12 @@ export default class Client extends Configurator {
                 type: (prev, answers) => answers.support_service_worker ? 'text' : null,
                 message: 'Specify the Service Worker scope',
                 initial: config.worker_scope,
+            },
+            {
+                name: 'worker_filename',
+                type: (prev, answers) => answers.support_service_worker ? 'text' : null,
+                message: 'Specify the Service Worker filename',
+                initial: config.worker_filename,
             },
         ];
     }

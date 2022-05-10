@@ -5,10 +5,11 @@
 import Fs from 'fs';
 import Url from 'url';
 import Path from 'path';
-import Webpack from 'webpack';
 import { _beforeLast } from '@webqit/util/str/index.js';
 import { _isObject, _isArray } from '@webqit/util/js/index.js';
 import * as DotJs from '@webqit/backpack/src/dotfiles/DotJs.js';
+import { gzipSync, brotliCompressSync } from 'zlib';
+import EsBuild from 'esbuild';
 
 /**
  * @generate
@@ -29,7 +30,7 @@ export async function generate() {
         throw new Error(`The Layout configurator "config.deployment.Layout" is required in context.`);
     }
     const layoutConfig = await (new cx.config.deployment.Layout(cx)).read();
-    const bundleOutput = { path: Path.resolve(cx.CWD || '', layoutConfig.PUBLIC_DIR), };
+    const dirPublic = Path.resolve(cx.CWD || '', layoutConfig.PUBLIC_DIR);
     const dirSelf = Path.dirname(Url.fileURLToPath(import.meta.url)).replace(/\\/g, '/');
     // -----------
     // Generate client build
@@ -37,13 +38,13 @@ export async function generate() {
     if (clientConfig.support_oohtml) {
         genClient.imports = { [`${dirSelf}/generate.oohtml.js`]: null, ...genClient.imports };
     }
-    await bundle.call(cx, genClient, { ...bundleOutput, filename: 'bundle.js', }, true/* asModule */);
+    await bundle.call(cx, genClient, `${dirPublic}/${clientConfig.bundle_filename}`, true/* asModule */);
     cx.logger && cx.logger.log('');
     // -----------
     // Generate worker build
     if (clientConfig.support_service_worker) {
         let genWorker = getGen.call(cx, `${dirSelf}/worker`, layoutConfig.WORKER_DIR, workerConfig, `The Worker Build.`);
-        await bundle.call(cx, genWorker, { ...bundleOutput, filename: 'worker.js', });
+        await bundle.call(cx, genWorker, `${dirPublic}/${clientConfig.worker_filename}`);
         cx.logger && cx.logger.log('');
     }
 }
@@ -181,14 +182,16 @@ function declareParamsObj(gen, paramsObj, varName = null, indentation = 0) {
  * Bundle generated file
  * 
  * @param object    gen
- * @param object    output
+ * @param String    outfile
  * @param boolean   asModule
  * 
  * @return Promise
  */
-function bundle(gen, output, asModule = false) {
+async function bundle(gen, outfile, asModule = false) {
     const cx = this || {};
-    const moduleFile = Path.join(output.path, `${_beforeLast(output.filename, '.')}.esm.js`);
+    const compression = cx.flags.compress;
+    const moduleFile = `${_beforeLast(outfile, '.')}.esm.js`;
+
     // ------------------
     // >> Show waiting...
     if (cx.logger) {
@@ -200,43 +203,58 @@ function bundle(gen, output, asModule = false) {
     } else {
         DotJs.write(gen, moduleFile, 'ES Module file');
     }
+
     // ----------------
     // >> Webpack config
-    const bundlingConfig = { entry: moduleFile, output };
-    if (asModule) {
-        bundlingConfig.experiments = { outputModule: true, };
-        bundlingConfig.output.environment = bundlingConfig.output.environment || {};
-        if (!('module' in bundlingConfig.output)) {
-            bundlingConfig.output.module = true;
-            bundlingConfig.output.environment.module = true;
-        }
+    const bundlingConfig = {
+        entryPoints: [ moduleFile ],
+        outfile,
+        bundle: true,
+        minify: true,
+        banner: { js: '/** @webqit/webflo */', },
+        footer: { js: '', },
+        format: 'esm',
+    };
+    if (!asModule) {
+        // Support top-level await
+        // See: https://github.com/evanw/esbuild/issues/253#issuecomment-826147115
+        bundlingConfig.banner.js += '(async () => {';
+        bundlingConfig.footer.js += '})();';
     }
+
     // ----------------
     // The bundling process
-    return new Promise(resolve => {
-        let waiting;
+    let waiting;
+    if (cx.logger) {
+        waiting = cx.logger.waiting(`Bundling...`);
+        cx.logger.log('');
+        cx.logger.log('> Bundling...');
+        cx.logger.info(cx.logger.f`FROM: ${bundlingConfig.entryPoints[0]}`);
+        cx.logger.info(cx.logger.f`TO: ${bundlingConfig.outfile}`);
+        waiting.start();
+    }
+    // Run
+    await EsBuild.build(bundlingConfig);
+    if (waiting) waiting.stop();
+    // Remove moduleFile build
+    Fs.unlinkSync(bundlingConfig.entryPoints[0]);
+
+    // ----------------
+    // Compress...
+    if (compression) {
         if (cx.logger) {
-            waiting = cx.logger.waiting(`Bundling...`);
-            cx.logger.log('');
-            cx.logger.log('> Bundling...');
-            cx.logger.info(cx.logger.f`FROM: ${bundlingConfig.entry}`);
-            cx.logger.info(cx.logger.f`TO: ${bundlingConfig.output.path + '/' + bundlingConfig.output.filename}`);
-            cx.logger.log('');
+            waiting = cx.logger.waiting(`Compressing...`);
             waiting.start();
         }
-        // Run
-        let compiler = Webpack(bundlingConfig);
-        compiler.run((err, stats) => {
+        const contents = Fs.readFileSync(bundlingConfig.outfile);
+        const gzip = gzipSync(contents, {});
+        const brotli = brotliCompressSync(contents, {});
+        Fs.writeFileSync(`${bundlingConfig.outfile}.gz`, gzip);
+        Fs.writeFileSync(`${bundlingConfig.outfile}.br`, brotli);
+        if (waiting) {
             waiting.stop();
-            if (err) {
-                cx.logger.title(`Errors!`);
-                cx.logger.error(err);
-            }
-            let log = stats.toString({ colors: true, });
-            cx.logger && cx.logger.log(log);
-            // Remove moduleFile build
-            Fs.unlinkSync(bundlingConfig.entry);
-            resolve(log);
-        });
-    });
+            cx.logger.log('');
+            cx.logger.log('> Compression: .gz, .br');
+        }
+    }
 }

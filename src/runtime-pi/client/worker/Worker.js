@@ -2,12 +2,9 @@
 /**
  * @imports
  */
-import _isGlobe from 'is-glob';
-import Minimatch from 'minimatch';
 import { _any } from '@webqit/util/arr/index.js';
-import { _after, _afterLast } from '@webqit/util/str/index.js';
-import { HttpEvent, Request, Response } from '../Runtime.js';
-import { Observer } from '../Runtime.js';
+import { HttpEvent, Request, Response, Observer } from '../Runtime.js';
+import { urlPattern } from '../../util.js';
 
 /**
  * ---------------------------
@@ -46,8 +43,8 @@ export default class Worker {
 				// Add files to cache
 				evt.waitUntil( self.caches.open(this.cx.params.cache_name).then(cache => {
 					if (this.cx.logger) { this.cx.logger.log('[ServiceWorker] Pre-caching resources.'); }
-					const cache_only_urls = (this.cx.params.cache_only_urls || []).map(c => c.trim()).filter(c => c);
-					return cache.addAll(cache_only_urls.filter(url => !_isGlobe(url) && !_afterLast(url, '.').includes('/')));
+					const cache_only_urls = (this.cx.params.cache_only_urls || []).map(c => c.trim()).filter(c => c && !c.endsWith('/') && !urlPattern(c, self.origin).isPattern());
+					return cache.addAll(cache_only_urls);
 				}) );
 			}
 		});
@@ -130,7 +127,6 @@ export default class Worker {
 		} else {
 			response = await this.remoteFetch(httpEvent.request);
 		}
-		return response;
 		let finalResponse = this.handleResponse(httpEvent, response);
         // Return value
         return finalResponse;
@@ -163,18 +159,19 @@ export default class Worker {
 		if (arguments.length > 1) {
 			request = this.generateRequest(request, ...args);
 		}
+		const matchUrl = (patterns, url) => _any((patterns || []).map(p => p.trim()).filter(p => p), p => urlPattern(p, self.origin).test(url));
 		const execFetch = () => {
-			if (_any((this.cx.params.cache_only_urls || []).map(c => c.trim()).filter(c => c), pattern => Minimatch.Minimatch(request.url, pattern))) {
+			if (matchUrl(this.cx.params.cache_only_urls, request.url)) {
 				Observer.set(this.network, 'strategy', 'cache-only');
 				return this.cacheFetch(request, { networkFallback: false, cacheRefresh: false });
 			}
 			// network_only_urls
-			if (_any((this.cx.params.network_only_urls || []).map(c => c.trim()).filter(c => c), pattern => Minimatch.Minimatch(request.url, pattern))) {
+			if (matchUrl(this.cx.params.network_only_urls, request.url)) {
 				Observer.set(this.network, 'strategy', 'network-only');
 				return this.networkFetch(request, { cacheFallback: false, cacheRefresh: false });
 			}
 			// cache_first_urls
-			if (_any((this.cx.params.cache_first_urls || []).map(c => c.trim()).filter(c => c), pattern => Minimatch.Minimatch(request.url, pattern))) {
+			if (matchUrl(this.cx.params.cache_first_urls, request.url)) {
 				Observer.set(this.network, 'strategy', 'cache-first');
 				return this.cacheFetch(request, { networkFallback: true, cacheRefresh: true });
 			}

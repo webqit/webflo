@@ -2,14 +2,13 @@
 /**
  * @imports
  */
-import _isArray from '@webqit/util/js/isArray.js';
-import _isNumeric from '@webqit/util/js/isNumeric.js';
-import _isString from '@webqit/util/js/isString.js';
-import _isObject from '@webqit/util/js/isObject.js';
-import _beforeLast from '@webqit/util/str/beforeLast.js';
-import _afterLast from '@webqit/util/str/afterLast.js';
-import _arrFrom from '@webqit/util/arr/from.js';
-  
+import { _isString, _isObject, _isNumeric, _isArray } from '@webqit/util/js/index.js';
+import { _beforeLast, _afterLast } from '@webqit/util/str/index.js';
+import { _from as _arrFrom } from '@webqit/util/arr/index.js';
+if (typeof URLPattern === 'undefined') {
+    await import('urlpattern-polyfill');
+}
+
 /**
  * ---------------
  * @wwwFormPathUnserializeCallback
@@ -132,3 +131,32 @@ export const path = {
         return this.join(path, "..");
     }
 };
+
+export const urlPattern = (pattern, baseUrl = null) => ({
+    pattern: new URLPattern(pattern, baseUrl),
+    isPattern() {
+        return Object.keys(this.pattern.keys).some(compName => this.pattern.keys[compName].length);
+    },
+    test(...args) { this.pattern.test(...args) }, 
+    exec(...args) {
+        let components = this.pattern.exec(...args);
+        if (!components) return;
+        components.vars = Object.keys(this.pattern.keys).reduce(({ named, unnamed }, compName) => {
+            this.pattern.keys[compName].forEach(key => {
+                let value = components[compName].groups[key.name];
+                if (typeof key.name === 'number') {
+                    unnamed.push(value);
+                } else {
+                    named[key.name] = value;
+                }
+            });
+            return { named, unnamed };
+        }, { named: {}, unnamed: [] });
+        components.render = str => {
+            return str.replace(/\$(\$|[0-9A-Z]+)/gi, (a, b) => {
+                return b === '$' ? '$' : (_isNumeric(b) ? components.vars.unnamed[b - 1] : components.vars.named[b]) || '';
+            });
+        }
+        return components;
+    }
+});

@@ -15,10 +15,12 @@ export default class RuntimeClient {
      */
 	constructor(cx) {
 		this.cx = cx;
-		const workerComm = new WorkerComm('/worker.js', { startMessages: true });
-		Observer.observe(workerComm, changes => {
-			//console.log('SERVICE_WORKER_STATE_CHANGE', changes[0].name, changes[0].value);
-		});
+		if (this.cx.support_service_worker) {
+			const workerComm = new WorkerComm(this.cx.worker_filename, { scope: this.cx.worker_scope, startMessages: true });
+			Observer.observe(workerComm, changes => {
+				//console.log('SERVICE_WORKER_STATE_CHANGE', changes[0].name, changes[0].value);
+			});
+		}
 	}
 
 	 /**

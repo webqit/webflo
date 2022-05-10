@@ -54,56 +54,55 @@ export default class Router extends _Router {
     /**
      * Reads a static file from the public directory.
      * 
-     * @param ServerNavigationEvent event
+     * @param ServerNavigationEvent httpEvent
      * 
      * @return Promise
      */
-    file(event) {
-        var filename = event.url.pathname;
-        var _filename = Path.join(this.cx.CWD, this.cx.layout.PUBLIC_DIR, decodeURIComponent(filename));
-        var autoIndex;
-        if (Fs.existsSync(_filename)) {
-            // based on the URL path, extract the file extention. e.g. .js, .doc, ...
-            var ext = Path.parse(filename).ext;
-            // read file from file system
-            return new Promise((resolve, reject) => {
-                // if is a directory search for index file matching the extention
-                if (!ext && Fs.lstatSync(_filename).isDirectory()) {
-                    ext = '.html';
-                    _filename += '/index' + ext;
-                    autoIndex = 'index.html';
-                    if (!Fs.existsSync(_filename)) {
-                        resolve();
-                        return;
+    file(httpEvent) {
+        let filename = Path.join(this.cx.CWD, this.cx.layout.PUBLIC_DIR, decodeURIComponent(httpEvent.url.pathname));
+        let index, ext = Path.parse(httpEvent.url.pathname).ext;
+        // if is a directory search for index file matching the extention
+        if (!ext && Fs.existsSync(filename) && Fs.lstatSync(filename).isDirectory()) {
+            ext = '.html';
+            index = `index${ext}`;
+            filename = Path.join(filename, index);
+        }
+        let enc, acceptEncs = [], supportedEncs = { gzip: '.gz', br: '.br' };
+        // based on the URL path, extract the file extention. e.g. .js, .doc, ...
+        // and process encoding
+        if ((acceptEncs = (httpEvent.request.headers.get('Accept-Encoding') || '').split(',').map(e => e.trim())).length
+        && (enc = acceptEncs.reduce((prev, _enc) => prev || (Fs.existsSync(filename + supportedEncs[_enc]) && _enc), null))) {
+            filename = filename + supportedEncs[enc];
+        } else {
+            if (!Fs.existsSync(filename)) return;
+            if (Object.values(supportedEncs).includes(ext)) {
+                enc = Object.keys(supportedEncs).reduce((prev, _enc) => prev || (supportedEncs[_enc] === ext && _enc), null);
+                ext = Path.parse(filename.substring(0, filename.length - ext.length)).ext;
+            }
+        }
+        // read file from file system
+        return new Promise(resolve => {
+            Fs.readFile(filename, function(err, data) {
+                let response;
+                if (err) {
+                    response = new httpEvent.Response(null, { status: 500, statusText: `Error reading static file: ${filename}` } );
+                } else {
+                    // if the file is found, set Content-type and send data
+                    const type = Mime.lookup(ext);
+                    response = new httpEvent.Response(data, { headers: {
+                        contentType: type === 'application/javascript' ? 'text/javascript' : type,
+                        contentLength: Buffer.byteLength(data),
+                    } });
+                    if (enc) {
+                        response.headers.set('Content-Encoding', enc);
                     }
                 }
-                Fs.readFile(_filename, function(err, data){
-                    if (err) {
-                        // To be thrown by caller
-                        reject({
-                            errorCode: 500,
-                            error: 'Error reading static file: ' + filename + '.',
-                        });
-                    } else {
-
-                        // if the file is found, set Content-type and send data
-                        const type = Mime.lookup(ext);
-                        resolve( new event.Response(data, {
-                            headers: {
-                                contentType: type === 'application/javascript' ? 'text/javascript' : type,
-                                contentLength: Buffer.byteLength(data),
-                            },
-                            meta: {
-                                filename: _filename,
-                                static: true,
-                                autoIndex,
-                            }
-                        } ) );
-                        
-                    }
-                });
+                response.attrs.filename = filename;
+                response.attrs.static = true;
+                response.attrs.index = index;
+                resolve(response);
             });
-        }
+        });
     }
 
     /**

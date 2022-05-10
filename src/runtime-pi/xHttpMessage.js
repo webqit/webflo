@@ -89,10 +89,10 @@ const xHttpMessage = (whatwagHttpMessage, Headers, FormData) => {
         }
                 
         // Resolve
-        resolve(force = false) {
-            if (!this.bodyAttrs.resolved || force) {
-                this.bodyAttrs.resolved = new Promise(async (resolve, reject) => {
-                    var messageInstance = this, resolved, contentType = messageInstance.headers.get('content-type') || '';
+        jsonfy(force = false) {
+            if (!this.bodyAttrs.jsonfied || force) {
+                this.bodyAttrs.jsonfied = new Promise(async (resolve, reject) => {
+                    var messageInstance = this, jsonfied, contentType = messageInstance.headers.get('content-type') || '';
                     var type = contentType === 'application/json' || this.bodyAttrs.json ? 'json' : (
                         contentType === 'application/x-www-form-urlencoded' || contentType.startsWith('multipart/') || this.bodyAttrs.formData ? 'formData' : (
                             contentType === 'text/plain' ? 'plain' : 'other'
@@ -100,19 +100,19 @@ const xHttpMessage = (whatwagHttpMessage, Headers, FormData) => {
                     );
                     try {
                         if (type === 'formData') {
-                            resolved = (await messageInstance.formData()).json();
+                            jsonfied = (await messageInstance.formData()).json();
                         } else {
-                            resolved = type === 'json' ? await messageInstance.json() : (
+                            jsonfied = type === 'json' ? await messageInstance.json() : (
                                 type === 'plain' ? await messageInstance.text() : messageInstance.body
                             );
                         }
-                        resolve(resolved);
+                        resolve(jsonfied);
                     } catch(e) {
                         reject(e);
                     }
                 });
             }
-            return this.bodyAttrs.resolved;
+            return this.bodyAttrs.jsonfied;
         }
 
     };
@@ -173,7 +173,7 @@ export function encodeBody(body, FormData, Blob) {
                 contentLength: (new Blob([ detailsObj.body ])).size, // Buffer.byteLength(detailsObj.body, 'utf8') isn't cross-environment
             };
         }
-        detailsObj.resolved = body;
+        detailsObj.jsonfied = body;
     }
     return detailsObj;
 }

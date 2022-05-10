@@ -2,7 +2,6 @@
 /**
  * imports
  */
-import Path from 'path';
 import { _merge } from '@webqit/util/obj/index.js';
 import Configurator from '../../Configurator.js';
 
@@ -29,14 +28,6 @@ export default class Server extends Configurator {
                 certdoms: ['*'],
                 force: false,
             },
-            process: {
-                name: Path.basename(process.cwd()),
-                errfile: '',
-                outfile: '',
-                exec_mode: 'fork',
-                autorestart: true,
-                merge_logs: false,
-            },
             force_www: '',
             shared: false,
         }, config);
@@ -46,10 +37,6 @@ export default class Server extends Configurator {
     questions(config, choices = {}) {
         // Choices
         const CHOICES = _merge({
-            exec_mode: [
-                {value: 'fork',},
-                {value: 'cluster',},
-            ],
             force_www: [
                 {value: '', title: 'do nothing'},
                 {value: 'add',},
@@ -67,10 +54,10 @@ export default class Server extends Configurator {
             },
             {
                 name: 'https',
-                initial: config.https,
                 controls: {
                     name: 'https',
                 },
+                initial: config.https,
                 questions: [
                     {
                         name: 'port',
@@ -100,55 +87,6 @@ export default class Server extends Configurator {
                         name: 'force',
                         type: 'toggle',
                         message: 'Force HTTPS?',
-                        active: 'YES',
-                        inactive: 'NO',
-                    },
-                ],
-            },
-            {
-                name: 'process',
-                initial: config.process,
-                controls: {
-                    name: 'background process',
-                },
-                questions: [
-                    {
-                        name: 'name',
-                        type: 'text',
-                        message: 'Enter a name for process',
-                        validation: ['important'],
-                    },
-                    {
-                        name: 'errfile',
-                        type: 'text',
-                        message: 'Enter path to error file',
-                        validation: ['important'],
-                    },
-                    {
-                        name: 'outfile',
-                        type: 'text',
-                        message: 'Enter path to output file',
-                        validation: ['important'],
-                    },
-                    {
-                        name: 'exec_mode',
-                        type: 'select',
-                        message: 'Select exec mode',
-                        choices: CHOICES.exec_mode,
-                        validation: ['important'],
-                    },
-                    {
-                        name: 'autorestart',
-                        type: 'toggle',
-                        message: 'Server autorestart on crash?',
-                        active: 'YES',
-                        inactive: 'NO',
-                        initial: config.autorestart,
-                    },
-                    {
-                        name: 'merge_logs',
-                        type: 'toggle',
-                        message: 'Server merge logs?',
                         active: 'YES',
                         inactive: 'NO',
                     },

@@ -11,8 +11,9 @@ import Sessions from 'client-sessions';
 import { Observer } from '@webqit/oohtml-ssr/apis.js';
 import { _each } from '@webqit/util/obj/index.js';
 import { _isEmpty } from '@webqit/util/js/index.js';
-import { _from as _arrFrom } from '@webqit/util/arr/index.js';
+import { _from as _arrFrom, _any } from '@webqit/util/arr/index.js';
 import { slice as _streamSlice } from 'stream-slice';
+import { urlPattern } from '../util.js';
 import * as whatwag from './whatwag.js';
 import xURL from '../xURL.js';
 import xFormData from "../xFormData.js";
@@ -276,14 +277,16 @@ export default class Runtime {
             rdr = { status: 302, headers: { Location: ( url.hostname = url.hostname.substr(4), url.href ) } };
         } else if (!url.hostname.startsWith('www.') && _context.server.force_www === 'add') {
             rdr = { status: 302, headers: { Location: ( url.hostname = `www.${url.hostname}`, url.href ) } };
-        } else if (_context.config.Redirects && (rdr = await (new _context.config.Redirects(_context)).match(url.href))) {
-            rdr = { status: rdr.code || 301 /* Permanent */, headers: { Location: rdr.target } };
+        } else if (_context.config.runtime.server.Redirects) {
+            rdr = ((await (new _context.config.runtime.server.Redirects(_context)).read()).entries || []).reduce((_rdr, entry) => {
+                return _rdr || ((_rdr = urlPattern(entry.from, url.origin).exec(url.href)) && { status: entry.code || 302, headers: { Location: _rdr.render(entry.to) } });
+            }, null);
         }
         if (rdr) {
-            return Response(null, rdr);
+            return new Response(null, rdr);
         }
-        const autoHeaders = _context.config.Headers 
-            ? await (new _context.config.Headers(_context)).match(url.href)
+        const autoHeaders = _context.config.runtime.server.Headers 
+            ? ((await (new _context.config.runtime.server.Headers(_context)).read()).entries || []).filter(entry => urlPattern(entry.url, url.origin).exec(url.href))
             : [];
         // ------------
 
@@ -377,7 +380,6 @@ export default class Runtime {
 
         // ----------------
         // Mock-Cookies?
-        // ----------------
         if (!(e.detail.request && e.detail.response)) {
             for (let cookieName of Object.getOwnPropertyNames(this.mockSessionStore)) {
                 response.headers.set('Set-Cookie', `${cookieName}=1`);      // We just want to know availability... not validity, as this is understood to be for testing purposes only
@@ -386,13 +388,11 @@ export default class Runtime {
 
         // ----------------
         // Auto-Headers
-        // ----------------
         response.headers.set('Accept-Ranges', 'bytes');
         this._autoHeaders(response.headers, autoHeaders);
 
         // ----------------
         // Redirects
-        // ----------------
         if (response.headers.redirect) {
             let xRedirectPolicy = e.request.headers.get('X-Redirect-Policy');
             let xRedirectCode = e.request.headers.get('X-Redirect-Code') || 300;
@@ -410,7 +410,6 @@ export default class Runtime {
 
         // ----------------
         // 404
-        // ----------------
         if (response.bodyAttrs.input === undefined || response.bodyAttrs.input === null) {
             response.attrs.status = response.status !== 200 ? response.status : 404;
             response.attrs.statusText  = `${e.request.url} not found!`;
@@ -419,7 +418,6 @@ export default class Runtime {
 
         // ----------------
         // Not acceptable
-        // ----------------
         if (e.request.headers.get('Accept') && !e.request.headers.accept.match(response.headers.contentType)) {
             response.attrs.status = 406;
             return response;
@@ -428,14 +426,12 @@ export default class Runtime {
         // ----------------
         // Important no-caching
         // for non-"get" requests
-        // ----------------
         if (e.request.method !== 'GET' && !response.headers.get('Cache-Control')) {
             response.headers.set('Cache-Control', 'no-store');
         }
 
         // ----------------
         // Body
-        // ----------------
         let rangeRequest, body = response.body;
         if ((rangeRequest = e.request.headers.range) && !response.headers.get('Content-Range')
         && ((body instanceof ReadableStream) || (ArrayBuffer.isView(body) && (body = ReadableStream.from(body))))) {
@@ -501,6 +497,7 @@ export default class Runtime {
         log.push(style.url(e.request.url));
         if (response.attrs.hint) log.push(`(${style.comment(response.attrs.hint)})`);
         if (response.headers.contentType) log.push(`(${style.comment(response.headers.contentType)})`);
+        if (response.headers.get('Content-Encoding')) log.push(`(${style.comment(response.headers.get('Content-Encoding'))})`);
         if (errorCode) log.push(style.err(`${errorCode} ${response.statusText}`));
         else log.push(style.val(`${statusCode} ${response.statusText}`));
         if (redirectCode) log.push(`- ${style.url(response.headers.redirect)}`);
