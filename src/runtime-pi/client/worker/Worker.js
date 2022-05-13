@@ -77,8 +77,8 @@ export default class Worker {
 			if (!evt.request.url.startsWith('http')) return;
 			const deriveInit = req => [
 				'method', 'headers', 'body', 'mode', 'credentials', 'cache', 'redirect', 'referrer', 'integrity',
-			].reduce((init, prop) => ({ [prop]: req[prop], ...init }), {});
-			const requestInit = deriveInit(evt.request);
+			].reduce((init, prop) => ({ [prop]: prop === 'body' && !req.body ? req : req[prop], ...init }), {});
+			const requestInit = deriveInit(evt.request.clone());
 			evt.respondWith(this.go(evt.request.url, requestInit, { event: evt }));
 		});
 
@@ -107,9 +107,8 @@ export default class Worker {
 		init = { referrer: this.location.href, ...init };
         // ------------
 		// The request object
-		let request = this.generateRequest(url.href, init);
-		if (detail.event instanceof self.Request) {
-			request = detail.event.request;
+		let request = await this.generateRequest(url.href, init);
+		if (detail.event) {
 			Object.defineProperty(detail.event, 'request', { value: request });
 		}
 		// The navigation event
@@ -133,7 +132,7 @@ export default class Worker {
 	}
 
     // Generates request object
-    generateRequest(href, init) {
+    async generateRequest(href, init) {
 		// Now, the following is key:
 		// The browser likes to use "force-cache" for "navigate" requests
 		// when, for example, the back button was used.
@@ -142,7 +141,12 @@ export default class Worker {
 		if (init.mode === 'navigate' && init.cache === 'force-cache') {
 			init = { ...init, cache: 'default' };
 		}
-        let request = new Request(href, init);
+		if (init.method === 'POST' && init.body instanceof self.Request) {
+			init = { ...init, body: await init.body.text(), };
+		} else if (['GET', 'HEAD'].includes(init.method.toUpperCase()) && init.body) {
+			init = { ...init, body: null };
+		}
+		let request = new Request(href, init);
 		return request;
     }
 

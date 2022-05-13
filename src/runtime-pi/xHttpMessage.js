@@ -94,7 +94,7 @@ const xHttpMessage = (whatwagHttpMessage, Headers, FormData) => {
                 this.bodyAttrs.jsonfied = new Promise(async (resolve, reject) => {
                     var messageInstance = this, jsonfied, contentType = messageInstance.headers.get('content-type') || '';
                     var type = contentType === 'application/json' || this.bodyAttrs.json ? 'json' : (
-                        contentType === 'application/x-www-form-urlencoded' || contentType.startsWith('multipart/') || this.bodyAttrs.formData ? 'formData' : (
+                        contentType === 'application/x-www-form-urlencoded' || contentType.startsWith('multipart/form-data') || this.bodyAttrs.formData ? 'formData' : (
                             contentType === 'text/plain' ? 'plain' : 'other'
                         )
                     );

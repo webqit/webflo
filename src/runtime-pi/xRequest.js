@@ -62,6 +62,13 @@ const xRequest = (whatwagRequest, Headers, FormData, Blob) => class extends xHtt
         return 'referrer' in this.attrs ? this.attrs.referrer : super.referrer;
     }
 
+    static compat(request, url = null) {
+        if (request instanceof whatwagRequest) {
+            return Object.setPrototypeOf(request, new this);
+        }
+        return new this(url, request);
+    }
+
 };
 
 export default xRequest;
