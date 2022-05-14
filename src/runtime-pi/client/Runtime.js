@@ -88,7 +88,7 @@ export default class Runtime {
 			// Needed to allow window.document.location
 			// to update to window.location
 			window.setTimeout(() => {
-				this.go(Url.copy(window.document.location), { src: window.document.location, srcType: 'history', });
+				this.go(Url.copy(window.document.location), {}, { src: window.document.location, srcType: 'history', });
 			}, 0);
 		});
 

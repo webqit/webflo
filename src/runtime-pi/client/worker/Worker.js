@@ -72,14 +72,25 @@ export default class Worker {
 
 		// -------------
 		// ONFETCH		
-		self.addEventListener('fetch', async evt => {
+		self.addEventListener('fetch', event => {
 			// URL schemes that might arrive here but not supported; e.g.: chrome-extension://
-			if (!evt.request.url.startsWith('http')) return;
-			const deriveInit = req => [
-				'method', 'headers', 'body', 'mode', 'credentials', 'cache', 'redirect', 'referrer', 'integrity',
-			].reduce((init, prop) => ({ [prop]: prop === 'body' && !req.body ? req : req[prop], ...init }), {});
-			const requestInit = deriveInit(evt.request.clone());
-			evt.respondWith(this.go(evt.request.url, requestInit, { event: evt }));
+			if (!event.request.url.startsWith('http')) return;
+			event.respondWith((async (req, evt) => {
+				const requestInit = [
+					'method', 'headers', 'mode', 'credentials', 'cache', 'redirect', 'referrer', 'integrity',
+				].reduce((init, prop) => ({ [prop]: req[prop], ...init }), {});
+				if (!['GET', 'HEAD'].includes(req.method)) {
+					requestInit.body = await req.text();
+				}
+				// Now, the following is key:
+				// The browser likes to use "force-cache" for "navigate" requests, when, e.g: re-entering your site with the back button
+				// Problem here, force-cache forces out JSON not HTML as per webflo's design.
+				// So, we detect this scenerio and avoid it.
+				if (req.cache === 'force-cache'/* && req.mode === 'navigate' - even webflo client init call also comes with that... needs investigation */) {
+					requestInit.cache = 'default';
+				}
+				return this.go(req.url, requestInit, { event: evt });
+			})(event.request, event));
 		});
 
 		// ---------------
@@ -115,7 +126,7 @@ export default class Worker {
 		let httpEvent = new HttpEvent(request, detail, (id = null, persistent = false) => this.getSession(httpEvent, id, persistent));
 		httpEvent.port.listen(message => {
 			if (message.$type === 'handler:hints' && message.session) {
-				// TODO: Sync sesseion data from client
+				// TODO: Sync session data from client
 				return Promise.resolve();
 			}
 		});
@@ -132,20 +143,7 @@ export default class Worker {
 	}
 
     // Generates request object
-    async generateRequest(href, init) {
-		// Now, the following is key:
-		// The browser likes to use "force-cache" for "navigate" requests
-		// when, for example, the back button was used.
-		// Thus the origin server would still not be contacted by the self.fetch() below, leading to inconsistencies in responses.
-		// So, we detect this scenerio and avoid it.
-		if (init.mode === 'navigate' && init.cache === 'force-cache') {
-			init = { ...init, cache: 'default' };
-		}
-		if (init.method === 'POST' && init.body instanceof self.Request) {
-			init = { ...init, body: await init.body.text(), };
-		} else if (['GET', 'HEAD'].includes(init.method.toUpperCase()) && init.body) {
-			init = { ...init, body: null };
-		}
+    generateRequest(href, init) {
 		let request = new Request(href, init);
 		return request;
     }
