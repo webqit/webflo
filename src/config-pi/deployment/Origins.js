@@ -6,9 +6,9 @@ import Url from 'url';
 import { _merge } from '@webqit/util/obj/index.js';
 import { _before } from '@webqit/util/str/index.js';
 import { _isObject, _isTypeObject } from '@webqit/util/js/index.js';
-import Configurator from '../../Configurator.js';
+import { Dotfile } from '@webqit/backpack';
 
-export default class Origins extends Configurator {
+export default class Origins extends Dotfile {
 
     // Base name
     get name() {

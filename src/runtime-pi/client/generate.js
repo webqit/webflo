@@ -7,7 +7,7 @@ import Url from 'url';
 import Path from 'path';
 import { _beforeLast } from '@webqit/util/str/index.js';
 import { _isObject, _isArray } from '@webqit/util/js/index.js';
-import * as DotJs from '@webqit/backpack/src/dotfiles/DotJs.js';
+import { jsFile } from '@webqit/backpack/src/dotfile/index.js';
 import { gzipSync, brotliCompressSync } from 'zlib';
 import EsBuild from 'esbuild';
 
@@ -197,11 +197,11 @@ async function bundle(gen, outfile, asModule = false) {
     if (cx.logger) {
         let waiting = cx.logger.waiting(cx.logger.f`Writing the ES module file: ${moduleFile}`);
         waiting.start();
-        DotJs.write(gen, moduleFile, 'ES Module file');
+        jsFile.write(gen, moduleFile, 'ES Module file');
         waiting.stop();
         cx.logger.info(cx.logger.f`The module file: ${moduleFile}`);
     } else {
-        DotJs.write(gen, moduleFile, 'ES Module file');
+        jsFile.write(gen, moduleFile, 'ES Module file');
     }
 
     // ----------------

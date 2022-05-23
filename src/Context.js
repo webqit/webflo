@@ -21,6 +21,10 @@ export default class Context {
         }
     }
 
+    get name() {
+        return 'webflo';
+    }
+
     // create
     static create(...args) {
         return new this(...args);
@@ -31,9 +35,9 @@ export default class Context {
         return this.dict.CWD || '';
     }
 
-    // webflo
-    get webflo() {
-        return this.dict.webflo || {};
+    // meta
+    get meta() {
+        return this.dict.meta || {};
     }
 
     // app

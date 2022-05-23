@@ -4,9 +4,9 @@
  */
 import { _merge } from '@webqit/util/obj/index.js';
 import { _isObject } from '@webqit/util/js/index.js';
-import Configurator from '../../Configurator.js';
+import { Dotfile } from '@webqit/backpack';
 
-export default class Ssg extends Configurator {
+export default class Ssg extends Dotfile {
 
     // Base name
     get name() {

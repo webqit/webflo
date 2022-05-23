@@ -3,9 +3,9 @@
  * imports
  */
 import { _merge } from '@webqit/util/obj/index.js';
-import Configurator from '../../Configurator.js';
+import { Dotfile } from '@webqit/backpack';
 
-export default class Server extends Configurator {
+export default class Server extends Dotfile {
 
     // Base name
     get name() {

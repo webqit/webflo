@@ -6,9 +6,9 @@ import Url from 'url';
 import { _merge } from '@webqit/util/obj/index.js';
 import { _after } from '@webqit/util/str/index.js';
 import { _isObject, _isNumeric } from '@webqit/util/js/index.js';
-import Configurator from '../../../Configurator.js';
+import { Dotfile } from '@webqit/backpack';
 
-export default class Redirects extends Configurator {
+export default class Redirects extends Dotfile {
 
     // Base name
     get name() {

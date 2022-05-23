@@ -5,23 +5,21 @@
  */
 import Url from 'url';
 import Path from 'path';
-import { read as readJsonFile } from '@webqit/backpack/src/dotfiles/DotJson.js';
-import logger from '@webqit/backpack/src/cli/Ui.js';
+import { jsonFile } from '@webqit/backpack/src/dotfile/index.js';
+import { Logger, Cli } from '@webqit/backpack';
 import * as WebfloPI from './index.js';
-import Context from './Context.js';
-import Cli from './Cli.js';
 
 const dirSelf = Path.dirname(Url.fileURLToPath(import.meta.url));
-const webfloJson = readJsonFile(Path.join(dirSelf, '../package.json'));
-const appJson = readJsonFile('./package.json');
+const webfloJson = jsonFile.read(Path.join(dirSelf, '../package.json'));
+const appJson = jsonFile.read('./package.json');
 
 /**
  * @cx
  */
-const cx = Context.create({
-    webflo: { title: webfloJson.title, version: webfloJson.version },
+const cx = WebfloPI.Context.create({
+    meta: { title: webfloJson.title, version: webfloJson.version },
     app: { title: appJson.title, version: appJson.version },
-    logger,
+    logger: Logger,
     config: WebfloPI.config,
     middlewares: [ WebfloPI.deployment.origins.webhook, ],
 });

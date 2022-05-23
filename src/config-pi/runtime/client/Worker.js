@@ -5,9 +5,9 @@
 import { _merge } from '@webqit/util/obj/index.js';
 import { _isNumeric } from '@webqit/util/js/index.js';
 import { _before, _after } from '@webqit/util/str/index.js';
-import Configurator from '../../../Configurator.js';
+import { Dotfile } from '@webqit/backpack';
 
-export default class Worker extends Configurator {
+export default class Worker extends Dotfile {
 
     // Base name
     get name() {
