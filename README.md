@@ -7,7 +7,7 @@
 
 <!-- /BADGES -->
 
-Webflo is a JavaScript framework for decomplicating modern *application flows*! It lets you express your entire application flow as just a layout of functions drawn on the filesystem, composable to your heart's content 🍉!
+Webflo is a JavaScript framework for decomplicating modern *application flows* - across web, mobile, and API backends! It lets you express your entire application flow as just a layout of functions drawn on the filesystem, composable to your heart's content 🍉!
 
 You get functions like the below as your building block.
 
@@ -44,7 +44,7 @@ export default function(event, context, next) {
 }
 ```
     
-...with *all sorts of composition* along the way.
+...along with *all sorts of composition* along the way.
 
 ```js
 // index.js
@@ -57,4 +57,7 @@ export default async function(event, context, next) {
     return { title: 'Home | FluffyPets' };
 }
 ```
-  
+
+This gives you all sorts of ways to be *creative* with your application URLs! 😎
+
+## Concepts
