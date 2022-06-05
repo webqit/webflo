@@ -72,21 +72,23 @@ export default async function(event, context, next) {
 }
 ```
 
-You get it: a new way to get *creative* with application URLs! 😎
+You get it: a new way to get *creative* with application URLs! 😎 *This and more - ahead!*
 
 ## Concepts
 
-### Handler Functions for All Application Flows
+### Handler Functions and Layout
 
-Application flows are often either *client-server* or *client-side-only*, or a combination of both. Webflo gives us one consistent concept to rule them all: *handler* functions!
+Applications are often either *server-based*, *browser-based*, or a combination of both. Webflo gives us one consistent way to handle routing in each case: using *handler functions*!
 
 ```js
 /**
+[directory]
  ├⏤ index.js
  */
 export default function(event, context, next) {
 }
 ```
+
 Each function receives an `event` object representing the current flow.
 
 For *server-based* applications (e.g. traditional web apps, API backends), server-side handlers go into a directory named `server`.
@@ -105,7 +107,7 @@ export default function(event, context, next) {
 ```
 
 > **Note**
-> <br>The above runs on calling `webflo start` on the command line and visiting http://localhost:3000.
+> <br>The above function runs on calling `webflo start` on the command line and visiting http://localhost:3000.
  
 For *browser-based* applications (e.g. Single Page Apps), client-side handlers go into a directory named `client`.
 
@@ -123,7 +125,7 @@ export default function(event, context, next) {
 ```
 
 > **Note**
-> <br>The above is built as part of your application's JS bundle on calling `webflo generate` on the command line; then runs on navigating to http://localhost:3000 in the browser.
+> <br>The above function is built as part of your application's JS bundle on calling `webflo generate` on the command line; then runs on navigating to http://localhost:3000 on the browser.
  
 For *browser-based* applications that want to support offline usage via Service-Workers (e.g Progressive Web Apps), Webflo allows us to define equivalent handlers for requests hitting the Service Worker. These worker-based handlers go into a directory named `worker`.
 
@@ -141,9 +143,9 @@ export default function(event, context, next) {
 ```
 
 > **Note**
-> <br>The above is built as part of your application's Service Worker JS bundle on calling `webflo generate` on the command line; then runs on navigating to http://localhost:3000 in the browser.
+> <br>The above function is built as part of your application's Service Worker JS bundle on calling `webflo generate` on the command line; then runs on navigating to http://localhost:3000 on the browser.
 
-So, depending on what's being built, an application may define one, or all, of the routing directories.
+So, depending on what's being built, an application may define one or more of the following handler functions.
 
 ```shell
 ├⏤ client
@@ -151,12 +153,48 @@ So, depending on what's being built, an application may define one, or all, of t
 ├⏤ worker
 |     ├⏤ index.js
 ├⏤ server
-|     ├⏤ index.js
+      ├⏤ index.js
 ```
 
-### Step Functions
+### Step Functions and Workflows
 
-Step Functions are the most important concept in Webflo! They are filesystem-based functions defined as parent-child handlers for each segment of an URL, as seen above.
+Whether routing in the `/client`, `/worker`, or `/server` directory above, nested URLs follow the concept of Step Functions! As seen earlier, they are parent-child arrangements of handlers that correspond to an URL strucuture.
 
-Each function receives a `context` object passed from a parent handler, and a `next` function that propagates control to the next step, if any.
+```shell
+├⏤ server
+      ├⏤ index.js --------------------------------- http://localhost/
+      ├⏤ products/index.js ------------------------ http://localhost/products
+            ├⏤ stickers/index.js ------------------ http://localhost/products/stickers
+```
 
+Each handler calls a `next()` function to propagate flow to the next step, if any; can pass a `context` object along, and can *recompose* the step's return value.
+
+```js
+/**
+server
+ ├⏤ index.js
+ */
+export default async function(event, context, next) {
+    if (next.stepname) {
+        let childContext = { user: { id: 2 }, };
+        let childResponse = await next( childContext );
+        return { ...childResponse, title: childResponse.title + ' | FluffyPets' };
+    }
+    return { title: 'Home | FluffyPets' };
+}
+```
+
+```js
+/**
+server
+ ├⏤ products/index.js
+ */
+export default function(event, context, next) {
+    if (next.stepname) {
+        return next();
+    }
+    return { title: 'Products' };
+}
+```
+
+This step-based workflow helps to decomplicate routing and navigation, and gets us scaling horizontally as our application grows larger.
