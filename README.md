@@ -76,7 +76,7 @@ You get it: a new way to get *creative* with application URLs! 😎
 
 ## Concepts
 
-### Handlers
+### Handler Functions for All Application Flows
 
 Application flows are often either *client-server* or *client-side-only*, or a combination of both. Webflo gives us a consistent way to handle these flows: *handler* functions!
 
@@ -123,7 +123,7 @@ export default function(event, context, next) {
 ```
 
 > **Note**
-> <br>The above is built as part of your application's JS bundle on calling `webflo generate` on the command line; then runs on visiting http://localhost:3000 in the browser.
+> <br>The above is built as part of your application's JS bundle on calling `webflo generate` on the command line; then runs on navigating to http://localhost:3000 in the browser.
  
 For *browser-based* applications that want to support offline usage via Service-Workers (e.g Progressive Web Apps), Webflo allows us to define equivalent handlers for requests hitting the Service Worker. These worker-based handlers go into a directory named `worker`.
 
@@ -141,8 +141,16 @@ export default function(event, context, next) {
 ```
 
 > **Note**
-> <br>The above is built as part of your application's Service Worker JS bundle on calling `webflo generate` on the command line; then runs and visiting http://localhost:3000 in the browser.
- 
+> <br>The above is built as part of your application's Service Worker JS bundle on calling `webflo generate` on the command line; then runs and navigating to http://localhost:3000 in the browser.
+
+So, depending on what's being built, an application may define one, or all, of the routing directories.
+
+```shell
+├⏤ client
+├⏤ worker
+├⏤ server
+```
+
 ### Step Functions
 
 Step Functions are the most important concept in Webflo! They are filesystem-based functions defined as parent-child handlers for each segment of an URL, as seen above.
