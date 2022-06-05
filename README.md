@@ -7,25 +7,35 @@
 
 <!-- /BADGES -->
 
-Webflo is a JavaScript framework for decomplicating modern *application flows* - across web, mobile, and API backends! It lets you express your entire application flow as just a layout of functions drawn on the filesystem, composable to your heart's content 🍉!
+Webflo is a web, mobile, and API JavaScript framework built for modern *application flows*! It lets you express your entire application flow as just a layout of functions - drawn on the filesystem, composable to your heart's content 🍉!
 
-You get functions like the below as your building block.
+## Overview
+
+In Webflo, functions are your building blocks, and they're typically defined in an `index.js` file.
 
 ```js
-index.js  -  export default function(event, context, next) { return { title: 'Home' } }
+/**
+ ├⏤ index.js
+ */
+export default function(event, context, next) {
+    return { title: 'Home' };
+}
 ```
-  
-You nest them as *step functions* following your application's URL structure.
 
-```js
-products
-  ├⏤index.js  -  export default function(event, context, next) { return { title: 'Products' } }
+You nest them as *step functions* in a structure that models your application's URL structure.
+
+```shell
+├⏤ index.js --------------------------------- http://localhost/
+├⏤ products/index.js ------------------------ http://localhost/products
+      ├⏤ stickers/index.js ------------------ http://localhost/products/stickers
 ```
-  
-You determine the control flow...
+
+They form a step-based workflow for your routes, with each step controlling the next...
 
 ```js
-// index.js
+/**
+ ├⏤ index.js
+ */
 export default function(event, context, next) {
     if (next.stepname) {
         return next();
@@ -35,7 +45,9 @@ export default function(event, context, next) {
 ```
 
 ```js
-// products/index.js
+/**
+ ├⏤ products/index.js
+ */
 export default function(event, context, next) {
     if (next.stepname) {
         return next();
@@ -44,10 +56,12 @@ export default function(event, context, next) {
 }
 ```
     
-...along with *all sorts of composition* along the way.
+...enabling *all sorts of composition* along the way!
 
 ```js
-// index.js
+/**
+ ├⏤ index.js
+ */
 export default async function(event, context, next) {
     if (next.stepname) {
         let childContext = { user: { id: 2 }, };
@@ -58,6 +72,80 @@ export default async function(event, context, next) {
 }
 ```
 
-This gives you all sorts of ways to be *creative* with your application URLs! 😎
+You get it: a new way to get *creative* with application URLs! 😎
 
 ## Concepts
+
+### Handlers
+
+Application flows are often either *client-server* or *client-side-only*, or a combination of both. Webflo gives us a consistent way to handle these flows: *handler* functions!
+
+```js
+/**
+ ├⏤ index.js
+ */
+export default function(event, context, next) {
+}
+```
+Each function receives an `event` object representing the current flow.
+
+For *server-based* applications (e.g. traditional web apps, API backends), server-side handlers go into a directory named `server`.
+
+```js
+/**
+server
+ ├⏤ index.js
+ */
+export default function(event, context, next) {
+    return {
+        title: 'Home | FluffyPets',
+        source: 'server',
+    };
+}
+```
+
+> **Note**
+> <br>The above runs on calling `webflo start` on the command line and visiting http://localhost:3000.
+ 
+For *browser-based* applications (e.g. Single Page Apps), client-side handlers go into a directory named `client`.
+
+```js
+/**
+client
+ ├⏤ index.js
+ */
+export default function(event, context, next) {
+    return {
+        title: 'Home | FluffyPets',
+        source: 'in-browser',
+    };
+}
+```
+
+> **Note**
+> <br>The above is built as part of your application's JS bundle on calling `webflo generate` on the command line; then runs on visiting http://localhost:3000 in the browser.
+ 
+For *browser-based* applications that want to support offline usage via Service-Workers (e.g Progressive Web Apps), Webflo allows us to define equivalent handlers for requests hitting the Service Worker. These worker-based handlers go into a directory named `worker`.
+
+```js
+/**
+worker
+ ├⏤ index.js
+ */
+export default function(event, context, next) {
+    return {
+        title: 'Home | FluffyPets',
+        source: 'service-worker',
+    };
+}
+```
+
+> **Note**
+> <br>The above is built as part of your application's Service Worker JS bundle on calling `webflo generate` on the command line; then runs and visiting http://localhost:3000 in the browser.
+ 
+### Step Functions
+
+Step Functions are the most important concept in Webflo! They are filesystem-based functions defined as parent-child handlers for each segment of an URL, as seen above.
+
+Each function receives a `context` object passed from a parent handler, and a `next` function that propagates control to the next step, if any.
+
