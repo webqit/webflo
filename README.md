@@ -72,7 +72,9 @@ export default async function(event, context, next) {
 }
 ```
 
-You get it: a new way to get *creative* with application URLs! 😎 *This and more - ahead!*
+You get it: a new way to get *creative* with application URLs! 😎
+
+*This and more - ahead!*
 
 ## Concepts
 
@@ -145,15 +147,21 @@ export default function(event, context, next) {
 > **Note**
 > <br>The above function is built as part of your application's Service Worker JS bundle on calling `webflo generate` on the command line; then runs on navigating to http://localhost:3000 on the browser.
 
-So, depending on what's being built, an application may define one or more of the following handler functions.
+So, depending on what's being built, an application may have any of the following handler functions.
 
 ```shell
-├⏤ client
-|     ├⏤ index.js
-├⏤ worker
-|     ├⏤ index.js
-├⏤ server
-      ├⏤ index.js
+client
+  ├⏤ index.js
+```
+
+```shell
+worker
+  ├⏤ index.js
+```
+
+```shell
+server
+  ├⏤ index.js
 ```
 
 ### Step Functions and Workflows
@@ -161,10 +169,10 @@ So, depending on what's being built, an application may define one or more of th
 Whether routing in the `/client`, `/worker`, or `/server` directory above, nested URLs follow the concept of Step Functions! As seen earlier, they are parent-child arrangements of handlers that correspond to an URL strucuture.
 
 ```shell
-├⏤ server
-      ├⏤ index.js --------------------------------- http://localhost/
-      ├⏤ products/index.js ------------------------ http://localhost/products
-            ├⏤ stickers/index.js ------------------ http://localhost/products/stickers
+server
+  ├⏤ index.js --------------------------------- http://localhost/
+  ├⏤ products/index.js ------------------------ http://localhost/products
+        ├⏤ stickers/index.js ------------------ http://localhost/products/stickers
 ```
 
 Each handler calls a `next()` function to propagate flow to the next step, if any; can pass a `context` object along, and can *recompose* the step's return value.
