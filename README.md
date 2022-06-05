@@ -7,7 +7,7 @@
 
 <!-- /BADGES -->
 
-Webflo is a web, mobile, and API JavaScript framework built for modern *application flows*! It lets you express your entire application flow as just a layout of functions - drawn on the filesystem, composable to your heart's content 🍉!
+Webflo is a *web*, *mobile*, and *API backend* JavaScript framework built for modern *application flows*! It lets you express your entire application flow as just a layout of functions - drawn on the filesystem, composable to your heart's content 🍉!
 
 ## Overview
 
@@ -78,7 +78,7 @@ You get it: a new way to get *creative* with application URLs! 😎
 
 ### Handler Functions for All Application Flows
 
-Application flows are often either *client-server* or *client-side-only*, or a combination of both. Webflo gives us a consistent way to handle these flows: *handler* functions!
+Application flows are often either *client-server* or *client-side-only*, or a combination of both. Webflo gives us one consistent concept to rule them all: *handler* functions!
 
 ```js
 /**
@@ -141,14 +141,17 @@ export default function(event, context, next) {
 ```
 
 > **Note**
-> <br>The above is built as part of your application's Service Worker JS bundle on calling `webflo generate` on the command line; then runs and navigating to http://localhost:3000 in the browser.
+> <br>The above is built as part of your application's Service Worker JS bundle on calling `webflo generate` on the command line; then runs on navigating to http://localhost:3000 in the browser.
 
 So, depending on what's being built, an application may define one, or all, of the routing directories.
 
 ```shell
 ├⏤ client
+|     ├⏤ index.js
 ├⏤ worker
+|     ├⏤ index.js
 ├⏤ server
+|     ├⏤ index.js
 ```
 
 ### Step Functions
