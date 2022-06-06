@@ -164,6 +164,13 @@ server
   ├⏤ index.js
 ```
 
+Static files, e.g. images, stylesheets, etc, have their place in a files directory named `public`.
+
+```shell
+public
+  ├⏤ logo.png
+```
+
 ### Step Functions and Workflows
 
 Whether routing in the `/client`, `/worker`, or `/server` directory above, nested URLs follow the concept of Step Functions! As seen earlier, these are parent-child arrangements of handlers that correspond to an URL strucuture.
@@ -207,7 +214,7 @@ export default function(event, context, next) {
 
 This step-based workflow helps to decomplicate routing and navigation, and gets us scaling horizontally as an application grows larger.
 
-Workflows may be designed with as much or as less number of step functions as necessary; the flow control parameters `next.stepname` and `next.pathname` can be used at any point to handle the rest of the URL steps that have no corresponding step functions.
+Workflows may be designed with as many or as few step functions as necessary; the flow control parameters `next.stepname` and `next.pathname` can be used at any point to handle the rest of the URL steps that have no corresponding step functions.
 
 This means that we could even handle all URLs from the root handler alone.
 
@@ -236,9 +243,9 @@ export default function(event, context, next) {
 }
 ```
 
-Something interesting happens when `next()` is called without a destination step function ahead: Webflo takes the default action! For workflows in **the `/server` directory**, the *default action* is to go match a static file in a files directory named `public`.
+Something interesting happens when `next()` is called where there is no destination step function ahead: Webflo takes the default action! For workflows in **the `/server` directory**, the *default action* is to go match a static file in the `public` directory.
 
-So, above, should our handler receive static file requests like `http://localhost:3000/logo.png`, the expression `return next()` would get Webflo to match and return a logo at `public/logo.png`, if any. A `404` response otherwise.
+So, above, should our handler receive static file requests like `http://localhost:3000/logo.png`, the expression `return next()` would get Webflo to match and return a logo at `public/logo.png`, if any; a `404` response otherwise.
 
 ```shell
 my-app
@@ -249,7 +256,7 @@ my-app
 > **Note**
 > <br>The root handler effectively becomes the single point of entry to the application - being that it sees even static requests!
 
-Now, for workflows in **the `/worker` directory**, the *default action* of a call to `next()` (where there is no destination step function ahead) is to send the request through the network to the server. But Webflo will know to attempt resolving the remote request from the application's caching options.
+Now, for workflows in **the `/worker` directory**, the *default action* of a call to `next()` (where there is no destination step function ahead) is to send the request through the network to the server. But Webflo will know to attempt resolving the request from the application's caching options built into the Service Worker.
 
 So, above, if we defined handler functions in the `/worker` directory, we could decide to either handle the received requests or just `next()` them to the server.
 
@@ -292,7 +299,7 @@ my-app
 
 Lastly, for workflows in **the `/client` directory**, the *default action* of a call to `next()` (where there is no destination step function ahead) is to send the request through the network to the server. But where there is a Service Worker layer, then that becomes the next destination.
 
-So, above, if we defined handler functions in the `/client` directory, we could decide to either handle the navigation requests in-browser or just `next()` them - this time to the Service Worker workflow.
+So, above, if we defined handler functions in the `/client` directory, we could decide to either handle the navigation requests in-browser or just `next()` them - this time to the Service Worker.
 
 ```js
 /**
@@ -319,3 +326,5 @@ my-app
   ├⏤ server/index.js ------------------------- http://localhost:3000, http://localhost:3000/prodcuts, http://localhost:3000/prodcuts/stickers, etc
   └── public/logo.png ------------------------- http://localhost:3000/logo.png
 ```
+
+If there's anything we have now, it's the ability to break work down, optionally across step functions, optionally between layers!
