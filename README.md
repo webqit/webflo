@@ -9,6 +9,9 @@
 
 Webflo is a *web*, *mobile*, and *API backend* JavaScript framework built for modern *application flows*! It lets you express your entire application flow as just a layout of functions - drawn on the filesystem, composable to your heart's content 🍉!
 
++ [Overview](#overview)
++ [Concepts](#concepts)
+
 ## Overview
 
 In Webflo, functions are your building blocks, and they're typically defined in an `index.js` file.
@@ -77,6 +80,9 @@ You get it: a new way to get *creative* with application URLs! 😎
 *This and more - ahead!*
 
 ## Concepts
+
++ [Handler Functions and Layout](#handler-functions-and-layout)
++ [Step Functions and Workflows](#step-functions-and-workflows)
 
 ### Handler Functions and Layout
 
