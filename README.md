@@ -309,7 +309,7 @@ client
 export default async function(event, context, next) {
     // For http://localhost:3000/login
     if (next.pathname === 'login') {
-        window.location = 'https://auth.example.com';
+        window.location = 'https://auth.example.com/oauth';
         return;
     }
     
