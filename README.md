@@ -217,12 +217,12 @@ server
  ├⏤ index.js
  */
 export default function(event, context, next) {
-    // For http://localhost/products
+    // For http://localhost:3000/products
     if (next.pathname === 'products') {
         return { title: 'Products' };
     }
 
-    // For http://localhost/products/stickers
+    // For http://localhost:3000/products/stickers
     if (next.pathname === 'products/stickers') {
         return { title: 'Stickers' };
     }
@@ -236,7 +236,7 @@ export default function(event, context, next) {
 }
 ```
 
-Something interesting happens when `next()` is called without a destination step function ahead: Webflo takes the default action! For workflows in the `/server` directory, the *default action* is to go match a static file in a files directory named `public`.
+Something interesting happens when `next()` is called without a destination step function ahead: Webflo takes the default action! For workflows in **the `/server` directory**, the *default action* is to go match a static file in a files directory named `public`.
 
 So, above, should our handler receive static file requests like `http://localhost:3000/logo.png`, the expression `return next()` would get Webflo to match and return a logo at `public/logo.png`, if any. A `404` response otherwise.
 
@@ -249,4 +249,73 @@ my-app
 > **Note**
 > <br>The root handler effectively becomes the single point of entry to the application - being that it sees even static requests!
 
-Now, for workflows in the `/worker` directory, the *default action* of a call to `next()` (where no destination step function) is to send the request through the network to the server.
+Now, for workflows in **the `/worker` directory**, the *default action* of a call to `next()` (where there is no destination step function ahead) is to send the request through the network to the server. But Webflo will know to attempt resolving the remote request from the application's caching options.
+
+So, above, if we defined handler functions in the `/worker` directory, we could decide to either handle the received requests or just `next()` them to the server.
+
+```js
+/**
+worker
+ ├⏤ index.js
+ */
+export default async function(event, context, next) {
+    // For http://localhost:3000/about
+    if (next.pathname === 'about') {
+        return {
+            name: 'FluffyPets',
+            version: '1.0',
+        };
+    }
+    
+    // For http://localhost:3000/logo.png
+    if (next.pathname === 'logo.png') {
+        let response = await next();
+        console.log( 'Logo file size:', response.headers.get('Content-Length') );
+        return response;
+    }
+    
+    return next();
+}
+```
+
+Our overall workflow now takes the following layout-to-URL mapping:
+
+```shell
+my-app
+  ├⏤ worker/index.js ------------------------- http://localhost:3000/about, http://localhost:3000/logo.png
+  ├⏤ server/index.js ------------------------- http://localhost:3000, http://localhost:3000/prodcuts, http://localhost:3000/prodcuts/stickers, etc
+  └── public/logo.png ------------------------- http://localhost:3000/logo.png
+```
+
+> **Note**
+> <br>Handlers in the `/worker` directory are only designed to see Same-Origin requests since external URLs like `https://auth.example.com/oauth` do not belong in the application's layout! External URLs, however, benefit from the application's caching options built into the Service Worker.
+
+Lastly, for workflows in **the `/client` directory**, the *default action* of a call to `next()` (where there is no destination step function ahead) is to send the request through the network to the server. But where there is a Service Worker layer, then that becomes the next destination.
+
+So, above, if we defined handler functions in the `/client` directory, we could decide to either handle the navigation requests in-browser or just `next()` them - this time to the Service Worker workflow.
+
+```js
+/**
+client
+ ├⏤ index.js
+ */
+export default async function(event, context, next) {
+    // For http://localhost:3000/login
+    if (next.pathname === 'login') {
+        window.location = 'https://auth.example.com';
+        return;
+    }
+    
+    return next();
+}
+```
+
+Our overall workflow now takes the following layout-to-URL mapping:
+
+```shell
+my-app
+  ├⏤ client/index.js ------------------------- http://localhost:3000/login
+  ├⏤ worker/index.js ------------------------- http://localhost:3000/about, http://localhost:3000/logo.png
+  ├⏤ server/index.js ------------------------- http://localhost:3000, http://localhost:3000/prodcuts, http://localhost:3000/prodcuts/stickers, etc
+  └── public/logo.png ------------------------- http://localhost:3000/logo.png
+```
