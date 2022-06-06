@@ -25,9 +25,9 @@ export default function(event, context, next) {
 You nest them as *step functions* in a structure that models your application's URL structure.
 
 ```shell
-├⏤ index.js --------------------------------- http://localhost
-└── products/index.js ------------------------ http://localhost/products
-      └── stickers/index.js ------------------ http://localhost/products/stickers
+├⏤ index.js --------------------------------- http://localhost:3000
+└── products/index.js ------------------------ http://localhost:3000/products
+      └── stickers/index.js ------------------ http://localhost:3000/products/stickers
 ```
 
 They form a step-based workflow for your routes, with each step controlling the next...
@@ -127,7 +127,7 @@ export default function(event, context, next) {
 ```
 
 > **Note**
-> <br>The above function is built as part of your application's JS bundle on calling `webflo generate` on the command line; then runs on navigating to http://localhost:3000 on the browser.
+> <br>The above function is built as part of your application's JS bundle on calling `webflo generate` on the command line. Then it runs in-browser on navigating to http://localhost:3000 on the browser.
 
 For *browser-based* applications that want to support offline usage via Service-Workers (e.g Progressive Web Apps), Webflo allows us to define equivalent handlers for requests hitting the Service Worker. These worker-based handlers go into a directory named `worker`.
 
@@ -145,9 +145,9 @@ export default function(event, context, next) {
 ```
 
 > **Note**
-> <br>The above function is built as part of your application's Service Worker JS bundle on calling `webflo generate` on the command line; then runs on navigating to http://localhost:3000 on the browser.
+> <br>The above function is built as part of your application's Service Worker JS bundle on calling `webflo generate` on the command line. Then it runs in the Service Worker on navigating to http://localhost:3000 on the browser.
 
-So, depending on what's being built, an application may have any of the following handler functions.
+So, depending on what's being built, an application's handler functions may take the form:
 
 ```shell
 client
@@ -166,16 +166,16 @@ server
 
 ### Step Functions and Workflows
 
-Whether routing in the `/client`, `/worker`, or `/server` directory above, nested URLs follow the concept of Step Functions! As seen earlier, they are parent-child arrangements of handlers that correspond to an URL strucuture.
+Whether routing in the `/client`, `/worker`, or `/server` directory above, nested URLs follow the concept of Step Functions! As seen earlier, these are parent-child arrangements of handlers that correspond to an URL strucuture.
 
 ```shell
 server
-  ├⏤ index.js --------------------------------- http://localhost
-  └── products/index.js ------------------------ http://localhost/products
-        └── stickers/index.js ------------------ http://localhost/products/stickers
+  ├⏤ index.js --------------------------------- http://localhost:3000
+  └── products/index.js ------------------------ http://localhost:3000/products
+        └── stickers/index.js ------------------ http://localhost:3000/products/stickers
 ```
 
-Each handler calls a `next()` function to propagate flow to the next step, if any; can pass a `context` object along, and can *recompose* the step's return value.
+Each handler calls a `next()` function to propagate flow to the next step, if any; is able to pass a `context` object along, and can *recompose* the step's return value.
 
 ```js
 /**
@@ -227,7 +227,7 @@ export default function(event, context, next) {
         return { title: 'Stickers' };
     }
     
-    // Should we later support other URLs like static assets http://localhost/logo.png
+    // Should we later support other URLs like static assets http://localhost:3000/logo.png
     if (next.pathname) {
         return next();
     }
@@ -238,12 +238,12 @@ export default function(event, context, next) {
 
 Something interesting happens when `next()` is called without a destination step function ahead: Webflo takes the default action! For workflows in the `/server` directory, the *default action* is to go match a static file in a files directory named `public`.
 
-So, above, should our handler receive static file requests like `http://localhost/logo.png`, the expression `return next()` will get Webflo to match and return a logo at `public/logo.png`, if any. A `404` response otherwise.
+So, above, should our handler receive static file requests like `http://localhost:3000/logo.png`, the expression `return next()` would get Webflo to match and return a logo at `public/logo.png`, if any. A `404` response otherwise.
 
 ```shell
 my-app
-  ├⏤ server/index.js ------------------------- http://localhost, http://localhost/prodcuts, http://localhost/prodcuts/stickers, etc
-  └── public/logo.png ------------------------- http://localhost/logo.png
+  ├⏤ server/index.js ------------------------- http://localhost:3000, http://localhost:3000/prodcuts, http://localhost:3000/prodcuts/stickers, etc
+  └── public/logo.png ------------------------- http://localhost:3000/logo.png
 ```
 
 > **Note**
