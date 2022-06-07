@@ -15,7 +15,7 @@ Webflo is a *web*, *mobile*, and *API backend* JavaScript framework built for mo
 
 ## Overview
 
-In Webflo, functions are your building blocks, and they're typically defined in an `index.js` file.
+Webflo lets you layout your application using functions as your building blocks, each defined in an `index.js` file.
 
 ```js
 /**
