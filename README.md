@@ -102,7 +102,7 @@ The installation automatically creates a `package.json` file at project root, co
 ```json
 {
   "dependencies": {
-    "@webqit/webflo": <webflo version>
+    "@webqit/webflo": "..."
   }
 }
 ```
@@ -118,7 +118,7 @@ Other important definitions like project name, package type, and aliases for com
     "generate": "webflo generate::client"
   },
   "dependencies": {
-    "@webqit/webflo": <webflo version>
+    "@webqit/webflo": "..."
   }
 }
 ```
