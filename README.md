@@ -350,7 +350,7 @@ Generally, handler functions can return any type of jsonfyable data (`string`, `
 
 But, whenever response is `undefined`:
 + it is either that a `404` HTTP response is returned (in the case of the server-side root handler - `/server/index.js`, and the worker-layer root handler - `/worker/index.js`),
-+ or the current HTML document receives empty data and, at the same time, set to an error state (in the case of Server-Side Rendering (SSR), and Client-Side Rendering (CSR)),
++ or that the current HTML document receives empty data, and, at the same time, set to an error state (in the case of Server-Side Rendering (SSR), and Client-Side Rendering (CSR)),
 
 #### Server-Side: API and Page Responses
 
