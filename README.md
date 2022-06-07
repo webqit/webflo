@@ -487,7 +487,7 @@ But, for a route that is intended to *also* be accessed as a web page, data obta
   }
   ```
   
-  The data obtained above is simply sent into the loaded HTML document instance as `document.state.page`. This makes it globally available to embedded scripts and rendering logic! (Details in [Rendering and Templating](#rendering-and-templating).)
+  The data obtained above is simply sent into the loaded HTML document instance as `document.state.page`. This makes it globally accessible to embedded scripts and rendering logic! (Details in [Rendering and Templating](#rendering-and-templating).)
 
   ```html
    <!--
@@ -512,4 +512,8 @@ But, for a route that is intended to *also* be accessed as a web page, data obta
 
 #### Client-Side: Navigation Responses
 
-On the client (the current browser window), data obtained from the client-side handlers on each navigaion is simply sent into the already active HTML document as `document.state.page`. This makes it globally available to embedded scripts and rendering logic! (Details in [Rendering and Templating](#rendering-and-templating).)
+On the client (the browser), every navigation event (page-to-page navigation, history back and forward navigation, and form submissions) initiates a request/response flow. The request object Webflo generates for these navigations is assigned an `Accept: application/json` header, so that data can be obtained as a JSON object. This request goes through the route's workflow (whether in the `/client`, `/worker`, or `/server` layer), and the JSON data obtained is simply sent into the already running HTML document as `document.state.page`. This makes it globally accessible to embedded scripts and rendering logic! (Details in [Rendering and Templating](#rendering-and-templating).)
+
+### Rendering and Templating
+
+As covered just above, routes that are intended to be accessed as a web page are expected to *first* be accessible as a JSON endpoint (returning an object). On the server, rendering happens after data ia obtained from the workflow, but only when the browser explicitly asks for a `text/html` response! On the client, rendering happens after data ia obtained from the workflow on each navigation event, but onto the same loaded document. In both cases, the concept of *templating* with HTML documents makes it possible to get pages to be as unique, or as generic, as needed.
