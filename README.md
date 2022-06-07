@@ -10,8 +10,8 @@
 Webflo is a *web*, *mobile*, and *API backend* JavaScript framework built for modern *application flows*! It lets you express your entire application flow as just a layout of functions - drawn on the filesystem, composable to your heart's content 🍉!
 
 + [Overview](#overview)
++ [Installation](#installation)
 + [Concepts](#concepts)
-+ [Setup](#setup)
 
 ## Overview
 
@@ -80,12 +80,89 @@ You get it: a new way to get *creative* with application URLs! 😎
 
 *This and more - ahead!*
 
+## Installation
+
+Every Webflo project starts on an empty directory that you can create on your machine. The command below will make a new directory `my-app` from the terminal and navigate into it.
+
+```shell
+mkdir my-app
+cd my-app
+```
+
+With [npm available on your terminal](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm), the following command will install Webflo to your project:
+
+> System Requirements: Node.js 12.0 or later
+
+```shell
+$ npm i @webqit/webflo
+```
+
+The installation automatically creates a `package.json` file at project root, containing `@webqit/webflo` as a project dependency.
+
+```json
+{
+  "dependencies": {
+    "@webqit/webflo": <webflo version>
+  }
+}
+```
+
+Other important definitions like project name, package type, and aliases for common Webflo commands will also belong in this file.
+
+```json
+{
+  "name": "my-app",
+  "type": "module",
+  "scripts": {
+    "start": "webflo start::server --mode=dev",
+    "generate": "webflo generate::client"
+  },
+  "dependencies": {
+    "@webqit/webflo": <webflo version>
+  }
+}
+```
+
+All is now set! The commands `npm start` and `npm run generate` will be coming in often during development.
+
+### "Hello World!"
+
+To be sure that Webflo is listening, run `npx webflo help` on the terminal. An overview of available commands will be shown.
+
+If you can't wait to say *Hello World!* 😅, you can have an HTML page say that right now!
++ Create an `index.html` file in a directory called `public`.
+  
+  ```shell
+  public
+    └── index.html
+  ```
+  
+  ```html
+  <!DOCTYPE html>
+  <html>
+      <head>
+          <title>My App</title>
+      </head>
+      <body>
+          <h1>Hello World!</h1>
+          <p>This is <b>My App</b></p>
+      </body>
+  </html>
+  ```
+  
++ Start the Webflo server and navigate to `http://localhost:3000` on your browser to see your page.
+
+  ```bash
+  $ npm start
+  ```
+
 ## Concepts
 
 + [Handler Functions and Layout](#handler-functions-and-layout)
 + [Step Functions and Workflows](#step-functions-and-workflows)
 + [Requests and Responses](#requests-and-responses)
 + [Rendering and Templating](#rendering-and-templating)
++ [Web Standards](#web-standards)
 
 ### Handler Functions and Layout
 
@@ -118,7 +195,7 @@ export default function(event, context, next) {
 ```
 
 > **Note**
-> <br>The above function runs on calling `webflo start` on the command line and visiting http://localhost:3000.
+> <br>The above function runs on calling `npm start` on your terminal and visiting http://localhost:3000.
 
 For *browser-based* applications (e.g. Single Page Apps), client-side handlers go into a directory named `client`.
 
@@ -136,7 +213,7 @@ export default function(event, context, next) {
 ```
 
 > **Note**
-> <br>The above function is built as part of your application's JS bundle on calling `webflo generate` on the command line. Then it runs in-browser on navigating to http://localhost:3000 on the browser.
+> <br>The above function is built as part of your application's JS bundle on calling `npm run generate` on your terminal. Then it runs in-browser on visiting http://localhost:3000.
 
 For *browser-based* applications that want to support offline usage via Service-Workers (e.g Progressive Web Apps), Webflo allows us to define equivalent handlers for requests hitting the Service Worker. These worker-based handlers go into a directory named `worker`.
 
@@ -154,9 +231,9 @@ export default function(event, context, next) {
 ```
 
 > **Note**
-> <br>The above function is built as part of your application's Service Worker JS bundle on calling `webflo generate` on the command line. Then it runs in the Service Worker on navigating to http://localhost:3000 on the browser.
+> <br>The above function is built as part of your application's Service Worker JS bundle on calling `npm run generate` on your terminal. Then it runs in the Service Worker on visiting http://localhost:3000.
 
-So, depending on what's being built, an application's handler functions may take the form:
+So, depending on what's being built, an application's handler functions may be laid out like:
 
 ```shell
 client
