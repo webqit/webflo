@@ -574,6 +574,11 @@ You can access the `document` object (and its `document.state.page` property) bo
    </html>
   ```
 
-From here, even the most-rudimentary form of rendering and templating becomes possible (using vanilla HTML and native DOM methods), and this is a good thing: you get away with less tooling until you absolutely need add up on tooling!
+From here, even the most-rudimentary form of rendering and templating becomes possible (using vanilla HTML and native DOM methods), and this is a good thing: you get away with less tooling until you absolutely need to add up on tooling!
+
+But the `document` objects in Webflo can be a lot fun to work with: they support Object-Oriented HTML (OOHTML) natively, and this gives us a lot of (optional) syntatic sugar on top of vanilla HTML and the DOM!
+
+> **Note**
+> <br>You can learn more about OOHTML [here](https://github.com/webqit/oohtml).
 
 #### Rendering
