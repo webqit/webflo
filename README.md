@@ -11,6 +11,7 @@ Webflo is a *web*, *mobile*, and *API backend* JavaScript framework built for mo
 
 + [Overview](#overview)
 + [Concepts](#concepts)
++ [Setup](#setup)
 
 ## Overview
 
@@ -83,6 +84,8 @@ You get it: a new way to get *creative* with application URLs! 😎
 
 + [Handler Functions and Layout](#handler-functions-and-layout)
 + [Step Functions and Workflows](#step-functions-and-workflows)
++ [Requests and Responses](#requests-and-responses)
++ [Rendering and Templating](#rendering-and-templating)
 
 ### Handler Functions and Layout
 
@@ -315,8 +318,10 @@ client
 export default async function(event, context, next) {
     // For http://localhost:3000/login
     if (next.pathname === 'login') {
-        window.location = 'https://auth.example.com/oauth';
-        return;
+        return {
+            name: 'John Doe',
+            role: 'owner',
+        };
     }
     
     return next();
@@ -334,3 +339,100 @@ my-app
 ```
 
 If there's anything we have now, it's the ability to break work down, optionally across step functions, optionally between layers!
+
+### Requests and Responses
+
+Routes in Webflo can be designed for different types of request/response scenarios.
+
+Generally, handler functions can return any type of jsonfyable data (`string`, `number`, `boolean`, `object`, `array`), or an instance of `event.Response` containing anything (e.g. blob). A nested handler's return value goes as-is to its parent handler, where it gets a chance to be recomposed. Whatever is obtained from the root handler is sent:
++ either into the response stream (in the case of the server-side root handler - `/server/index.js`, and the worker-layer root handler - `/worker/index.js`, with jsonfyable data automatically converted to a proper JSON response),
++ or into an HTML document for rendering (in the case of Server-Side Rendering (SSR), and Client-Side Rendering (CSR)).
+
+But, whenever response is `undefined`:
++ it is either that a `404` HTTP response is returned (in the case of the server-side root handler - `/server/index.js`, and the worker-layer root handler - `/worker/index.js`),
++ or the current HTML document receives empty data and, at the same time, set to an error state (in the case of Server-Side Rendering (SSR), and Client-Side Rendering (CSR)),
+
+#### Server-Side: API and Page Responses
+
+On the server, jsonfyable response effectively becomes a *JSON API response*! (So, we get an API backend this way by default.)
+
+```js
+/**
+server
+ ├⏤ index.js
+ */
+export default async function(event, context, next) {
+    return { title: 'Home | FluffyPets' };
+}
+```
+
+But, for a route that is intended to *also* be accessed as a web page, data obtained as JSON objects (as in above) can get automatically rendered to HTML as a *page* response. Incoming requests are identified as *page requests* when they indicate in their `Accept` header that HTML responses are acceptable - `Accept: text/html,etc` - (browsers automatically do this on navigation requests). And, it should be either that a custom renderer has been defined on the route, or that an HTML file that pairs with the route exists in the `/public` directory - for automatic rendering by Webflo.
+
++ Custom renderers are functions exported as `render` (`export function render() {}`) from the same `index.js` file as the route handler.
+
+  ```js
+  /**
+  server
+   ├⏤ index.js
+   */
+  export default async function(event, context, next) {
+      return { title: 'Home | FluffyPets' };
+  }
+  export async function render(event, data, next) {
+      // For nested routes that defined their own renderer
+      if (next.stepname) {
+          return next();
+      }
+      return `
+      <!DOCTYPE html>
+      <html>
+          <head><title>FluffyPets</title></head>
+          <body>
+              <h1>${ data.title }</h1>
+          </body>
+      </html>
+      `;
+  }
+  ```
+    
+  > **Note**
+  > <br>Custom renderers are step functions too and may be nested to form a *render* workflow. Nested routes, however, may not always need to have an equivalent`render` function; they automatically inherit one from their parent or ancestor.
+
++ Automatically-renderable HTML files are valid HTML documents named `index.html` in the `/public` directory, or a subdirectory that corresponds with the route.
+   
+  ```js
+  /**
+  server
+   ├⏤ index.js
+   */
+  export default async function(event, context, next) {
+      return { title: 'Home | FluffyPets' };
+  }
+  ```
+  
+  The data obtained above is simply sent into the loaded HTML document instance as `document.state.page`. This makes it globally available to embedded scripts and rendering logic! (Details in [Rendering and Templating](#rendering-and-templating).)
+
+  ```html
+   <!--
+   public
+    ├⏤ index.html
+   -->
+   <!DOCTYPE html>
+   <html>
+       <head><title>FluffyPets</title></head>
+       <body namespace>
+           <h1 data-id="headline"></h1>
+
+           <script type="subscript">
+            this.namespace.headline = document.state.page.title;
+           </script>
+       </body>
+   </html>
+  ```
+
+  > **Note**
+  > <br>Nested routes may not always need to have an equivalent `index.html` file; they automatically inherit one from their parent or ancestor.
+
+#### Client-Side: Navigation Responses
+
+On the client (the current browser window), data obtained from the client-side handlers on each navigaion is simply sent into the already active HTML document as `document.state.page`. This makes it globally available to embedded scripts and rendering logic! (Details in [Rendering and Templating](#rendering-and-templating).)
