@@ -130,7 +130,7 @@ All is now set! The commands `npm start` and `npm run generate` will be coming i
 To be sure that Webflo is listening, run `npx webflo help` on the terminal. An overview of available commands will be shown.
 
 If you can't wait to say *Hello World!* 😅, you can have an HTML page say that right now!
-+ Create an `index.html` file in a directory called `public`.
++ Create an `index.html` file in a new directory `public`.
   
   ```shell
   public
