@@ -130,7 +130,7 @@ All is now set! The commands `npm start` and `npm run generate` will be coming i
 To be sure that Webflo is listening, run `npx webflo help` on the terminal. An overview of available commands will be shown.
 
 If you can't wait to say *Hello World!* 😅, you can have an HTML page say that right now!
-+ Create an `index.html` file in a new directory `public`.
++ Create an `index.html` file in a new subdirectory `public`.
   
   ```shell
   public
@@ -516,4 +516,64 @@ On the client (the browser), every navigation event (page-to-page navigation, hi
 
 ### Rendering and Templating
 
-As covered just above, routes that are intended to be accessed as a web page are expected to *first* be accessible as a JSON endpoint (returning an object). On the server, rendering happens *after* data is obtained from the workflow, but only when the browser explicitly asks for a `text/html` response! On the client, rendering happens *after* data is obtained from the workflow on each navigation event, but right into the same loaded document in the window. In both cases, the concept of *templating* with HTML documents makes it possible to get pages to be as unique, or as generic, as needed.
+As covered just above, routes that are intended to be accessed as a web page are expected to *first* be accessible as a JSON endpoint (returning an object). On the server, rendering happens *after* data is obtained from the workflow, but only when the browser explicitly asks for a `text/html` response! On the client, rendering happens *after* data is obtained from the workflow on each navigation event, but right into the same loaded document in the browser. In both cases, the concept of *templating* with HTML documents makes it possible to get pages to be as unique, or as generic, as needed on each navigation.
+
+Every rendering and templating concept in Webflo is DOM-based - both with Client-Side Rendering and Server-Side Rendering (going by the default, Webflo-native rendering). On the server, Webflo makes this so by making a DOM instance off of your `index.html` file. So, we get the same familiar `document` object and DOM elements everywhere! Webflo simply makes sure that the data obtained on each navigation is available as part of the `document` object - exposed at `document.state.page`.
+
+You can access the `document` object (and its `document.state.page` property) both from a custom `render()` function and from a script that you can directly embed on the page.
++ If you defined a custom `render()` function on a your route, you could call the `next()` function to advance the rendering workflow into Webflo's default rendering mode. The created `document` instance is returned.
+  
+  ```js
+  /**
+  server
+   ├⏤ index.js
+   */
+  export default async function(event, context, next) {
+      return { title: 'Home | FluffyPets' };
+  }
+  export async function render(event, data, next) {
+      let window = await next( data );
+      console.log( window.document.state.page ); // { title: 'Home | FluffyPets' }
+      return window;
+  }
+  ```
+  
++ If you embedded a script on your HTML markup, you would have access to the same `document.state.page` data.
+  
+  ```html
+  <!--
+   public
+    ├⏤ index.html
+   -->
+   <!DOCTYPE html>
+   <html>
+       <head>
+           <title>FluffyPets</title>
+           <script>
+            setTimeout(() => console.log( document.state.page ), 10 ); // { title: 'Home | FluffyPets' }
+           </script>
+       </head>
+       <body></body>
+   </html>
+  ```
+  
+  Or you could embedded that as a link as in below. (Notice the `ssr` attribute on the `<script>` element. It tells Webflo to allow the script to run in a server-side context.)
+  
+  ```html
+  <!--
+   public
+    ├⏤ index.html
+   -->
+   <!DOCTYPE html>
+   <html>
+       <head>
+           <title>FluffyPets</title>
+           <script src="app.js" ssr></script>
+       </head>
+       <body></body>
+   </html>
+  ```
+
+From here, even the most-rudimentary form of rendering and templating becomes possible (using vanilla HTML and native DOM methods), and this is a good thing: you get away with less tooling until you absolutely need add up on tooling!
+
+#### Rendering
