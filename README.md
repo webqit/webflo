@@ -521,7 +521,7 @@ As covered just above, routes that are intended to be accessed as a web page are
 Every rendering and templating concept in Webflo is DOM-based - both with Client-Side Rendering and Server-Side Rendering (going by the default, Webflo-native rendering). On the server, Webflo makes this so by making a DOM instance off of your `index.html` file. So, we get the same familiar `document` object and DOM elements everywhere! Webflo simply makes sure that the data obtained on each navigation is available as part of the `document` object - exposed at `document.state.page`.
 
 You can access the `document` object (and its `document.state.page` property) both from a custom `render()` function and from a script that you can directly embed on the page.
-+ If you defined a custom `render()` function on a your route, you could call the `next()` function to advance the rendering workflow into Webflo's default rendering mode. The created `document` instance is returned.
++ If you defined a custom `render()` function on a your route, you could call the `next()` function to advance the rendering workflow into Webflo's default rendering mode. The created `window` instance is returned.
   
   ```js
   /**
@@ -557,7 +557,7 @@ You can access the `document` object (and its `document.state.page` property) bo
    </html>
   ```
   
-  Or you could embedded that as a link as in below. (Notice the `ssr` attribute on the `<script>` element. It tells Webflo to allow the script to run in a server-side context.)
+  And you could embedded that as a link, as in below. (Notice the `ssr` attribute on the `<script>` element. It tells Webflo to allow the script to run in a server-side context.)
   
   ```html
   <!--
