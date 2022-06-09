@@ -22,7 +22,7 @@ Webflo lets you layout your application using functions as your building block, 
 
 ```js
 /**
- ├⏤ index.js
+ ├── index.js
  */
 export default function(event, context, next) {
     return { title: 'Home' };
@@ -32,7 +32,7 @@ export default function(event, context, next) {
 You nest them as *step functions* in a structure that models your application's URL structure.
 
 ```shell
-├⏤ index.js --------------------------------- http://localhost:3000
+├── index.js --------------------------------- http://localhost:3000
 └── products/index.js ------------------------ http://localhost:3000/products
       └── stickers/index.js ------------------ http://localhost:3000/products/stickers
 ```
@@ -41,7 +41,7 @@ They form a step-based workflow for your routes, with each step controlling the 
 
 ```js
 /**
- ├⏤ index.js
+ ├── index.js
  */
 export default function(event, context, next) {
     if (next.stepname) {
@@ -67,7 +67,7 @@ export default function(event, context, next) {
 
 ```js
 /**
- ├⏤ index.js
+ ├── index.js
  */
 export default async function(event, context, next) {
     if (next.stepname) {
@@ -110,7 +110,7 @@ The installation automatically creates a `package.json` file at project root, co
 }
 ```
 
-Other important definitions like project name, package type, and aliases for common Webflo commands will also belong in this file.
+Other important definitions like project `name`, package `type`, and *aliases* for common Webflo commands will also belong here.
 
 ```json
 {
@@ -153,7 +153,7 @@ If you can't wait to say *Hello World!* 😅, you can have an HTML page say that
   </html>
   ```
   
-+ Start the Webflo server and navigate to `http://localhost:3000` on your browser to see your page.
++ Start the Webflo server and visit `http://localhost:3000` on your browser to see your page. 😃
 
   ```bash
   $ npm start
@@ -174,7 +174,7 @@ Applications are often either *server-based*, *browser-based*, or a combination 
 ```js
 /**
 [directory]
- ├⏤ index.js
+ ├── index.js
  */
 export default function(event, context, next) {
 }
@@ -187,7 +187,7 @@ For *server-based* applications (e.g. traditional web apps, API backends), serve
 ```js
 /**
 server
- ├⏤ index.js
+ ├── index.js
  */
 export default function(event, context, next) {
     return {
@@ -205,7 +205,7 @@ For *browser-based* applications (e.g. Single Page Apps), client-side handlers g
 ```js
 /**
 client
- ├⏤ index.js
+ ├── index.js
  */
 export default function(event, context, next) {
     return {
@@ -216,14 +216,14 @@ export default function(event, context, next) {
 ```
 
 > **Note**
-> <br>The above function is built as part of your application's JS bundle on calling `npm run generate` on your terminal. Then it runs in-browser on visiting http://localhost:3000.
+> <br>The above function is built as part of your application's JS bundle on calling `npm run generate` on your terminal. (Typically bundled as `./public/bundle.js` and embeddable as `<script type="module" src="/bundle.js"></script>`.) Then it runs in-browser on visiting http://localhost:3000.
 
 For *browser-based* applications that want to support offline usage via Service-Workers (e.g Progressive Web Apps), Webflo allows us to define equivalent handlers for requests hitting the Service Worker. These worker-based handlers go into a directory named `worker`.
 
 ```js
 /**
 worker
- ├⏤ index.js
+ ├── index.js
  */
 export default function(event, context, next) {
     return {
@@ -234,49 +234,49 @@ export default function(event, context, next) {
 ```
 
 > **Note**
-> <br>The above function is built as part of your application's Service Worker JS bundle on calling `npm run generate` on your terminal. Then it runs in the Service Worker on visiting http://localhost:3000.
+> <br>The above function is built as part of your application's Service Worker JS bundle on calling `npm run generate` on your terminal. (Typically bundled as `./public/worker.js` and automatically referenced by the main bundle.) Then it runs within the Service Worker on visiting http://localhost:3000.
 
-So, depending on what's being built, an application's handler functions may be laid out like:
+So, depending on what's being built, an application's handler functions may take the following form (in part or in whole as we'll see):
 
 ```shell
 client
-  ├⏤ index.js
+  ├── index.js
 ```
 
 ```shell
 worker
-  ├⏤ index.js
+  ├── index.js
 ```
 
 ```shell
 server
-  ├⏤ index.js
+  ├── index.js
 ```
 
 Static files, e.g. images, stylesheets, etc, have their place in a files directory named `public`.
 
 ```shell
 public
-  ├⏤ logo.png
+  ├── logo.png
 ```
 
 ### Step Functions and Workflows
 
-Whether routing in the `/client`, `/worker`, or `/server` directory above, nested URLs follow the concept of Step Functions! As seen earlier, these are parent-child arrangements of handlers that correspond to an URL strucuture.
+Whether routing in the `/client`, `/worker`, or `/server` directory above, nested URLs follow the concept of Step Functions! As seen earlier, these are parent-child arrangements of handlers that model an URL strucuture.
 
 ```shell
 server
-  ├⏤ index.js --------------------------------- http://localhost:3000
+  ├── index.js --------------------------------- http://localhost:3000
   └── products/index.js ------------------------ http://localhost:3000/products
         └── stickers/index.js ------------------ http://localhost:3000/products/stickers
 ```
 
-Each handler calls a `next()` function to propagate flow to the next step, if any; is able to pass a `context` object along, and can *recompose* the step's return value.
+Each handler calls a `next()` function to propagate flow to a child step, if any; is able to pass a `context` object along, and can *recompose* the child step's return value.
 
 ```js
 /**
 server
- ├⏤ index.js
+ ├── index.js
  */
 export default async function(event, context, next) {
     if (next.stepname) {
@@ -291,7 +291,7 @@ export default async function(event, context, next) {
 ```js
 /**
 server
- ├⏤ products/index.js
+ ├── products/index.js
  */
 export default function(event, context, next) {
     if (next.stepname) {
@@ -301,16 +301,16 @@ export default function(event, context, next) {
 }
 ```
 
-This step-based workflow helps to decomplicate routing and navigation, and gets us scaling horizontally as an application grows larger.
+This step-based workflow helps to decomplicate routing and navigation, and gets us scaling horizontally as our application grows larger.
 
-Workflows may be designed with as many or as few step functions as necessary; the flow control parameters `next.stepname` and `next.pathname` can be used at any point to handle the rest of the URL steps that have no corresponding step functions.
+Workflows may be designed with as many or as few step functions as necessary; the flow control parameters `next.stepname` and `next.pathname` can be used at any point to handle the rest of an URL steps that have no corresponding step functions.
 
 This means that we could even handle all URLs from the root handler alone.
 
 ```js
 /**
 server
- ├⏤ index.js
+ ├── index.js
  */
 export default function(event, context, next) {
     // For http://localhost:3000/products
@@ -328,31 +328,34 @@ export default function(event, context, next) {
         return next();
     }
     
+    // For the root URL http://localhost:3000
     return { title: 'Home' };
 }
 ```
 
-Something interesting happens when `next()` is called where there is no destination step function ahead: Webflo takes the default action! For workflows in **the `/server` directory**, the *default action* is to go match a static file in the `public` directory.
+Something interesting happens on calling `next()` at the *edge* of the workflow - the point where there are no more child steps - as in the case above: Webflo takes the *default action*!
 
-So, above, should our handler receive static file requests like `http://localhost:3000/logo.png`, the expression `return next()` would get Webflo to match and return a logo at `public/logo.png`, if any; a `404` response otherwise.
+For workflows in **the `/server` directory**, the *default action* of `next()` at the edge is to go match and return a static file in the `public` directory.
+
+So, above, should our handler receive static file requests like `http://localhost:3000/logo.png`, the expression `return next()` would get Webflo to match and return the logo at `public/logo.png`, if any; a `404` response otherwise.
 
 ```shell
 my-app
-  ├⏤ server/index.js ------------------------- http://localhost:3000, http://localhost:3000/prodcuts, http://localhost:3000/prodcuts/stickers, etc
+  ├── server/index.js ------------------------- http://localhost:3000, http://localhost:3000/prodcuts, http://localhost:3000/prodcuts/stickers, etc
   └── public/logo.png ------------------------- http://localhost:3000/logo.png
 ```
 
 > **Note**
 > <br>The root handler effectively becomes the single point of entry to the application - being that it sees even static requests!
 
-Now, for workflows in **the `/worker` directory**, the *default action* of a call to `next()` (where there is no destination step function ahead) is to send the request through the network to the server. But Webflo will know to attempt resolving the request from the application's caching options built into the Service Worker.
+Now, for workflows in **the `/worker` directory**, the *default action* of `next()` at the edge is to send the request through the network to the server. (But Webflo will know to attempt resolving the request from the application's caching options built into the Service Worker.)
 
 So, above, if we defined handler functions in the `/worker` directory, we could decide to either handle the received requests or just `next()` them to the server.
 
 ```js
 /**
 worker
- ├⏤ index.js
+ ├── index.js
  */
 export default async function(event, context, next) {
     // For http://localhost:3000/about
@@ -370,6 +373,7 @@ export default async function(event, context, next) {
         return response;
     }
     
+    // For every other URL
     return next();
 }
 ```
@@ -378,22 +382,22 @@ Our overall workflow now takes the following layout-to-URL mapping:
 
 ```shell
 my-app
-  ├⏤ worker/index.js ------------------------- http://localhost:3000/about, http://localhost:3000/logo.png
-  ├⏤ server/index.js ------------------------- http://localhost:3000, http://localhost:3000/prodcuts, http://localhost:3000/prodcuts/stickers, etc
+  ├── worker/index.js ------------------------- http://localhost:3000/about, http://localhost:3000/logo.png
+  ├── server/index.js ------------------------- http://localhost:3000, http://localhost:3000/prodcuts, http://localhost:3000/prodcuts/stickers, etc
   └── public/logo.png ------------------------- http://localhost:3000/logo.png
 ```
 
 > **Note**
-> <br>Handlers in the `/worker` directory are only designed to see Same-Origin requests since external URLs like `https://auth.example.com/oauth` do not belong in the application's layout! External URLs, however, benefit from the application's caching options built into the Service Worker.
+> <br>Handlers in the `/worker` directory are only designed to see Same-Origin requests since Cross-Origin URLs like `https://auth.example.com/oauth` do not belong in the application's layout! These external URLs, however, benefit from the application's caching options built into the Service Worker.
 
-Lastly, for workflows in **the `/client` directory**, the *default action* of a call to `next()` (where there is no destination step function ahead) is to send the request through the network to the server. But where there is a Service Worker layer, then that becomes the next destination.
+Lastly, for workflows in **the `/client` directory**, the *default action*  of `next()` at the edge is to send the request through the network to the server. But where there is a Service Worker layer, then that becomes the next destination.
 
-So, above, if we defined handler functions in the `/client` directory, we could decide to either handle the navigation requests in-browser or just `next()` them - this time to the Service Worker.
+So, above, if we defined handler functions in the `/client` directory, we could decide to either handle the navigation requests in-browser or just `next()` them, this time, to the Service Worker layer.
 
 ```js
 /**
 client
- ├⏤ index.js
+ ├── index.js
  */
 export default async function(event, context, next) {
     // For http://localhost:3000/login
@@ -404,33 +408,34 @@ export default async function(event, context, next) {
         };
     }
     
+    // For every other URL
     return next();
 }
 ```
 
-Our overall workflow now takes the following layout-to-URL mapping:
+Our overall workflow for this application now takes the following layout-to-URL mapping:
 
 ```shell
 my-app
-  ├⏤ client/index.js ------------------------- http://localhost:3000/login
-  ├⏤ worker/index.js ------------------------- http://localhost:3000/about, http://localhost:3000/logo.png
-  ├⏤ server/index.js ------------------------- http://localhost:3000, http://localhost:3000/prodcuts, http://localhost:3000/prodcuts/stickers, etc
+  ├── client/index.js ------------------------- http://localhost:3000/login
+  ├── worker/index.js ------------------------- http://localhost:3000/about, http://localhost:3000/logo.png
+  ├── server/index.js ------------------------- http://localhost:3000, http://localhost:3000/prodcuts, http://localhost:3000/prodcuts/stickers, etc
   └── public/logo.png ------------------------- http://localhost:3000/logo.png
 ```
 
-If there's anything we have now, it's the ability to break work down, optionally across step functions, optionally between layers!
+If there's anything we have now, it is the ability to break work down, optionally across step functions, optionally between layers!
 
 ### Requests and Responses
 
 Routes in Webflo can be designed for different types of request/response scenarios.
 
-Generally, handler functions can return any type of jsonfyable data (`string`, `number`, `boolean`, `object`, `array`), or an instance of `event.Response` containing anything (e.g. blob). A nested handler's return value goes as-is to its parent handler, where it gets a chance to be recomposed. Whatever is obtained from the root handler is sent:
-+ either into the response stream (in the case of the server-side root handler - `/server/index.js`, and the worker-layer root handler - `/worker/index.js`, with jsonfyable data automatically converted to a proper JSON response),
-+ or into an HTML document for rendering (in the case of Server-Side Rendering (SSR), and Client-Side Rendering (CSR)).
+Generally, handler functions can return any type of jsonfyable data (`string`, `number`, `boolean`, `object`, `array`), or other primitive types like `ArrayBuffer`, `Blob`, etc, or an instance of `event.Response` containing the same. (Here `event.Response` is essentially the [WHATWG Response](https://developer.mozilla.org/en-US/docs/Web/API/Response) object.)
 
-But, whenever response is `undefined`:
-+ it is either that a `404` HTTP response is returned (in the case of the server-side root handler - `/server/index.js`, and the worker-layer root handler - `/worker/index.js`),
-+ or that the current HTML document receives empty data, and, at the same time, set to an error state (in the case of Server-Side Rendering (SSR), and Client-Side Rendering (CSR)),
+A nested handler's return value goes as-is to its parent handler, where it gets a chance to be recomposed. Whatever is obtained from the root handler is sent:
++ either into the response stream (with jsonfyable data automatically translating to a proper JSON response),
++ or into an HTML document for rendering (where applicable), as detailed ahead.
+
+But, where workflows return `undefined`, a `404` HTTP response is returned. (In the case of client-side workflows - in `/client`, the already running HTML page in the browser receives empty data, and, at the same time, set to an error state. Details in [Rendering and Templating](#rendering-and-templating).)
 
 #### Server-Side: API and Page Responses
 
@@ -439,27 +444,47 @@ On the server, jsonfyable response effectively becomes a *JSON API response*! (S
 ```js
 /**
 server
- ├⏤ index.js
+ ├── index.js
  */
 export default async function(event, context, next) {
     return { title: 'Home | FluffyPets' };
 }
 ```
 
-But, for a route that is intended to *also* be accessed as a web page, data obtained as JSON objects (as in above) can get automatically rendered to HTML as a *page* response. Incoming requests are identified as *page requests* when they indicate in their `Accept` header that HTML responses are acceptable - `Accept: text/html,etc` - (browsers automatically do this on navigation requests). And, it should be either that a custom renderer has been defined on the route, or that an HTML file that pairs with the route exists in the `/public` directory - for automatic rendering by Webflo.
+But, for a route that is intended to *also* be accessed as a web page, data obtained as JSON objects (as in above) can get automatically rendered to HTML as a *page* response. Incoming requests are identified as *page requests* when they indicate in their `Accept` header that HTML responses are acceptable - `Accept: text/html,etc`. (Browsers automatically do this on navigation requests.) Next, it should be either that a custom `render` callback has been defined on the route, or that an HTML file that pairs with the route exists in the `/public` directory - for automatic rendering by Webflo.
 
-+ Custom renderers are functions exported as `render` (`export function render() {}`) from the same `index.js` file as the route handler.
++ **Case 1: Custom `render` callbacks**. These are functions exported as `render` (`export function render() {}`) from the route.
 
   ```js
   /**
   server
-   ├⏤ index.js
+   ├── index.js
    */
   export default async function(event, context, next) {
       return { title: 'Home | FluffyPets' };
   }
   export async function render(event, data, next) {
-      // For nested routes that defined their own renderer
+      return `
+      <!DOCTYPE html>
+      <html>
+          <head><title>FluffyPets</title></head>
+          <body>
+              <h1>${ data.title }</h1>
+          </body>
+      </html>
+      `;
+  }
+  ```
+  
+  But custom `render` callbacks are step functions too that may be nested as necessary to form a *render* workflow.
+  
+  ```js
+  /**
+  server
+   ├── index.js
+   */
+  export async function render(event, data, next) {
+      // For render callbacks at child step
       if (next.stepname) {
           return next();
       }
@@ -474,28 +499,26 @@ But, for a route that is intended to *also* be accessed as a web page, data obta
       `;
   }
   ```
-    
+  
   > **Note**
-  > <br>Custom renderers are step functions too and may be nested to form a *rendering* workflow. Nested routes, however, may not always need to have an equivalent`render` function; they automatically inherit one from their parent or ancestor.
+  > <br>Typically, though, child steps do not always need to have an equivalent`render` callback being that they automatically inherit rendering from their parent or ancestor.
 
-+ Automatically-renderable HTML files are valid HTML documents named `index.html` in the `/public` directory, or a subdirectory that corresponds with the route.
++ **Case 2: Automatically-paired HTML files**. These are valid HTML documents named `index.html` in the `/public` directory, or a subdirectory that corresponds with the route.
    
   ```js
   /**
   server
-   ├⏤ index.js
+   ├── index.js
    */
   export default async function(event, context, next) {
       return { title: 'Home | FluffyPets' };
   }
   ```
   
-  The data obtained above is simply sent into the loaded HTML document instance as `document.state.page`. This makes it globally accessible to embedded scripts and rendering logic! (Details in [Rendering and Templating](#rendering-and-templating).)
-
   ```html
    <!--
    public
-    ├⏤ index.html
+    ├── index.html
    -->
    <!DOCTYPE html>
    <html>
@@ -509,9 +532,11 @@ But, for a route that is intended to *also* be accessed as a web page, data obta
        </body>
    </html>
   ```
+  
+  The data obtained above is simply sent into the loaded HTML document instance as `document.state.page`. This makes it globally accessible to embedded scripts and rendering logic! (Details in [Rendering and Templating](#rendering-and-templating).)
 
   > **Note**
-  > <br>Nested routes may not always need to have an equivalent `index.html` file; they automatically inherit one from their parent or ancestor.
+  > <br>Nested routes may not always need to have an equivalent `index.html` file; Webflo makes do with one from parent or ancestor.
 
 #### Client-Side: Navigation Responses
 
@@ -521,51 +546,54 @@ On the client (the browser), every navigation event (page-to-page navigation, hi
 
 As covered just above, routes that are intended to be accessed as a web page are expected to *first* be accessible as a JSON endpoint (returning an object). On the server, rendering happens *after* data is obtained from the workflow, but only when the browser explicitly asks for a `text/html` response! On the client, rendering happens *after* data is obtained from the workflow on each navigation event, but right into the same loaded document in the browser. In both cases, the concept of *templating* with HTML documents makes it possible to get pages to be as unique, or as generic, as needed on each navigation.
 
-Every rendering and templating concept in Webflo is DOM-based - both with Client-Side Rendering and Server-Side Rendering (going by the default, Webflo-native rendering). On the server, Webflo makes this so by making a DOM instance off of your `index.html` file. So, we get the same familiar `document` object and DOM elements everywhere! Webflo simply makes sure that the data obtained on each navigation is available as part of the `document` object - exposed at `document.state.page`.
+Every rendering and templating concept in Webflo is DOM-based - both with Client-Side Rendering and Server-Side Rendering (going by the default Webflo-native rendering). On the server, Webflo makes this so by making a DOM instance off of your `index.html` file. So, we get the same familiar `document` object and DOM elements everywhere! Webflo simply makes sure that the data obtained on each navigation is available as part of the `document` object - exposed at `document.state.page`.
 
-You can access the `document` object (and its `document.state.page` property) both from a custom `render()` function and from a script that you can directly embed on the page.
-+ If you defined a custom `render()` function on your route, you could call the `next()` function to advance the rendering workflow into Webflo's default rendering mode. The created `window` instance is returned.
+You can access the `document` object (and its `document.state.page` property) both from a custom `render` callback and from a script that you can directly embed on the page.
++ **Case 1: From within a `render` callback**. If you defined a custom `render` callback on your route, you could call the `next()` function to advance the *render workflow* into Webflo's default rendering mode. The created `window` instance is returned.
   
   ```js
   /**
   server
-   ├⏤ index.js
+   ├── index.js
    */
   export default async function(event, context, next) {
       return { title: 'Home | FluffyPets' };
   }
   export async function render(event, data, next) {
       let window = await next( data );
-      console.log( window.document.state.page ); // { title: 'Home | FluffyPets' }
+      let { document } = window;
+      console.log( document.state.page ); // { title: 'Home | FluffyPets' }
       return window;
   }
   ```
   
-+ If you embedded a script on your HTML markup, you would have access to the same `document.state.page` data.
++ **Case 2: From within an embedded script**. If you embedded a script on your HTML page, you would have access to the same `document.state.page` data.
   
   ```html
   <!--
    public
-    ├⏤ index.html
+    ├── index.html
    -->
    <!DOCTYPE html>
    <html>
        <head>
            <title>FluffyPets</title>
            <script>
-            setTimeout(() => console.log( document.state.page ), 10 ); // { title: 'Home | FluffyPets' }
+            setTimeout(() => {
+                console.log( document.state.page ); // { title: 'Home | FluffyPets' }
+            }, 0);
            </script>
        </head>
        <body></body>
    </html>
   ```
   
-  And you could embed that as an external resource - as in below. (Notice the `ssr` attribute on the `<script>` element. It tells Webflo to allow the script to be fetched and executed in a server-side context.)
+  But you could have that as an external resource - as in below. (But notice the `ssr` attribute on the `<script>` element. It tells Webflo to allow the script to be fetched and executed in a server-side context.)
   
   ```html
   <!--
    public
-    ├⏤ index.html
+    ├── index.html
    -->
    <!DOCTYPE html>
    <html>
@@ -579,7 +607,7 @@ You can access the `document` object (and its `document.state.page` property) bo
 
 From here, even the most-rudimentary form of rendering and templating becomes possible (using vanilla HTML and native DOM methods), and this is a good thing: you get away with less tooling until you absolutely need to add up on tooling!
 
-But the `document` objects in Webflo can be a lot fun to work with: they support Object-Oriented HTML (OOHTML) natively, and this gives us a lot of (optional) syntatic sugar on top of vanilla HTML and the DOM!
+However, the `document` objects in Webflo can be a lot fun to work with: they support Object-Oriented HTML (OOHTML) natively, and this gives us a lot of (optional) syntatic sugar on top of vanilla HTML and the DOM!
 
 > **Note**
 > <br>You can learn more about OOHTML [here](https://github.com/webqit/oohtml).
