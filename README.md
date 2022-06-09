@@ -53,7 +53,7 @@ export default function(event, context, next) {
 
 ```js
 /**
- ├⏤ products/index.js
+ ├── products/index.js
  */
 export default function(event, context, next) {
     if (next.stepname) {
