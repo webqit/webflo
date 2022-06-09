@@ -303,7 +303,7 @@ export default function(event, context, next) {
 
 This step-based workflow helps to decomplicate routing and navigation, and gets us scaling horizontally as our application grows larger.
 
-Workflows may be designed with as many or as few step functions as necessary; the flow control parameters `next.stepname` and `next.pathname` can be used at any point to handle the rest of an URL steps that have no corresponding step functions.
+Workflows may be designed with as many or as few step functions as necessary; the flow control parameters `next.stepname` and `next.pathname` can be used at any point to handle the rest of an URL's steps that have no corresponding step functions.
 
 This means that we could even handle all URLs from the root handler alone.
 
