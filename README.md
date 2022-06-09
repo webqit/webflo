@@ -9,6 +9,9 @@
 
 Webflo is a *web*, *mobile*, and *API backend* JavaScript framework built for modern *application flows*! It lets you express your entire application flow as just a layout of functions - drawn on the filesystem, composable to your heart's content 🍉!
 
+> **Note**
+> <br>Webflo is extremely lightweight, scalable and based on a number of important web standards: [WHATWG Fetch](https://fetch.spec.whatwg.org/), [WHATWG DOM](https://dom.spec.whatwg.org/), [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API), etc.
+
 + [Overview](#overview)
 + [Installation](#installation)
 + [Concepts](#concepts)
