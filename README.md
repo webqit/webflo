@@ -378,7 +378,7 @@ export default async function(event, context, next) {
 }
 ```
 
-Our overall workflow now takes the following layout-to-URL mapping:
+Now we get the following layout-to-URL mapping for our application:
 
 ```shell
 my-app
@@ -413,7 +413,7 @@ export default async function(event, context, next) {
 }
 ```
 
-Our overall workflow for this application now takes the following layout-to-URL mapping:
+Our overall layout-to-URL mapping for this application now becomes:
 
 ```shell
 my-app
