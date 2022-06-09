@@ -10,7 +10,7 @@
 Webflo is a *web*, *mobile*, and *API backend* JavaScript framework built for modern *application flows*! It lets you express your entire application flow as just a layout of functions - drawn on the filesystem, composable to your heart's content 🍉!
 
 > **Note**
-> <br>Webflo is extremely lightweight, scalable and based on a number of important web standards: [WHATWG Fetch](https://fetch.spec.whatwg.org/), [WHATWG DOM](https://dom.spec.whatwg.org/), [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API), etc.
+> <br>Webflo is notably based on a number of important web standards: [WHATWG Fetch](https://fetch.spec.whatwg.org/), [WHATWG DOM](https://dom.spec.whatwg.org/), [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API), etc. It also stands out as extremely lightweight and scalabl!
 
 + [Overview](#overview)
 + [Installation](#installation)
@@ -429,7 +429,7 @@ If there's anything we have now, it is the ability to break work down, optionall
 
 Routes in Webflo can be designed for different types of request/response scenarios.
 
-Generally, handler functions can return any type of jsonfyable data (`string`, `number`, `boolean`, `object`, `array`), or other primitive types like `ArrayBuffer`, `Blob`, etc, or an instance of `event.Response` containing the same. (Here `event.Response` is essentially the [WHATWG Response](https://developer.mozilla.org/en-US/docs/Web/API/Response) object.)
+Generally, handler functions can return any type of jsonfyable data (`string`, `number`, `boolean`, `object`, `array`), or other primitive types like `ArrayBuffer`, `Blob`, etc, or an instance of `event.Response` containing the same. (Here `event.Response` is essentially the [WHATWG Response](https://developer.mozilla.org/en-US/docs/Web/API/Response) object, available in all environments - `/client`, `/worker`, and `/server`.)
 
 A nested handler's return value goes as-is to its parent handler, where it gets a chance to be recomposed. Whatever is obtained from the root handler is sent:
 + either into the response stream (with jsonfyable data automatically translating to a proper JSON response),
