@@ -617,7 +617,7 @@ However, the `document` objects in Webflo can be a lot fun to work with: they su
 
 #### Rendering
 
-Getting your application data `document.state.page` rendered into HTML can be a trival thing for applications that do not have much going on in the UI. Webflo allows your tooling budget to be as low as just using vanilla DOM APIs! (You would simply disable OOHTML in config.)
+Getting your application data `document.state.page` rendered into HTML can be a trival thing for applications that do not have much going on in the UI. Webflo allows your tooling budget to be as low as just using vanilla DOM APIs! (You could even disable support for OOHTML in config.)
 
 ```html
  <!--
