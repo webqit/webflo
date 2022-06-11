@@ -516,21 +516,21 @@ But, for a route that is intended to *also* be accessed as a web page, data obta
   ```
   
   ```html
-   <!--
-   public
-    ├── index.html
-   -->
-   <!DOCTYPE html>
-   <html>
-       <head><title>FluffyPets</title></head>
-       <body namespace>
-           <h1 data-id="headline"></h1>
+  <!--
+  public
+   ├── index.html
+  -->
+  <!DOCTYPE html>
+  <html>
+      <head><title>FluffyPets</title></head>
+      <body namespace>
+          <h1 data-id="headline"></h1>
 
-           <script type="subscript">
-            this.namespace.headline = document.state.page.title;
-           </script>
-       </body>
-   </html>
+          <script type="subscript">
+           this.namespace.headline = document.state.page.title;
+          </script>
+      </body>
+  </html>
   ```
   
   The data obtained above is simply sent into the loaded HTML document instance as `document.state.page`. This makes it globally accessible to embedded scripts and rendering logic! (Details in [Rendering and Templating](#rendering-and-templating).)
@@ -571,38 +571,38 @@ You can access the `document` object (and its `document.state.page` property) bo
   
   ```html
   <!--
-   public
-    ├── index.html
-   -->
-   <!DOCTYPE html>
-   <html>
-       <head>
-           <title>FluffyPets</title>
-           <script>
-            setTimeout(() => {
-                console.log( document.state.page ); // { title: 'Home | FluffyPets' }
-            }, 0);
-           </script>
-       </head>
-       <body></body>
-   </html>
+  public
+   ├── index.html
+  -->
+  <!DOCTYPE html>
+  <html>
+      <head>
+          <title>FluffyPets</title>
+          <script>
+           setTimeout(() => {
+               console.log( document.state.page ); // { title: 'Home | FluffyPets' }
+           }, 0);
+          </script>
+      </head>
+      <body></body>
+  </html>
   ```
   
   But you could have that as an external resource - as in below. (But notice the `ssr` attribute on the `<script>` element. It tells Webflo to allow the script to be fetched and executed in a server-side context.)
   
   ```html
   <!--
-   public
-    ├── index.html
-   -->
-   <!DOCTYPE html>
-   <html>
-       <head>
-           <title>FluffyPets</title>
-           <script src="app.js" ssr></script>
-       </head>
-       <body></body>
-   </html>
+  public
+   ├── index.html
+  -->
+  <!DOCTYPE html>
+  <html>
+      <head>
+          <title>FluffyPets</title>
+          <script src="app.js" ssr></script>
+      </head>
+      <body></body>
+  </html>
   ```
 
 From here, even the most-rudimentary form of rendering and templating becomes possible (using vanilla HTML and native DOM methods), and this is a good thing: you get away with less tooling until you absolutely need to add up on tooling!
@@ -616,3 +616,37 @@ However, the `document` objects in Webflo can be a lot fun to work with: they su
 > <br>You can disable OOHTML in config where you do not need to use its features in HTML and the DOM.
 
 #### Rendering
+
+Getting your application data `document.state.page` rendered into HTML can be a trival thing for applications that do not have much going on in the UI. Webflo allows your tooling budget to be as low as just using vanilla DOM APIs.
+
+```html
+ <!--
+ public
+  ├── index.html
+ -->
+ <!DOCTYPE html>
+ <html>
+     <head>
+         <title>FluffyPets</title>
+         <script>
+          let app = document.state;
+          setTimeout(() => {
+              let titleElement = querySelector('title');
+              let h1Element = querySelector('h1');
+              titleElement.innerHTML = app.page.title;
+              h1Element.innerHTML = app.page.title;
+          }, 0);
+         </script>
+     </head>
+     <body>
+         <h1></h1>
+     </body>
+ </html>
+```
+
+> **Note**
+> <br>We've used a *quick* `setTimeout()` strategy there to wait until the DOM is fully ready to be accessed; also, to wait for data to be available at `document.state.data`. In practice, the assumed delay of `0` may be too small. But, for when you can afford it, a better strategy is to actually *observe* for *[DOM readiness](https://developer.mozilla.org/en-US/docs/Web/API/Window/DOMContentLoaded_event)* and *[data availability](#)*.
+
+> **Note**
+> <br>Considering the vanilla approach for your baisc UI? You probbably should! Low tooling budgets are a win in this case, and bare DOM manipulation are nothing to feel guilty of! (You may want to keep all of that JS in an external JS file to make your HTML tidy.)
+
