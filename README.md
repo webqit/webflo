@@ -216,7 +216,7 @@ export default function(event, context, next) {
 ```
 
 > **Note**
-> <br>The above function is built as part of your application's JS bundle on calling `npm run generate` on your terminal. (This is typically bundled to the file `./public/bundle.js`; thus, embeddable as `<script type="module" src="/bundle.js"></script>`.) Then it runs in-browser on visiting http://localhost:3000.
+> <br>The above function is built as part of your application's JS bundle on calling `npm run generate` on your terminal. (This is typically bundled to the file `./public/bundle.js`. So, you'd embed it as `<script type="module" src="/bundle.js"></script>`.) Then it runs in-browser on visiting http://localhost:3000.
 
 For *browser-based* applications that want to support offline usage via Service-Workers (e.g Progressive Web Apps), Webflo allows us to define equivalent handlers for requests hitting the Service Worker. These worker-based handlers go into a directory named `worker`.
 
@@ -234,7 +234,7 @@ export default function(event, context, next) {
 ```
 
 > **Note**
-> <br>The above function is built as part of your application's Service Worker JS bundle on calling `npm run generate` on your terminal. (This is typically bundled to the file `./public/worker.js`, and automatically linked-to by the main bundle.) Then it runs within the Service Worker on visiting http://localhost:3000.
+> <br>The above function is built as part of your application's Service Worker JS bundle on calling `npm run generate` on your terminal. (This is typically bundled to the file `./public/worker.js`, and the main application bundle automatically connects to it.) Then it runs within the Service Worker on visiting http://localhost:3000.
 
 So, depending on what's being built, an application's handler functions may take the following form (in part or in whole as we'll see):
 
@@ -611,5 +611,8 @@ However, the `document` objects in Webflo can be a lot fun to work with: they su
 
 > **Note**
 > <br>You can learn more about OOHTML [here](https://github.com/webqit/oohtml).
+
+> **Note**
+> <br>You can disable OOHTML in config where you do not need to use its features in HTML and the DOM.
 
 #### Rendering
