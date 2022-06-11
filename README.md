@@ -648,5 +648,5 @@ Getting your application data `document.state.page` rendered into HTML can be a 
 > <br>We've used a *quick* `setTimeout()` strategy there to wait until the DOM is fully ready to be accessed; also, to wait for data to be available at `document.state.data`. In practice, the assumed delay of `0` may be too small. But, for when you can afford it, a better strategy is to actually *observe* for *[DOM readiness](https://developer.mozilla.org/en-US/docs/Web/API/Window/DOMContentLoaded_event)* and *[data availability](#)*.
 
 > **Note**
-> <br>Considering the vanilla approach for your baisc UI? You probbably should! Low tooling budgets are a win in this case, and bare DOM manipulation are nothing to feel guilty of! (You may want to keep all of that JS in an external JS file to make your HTML tidy.)
+> <br>Considering the vanilla approach for your baisc UI? You probbably should! Low tooling budgets are a win in this case, and bare DOM manipulations are nothing to feel guilty of! (You may want to keep all of that JS in an external JS file to make your HTML tidy.)
 
