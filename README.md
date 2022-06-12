@@ -607,7 +607,7 @@ You can access the `document` object (and its `document.state.page` property) bo
 
 From here, even the most-rudimentary form of rendering and templating becomes possible (using vanilla HTML and native DOM methods), and this is a good thing: you get away with less tooling until you absolutely need to add up on tooling!
 
-However, the `document` objects in Webflo can be a lot fun to work with: they support Object-Oriented HTML (OOHTML) natively, and this gives us a lot of (optional) syntatic sugar on top of vanilla HTML and the DOM!
+However, the `document` objects in Webflo can be a lot fun to work with: they support Object-Oriented HTML (OOHTML) natively, and this gives us a lot of (optional) syntax sugars on top of vanilla HTML and the DOM!
 
 > **Note**
 > <br>You can learn more about OOHTML [here](https://github.com/webqit/oohtml).
@@ -650,4 +650,66 @@ Getting your application data `document.state.page` rendered into HTML can be a 
 > **Note**
 > <br>Considering the vanilla approach for your baisc UI? You probbably should! Low tooling budgets are a win in this case, and bare DOM manipulations are nothing to feel guilty of! (You may want to keep all of that JS in an external JS file to make your HTML tidy.)
 
-Where your application UI is nothing basic, you would benefit from using OOHTML features in HTML and on the DOM! (Documents created by Webflo are OOHTML-ready by default.) Here, you are able to write reactive UI logic, namespace-based HTML, HTML modules and imports, etc.
+Where your application UI is more than basic, you would benefit from using OOHTML features in HTML and on the DOM! (Documents created by Webflo are OOHTML-ready by default.) Here, you are able to write reactive UI logic, namespace-based HTML, HTML modules and imports, etc - without the usual framework thinking.
+
+To write **reactive UI logic**, OOHTML makes it possible to define `<script>` elements right along with your HTML elements - where you get to write as much or as little JavaScript as needed for a behaviour!
+
+```html
+ <!--
+ public
+  ├── index.html
+ -->
+ <!DOCTYPE html>
+ <html>
+     <head>
+         <title>FluffyPets</title>
+         <script type="subscript">
+          let app = document.state;
+          let titleElement = this.querySelector('title');
+          titleElement.innerHTML = app.page.title;
+         </script>
+     </head>
+     <body>
+         <h1></h1>
+         <script type="subscript">
+          let app = document.state;
+          let h1Element = this.querySelector('h1');
+          h1Element.innerHTML = app.page.title;
+         </script>
+     </body>
+ </html>
+```
+
+> **Note**
+> <br>You'll find it logical that UI logic is the whole essence of the HTML `<script>` element, after all! OOHTML just extends the regular `<script>` element with the `subscript` type to give them *reactivity* and keep them scoped to their host element! (You can learn more [here](https://github.com/webqit/oohtml#subscript).)
+
+From here, you can go on to use any DOM manipulation library of your choice; e.g jQuery, or even better, the jQuery-like [Play UI](https://github.com/webqit/play-ui) library.
+
+```html
+ <!--
+ public
+  ├── index.html
+ -->
+ <!DOCTYPE html>
+ <html>
+     <head>
+         <title>FluffyPets</title>
+         <script type="subscript">
+          let app = document.state;
+          $('title').html(app.page.title);
+         </script>
+     </head>
+     <body>
+         <h1></h1>
+         <script type="subscript">
+          let app = document.state;
+          $('h1').html(app.page.title);
+         </script>
+     </body>
+ </html>
+```
+
+You'll find many other OOHTML features that let you write the most enjoyable HTML. And when you need to write class-based components, you'll fall in love with [Custom Elements](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements)!
+
+#### Templating
+
