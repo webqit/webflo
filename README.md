@@ -150,7 +150,7 @@ Other important definitions like project `name`, package `type`, and *aliases* f
   "type": "module",
   "scripts": {
     "start": "webflo start::server --mode=dev",
-    "generate": "webflo generate::client"
+    "generate": "webflo generate::client --compress=gz --auto-embeds"
   },
   "dependencies": {
     "@webqit/webflo": "..."
@@ -202,7 +202,7 @@ If you can't wait to say *Hello World!* 😅, you can have an HTML page say that
 
 ### Handler Functions and Layout
 
-Whether you're building a *server-based*, *browser-based*, or *universal* application, Webflo gives us one consistent way to handle routing and navigation: using *handler functions*!
+Whether building a *server-based*, *browser-based*, or *universal* application, Webflo gives us one consistent way to handle routing and navigation: using *handler functions*!
 
 ```js
 /**
@@ -249,7 +249,7 @@ export default function(event, context, next) {
 ```
 
 > **Note**
-> <br>The above function is built as part of your application's JS bundle on calling `npm run generate` on your terminal. (This is typically bundled to the file `./public/bundle.js`. So, you'd embed it as `<script type="module" src="/bundle.js"></script>`.) Then it runs in-browser on visiting http://localhost:3000.
+> <br>The above function is built as part of your application's JS bundle on calling `npm run generate` on your terminal. (This is typically bundled to the file `./public/bundle.js`, and the `--auto-embeds` flag gets it automatically embeded on your `./public/index.html` page as `<script type="module" src="/bundle.js"></script>`.) Then it responds from right in the browser on visiting http://localhost:3000.
 
 For *browser-based* applications that want to support offline usage via Service-Workers (e.g Progressive Web Apps), Webflo allows us to define equivalent handlers for requests hitting the Service Worker. These worker-based handlers go into a directory named `worker`.
 
@@ -267,9 +267,9 @@ export default function(event, context, next) {
 ```
 
 > **Note**
-> <br>The above function is built as part of your application's Service Worker JS bundle on calling `npm run generate` on your terminal. (This is typically bundled to the file `./public/worker.js`, and the main application bundle automatically connects to it.) Then it runs within the Service Worker on visiting http://localhost:3000.
+> <br>The above function is built as part of your application's Service Worker JS bundle on calling `npm run generate` on your terminal. (This is typically bundled to the file `./public/worker.js`, and the main application bundle automatically connects to it.) Then it responds from within the Service Worker on visiting http://localhost:3000.
 
-So, depending on what's being built, an application's handler functions may take the following form (in part or in whole as we'll see):
+So, depending on what's being built, an application's handler functions may take the following form (in part or in whole as with universal applications):
 
 ```shell
 client
@@ -468,7 +468,7 @@ A nested handler's return value goes as-is to its parent handler, where it gets 
 + either into the response stream (with jsonfyable data automatically translating to a proper JSON response),
 + or into an HTML document for rendering (where applicable), as detailed ahead.
 
-But, where workflows return `undefined`, a `404` HTTP response is returned. (In the case of client-side workflows - in `/client`, the already running HTML page in the browser receives empty data, and, at the same time, set to an error state. Details in [Rendering and Templating](#rendering-and-templating).)
+But, where workflows return `undefined`, a `404` HTTP response is returned. In the case of client-side workflows - in `/client`, the already running HTML page in the browser receives empty data, and, at the same time, set to an error state. (Details in [Rendering and Templating](#rendering-and-templating).)
 
 #### Server-Side: API and Page Responses
 
