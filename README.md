@@ -82,7 +82,7 @@ export default async function(event, context, next) {
 }
 ```
 
-You get a new way to break work down on your application URLs!
+Now, all of this gives you new way to break work down on each of your application routes!
 </details>
 
 <details>
@@ -92,7 +92,7 @@ You get a new way to break work down on your application URLs!
 For when your application involves routing:
 + [The Fetch Standard](https://fetch.spec.whatwg.org/) (encompassing the [Request](https://developer.mozilla.org/en-US/docs/Web/API/Request), [Response](https://developer.mozilla.org/en-US/docs/Web/API/Response), and [Headers](https://developer.mozilla.org/en-US/docs/Web/API/Headers) interfaces) for all things *requests and responses*. ([Details ahead](#))
 
-  > For advanced applications, your Request and Response objects also *seamlessly exchange* - in addition to JSON - other standard objects like [FormData](https://developer.mozilla.org/en-US/docs/Web/API/FormData), [Blob](https://developer.mozilla.org/en-US/docs/Web/API/Blob), [File](https://developer.mozilla.org/en-US/docs/Web/API/File), and [ReadableStream](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream)
+  > Your Request and Response objects are also able to *seamlessly exchange* - in addition to JSON - other standard objects like [FormData](https://developer.mozilla.org/en-US/docs/Web/API/FormData), [Blob](https://developer.mozilla.org/en-US/docs/Web/API/Blob), [File](https://developer.mozilla.org/en-US/docs/Web/API/File), and [ReadableStream](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream)
 
 + [WHATWG URL](https://url.spec.whatwg.org/) and [WHATWG URLPattern](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) for all things *URL* and *URL matching*. ([Details ahead](#))
 
@@ -108,7 +108,7 @@ For when your application involves pages and a UI:
 For when your application needs to give an app-like experience:
 + [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) - with full support for route handlers - for [Progressive Web Apps (PWA)](https://web.dev/progressive-web-apps/) functionalities.
 
-Overall, this puts your application in line with the web of today, and of the future!
+Now, all of this puts your application in line with the web platform of today, and of the future!
 </details>
 
 *This and more - ahead!*
