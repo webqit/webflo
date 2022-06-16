@@ -90,7 +90,7 @@ Now, all of this gives you new way to break work down on each of your applicatio
  <br>
  
 For when your application involves routing:
-+ [The Fetch Standard](https://fetch.spec.whatwg.org/) (across client, server, and Service Worker environments) - comprising of the [Request](https://developer.mozilla.org/en-US/docs/Web/API/Request), [Response](https://developer.mozilla.org/en-US/docs/Web/API/Response), and [Headers](https://developer.mozilla.org/en-US/docs/Web/API/Headers) interfaces) - for all things *requests and responses*. ([Details ahead](#))
++ [The Fetch Standard](https://fetch.spec.whatwg.org/) (across client, server, and Service Worker environments) - comprising of the [Request](https://developer.mozilla.org/en-US/docs/Web/API/Request), [Response](https://developer.mozilla.org/en-US/docs/Web/API/Response), and [Headers](https://developer.mozilla.org/en-US/docs/Web/API/Headers) interfaces - for all things *requests and responses*. ([Details ahead](#))
 
   > Your Request and Response objects are also able to *seamlessly exchange* - in addition to JSON - other standard objects like [FormData](https://developer.mozilla.org/en-US/docs/Web/API/FormData), [Blob](https://developer.mozilla.org/en-US/docs/Web/API/Blob), [File](https://developer.mozilla.org/en-US/docs/Web/API/File), and [ReadableStream](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream)
 
@@ -99,11 +99,11 @@ For when your application involves routing:
 For when your application involves pages and a UI:
 + [The HTML Standard](https://html.spec.whatwg.org/) (across client, server, and Service Worker environments) for all things *markup* - conventional `.html`-based pages and templates (partials), etc. You go with a "zero-JavaScript" proposition or you progressively enhance with "just-enough JavaScript"!
 
-  > Your markup is easily extendable with the [HTML Modules (`<template name="partials"></template>`)](https://github.com/webqit/oohtml#html-modules) and [HTML Imports (`<import template="partials"></import>`)](https://github.com/webqit/oohtml#html-imports) templating system, [Reactive Scripts (`<script type="subscript"></script>`)](https://github.com/webqit/oohtml#subscript), and whatever else is possible with HTML.
+  > Your markup is also easily extendable with the [HTML Modules (`<template name="partials"></template>`)](https://github.com/webqit/oohtml#html-modules) and [HTML Imports (`<import template="partials"></import>`)](https://github.com/webqit/oohtml#html-imports) templating system, [Reactive Scripts (`<script type="subscript"></script>`)](https://github.com/webqit/oohtml#subscript), and whatever else is possible with HTML.
 
 + [WHATWG DOM](https://dom.spec.whatwg.org/) (across client and server environments) for all things *programmatic pages* - rendering, manipulation, interactivity, etc.
 
-  > Your DOM is easily enrichable with [Custom Elements](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements), [Subscript Elements](https://github.com/webqit/oohtml#subscript), [The State API (`document.state` and `element.state`)](https://github.com/webqit/oohtml#state-api), and whatever else is possible with the DOM.
+  > Your DOM is also easily enrichable with [Custom Elements](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements), [Subscript Elements](https://github.com/webqit/oohtml#subscript), [The State API (`document.state` and `element.state`)](https://github.com/webqit/oohtml#state-api), and whatever else is possible with the DOM.
 
 For when your application needs to give an app-like experience:
 + [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) - with full support for route handlers - for [Progressive Web Apps (PWA)](https://web.dev/progressive-web-apps/) functionalities.
