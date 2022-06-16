@@ -99,7 +99,7 @@ For when your application involves routing:
 + [WHATWG URL](https://url.spec.whatwg.org/) and [WHATWG URLPattern](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) (across client, server, and Service Worker environments) for all things *URL* and *URL pattern matching*. ([Details ahead](#))
 
 For when your application involves pages and a UI:
-+ [The HTML Standard](https://html.spec.whatwg.org/) (across client, server, and Service Worker environments) for all things *markup* - conventional `.html`-based pages and templates (partials), etc. You go with a "zero-JavaScript" proposition or you progressively enhance with "just-enough JavaScript"!
++ [The HTML Standard](https://html.spec.whatwg.org/) (across client, server, and Service Worker environments) for all things *markup* - conventional `.html`-based pages and templates, valid HTML syntax, etc. You go with a "zero-JavaScript" proposition or with *Progressive Enhancement* that makes do with "just-enough JavaScript"!
 
   > Your markup is also easily extendable with the [HTML Modules (`<template name="partials"></template>`)](https://github.com/webqit/oohtml#html-modules) and [HTML Imports (`<import template="partials"></import>`)](https://github.com/webqit/oohtml#html-imports) templating system, [Reactive Scripts (`<script type="subscript"></script>`)](https://github.com/webqit/oohtml#subscript), and whatever else is possible with HTML.
 
@@ -110,7 +110,7 @@ For when your application involves pages and a UI:
 For when your application needs to give an app-like experience:
 + [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) - with full support for route handlers - for [Progressive Web Apps (PWA)](https://web.dev/progressive-web-apps/) functionalities.
 
-A standards-based approach lets you work the way the web works now, and the way it'll work in the future!
+This standards-based approach lets you work the way the web works now, and the way it'll work in the future!
 </details>
 
 *This and more - ahead!*
