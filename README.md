@@ -109,6 +109,8 @@ For when your application involves pages and a UI:
 
 For when your application needs to give an app-like experience:
 + [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) - with full support for route handlers - for [Progressive Web Apps (PWA)](https://web.dev/progressive-web-apps/) functionalities.
+  
+  > You are also able to easily make your web app installable by complementing this with a [Web App Manifest](https://developer.mozilla.org/en-US/docs/Web/Manifest).
 
 This standards-based approach lets you work the way the web works now, and the way it'll work in the future!
 </details>
