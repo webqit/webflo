@@ -18,7 +18,7 @@ Webflo is a *web*, *mobile*, and *API backend* framework built for modern *appli
 ## Overview
 
 <details>
- <summary><b>Build <i>scalable</i> anything</b> using a <i><a href="https://en.wikipedia.org/wiki/Divide-and-conquer_algorithm">Divide-and-Conquer Algorithm</a></i>! Webflo gives you a <i>workflow</i>-based design pattern for laying out your routes; and this is new!</summary>
+ <summary><b>Build <i>scalable</i> anything</b> using a <i>Divide-and-Conquer Algorithm<a href="https://en.wikipedia.org/wiki/Divide-and-conquer_algorithm"><small><sup>[i]</sup></small></a></i>! Webflo gives you a <i>workflow</i>-based design pattern for laying out your routes; and this is new!</summary>
 <br>
  
 Webflo lets you layout your application routes using *handler functions* as the building block, each defined in an `index.js` file.
