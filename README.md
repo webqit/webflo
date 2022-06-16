@@ -108,7 +108,7 @@ For when your application involves pages and a UI:
 For when your application needs to give an app-like experience:
 + [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) - with full support for route handlers - for [Progressive Web Apps (PWA)](https://web.dev/progressive-web-apps/) functionalities.
 
-Now, all of this puts your application in line with the web platform of today, and of the future!
+A standards-based approach lets you work the way the web works now, and the way it'll work in the future! (Your existing knowledge of the `.html`, `.css` and `.js` stack and anything new you pick up **just add up**!)
 </details>
 
 *This and more - ahead!*
