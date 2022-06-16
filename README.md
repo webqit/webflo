@@ -11,7 +11,7 @@ Webflo is a universal *web*, *mobile*, and *API backend* framework built to solv
 
 Webflo lets you build all things web, mobile, and API backends - anything from as basic as a static `index.html` page to as rich as a universal app capable of *MPA*, *SPA*, or hybrid routing, *SSG*, *SSR*, *CSR*, or hybrid rendering, offline and *PWA* capabilities, etc. - this time, without *loosing* the *vanilla* advantage!
 
-Ok, we've put all of that up for a straight read! (😃 Might turn out you already know Webflo.)
+Ok, we've put all of that up for a straight read! (Might turn out you already know Webflo! 😃)
 
 > **Note**
 > <br>Depending on your current framework background, the hardest part of Webflo might be having to break ties with something that isn't conventional to the `.html` + `.css` + `.js` stack: all of that JSX, CSS-in-JS, etc.!
@@ -115,7 +115,7 @@ For when your application involves pages and a UI:
   > Your DOM is also easily enrichable with [Custom Elements](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements), [Subscript Elements](https://github.com/webqit/oohtml#subscript), [The State API (`document.state` and `element.state`)](https://github.com/webqit/oohtml#state-api), and whatever else is possible with the DOM.
 
 For when your application needs to give an app-like experience:
-+ [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) - with full support for route handlers - for [Progressive Web Apps (PWA)](https://web.dev/progressive-web-apps/) functionalities.
++ [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) (with full support for route handlers) - for offline and [Progressive Web Apps (PWA)](https://web.dev/progressive-web-apps/) capabilities.
   
   > You are also able to easily make your web app installable by complementing this with a [Web App Manifest](https://developer.mozilla.org/en-US/docs/Web/Manifest).
 
