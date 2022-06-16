@@ -86,7 +86,7 @@ Now, all of this gives you new way to break work down on each of your applicatio
 </details>
 
 <details>
-<summary><b>Build <i>future-proof</i> anything</b> by banking more on the standards and less on abstractions! Webflo <i>just follows</i> where a native feature, standard or conventional HTML, CSS, JS <i>just works</i>!</summary>
+<summary><b>Build <i>future-proof</i> anything</b> by banking more on the standards and less on abstractions! Webflo <i>just follows</i> where a native feature, standard, or conventional HTML, CSS, JS <i>just works</i>!</summary>
  <br>
  
 For when your application involves routing:
