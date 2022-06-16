@@ -86,7 +86,7 @@ Now, all of this gives you new way to break work down on each of your applicatio
 </details>
 
 <details>
-<summary><b>Build <i>future-proof</i> anything</b> by banking more on the standards and less on abstractions! Webflo <i>just follows</i> where a native feature, standard or convention <i>just works</i>!</summary>
+<summary><b>Build <i>future-proof</i> anything</b> by banking more on the standards and less on abstractions! Webflo <i>just follows</i> where a native feature, standard or conventional HTML, CSS, JS <i>just works</i>!</summary>
  <br>
  
 For when your application involves routing:
@@ -108,7 +108,7 @@ For when your application involves pages and a UI:
 For when your application needs to give an app-like experience:
 + [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) - with full support for route handlers - for [Progressive Web Apps (PWA)](https://web.dev/progressive-web-apps/) functionalities.
 
-A standards-based approach lets you work the way the web works now, and the way it'll work in the future! (Your existing knowledge of the `.html`, `.css` and `.js` stack and anything new you pick up **just add up**!)
+A standards-based approach lets you work the way the web works now, and the way it'll work in the future!
 </details>
 
 *This and more - ahead!*
