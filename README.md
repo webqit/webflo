@@ -9,6 +9,12 @@
 
 Webflo is a *web*, *mobile*, and *API backend* framework built for modern *application flows*! It lets you express your entire application flow as just a layout of functions - drawn on the filesystem, composable to your heart's content 🍉!
 
+## Documentation
+
++ [Overview](#overview)
++ [Installation](#installation)
++ [Concepts](#concepts)
+
 ## Overview
 
 <details>
@@ -102,13 +108,8 @@ For when your application involves pages and a UI:
 For when your application needs to give an app-like experience:
 + [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) - with full support for route handlers - for [Progressive Web Apps (PWA)](https://web.dev/progressive-web-apps/) functionalities.
 
+Overall, this puts your application in line with the web of today, and of the future!
 </details>
-
-## Documentation
-
-+ [Overview](#overview)
-+ [Installation](#installation)
-+ [Concepts](#concepts)
 
 *This and more - ahead!*
 
