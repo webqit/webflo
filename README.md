@@ -7,10 +7,30 @@
 
 <!-- /BADGES -->
 
-Webflo is a *web*, *mobile*, and *API backend* JavaScript framework built for modern *application flows*! It lets you express your entire application flow as just a layout of functions - drawn on the filesystem, composable to your heart's content 🍉!
+Webflo is a *web*, *mobile*, and *API backend* framework built for modern *application flows*! It lets you express your entire application flow as just a layout of functions - drawn on the filesystem, composable to your heart's content 🍉!
 
-> **Note**
-> <br>Webflo is notably based on a number of important web standards: [WHATWG Fetch](https://fetch.spec.whatwg.org/), [WHATWG DOM](https://dom.spec.whatwg.org/), [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API), etc. It also stands out as extremely lightweight and scalable!
+<details>
+ <summary><b>Build future-proof <i>anything</i>!</b> by banking more on the standards and less on abstractions! Webflo <i>just follows</i> where a native feature, standard or convention <i>just works</i>!</summary>
+ 
+ + For when your application involves routing:
+   + [The Fetch Standard](https://fetch.spec.whatwg.org/) (encompassing the [Request](https://developer.mozilla.org/en-US/docs/Web/API/Request), [Response](https://developer.mozilla.org/en-US/docs/Web/API/Response), and [Headers](https://developer.mozilla.org/en-US/docs/Web/API/Headers) interfaces) for all things *requests and responses*. ([Details ahead](#))
+   + WHATWG [URL](https://url.spec.whatwg.org/) and [URLPattern](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) for all things *URL* and *URL matching*. ([Details ahead](#))
+ 
+ + For when your application involves pages and a UI:
+   + [The HTML Standard](https://html.spec.whatwg.org/) for all things *markup* - `.html`-based pages, partials/templates, etc. - usable with a zero-JS proposition.
+ 
+     > Your markup is easily extendable with the [HTML Modules (`<template name="partials"></template>`)](https://github.com/webqit/oohtml#html-modules) and [HTML Imports (`<import template="partials"></import>`)](https://github.com/webqit/oohtml#html-imports) templating system, [Reactive Scripts (`<script type="subscript"></script>`)](https://github.com/webqit/oohtml#subscript), and whatever else is possible with HTML.
+ 
+   + [WHATWG DOM](https://dom.spec.whatwg.org/) (available both server-side and client-side) for all things *programmatic pages* - rendering, manipulation, interactivity, etc.
+ 
+     > Your DOM is easily enrichable with [Custom Elements](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements), [Subscript Elements](https://github.com/webqit/oohtml#subscript), [The State API (`document.state` and `element.state`)](https://github.com/webqit/oohtml#state-api), and whatever else is possible with the DOM.
+ 
+ + For when your application needs to give an app-like experience:
+   + [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) - with full support for route handlers - for [Progressive Web Apps (PWA)](https://web.dev/progressive-web-apps/) functionalities.
+ 
+</details>
+
+## Documentation
 
 + [Overview](#overview)
 + [Installation](#installation)
@@ -160,6 +180,7 @@ If you can't wait to say *Hello World!* 😅, you can have an HTML page say that
   ```
 
 ## Concepts
+
 
 + [Handler Functions and Layout](#handler-functions-and-layout)
 + [Step Functions and Workflows](#step-functions-and-workflows)
