@@ -257,7 +257,7 @@ export default function(event, context, next) {
 ```
 
 > **Note**
-> <br>The above function is built as part of your application's JS bundle on calling `npm run generate` on your terminal. (It is typically bundled to the file `./public/bundle.js`. And the `--auto-embeds` flag in that command gets this automatically embeded into your `./public/index.html` page as `<script type="module" src="/bundle.js"></script>`.) Then it responds from right in the browser on visiting http://localhost:3000.
+> <br>The above function is built as part of your application's JS bundle on calling `npm run generate` on your terminal. (It is typically bundled to the file `./public/bundle.js`. And the `--auto-embeds` flag in that command gets this automatically embeded on your `./public/index.html` page as `<script type="module" src="/bundle.js"></script>`.) Then it responds from right in the browser on visiting http://localhost:3000.
 
 For *browser-based* applications that want to support offline usage via Service-Workers (e.g Progressive Web Apps), Webflo allows us to define equivalent handlers for requests hitting the Service Worker. These worker-based handlers go into a directory named `worker`.
 
@@ -275,7 +275,7 @@ export default function(event, context, next) {
 ```
 
 > **Note**
-> <br>The above function is built as part of your application's Service Worker JS bundle on calling `npm run generate` on your terminal. (This is typically bundled to the file `./public/worker.js`, and the main application bundle automatically connects to it.) Then it responds from within the Service Worker on visiting http://localhost:3000.
+> <br>The above function is built as part of your application's Service Worker JS bundle on calling `npm run generate` on your terminal. (It is typically bundled to the file `./public/worker.js`, and the main application bundle automatically connects to it.) Then it responds from within the Service Worker on visiting http://localhost:3000.
 
 So, depending on what's being built, an application's handler functions may take the following form (in part or in whole as with universal applications):
 
@@ -544,7 +544,7 @@ But, for a route that is intended to *also* be accessed as a web page, data obta
   > **Note**
   > <br>Typically, though, child steps do not always need to have an equivalent`render` callback being that they automatically inherit rendering from their parent or ancestor.
 
-+ **Case 2: Automatically-paired HTML files**. These are valid HTML documents named `index.html` in the `/public` directory, or a subdirectory that corresponds with the route.
++ **Case 2: Automatically-paired HTML files**. These are valid HTML documents named `index.html` in the `/public` directory, or a subdirectory that corresponds with a route.
    
   ```js
   /**
@@ -590,7 +590,7 @@ As covered just above, routes that are intended to be accessed as a web page are
 Every rendering and templating concept in Webflo is DOM-based - both with Client-Side Rendering and Server-Side Rendering (going by the default Webflo-native rendering). On the server, Webflo makes this so by making a DOM instance off of your `index.html` file. So, we get the same familiar `document` object and DOM elements everywhere! Webflo simply makes sure that the data obtained on each navigation is available as part of the `document` object - exposed at `document.state.page`.
 
 You can access the `document` object (and its `document.state.page` property) both from a custom `render` callback and from a script that you can directly embed on the page.
-+ **Case 1: From within a `render` callback**. If you defined a custom `render` callback on your route, you could call the `next()` function to advance the *render workflow* into Webflo's default rendering mode. The created `window` instance is returned.
++ **Case 1: From within a `render` callback**. If you defined a custom `render` callback on your route, you could call the `next()` function to advance the *render workflow* into Webflo's default rendering mode. A `window` instance is returned containing the implied document.
   
   ```js
   /**
@@ -608,7 +608,7 @@ You can access the `document` object (and its `document.state.page` property) bo
   }
   ```
   
-+ **Case 2: From within an embedded script**. If you embedded a script on your HTML page, you would have access to the same `document.state.page` data.
++ **Case 2: From within an embedded script**. If you embedded a script on your HTML page, you could access the `document.state.page` data as you'd expected.
   
   ```html
   <!--
@@ -629,7 +629,7 @@ You can access the `document` object (and its `document.state.page` property) bo
   </html>
   ```
   
-  But you could have that as an external resource - as in below. (But notice the `ssr` attribute on the `<script>` element. It tells Webflo to allow the script to be fetched and executed in a server-side context.)
+  But you could have that as an external resource - as in below. (But notice the `ssr` attribute on the `<script>` element. It allows the rendering engine to fetch and execute the script in this server-side context.)
   
   ```html
   <!--
@@ -654,11 +654,11 @@ However, the `document` objects in Webflo can be a lot fun to work with: they su
 > <br>You can learn more about OOHTML [here](https://github.com/webqit/oohtml).
 
 > **Note**
-> <br>You can disable OOHTML in config where you do not need to use its features in HTML and the DOM.
+> <br>You can disable OOHTML (or some of its features) in config where you do not need to use its features in HTML and the DOM.
 
 #### Rendering
 
-Getting your application data `document.state.page` rendered into HTML can be a trival thing for applications that do not have much going on in the UI. Webflo allows your tooling budget to be as low as just using vanilla DOM APIs! (You could even disable support for OOHTML in config.)
+Getting your application data `document.state.page` rendered into HTML can be a trival thing for applications that do not have much going on in the UI. Webflo allows your tooling budget to be as low as just using vanilla DOM APIs!
 
 ```html
  <!--
@@ -689,7 +689,7 @@ Getting your application data `document.state.page` rendered into HTML can be a 
 > <br>We've used a *quick* `setTimeout()` strategy there to wait until the DOM is fully ready to be accessed; also, to wait for data to be available at `document.state.data`. In practice, the assumed delay of `0` may be too small. But, for when you can afford it, a better strategy is to actually *observe* for *[DOM readiness](https://developer.mozilla.org/en-US/docs/Web/API/Window/DOMContentLoaded_event)* and *[data availability](#)*.
 
 > **Note**
-> <br>Considering the vanilla approach for your baisc UI? You probbably should! Low tooling budgets are a win in this case, and bare DOM manipulations are nothing to feel guilty of! (You may want to keep all of that JS in an external JS file to make your HTML tidy.)
+> <br>If you're considering the vanilla approach for your baisc UI, you probbably should! Low tooling budgets are a win in this case, and bare DOM manipulations are nothing to feel guilty of! (You may want to keep all of that JS in an external JS file to make your HTML tidy.)
 
 Where your application UI is more than basic, you would benefit from using OOHTML features in HTML and on the DOM! (Documents created by Webflo are OOHTML-ready by default.) Here, you are able to write reactive UI logic, namespace-based HTML, HTML modules and imports, etc - without the usual framework thinking.
 
