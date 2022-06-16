@@ -11,7 +11,7 @@ Webflo is a universal *web*, *mobile*, and *API backend* framework built to solv
 
 > Depending on your current framework background, the hardest part of Webflo might be where you have to break ties with whatever isn't conventional to the `.html` + `.css` + `.js` stack: all of that JSX, CSS-in-JS, etc.!
 
-## Documentation
+## Documentation 
 
 + [Overview](#overview)
 + [Installation](#installation)
@@ -202,11 +202,11 @@ If you can't wait to say *Hello World!* 😅, you can have an HTML page say that
 
 ### Handler Functions and Layout
 
-Applications are often either *server-based*, *browser-based*, or a combination of both. Webflo gives us one consistent way to handle routing in all cases: using *handler functions*!
+Whether you're building a *server-based*, *browser-based*, or *universal* application, Webflo gives us one consistent way to handle routing and navigation: using *handler functions*!
 
 ```js
 /**
-[directory]
+[server|client|worker]
  ├── index.js
  */
 export default function(event, context, next) {
