@@ -7,7 +7,9 @@
 
 <!-- /BADGES -->
 
-Webflo is a universal *web*, *mobile*, and *API backend* framework built to solve for the underrated `.html` + `.css` + `.js` stack! 
+Webflo is a universal *web*, *mobile*, and *API backend* framework built to solve for the underrated `.html` + `.css` + `.js` stack! You'll be delighted at how it is crafted to keep your *tooling budget* low and your *application performance* high!
+
+Webflo lets you build all things web, mobile, and API backends - anything from as basic as a static `index.html` page to as rich as a universal app capable of MPA, SPA, or hybrid routing, SSG, SSR, CSR, or hybrid rendering, offline functionalities and PWA installability, etc - without *loosing* your *vanilla web* stack!
 
 > Depending on your current framework background, the hardest part of Webflo might be where you have to break ties with whatever isn't conventional to the `.html` + `.css` + `.js` stack: all of that JSX, CSS-in-JS, etc.!
 
@@ -90,6 +92,8 @@ Now, all of this gives you new way to break work down on each of your applicatio
 <details>
 <summary><b>Build <i>future-proof</i> anything</b> by banking more on the standards and less on abstractions! Webflo <i>just follows</i> where a native feature, standard, or conventional HTML, CSS or JS <i>just works</i>!</summary>
  <br>
+
+All parts of a Webflo app speak the same language and seamlessly talk to each other and the web platform itself without the usual compiler!
  
 For when your application involves routing:
 + [The Fetch Standard](https://fetch.spec.whatwg.org/) (across client, server, and Service Worker environments) - comprising of the [Request](https://developer.mozilla.org/en-US/docs/Web/API/Request), [Response](https://developer.mozilla.org/en-US/docs/Web/API/Response), and [Headers](https://developer.mozilla.org/en-US/docs/Web/API/Headers) interfaces - for all things *requests and responses*. ([Details ahead](#))
