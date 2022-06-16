@@ -97,7 +97,7 @@ For when your application involves routing:
 + [WHATWG URL](https://url.spec.whatwg.org/) and [WHATWG URLPattern](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) for all things *URL* and *URL matching*. ([Details ahead](#))
 
 For when your application involves pages and a UI:
-+ [The HTML Standard](https://html.spec.whatwg.org/) for all things *markup* - `.html`-based pages, partials/templates, etc. Go with a "zero-JavaScript" proposition or progressively enhance with "just-enough JavaScript"!
++ [The HTML Standard](https://html.spec.whatwg.org/) for all things *markup* - conventional `.html`-based pages, partials/templates, etc. You go with a "zero-JavaScript" proposition or progressively enhance with "just-enough JavaScript"!
 
   > Your markup is easily extendable with the [HTML Modules (`<template name="partials"></template>`)](https://github.com/webqit/oohtml#html-modules) and [HTML Imports (`<import template="partials"></import>`)](https://github.com/webqit/oohtml#html-imports) templating system, [Reactive Scripts (`<script type="subscript"></script>`)](https://github.com/webqit/oohtml#subscript), and whatever else is possible with HTML.
 
