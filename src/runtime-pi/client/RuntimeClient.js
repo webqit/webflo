@@ -15,7 +15,7 @@ export default class RuntimeClient {
      */
 	constructor(cx) {
 		this.cx = cx;
-		if (this.cx.support_service_worker) {
+		if (this.cx.service_worker_support) {
 			const workerComm = new WorkerComm(this.cx.worker_filename, { scope: this.cx.worker_scope, startMessages: true });
 			Observer.observe(workerComm, changes => {
 				//console.log('SERVICE_WORKER_STATE_CHANGE', changes[0].name, changes[0].value);
@@ -35,6 +35,9 @@ export default class RuntimeClient {
 		// The app router
         const router = new Router(this.cx, httpEvent.url.pathname);
         const handle = async () => {
+			if (this.cx.params.address_bar_synchrony === 'instant') {
+				await this.render(httpEvent, {}, router);
+			}
 			// --------
 			// ROUTE FOR DATA
 			// --------
@@ -69,30 +72,40 @@ export default class RuntimeClient {
 
 	// Renderer
     async render(httpEvent, response, router) {
-		let data = await response.json();
+		let data = response.json ? await response.json() : response;
 		return router.route('render', httpEvent, data, async (httpEvent, data) => {
 			// --------
 			// OOHTML would waiting for DOM-ready in order to be initialized
-			await new Promise(res => window.WebQit.DOM.ready(res));
-			if (!window.document.state.env) {
-				window.document.setState({
-					env: 'client',
-					onHydration: (httpEvent.detail || {}).srcType === 'init',
-					network: this.cx.runtime.network,
-					url: this.cx.runtime.location,
-				}, { update: true });
+			if (window.WebQit.DOM) {
+				await new Promise(res => window.WebQit.DOM.ready(res));
 			}
-			window.document.setState({ page: data }, { update: 'merge' });
-			window.document.body.setAttribute('template', 'page/' + httpEvent.url.pathname.split('/').filter(a => a).map(a => a + '+-').join('/'));
-            await new Promise(res => (window.document.templatesReadyState === 'complete' && res(), window.document.addEventListener('templatesreadystatechange', res)));
+			if (window.document.state) {
+				if (!window.document.state.env) {
+					window.document.setState({
+						env: 'client',
+						onHydration: (httpEvent.detail || {}).srcType === 'init',
+						network: this.cx.runtime.network,
+						url: this.cx.runtime.location,
+					}, { update: true });
+				}
+				window.document.setState({ page: data }, { update: 'merge' });
+			}
+			if (window.document.templates) {
+				window.document.body.setAttribute('template', 'page/' + httpEvent.url.pathname.split('/').filter(a => a).map(a => a + '+-').join('/'));
+				await new Promise(res => (window.document.templatesReadyState === 'complete' && res(), window.document.addEventListener('templatesreadystatechange', res)));
+			}
 			return window;
 		});
 	}
 
 	// Unrender
 	async unrender() {
-		window.document.setState({ page: {} }, { update: 'merge' });
-		window.document.body.setAttribute('template', '');
+		if (window.document.state) {
+			window.document.setState({ page: {} }, { update: 'merge' });
+		}
+		if (window.document.templates) {
+			window.document.body.setAttribute('template', '');
+		}
 	}
 
 	// Normalize scroll position

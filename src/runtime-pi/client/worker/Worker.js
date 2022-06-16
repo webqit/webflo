@@ -43,7 +43,7 @@ export default class Worker {
 				// Add files to cache
 				evt.waitUntil( self.caches.open(this.cx.params.cache_name).then(cache => {
 					if (this.cx.logger) { this.cx.logger.log('[ServiceWorker] Pre-caching resources.'); }
-					const cache_only_urls = (this.cx.params.cache_only_urls || []).map(c => c.trim()).filter(c => c && !c.endsWith('/') && !urlPattern(c, self.origin).isPattern());
+					const cache_only_urls = (this.cx.params.cache_only_urls || []).map(c => c.trim()).filter(c => c && !urlPattern(c, self.origin).isPattern());
 					return cache.addAll(cache_only_urls);
 				}) );
 			}

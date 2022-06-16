@@ -88,9 +88,9 @@ export default class Router extends _Router {
                     response = new httpEvent.Response(null, { status: 500, statusText: `Error reading static file: ${filename}` } );
                 } else {
                     // if the file is found, set Content-type and send data
-                    const type = Mime.lookup(ext);
+                    let mime = Mime.lookup(ext);
                     response = new httpEvent.Response(data, { headers: {
-                        contentType: type === 'application/javascript' ? 'text/javascript' : type,
+                        contentType: mime === 'application/javascript' ? 'text/javascript' : mime,
                         contentLength: Buffer.byteLength(data),
                     } });
                     if (enc) {

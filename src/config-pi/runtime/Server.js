@@ -29,6 +29,7 @@ export default class Server extends Dotfile {
                 force: false,
             },
             force_www: '',
+            oohtml_support: 'full',
             shared: false,
         }, config);
     }
@@ -42,13 +43,20 @@ export default class Server extends Dotfile {
                 {value: 'add',},
                 {value: 'remove',},
             ],
+            oohtml_support: [
+                {value: 'full', title: 'full'},
+                {value: 'namespacing', title: 'namespacing'},
+                {value: 'scripting', title: 'scripting'},
+                {value: 'templating', title: 'templating'},
+                {value: 'none', title: 'none'},
+            ],
         }, choices);
         // Questions
         return [
             {
                 name: 'port',
                 type: 'number',
-                message: 'Enter port number',
+                message: '[port]: Enter port number',
                 initial: config.port,
                 validation: ['important'],
             },
@@ -62,31 +70,31 @@ export default class Server extends Dotfile {
                     {
                         name: 'port',
                         type: 'number',
-                        message: 'Enter HTTPS port number',
+                        message: '[port]: Enter HTTPS port number',
                         validation: ['important'],
                     },
                     {
                         name: 'keyfile',
                         type: 'text',
-                        message: 'Enter SSL KEY file',
+                        message: '[keyfile]: Enter SSL KEY file',
                         validation: ['important'],
                     },
                     {
                         name: 'certfile',
                         type: 'text',
-                        message: 'Enter SSL CERT file',
+                        message: '[certfile]: Enter SSL CERT file',
                         validation: ['important'],
                     },
                     {
                         name: 'certdoms',
                         type: 'list',
-                        message: 'Enter the CERT domains (comma-separated)',
+                        message: '[certdoms]: Enter the CERT domains (comma-separated)',
                         validation: ['important'],
                     },
                     {
                         name: 'force',
                         type: 'toggle',
-                        message: 'Force HTTPS?',
+                        message: '[force]: Force HTTPS?',
                         active: 'YES',
                         inactive: 'NO',
                     },
@@ -95,14 +103,22 @@ export default class Server extends Dotfile {
             {
                 name: 'force_www',
                 type: 'select',
-                message: 'Force add/remove "www" on hostname?',
+                message: '[force_www]: Force add/remove "www" on hostname?',
                 choices: CHOICES.force_www,
                 initial: this.indexOfInitial(CHOICES.force_www, config.force_www),
             },
             {
+                name: 'oohtml_support',
+                type: 'select',
+                message: '[oohtml_support]: Specify OOHTML support level',
+                choices: CHOICES.oohtml_support,
+                initial: this.indexOfInitial(CHOICES.oohtml_support, config.oohtml_support),
+                validation: ['important'],
+            },
+            {
                 name: 'shared',
                 type: 'toggle',
-                message: 'Shared server?',
+                message: '[shared]: Shared server?',
                 active: 'YES',
                 inactive: 'NO',
                 initial: config.shared,

@@ -98,8 +98,7 @@ export default class Runtime {
 		window.addEventListener('click', e => {
 			var anchor = e.target.closest('a');
 			if (!anchor || !anchor.href) return;
-			if (!anchor.target && !anchor.download && (!anchor.origin || anchor.origin === this.location.origin)) {
-				if (e.metaKey || e.altKey || e.ctrlKey || e.shiftKey) return;
+			if (!anchor.target && !anchor.download && this.isSpaRoute(anchor, e)) {
 				// Publish everything, including hash
 				this.go(Url.copy(anchor), {}, { src: anchor, srcType: 'link', });
 				// URLs with # will cause a natural navigation
@@ -129,8 +128,7 @@ export default class Runtime {
 			actionEl.href = submitParams.action;
 			// ---------------
 			// If not targeted and same origin...
-			if (!submitParams.target && (!actionEl.origin || actionEl.origin === this.location.origin)) {
-				if (e.metaKey || e.altKey || e.ctrlKey || e.shiftKey) return;
+			if (!submitParams.target && this.isSpaRoute(actionEl, e)) {
 				// Build data
 				var formData = new FormData(form);
 				if ((submitter || {}).name) {
@@ -176,6 +174,22 @@ export default class Runtime {
         return window.history;
     }
 
+	// Check is-route
+	isSpaRoute(url, e) {
+		url = typeof url === 'string' ? new whatwag.URL(url) : url;
+		if (url.origin && url.origin !== this.location.origin) return false;
+		if (e && (e.metaKey || e.altKey || e.ctrlKey || e.shiftKey)) return false;
+		if (!this.cx.params.routing) return true;
+		let b = url.pathname.split('/').filter(s => s);
+		const match = a => {
+			a = a.split('/').filter(s => s);
+			return a.reduce((prev, s, i) => prev && (s === b[i] || [s, b[i]].includes('-')), true);
+		};
+		return match(this.cx.params.routing.scope) && this.cx.params.routing.subscopes.reduce((prev, subscope) => {
+			return prev && !match(subscope);
+		}, true);
+	}
+
     /**
      * Performs a request.
      *
@@ -206,8 +220,10 @@ export default class Runtime {
             Observer.set(detail.submitter || {}, 'active', true);
         }
         // ------------
-        Observer.set(this.location, url, { detail: { ...init, ...detail }, });
         Observer.set(this.network, 'redirecting', null);
+		if (this.cx.params.address_bar_synchrony === 'instant') {
+			Observer.set(this.location, url, { detail: { ...init, ...detail }, });
+		}
         // ------------
 		// The request object
 		let request = this.generateRequest(url.href, init);
@@ -216,6 +232,11 @@ export default class Runtime {
 		// Response
 		let response = await this.clients.get('*').handle(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
 		let finalResponse = this.handleResponse(httpEvent, response);
+		// ------------
+		if (this.cx.params.address_bar_synchrony !== 'instant') {
+			Observer.set(this.location, url, { detail: { ...init, ...detail }, });
+		}
+		// ------------
         // Return value
 		return finalResponse;
     }
@@ -263,7 +284,7 @@ export default class Runtime {
 			Observer.set(e.detail.src, 'active', false);
 			Observer.set(e.detail.submitter || {}, 'active', false);
 		}
-		if (response.redirected && this.isSameOrigin(response.url)) {
+		if (response.redirected && (new whatwag.URL(response.url)).origin === this.location.origin) {
 			Observer.set(this.location, { href: response.url }, {
 				detail: { isRedirect: true },
 			});
@@ -276,21 +297,5 @@ export default class Runtime {
 		}
 		return response;
 	}
-
-    /**
-     * Checks if an URL is same origin.
-     *
-     * @param object|string 	url
-     *
-     * @return Bool
-     */
-    isSameOrigin(url) {
-        if (typeof url === 'string') {
-            let href = url;
-            url = window.document.createElement('a');
-            url.href = href
-        }
-        return !url.origin || url.origin === this.location.origin;
-    }
 
 }

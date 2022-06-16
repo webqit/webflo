@@ -45,12 +45,13 @@ export default class RuntimeClient {
             // --------
             // Rendering
             // --------
+
             if (response.ok && response.bodyAttrs.inputType === 'object' && httpEvent.request.headers.accept.match('text/html')) {
                 let rendering = await this.render(httpEvent, router, response);
-                if (typeof rendering !== 'string') {
-                    throw new Error('render() must return a window object or a string response.');
+                if (typeof rendering !== 'string' && !(typeof rendering === 'object' && rendering && typeof rendering.toString === 'function')) {
+                    throw new Error('render() must return a string response or an object that implements toString()..');
                 }
-                response = new httpEvent.Response(rendering, {
+                response = new httpEvent.Response(rendering.toString(), {
                     status: response.status,
                     headers: { ...response.headers.json(), contentType: 'text/html' },
                 });
@@ -81,19 +82,28 @@ export default class RuntimeClient {
                 SOURCE: renderFile,
                 URL: httpEvent.url.href,
                 ROOT: this.cx.CWD,
+                OOHTML_LEVEL: this.cx.server.oohtml_support,
             });
             const { window } = await import('@webqit/oohtml-ssr/instance.js?' + instanceParams);
             // --------
             // OOHTML would waiting for DOM-ready in order to be initialized
-            await new Promise(res => window.WebQit.DOM.ready(res));
-            await new Promise(res => (window.document.templatesReadyState === 'complete' && res(), window.document.addEventListener('templatesreadystatechange', res)));
-            if (!window.document.state.env) {
-                window.document.setState({
-                    env: 'server',
-                }, { update: true });
+            if (window.WebQit.DOM) {
+                await new Promise(res => window.WebQit.DOM.ready(res));
             }
-            window.document.setState({ page: data, url: httpEvent.url }, { update: 'merge' });
-            window.document.body.setAttribute('template', 'page/' + httpEvent.url.pathname.split('/').filter(a => a).map(a => a + '+-').join('/'));
+            if (window.document.templates) {
+                await new Promise(res => (window.document.templatesReadyState === 'complete' && res(), window.document.addEventListener('templatesreadystatechange', res)));
+            }
+            if (window.document.state) {
+                if (!window.document.state.env) {
+                    window.document.setState({
+                        env: 'server',
+                    }, { update: true });
+                }
+                window.document.setState({ page: data, url: httpEvent.url }, { update: 'merge' });
+            }
+            if (window.document.templates) {
+                window.document.body.setAttribute('template', 'page/' + httpEvent.url.pathname.split('/').filter(a => a).map(a => a + '+-').join('/'));
+            }
             await new Promise(res => setTimeout(res, 10));
             return window;
         });

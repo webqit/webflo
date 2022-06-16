@@ -245,9 +245,14 @@ export default class Runtime {
         Observer.set(this, 'location', {});
         Observer.set(this, 'network', {});
         // ---------------
-        if (this.cx.app.title && this.cx.logger) {
-            this.cx.logger.info(`> Server running (${this.cx.app.title || ''})`);
-        }
+        this.ready.then(() => {
+            if (!this.cx.logger) return;
+            if (this.cx.server.shared) {
+                this.cx.logger.info(`> Server running (shared)`);
+            } else {
+                this.cx.logger.info(`> Server running (${this.cx.app.title || ''})::${this.cx.server.port}`);
+            }
+        });
      }
 
     /**

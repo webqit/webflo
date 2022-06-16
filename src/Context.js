@@ -17,7 +17,7 @@ export default class Context {
             this[prop] = this.dict[prop];
         }
         if (arguments.length > 1) {
-            this.dict.CWD = CD;
+            Object.defineProperty(this.dict, 'CWD', { get: () => CD });
         }
     }
 
