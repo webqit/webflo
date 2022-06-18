@@ -754,3 +754,12 @@ You'll find many other OOHTML features that let you write the most enjoyable HTM
 
 #### Templating
 
+...
+
+## Getting Involved
+
+All forms of contributions and PR are welcome! To report bugs or request features, please submit an [issue](https://github.com/webqit/webflo/issues).
+
+## License
+
+MIT.

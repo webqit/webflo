@@ -115,7 +115,7 @@ export async function generate() {
             outfileMainPublic = Path.join(clientConfig.public_base_url, outfileMain),
             embedList = [],
             unembedList = [];
-        if (cx.flags['auto-embeds']) {
+        if (cx.flags['auto-embed']) {
             if (codeSplitting) {
                 embedList.push(outfileWebfloPublic);
             } else {
