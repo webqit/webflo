@@ -79,10 +79,10 @@ export default class RuntimeClient {
                 pathnameSplit.pop();
             }
             const instanceParams = QueryString.stringify({
-                SOURCE: renderFile,
-                URL: httpEvent.url.href,
-                ROOT: this.cx.CWD,
-                OOHTML_LEVEL: this.cx.server.oohtml_support,
+                file: renderFile,
+                url: httpEvent.url.href,
+                root: this.cx.CWD,
+                oohtml_level: this.cx.server.oohtml_support,
             });
             const { window } = await import('@webqit/oohtml-ssr/instance.js?' + instanceParams);
             // --------

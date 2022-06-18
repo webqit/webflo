@@ -37,7 +37,7 @@
   "dependencies": {
     "@octokit/webhooks": "^7.15.1",
     "@webqit/backpack": "^0.1.0",
-    "@webqit/oohtml-ssr": "^1.0.6",
+    "@webqit/oohtml-ssr": "^1.1.0",
     "@webqit/util": "^0.8.9",
     "client-sessions": "^0.8.0",
     "esbuild": "^0.14.38",
