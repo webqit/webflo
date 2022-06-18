@@ -96,7 +96,7 @@ Now, all of this gives you new way to break work down on each of your applicatio
 <summary><b>Build <i>future-proof</i> anything</b> by banking more on the standards and less on abstractions! Webflo <i>just follows</i> where a native feature, standard, or conventional HTML, CSS or JS <i>just works</i>!</summary>
  <br>
 
-All parts of a Webflo app speak the same language and seamlessly talk to each other and the web platform itself without the usual compiler!
+All parts of a Webflo app speak the same language and seamlessly talk to each other and directly to the web platform itself!
  
 For when your application involves routing:
 + [The Fetch Standard](https://fetch.spec.whatwg.org/) (across client, server, and Service Worker environments) - comprising of the [Request](https://developer.mozilla.org/en-US/docs/Web/API/Request), [Response](https://developer.mozilla.org/en-US/docs/Web/API/Response), and [Headers](https://developer.mozilla.org/en-US/docs/Web/API/Headers) interfaces - for all things *requests and responses*. ([Details ahead](#))
