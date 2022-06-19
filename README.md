@@ -133,7 +133,7 @@ mkdir my-app
 cd my-app
 ```
 
-With [npm available on your terminal](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm), the following command will install Webflo to your project:
+With [npm available on your terminal](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm), run the following command to install Webflo to your project:
 
 > System Requirements: Node.js 12.0 or later
 
