@@ -861,7 +861,7 @@ public/about
 
 ##### In a Single Page Application
 
-In a Multi Page layout, page-specific contents - e.g. main files - are typically bundled together as nested `<template>` elements in a way that models their URL structure.
+In a Single Page layout, page-specific contents - e.g. main files - are typically bundled together as nested `<template>` elements in a way that models their URL structure.
 
 ```html
 <!--
