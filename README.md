@@ -803,12 +803,12 @@ Templating in Webflo is based on the [HTML Modules](https://github.com/webqit/oo
 This *module*, *export* and *import* paradigm comes full-fledged for every templating need! For example, the *module* element - `<template name>` - is able to load its contents from a remote `.html` file that serves as a bundle:
 
 ```html
- <!--
- public
-  ├── bundle.html
- -->
- <header exportgroup="header">Header Area</header>
- <main exportgroup="main">Main Area</main>
+<!--
+public
+ ├── bundle.html
+-->
+<header exportgroup="header">Header Area</header>
+<main exportgroup="main">Main Area</main>
 ```
 
 ```html
@@ -817,6 +817,46 @@ This *module*, *export* and *import* paradigm comes full-fledged for every templ
 </head>
 ```
 
-And, as we'll see shortly, multiple standalone `.html` files - e.g. the `header.html`, `footer.html`, `main.html` files above - can be bundled together this way as one `bundle.html` file for our application.
+What we'll see shortly is how multiple standalone `.html` files - e.g. the `header.html`, `footer.html`, `main.html` files above - come together into one `bundle.html` file for an application.
 
 ##### In a Multi Page Application
+
+In a Multi Page layout, header and footer files (and/or other partials) are typically bundled and reused across each page of an application, while letting each of these pages own their own *main* content.
+
+```html
+<!--
+public
+ ├── index.html
+-->
+<!DOCTYPE html>
+<html>
+    <head>
+        <template name="pages" src="/bundle.html"></template>
+    </head>
+    <body>
+        <import template="pages" name="header"></import>
+        <main>Welcome to our Home Page</main>
+        <import template="pages" name="footer"></import>
+    </body>
+</html>
+```
+
+```html
+<!--
+public/about
+ ├── index.html
+-->
+<!DOCTYPE html>
+<html>
+    <head>
+        <template name="pages" src="/bundle.html"></template>
+    </head>
+    <body>
+        <import template="pages" name="header"></import>
+        <main>Welcome to our About Page</main>
+        <import template="pages" name="footer"></import>
+    </body>
+</html>
+```
+
+##### In a Single Page Application
