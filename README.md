@@ -778,7 +778,7 @@ my-app
       └── index.html ------------------------------- <!DOCTYPE html>
 ```
 
-This, in both cases, is templating - the ability to define HTML *partials* once, and have them reused many times. Webflo just concerns itself with templating, and the choice of a Multi Page Application or Single Page becomes yours! And heck, you can even have the best of both worlds in the same application! It's all *templating*!
+This, in both cases, is templating - the ability to define HTML *partials* once, and have them reused multiple times. Webflo just concerns itself with templating, and the choice of a Multi Page Application or Single Page Application becomes yours! And heck, you can even have the best of both worlds in the same application! It's all *templating*!
 
 Templating in Webflo is based on the [HTML Modules](https://github.com/webqit/oohtml#html-modules) and [HTML Imports](https://github.com/webqit/oohtml#html-imports) features of [OOHTML](https://github.com/webqit/oohtml), which is, itself, based on the [HTML `<template>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template) element. Here, you are able to define reusable contents in a `<template>` element...
 
@@ -817,7 +817,7 @@ public
 </head>
 ```
 
-What we'll see shortly is how multiple standalone `.html` files - e.g. the `header.html`, `footer.html`, `main.html` files above - come together into one `bundle.html` file for an application.
+What [we'll see shortly](#bundling) is how multiple standalone `.html` files - e.g. the `header.html`, `footer.html`, `main.html` files above - come together into one `bundle.html` file for an application.
 
 ##### In a Multi Page Architecture
 
@@ -831,7 +831,7 @@ public
 <!DOCTYPE html>
 <html>
     <head>
-        <script type="module" src="bundle.js"></script>
+        <script type="module" src="/bundle.js"></script>
         <template name="pages" src="/bundle.html"></template>
     </head>
     <body>
@@ -850,7 +850,7 @@ public/about
 <!DOCTYPE html>
 <html>
     <head>
-        <script type="module" src="bundle.js"></script>
+        <script type="module" src="/bundle.js"></script>
         <template name="pages" src="/bundle.html"></template>
     </head>
     <body>
@@ -869,7 +869,7 @@ public/products
 <!DOCTYPE html>
 <html>
     <head>
-        <script type="module" src="bundle.js"></script>
+        <script type="module" src="/bundle.js"></script>
         <template name="pages" src="/bundle.html"></template>
     </head>
     <body>
@@ -911,7 +911,7 @@ public
 <!DOCTYPE html>
 <html>
     <head>
-        <script type="module" src="bundle.js"></script>
+        <script type="module" src="/bundle.js"></script>
         <template name="pages" src="/bundle.html"></template>
     </head>
     <body template="/"> <!-- This template attribute could change to /about or /products -->
@@ -927,4 +927,73 @@ public
 
 ##### In a Hybrid Architecture
 
-A hybrid of the two architectures above is possible in one application, to take advantage of the unique benefits of each! Here, 
+It's all *templating*, so a hybrid of the two architectures above is possible in one application, to take advantage of the unique benefits of each! Here, subroutes are defined either as a standalone page - `index.html` - or as the `main.html` (or similar) part of a base `index.html` page.
+
+```html
+my-app
+  └── public
+      ├── about/index.html ------------------------- <!DOCTYPE html>
+      ├── prodcuts
+      │     ├── free/main.html --------------------------- <main></main> <!-- To appear at main area of index.html -->
+      │     ├── paid/main.html --------------------------- <main></main> <!-- To appear at main area of index.html -->
+      │     ├── main.html -------------------------------- <main></main> <!-- To appear at main area of index.html -->
+      │     └── index.html ------------------------------- <!DOCTYPE html>
+      ├── index.html ------------------------------- <!DOCTYPE html>
+      ├── header.html ------------------------------ <header></header> <!-- To appear at top of each index.html page -->
+      └── footer.html ------------------------------ <footer></footer> <!-- To appear at bottom of each index.html page -->
+```
+
+The above gives us three document roots: `/`, `/about`, `/prodcuts`. And the `/prodcuts` route is to function as a Single Page Application such that visiting the `/prodcuts` route loads the document root `/prodcuts/index.html` and lets the URL path determine which of `/prodcuts/main.html`, `/prodcuts/free/main.html`, `/prodcuts/paid/main.html` is resolved.
+
+Webflo ensures that only the amount of JavaScript for a document root is actually loaded! So, above, a common JavaScript build is shared across the three document roots alongside the often tiny root-specific build.
+
+```html
+<!--
+public
+ ├── products/index.html
+-->
+<!DOCTYPE html>
+<html>
+    <head>
+        <script type="module" src="webflo.bundle.js"></script>
+        <script type="module" src="/products/bundle.js"></script>
+        <template name="pages" src="/bundle.html"></template>
+    </head>
+    <body>...</body>
+</html>
+```
+
+```html
+<!--
+public
+ ├── about/index.html
+-->
+<!DOCTYPE html>
+<html>
+    <head>
+        <script type="module" src="webflo.bundle.js"></script>
+        <script type="module" src="/about/bundle.js"></script>
+        <template name="pages" src="/bundle.html"></template>
+    </head>
+    <body>...</body>
+</html>
+```
+
+```html
+<!--
+public
+ ├── index.html
+-->
+<!DOCTYPE html>
+<html>
+    <head>
+        <script type="module" src="webflo.bundle.js"></script>
+        <script type="module" src="/bundle.js"></script>
+        <template name="pages" src="/bundle.html"></template>
+    </head>
+    <body>...</body>
+</html>
+```
+
+> **Note**
+> <br>The Webflo `generate` command automatically figures out a given architecture and generates the appropriate scripts for the application! It also factors in the list of each document root so that all navigations to these roots are allowed as a regular page load.
