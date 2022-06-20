@@ -9,7 +9,7 @@
 
 Webflo is a universal *web*, *mobile*, and *API backend* framework built to solve for the underrated `.html` + `.css` + `.js` stack! This has been crafted to keep your *tooling budget* low and your *application performance* high!
 
-Webflo lets you build anything - from as basic as a static `index.html` page to as rich as a universal app capable of *MPA*, *SPA*, or hybrid routing, *SSG*, *SSR*, *CSR*, or hybrid rendering, offline and *PWA* capabilities, etc. - this time, without *loosing* the *vanilla* advantage!
+Webflo lets you build anything - from as basic as a static `index.html` page to as rich as a universal app that's either a *[Multi Page Application](#in-a-multi-page-architecture)*, *[Single Page Application (MPA)](#in-a-single-page-architecture)*, or a hybrid of these, capable of *Server Side Generation (SSG)*, *[Server Side Rendering (SSR)](#rendering-and-templating)*, *[Client Side Rendering (CSR)](#rendering-and-templating)*, or a hybrid of these, offline and *PWA* capabilities, etc. - this time, without *loosing* the *vanilla* advantage!
 
 Ok, we've put all of that up for a straight read! (Might turn out you already know Webflo! 😃)
 
@@ -47,7 +47,7 @@ You nest them as *step functions* in a structure that models your application's 
       └── stickers/index.js ------------------ http://localhost:3000/products/stickers
 ```
 
-They form a step-based workflow for your routes, with each step controlling the next...
+They form a step-based workflow for your routes, with each step *owning* the next...
 
 ```js
 /**
@@ -89,7 +89,7 @@ export default async function(event, context, next) {
 }
 ```
 
-Now, all of this gives you new way to break work down on each of your application routes!
+This way, you are able to break work down on each of your application routes!
 </details>
 
 <details>
@@ -207,7 +207,6 @@ If you can't wait to say *Hello World!* 😅, you can have an HTML page say that
 + [Step Functions and Workflows](#step-functions-and-workflows)
 + [Requests and Responses](#requests-and-responses)
 + [Rendering and Templating](#rendering-and-templating)
-+ [Web Standards](#web-standards)
 
 ### Handler Functions and Layout
 
@@ -222,9 +221,9 @@ export default function(event, context, next) {
 }
 ```
 
-Each function receives an `event` object representing the current flow.
+Each function receives an `event` object representing the current flow. (But details ahead.)
 
-For *server-based* applications (e.g. traditional web apps, API backends), server-side handlers go into a directory named `server`.
+For *server-based* applications (e.g. traditional web apps and API backends), server-side handlers go into a directory named `server`.
 
 ```js
 /**
@@ -240,7 +239,7 @@ export default function(event, context, next) {
 ```
 
 > **Note**
-> <br>The above function runs on calling `npm start` on your terminal and visiting http://localhost:3000.
+> <br>The above function responds on starting the server - `npm start` on your terminal - and visiting http://localhost:3000.
 
 For *browser-based* applications (e.g. Single Page Apps), client-side handlers go into a directory named `client`.
 
@@ -304,7 +303,7 @@ public
 
 ### Step Functions and Workflows
 
-Whether routing in the `/client`, `/worker`, or `/server` directory above, nested URLs follow the concept of Step Functions! As seen earlier, these are parent-child arrangements of handlers that model an URL strucuture.
+Whether routing in the `/client`, `/worker`, or `/server` directory above, nested URLs follow the concept of Step Functions! As seen earlier, these are parent-child layout of handlers that model an URL strucuture.
 
 ```shell
 server
@@ -377,7 +376,7 @@ export default function(event, context, next) {
 
 Something interesting happens on calling `next()` at the *edge* of the workflow - the point where there are no more child steps - as in the case above: Webflo takes the *default action*!
 
-For workflows in **the `/server` directory**, the *default action* of `next()` at the edge is to go match and return a static file in the `public` directory.
+For workflows in **the `/server` directory**, the *default action* of `next()`ing at the edge is to go match and return a static file in the `public` directory.
 
 So, above, should our handler receive static file requests like `http://localhost:3000/logo.png`, the expression `return next()` would get Webflo to match and return the logo at `public/logo.png`, if any; a `404` response otherwise.
 
@@ -390,7 +389,7 @@ my-app
 > **Note**
 > <br>The root handler effectively becomes the single point of entry to the application - being that it sees even static requests!
 
-Now, for workflows in **the `/worker` directory**, the *default action* of `next()` at the edge is to send the request through the network to the server. (But Webflo will know to attempt resolving the request from the application's caching options built into the Service Worker.)
+Now, for workflows in **the `/worker` directory**, the *default action* of `next()`ing at the edge is to send the request through the network to the server. (But Webflo will know to attempt resolving the request from the application's caching options built into the Service Worker.)
 
 So, above, if we defined handler functions in the `/worker` directory, we could decide to either handle the received requests or just `next()` them to the server.
 
@@ -432,7 +431,7 @@ my-app
 > **Note**
 > <br>Handlers in the `/worker` directory are only designed to see Same-Origin requests since Cross-Origin URLs like `https://auth.example.com/oauth` do not belong in the application's layout! These external URLs, however, benefit from the application's caching options built into the Service Worker.
 
-Lastly, for workflows in **the `/client` directory**, the *default action*  of `next()` at the edge is to send the request through the network to the server. But where there is a Service Worker layer, then that becomes the next destination.
+For workflows in **the `/client` directory**, the *default action*  of `next()`ing at the edge is to send the request through the network to the server. But where there is a Service Worker layer, then that becomes the next destination.
 
 So, above, if we defined handler functions in the `/client` directory, we could decide to either handle the navigation requests in-browser or just `next()` them, this time, to the Service Worker layer.
 
@@ -481,7 +480,7 @@ But, where workflows return `undefined`, a `404` HTTP response is returned. In t
 
 #### Server-Side: API and Page Responses
 
-On the server, jsonfyable response effectively becomes a *JSON API response*! (So, we get an API backend this way by default.)
+On the server, jsonfyable responses effectively become a *JSON API response*! (So, we get an API backend this way by default.)
 
 ```js
 /**
@@ -582,7 +581,7 @@ But, for a route that is intended to *also* be accessed as a web page, data obta
 
 #### Client-Side: Navigation Responses
 
-On the client (the browser), every navigation event (page-to-page navigation, history back and forward navigation, and form submissions) initiates a request/response flow. The request object Webflo generates for these navigations is assigned an `Accept: application/json` header, so that data can be obtained as a JSON object. This request goes through the route's workflow (whether in the `/client`, `/worker`, or `/server` layer), and the JSON data obtained is simply sent into the already running HTML document as `document.state.page`. This makes it globally accessible to embedded scripts and rendering logic! (Details in [Rendering and Templating](#rendering-and-templating).)
+On the client (the browser), every navigation event (page-to-page navigation, history back and forward navigation, and form submissions) initiates a request/response flow. The request object Webflo generates for these navigations is assigned an `Accept: application/json` header, so that data can be obtained as a JSON object. This request gets handled by route handlers, and the JSON data obtained is simply sent into the already running HTML document as `document.state.page`. This makes it globally accessible to embedded scripts and rendering logic! (Details in [Rendering and Templating](#rendering-and-templating).)
 
 ### Rendering and Templating
 
@@ -630,7 +629,7 @@ You can access the `document` object (and its `document.state.page` property) bo
   </html>
   ```
   
-  But you could have that as an external resource - as in below. (But notice the `ssr` attribute on the `<script>` element. It allows the rendering engine to fetch and execute the script in this server-side context.)
+  Where your rendering logic is an external script, your `<script>` element would need to have an `ssr` Boolean attribute to get the the rendering engine to fetch and execute the script on the server.
   
   ```html
   <!--
@@ -694,7 +693,7 @@ Getting your application data `document.state.page` rendered into HTML can be a 
 
 Where your application UI is more than basic, you would benefit from using OOHTML features in HTML and on the DOM! (Documents created by Webflo are OOHTML-ready by default.) Here, you are able to write reactive UI logic, namespace-based HTML, HTML modules and imports, etc - without the usual framework thinking.
 
-To write **reactive UI logic**, OOHTML makes it possible to define `<script>` elements right along with your HTML elements - where you get to write as much or as little JavaScript as needed for a behaviour!
+To write **reactive UI logic**, OOHTML makes it possible to define `<script>` elements right along with your HTML elements - where you get to write all things logic in JavaScript!
 
 ```html
  <!--
