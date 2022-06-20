@@ -861,7 +861,27 @@ public/about
 </html>
 ```
 
-> In this layout, navigation is traditional - a new page loads each time. The `bundle.js` script comes with the appropriate OOHTML support level for the import resolution.
+```html
+<!--
+public/products
+ ├── index.html
+-->
+<!DOCTYPE html>
+<html>
+    <head>
+        <script type="module" src="bundle.js"></script>
+        <template name="pages" src="/bundle.html"></template>
+    </head>
+    <body>
+        <import template="pages" name="header.html"></import>
+        <main>Welcome to our Products Page</main>
+        <import template="pages" name="footer.html"></import>
+    </body>
+</html>
+```
+
+> **Note**
+> <br>In this architecture, navigation is traditional - a new page loads each time. The `bundle.js` script comes with the appropriate OOHTML support level for the import resolution.
 
 ##### In a Single Page Architecture
 
@@ -902,7 +922,8 @@ public
 </html>
 ```
 
-> In this layout, navigation is instant and sleek - Webflo prevents a page reload, initiates a request for the new URL, then set the URL path as a global `template` attribute. The `bundle.js` script comes with the appropriate OOHTML support level for the import resolution.
+> **Note**
+> <br>In this architecture, navigation is instant and sleek - Webflo prevents a page reload, initiates a request for the new URL, then set the URL path as a global `template` attribute. The `bundle.js` script comes with the appropriate OOHTML support level for the import resolution.
 
 ##### In a Hybrid Architecture
 
