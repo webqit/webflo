@@ -96,7 +96,7 @@ This way, you are able to break work down on each of your application routes!
 <summary><b>Build <i>future-proof</i> anything</b> by banking more on the standards and less on abstractions! Webflo <i>just follows</i> where a native feature, standard, or conventional HTML, CSS or JS <i>just works</i>!</summary>
  <br>
 
-All parts of a Webflo app speak directly to the web platform itself!
+Here's a glimpse of the standards-based stack you have of Webflo!
  
 For when your application involves routing:
 + [The Fetch Standard](https://fetch.spec.whatwg.org/), comprising of the [Request](https://developer.mozilla.org/en-US/docs/Web/API/Request), [Response](https://developer.mozilla.org/en-US/docs/Web/API/Response), and [Headers](https://developer.mozilla.org/en-US/docs/Web/API/Headers) interfaces, is used for all things *requests and responses* - across client, server, and Service Worker environments. ([Details ahead](#requests-and-responses))
@@ -118,11 +118,9 @@ For when your application needs to give an app-like experience:
 + [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API), extended with full support for routing, come into play for offline and [Progressive Web Apps (PWA)](https://web.dev/progressive-web-apps/) capabilities.
   
   > You are also able to easily make your web app installable by complementing this with a [Web App Manifest](https://developer.mozilla.org/en-US/docs/Web/Manifest).
-
-This standards-based stack lets you work the way the web works now, but, also the way it'll work in the future!
+ 
+This and more - ahead! For building web-native apps!
 </details>
-
-*This and more - ahead!*
 
 ## Installation
 
