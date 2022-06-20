@@ -784,7 +784,7 @@ Templating in Webflo is based on the [HTML Modules](https://github.com/webqit/oo
 
 ```html
 <head>
-    <template name="pages">
+    <template name="page">
         <header exportgroup="header">Header Area</header>
         <main exportgroup="main">Main Area</main>
     </template>
@@ -795,8 +795,8 @@ Templating in Webflo is based on the [HTML Modules](https://github.com/webqit/oo
 
 ```html
 <body>
-    <import template="pages" name="header"></import>
-    <import template="pages" name="main"></import>
+    <import template="page" name="header"></import>
+    <import template="page" name="main"></import>
 </body>
 ```
 
@@ -813,7 +813,7 @@ public
 
 ```html
 <head>
-    <template name="pages" src="/bundle.html"></template>
+    <template name="page" src="/bundle.html"></template>
 </head>
 ```
 
@@ -832,12 +832,12 @@ public
 <html>
     <head>
         <script type="module" src="/bundle.js"></script>
-        <template name="pages" src="/bundle.html"></template>
+        <template name="page" src="/bundle.html"></template>
     </head>
     <body>
-        <import template="pages" name="header.html"></import>
+        <import template="page" name="header.html"></import>
         <main>Welcome to our Home Page</main>
-        <import template="pages" name="footer.html"></import>
+        <import template="page" name="footer.html"></import>
     </body>
 </html>
 ```
@@ -851,12 +851,12 @@ public/about
 <html>
     <head>
         <script type="module" src="/bundle.js"></script>
-        <template name="pages" src="/bundle.html"></template>
+        <template name="page" src="/bundle.html"></template>
     </head>
     <body>
-        <import template="pages" name="header.html"></import>
+        <import template="page" name="header.html"></import>
         <main>Welcome to our About Page</main>
-        <import template="pages" name="footer.html"></import>
+        <import template="page" name="footer.html"></import>
     </body>
 </html>
 ```
@@ -870,12 +870,12 @@ public/products
 <html>
     <head>
         <script type="module" src="/bundle.js"></script>
-        <template name="pages" src="/bundle.html"></template>
+        <template name="page" src="/bundle.html"></template>
     </head>
     <body>
-        <import template="pages" name="header.html"></import>
+        <import template="page" name="header.html"></import>
         <main>Welcome to our Products Page</main>
-        <import template="pages" name="footer.html"></import>
+        <import template="page" name="footer.html"></import>
     </body>
 </html>
 ```
@@ -912,9 +912,9 @@ public
 <html>
     <head>
         <script type="module" src="/bundle.js"></script>
-        <template name="pages" src="/bundle.html"></template>
+        <template name="page" src="/bundle.html"></template>
     </head>
-    <body template="/"> <!-- This template attribute could change to /about or /products -->
+    <body template="page/"> <!-- This template attribute could change to page/about or page/products -->
         <header></header>
         <import name="main.html"></import> <!-- This import element omits a template attribute so as to inherit the global one -->
         <footer></footer>
@@ -997,3 +997,18 @@ public
 
 > **Note**
 > <br>The Webflo `generate` command automatically figures out a given architecture and generates the appropriate scripts for the application! It also factors in the list of each document root so that all navigations to these roots are allowed as a regular page load.
+
+##### Bundling
+
+Template `.html` files are bundled from the filesystem into a single file using the [OOHTML CLI](https://github.com/webqit/oohtml-cli) utility. On installing the utility, you may want to add the following scripts to your `package.json`.
+
+```json
+"generate:html": "oohtml bundle --recursive --auto-embed=page"
+```
+
+The `--recursive` flag gets the bundler to recursively bundle subroots - subdirectories with their own `index.html` document root - in a hybrid architecture. Subroots are ignored by default.
+
+The `--auto-embed` flag gets the bundler to automatically embed the generated `bundle.html` file on the matched `index.html` document. A value of `page` for the flag ends up as the name of the embedded template: `<template name="page" src="/bundle"></template>`.
+
+> **Note**
+> <br>If your HTML files are actually based off the `public` directory, you'll need to tell the above command to run in the `public` directory either by configuring the bundler via `oohtml config bundler` or by prefixing the command as follows: `cd public && oohtml bundle --recursive --auto-embed=page`. 
