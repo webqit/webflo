@@ -387,7 +387,7 @@ my-app
 > **Note**
 > <br>The root handler effectively becomes the single point of entry to the application - being that it sees even static requests!
 
-Now, for workflows in **the `/worker` directory**, the *default action* of `next()`ing at the edge is to send the request through the network to the server. (But Webflo will know to attempt resolving the request from the application's caching options built into the Service Worker.)
+Now, for workflows in **the `/worker` directory**, the *default action* of `next()`ing at the edge is to send the request through the network to the server. (But Webflo will know to attempt resolving the request from the application's caching system built into the Service Worker.)
 
 So, above, if we defined handler functions in the `/worker` directory, we could decide to either handle the received requests or just `next()` them to the server.
 
@@ -427,7 +427,7 @@ my-app
 ```
 
 > **Note**
-> <br>Handlers in the `/worker` directory are only designed to see Same-Origin requests since Cross-Origin URLs like `https://auth.example.com/oauth` do not belong in the application's layout! These external URLs, however, benefit from the application's caching options built into the Service Worker.
+> <br>Handlers in the `/worker` directory are only designed to see Same-Origin requests since Cross-Origin URLs like `https://auth.example.com/oauth` do not belong in the application's layout! These external URLs, however, benefit from the application's caching system built into the Service Worker.
 
 For workflows in **the `/client` directory**, the *default action*  of `next()`ing at the edge is to send the request through the network to the server. But where there is a Service Worker layer, then that becomes the next destination.
 
@@ -474,7 +474,7 @@ A nested handler's return value goes as-is to its parent handler, where it gets 
 + either into the response stream (with jsonfyable data automatically translating to a proper JSON response),
 + or into an HTML document for rendering (where applicable), as detailed ahead.
 
-But, where workflows return `undefined`, a `404` HTTP response is returned. In the case of client-side workflows - in `/client`, the already running HTML page in the browser receives empty data, and, at the same time, set to an error state. (Details in [Rendering and Templating](#rendering-and-templating).)
+But, where workflows return `undefined`, a `404` HTTP response is returned. In the case of client-side workflows - in `/client`, the already running HTML page in the browser receives empty data, and is, at the same time, set to an error state. (Details in [Rendering and Templating](#rendering-and-templating).)
 
 #### Server-Side: API and Page Responses
 
@@ -585,7 +585,7 @@ On the client (the browser), every navigation event (page-to-page navigation, hi
 
 As covered just above, routes that are intended to be accessed as a web page are expected to *first* be accessible as a JSON endpoint (returning an object). On the server, rendering happens *after* data is obtained from the workflow, but only when the browser explicitly asks for a `text/html` response! On the client, rendering happens *after* data is obtained from the workflow on each navigation event, but right into the same loaded document in the browser. In both cases, the concept of *templating* with HTML documents makes it possible to get pages to be as unique, or as generic, as needed on each navigation.
 
-Every rendering and templating concept in Webflo is DOM-based - both with Client-Side Rendering and Server-Side Rendering (going by the default Webflo-native rendering). On the server, Webflo makes this so by making a DOM instance off of your `index.html` file - using the [OOHTML SSR](https://github.com/webqit/oohtml-ssr) library. So, we get the same familiar `document` object and DOM elements everywhere! Webflo simply makes sure that the data obtained on each navigation is available as part of the `document` object - exposed at `document.state.page`.
+Every rendering and templating concept in Webflo is DOM-based. On the server, Webflo makes this so by making a DOM instance off of your `index.html` file - using the [OOHTML SSR](https://github.com/webqit/oohtml-ssr) library. So, we get the same familiar `document` object and DOM elements everywhere! Webflo simply makes sure that the data obtained on each navigation is available as part of the `document` object - exposed at `document.state.page`.
 
 You can access the `document` object (and its `document.state.page` property) both from a custom `render` callback and from a script that you can directly embed on the page.
 + **Case 1: From within a `render` callback**. If you defined a custom `render` callback on your route, you could call the `next()` function to advance the *render workflow* into Webflo's default rendering mode. A `window` instance is returned containing the implied document.
@@ -720,7 +720,7 @@ To write **reactive UI logic**, OOHTML makes it possible to define `<script>` el
 ```
 
 > **Note**
-> <br>You'll find it logical that UI logic is the whole essence of the HTML `<script>` element, after all! OOHTML just extends the regular `<script>` element with the `subscript` type to give them *reactivity* and keep them scoped to their host element! (You can learn more [here](https://github.com/webqit/oohtml#subscript).) Note, too, that these reactive script elements do not require any `setTimeout()` construct as would be required by a regular `<script>` element.
+> <br>You'll find it logical that UI logic is the whole essence of the HTML `<script>` element, after all! OOHTML just extends the regular `<script>` element with the `subscript` type to give them *reactivity* and keep them scoped to their host element! (You can learn more [here](https://github.com/webqit/oohtml#subscript).) Note, too, that these reactive script elements do not require any `setTimeout()` construct as the earlier classic `<script>` had.
 
 From here, you can go on to use any DOM manipulation library of your choice; e.g jQuery, or even better, the jQuery-like [Play UI](https://github.com/webqit/play-ui) library.
 
@@ -748,7 +748,7 @@ From here, you can go on to use any DOM manipulation library of your choice; e.g
  </html>
 ```
 
-You'll find many other OOHTML features that let you write the most enjoyable HTML. And when you need to write class-based components, you'll fall in love with [Custom Elements](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements)!
+You'll find many other OOHTML features that let you write the most enjoyable HTML. And when you need to write class-based components, you'll find a friend in [Custom Elements](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements)!
 
 #### Templating
 
@@ -769,10 +769,10 @@ In a Single Page Application (SPA), each navigation lands in the same `index.htm
 ```html
 my-app
   └── public
+      ├── index.html ------------------------------- <!DOCTYPE html>
       ├── about/main.html -------------------------- <main></main> <!-- To appear at main area of index.html -->
       ├── prodcuts/main.html ----------------------- <main></main> <!-- To appear at main area of index.html -->
-      ├── main.html -------------------------------- <main></main> <!-- To appear at main area of index.html -->
-      └── index.html ------------------------------- <!DOCTYPE html>
+      └── main.html -------------------------------- <main></main> <!-- To appear at main area of index.html -->
 ```
 
 This, in both cases, is templating - the ability to define HTML *partials* once, and have them reused multiple times. Webflo just concerns itself with templating, and the choice of a Multi Page Application or Single Page Application becomes yours! And heck, you can even have the best of both worlds in the same application! It's all *templating*!
@@ -782,8 +782,8 @@ Templating in Webflo is based on the [HTML Modules](https://github.com/webqit/oo
 ```html
 <head>
     <template name="page">
-        <header exportgroup="header">Header Area</header>
-        <main exportgroup="main">Main Area</main>
+        <header exportgroup="header.html">Header Area</header>
+        <main exportgroup="main.html">Main Area</main>
     </template>
 </head>
 ```
@@ -792,8 +792,8 @@ Templating in Webflo is based on the [HTML Modules](https://github.com/webqit/oo
 
 ```html
 <body>
-    <import template="page" name="header"></import>
-    <import template="page" name="main"></import>
+    <import template="page" name="header.html"></import>
+    <import template="page" name="main.html"></import>
 </body>
 ```
 
@@ -878,7 +878,7 @@ public/products
 ```
 
 > **Note**
-> <br>In this architecture, navigation is traditional - a new page loads each time. The `bundle.js` script comes with the appropriate OOHTML support level for the import resolution.
+> <br>In this architecture, navigation is traditional - a new page loads each time. The `bundle.js` script comes with the appropriate OOHTML support level required for the imports to function.
 
 ##### In a Single Page Architecture
 
@@ -911,7 +911,7 @@ public
         <script type="module" src="/bundle.js"></script>
         <template name="page" src="/bundle.html"></template>
     </head>
-    <body template="page/"> <!-- This template attribute could change to page/about or page/products -->
+    <body template="page/"> <!-- This template attribute automatically changes to page/about or page/products as we navigate to http://localhost:3000/about and http://localhost:3000/products respectively -->
         <header></header>
         <import name="main.html"></import> <!-- This import element omits a template attribute so as to inherit the global one -->
         <footer></footer>
@@ -920,29 +920,29 @@ public
 ```
 
 > **Note**
-> <br>In this architecture, navigation is instant and sleek - Webflo prevents a page reload, obtains and sets data at `document.state.page` for the new URL, then set the URL path as a global `template` attribute. The `bundle.js` script comes with the appropriate OOHTML support level for the import resolution.
+> <br>In this architecture, navigation is instant and sleek - Webflo prevents a page reload, obtains and sets data at `document.state.page` for the new URL, then set the URL path as a global `template` attribute on the `<body>` element. The `bundle.js` script comes with the appropriate OOHTML support level required for the imports to function.
 
 ##### In a Hybrid Architecture
 
-It's all *templating*, so a hybrid of the two architectures above is possible in one application, to take advantage of the unique benefits of each! Here, subroutes are defined either as a standalone page - `index.html` - or as the `main.html` (or similar) part of a base `index.html` page.
+It's all *templating*, so a hybrid of the two architectures above is possible in one application, to take advantage of the unique benefits of each! Here, subroutes are defined either as a standalone page - of `index.html` - or as the `main.html` (or similar) part of a base `index.html` page.
 
 ```html
 my-app
   └── public
       ├── about/index.html ------------------------- <!DOCTYPE html>
       ├── prodcuts
+      │     ├── index.html ------------------------------- <!DOCTYPE html>
       │     ├── free/main.html --------------------------- <main></main> <!-- To appear at main area of index.html -->
       │     ├── paid/main.html --------------------------- <main></main> <!-- To appear at main area of index.html -->
-      │     ├── main.html -------------------------------- <main></main> <!-- To appear at main area of index.html -->
-      │     └── index.html ------------------------------- <!DOCTYPE html>
+      │     └── main.html -------------------------------- <main></main> <!-- To appear at main area of index.html -->
       ├── index.html ------------------------------- <!DOCTYPE html>
       ├── header.html ------------------------------ <header></header> <!-- To appear at top of each index.html page -->
       └── footer.html ------------------------------ <footer></footer> <!-- To appear at bottom of each index.html page -->
 ```
 
-The above gives us three document roots: `/`, `/about`, `/prodcuts`. And the `/prodcuts` route is to function as a Single Page Application such that visiting the `/prodcuts` route loads the document root `/prodcuts/index.html` and lets the URL path determine which of `/prodcuts/main.html`, `/prodcuts/free/main.html`, `/prodcuts/paid/main.html` is resolved.
+The above gives us three document roots: `/index.html`, `/about/index.html`, `/prodcuts/index.html`. The `/prodcuts` route is to function as a Single Page Application such that visiting the `/prodcuts` route loads the document root `/prodcuts/index.html` and lets the client-side *navigation + templating system* determine which of `/prodcuts/main.html`, `/prodcuts/free/main.html`, `/prodcuts/paid/main.html` is resolved based on the application URL path.
 
-Webflo ensures that only the amount of JavaScript for a document root is actually loaded! So, above, a common JavaScript build is shared across the three document roots alongside the often tiny root-specific build.
+Webflo ensures that only the amount of JavaScript for a document root is actually loaded! So, above, a common JavaScript build is shared across the three document roots alongside an often tiny root-specific build.
 
 ```html
 <!--
@@ -993,7 +993,7 @@ public
 ```
 
 > **Note**
-> <br>The Webflo `generate` command automatically figures out a given architecture and generates the appropriate scripts for the application! It also factors in the list of each document root so that all navigations to these roots are allowed as a regular page load.
+> <br>The Webflo `generate` command automatically figures out a given architecture and generates the appropriate scripts for the application! It also factors in the location of each document root so that all navigations to these roots are handled as a regular page load.
 
 ##### Bundling
 
@@ -1003,9 +1003,9 @@ Template `.html` files are bundled from the filesystem into a single file using 
 "generate:html": "oohtml bundle --recursive --auto-embed=page"
 ```
 
-The `--recursive` flag gets the bundler to recursively bundle *subroots* - subdirectories with their own `index.html` document in a hybrid architecture. (Subroots are ignored by default.)
+The `--recursive` flag gets the bundler to recursively bundle *subroots* in a hybrid architecture - subdirectories with their own `index.html` document. (Subroots are ignored by default.)
 
 The `--auto-embed` flag gets the bundler to automatically embed the generated `bundle.html` file on the matched `index.html` document. A value of `page` for the flag ends up as the name of the *embed* template: `<template name="page" src="/bundle"></template>`.
 
 > **Note**
-> <br>If your HTML files are actually based off the `public` directory, you'll need to tell the above command to run in the `public` directory either by configuring the bundler via `oohtml config bundler` or by prefixing the command as follows: `cd public && oohtml bundle --recursive --auto-embed=page`. 
+> <br>If your HTML files are actually based off the `public` directory, you'll need to tell the above command to run in the `public` directory either by configuring the bundler via `oohtml config bundler` or by rewriting the command with a prefix: `cd public && oohtml bundle --recursive --auto-embed=page`. 
