@@ -1005,9 +1005,9 @@ Template `.html` files are bundled from the filesystem into a single file using 
 "generate:html": "oohtml bundle --recursive --auto-embed=page"
 ```
 
-The `--recursive` flag gets the bundler to recursively bundle subroots - subdirectories with their own `index.html` document root - in a hybrid architecture. Subroots are ignored by default.
+The `--recursive` flag gets the bundler to recursively bundle *subroots* - subdirectories with their own `index.html` document in a hybrid architecture. (Subroots are ignored by default.)
 
-The `--auto-embed` flag gets the bundler to automatically embed the generated `bundle.html` file on the matched `index.html` document. A value of `page` for the flag ends up as the name of the embedded template: `<template name="page" src="/bundle"></template>`.
+The `--auto-embed` flag gets the bundler to automatically embed the generated `bundle.html` file on the matched `index.html` document. A value of `page` for the flag ends up as the name of the *embed* template: `<template name="page" src="/bundle"></template>`.
 
 > **Note**
 > <br>If your HTML files are actually based off the `public` directory, you'll need to tell the above command to run in the `public` directory either by configuring the bundler via `oohtml config bundler` or by prefixing the command as follows: `cd public && oohtml bundle --recursive --auto-embed=page`. 
