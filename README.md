@@ -999,7 +999,7 @@ public
 
 ##### Bundling
 
-Template `.html` files are bundled from the filesystem into a single file using the [OOHTML CLI](https://github.com/webqit/oohtml-cli) utility. On installing the utility, you may want to add the following scripts to your `package.json`.
+Template `.html` files are bundled from the filesystem into a single file using the [OOHTML CLI](https://github.com/webqit/oohtml-cli) utility. On installing this utility, you may want to add the following scripts to your `package.json`.
 
 ```json
 "generate:html": "oohtml bundle --recursive --auto-embed=page"
