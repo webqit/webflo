@@ -755,3 +755,68 @@ You'll find many other OOHTML features that let you write the most enjoyable HTM
 
 #### Templating
 
+In a Multi Page Application (MPA), each navigation lands in a new `index.html` page, and it is often necessary to have parts of the UI - e.g. site header, footer, and sidebar, etc. - *persist* across these *multiple* pages.
+
+```html
+my-app
+  └── public
+      ├── about/index.html ------------------------- <!DOCTYPE html>
+      ├── prodcuts/index.html ---------------------- <!DOCTYPE html>
+      ├── index.html ------------------------------- <!DOCTYPE html>
+      ├── header.html ------------------------------ <header></header> <!-- To appear at top of each index.html page -->
+      └── footer.html ------------------------------ <footer></footer> <!-- To appear at bottom of each index.html page -->
+```
+
+In a Single Page Application (SPA), each navigation lands in the same `index.html`, and it is often necessary to have parts of this *single* page - e.g. main content area, etc. - dynamically *change* based on the URL.
+
+```html
+my-app
+  └── public
+      ├── about/main.html -------------------------- <main></main> <!-- To appear at main area of index.html -->
+      ├── prodcuts/main.html ----------------------- <main></main> <!-- To appear at main area of index.html -->
+      ├── main.html -------------------------------- <main></main> <!-- To appear at main area of index.html -->
+      └── index.html ------------------------------- <!DOCTYPE html>
+```
+
+This, in both cases, is templating - the ability to define HTML *partials* once, and have them reused many times. Webflo just concerns itself with templating, and the choice of a Multi Page Application or Single Page becomes yours! And heck, you can even have the best of both worlds in the same application! It's all *templating*!
+
+Templating in Webflo is based on the [HTML Modules](https://github.com/webqit/oohtml#html-modules) and [HTML Imports](https://github.com/webqit/oohtml#html-imports) features of [OOHTML](https://github.com/webqit/oohtml), which is, itself, based on the [HTML `<template>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template) element. Here, you are able to define reusable contents in a `<template>` element...
+
+```html
+<head>
+    <template name="pages">
+        <header exportgroup="header">Header Area</header>
+        <main exportgroup="main">Main Area</main>
+    </template>
+</head>
+```
+
+...and have them imported anywhere with an `<import>` element:
+
+```html
+<body>
+    <import template="pages" name="header"></import>
+    <import template="pages" name="main"></import>
+</body>
+```
+
+This *module*, *export* and *import* paradigm comes full-fledged for every templating need! For example, the *module* element - `<template name>` - is able to load its contents from a remote `.html` file that serves as a bundle:
+
+```html
+ <!--
+ public
+  ├── bundle.html
+ -->
+ <header exportgroup="header">Header Area</header>
+ <main exportgroup="main">Main Area</main>
+```
+
+```html
+<head>
+    <template name="pages" src="/bundle.html"></template>
+</head>
+```
+
+And, as we'll see shortly, multiple standalone `.html` files - e.g. the `header.html`, `footer.html`, `main.html` files above - can be bundled together this way as one `bundle.html` file for our application.
+
+##### In a Multi Page Application
