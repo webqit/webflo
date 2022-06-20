@@ -7,11 +7,11 @@
 
 <!-- /BADGES -->
 
-Webflo is a universal *web*, *mobile*, and *API backend* framework built to solve for the underrated `.html` + `.css` + `.js` stack! This has been written on a clean slate to starve your *tooling budget* and feed your *application performance*!
+Webflo is a universal *web*, *mobile*, and *API backend* framework built to solve for the underrated `.html` + `.css` + `.js` stack! This has been written on a clean slate to starve your *tooling budget* and feed your *application performance*! 🔥
 
 Webflo lets you build anything - from as basic as a static `index.html` page to as rich as a universal app that's either a *[Multi Page Application](#in-a-multi-page-architecture)*, *[Single Page Application (MPA)](#in-a-single-page-architecture)*, or a hybrid of these, capable of *Server Side Generation (SSG)*, *[Server Side Rendering (SSR)](#rendering-and-templating)*, *[Client Side Rendering (CSR)](#rendering-and-templating)*, or a hybrid of these, offline and *PWA* capabilities, etc. - this time, without *loosing* the *vanilla* advantage!
 
-Ok, we've put all of that up for a straight read! (Might turn out you already know Webflo! 😃)
+Ok, we've put all of that up for a straight read!
 
 > **Note**
 > <br>Depending on your current framework background, the hardest part of Webflo might be having to break ties with something that isn't conventional to the `.html` + `.css` + `.js` stack: all of that JSX, CSS-in-JS, etc.!
