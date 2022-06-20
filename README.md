@@ -821,7 +821,7 @@ What we'll see shortly is how multiple standalone `.html` files - e.g. the `head
 
 ##### In a Multi Page Application
 
-In a Multi Page layout, generic contents - e.g. header and footer files, etc. - are typically bundled and reused across each page of an application.
+In a Multi Page layout, generic contents - e.g. header and footer sections, etc. - are typically bundled and reused across each page of an application.
 
 ```html
 <!--
@@ -861,7 +861,7 @@ public/about
 
 ##### In a Single Page Application
 
-In a Single Page layout, page-specific contents - e.g. main files - are typically bundled together as nested `<template>` elements in a way that models their URL structure.
+In a Single Page layout, page-specific contents - e.g. main sections - are typically bundled together as nested `<template>` elements in a way that models their URL structure.
 
 ```html
 <!--
