@@ -819,7 +819,7 @@ public
 
 What we'll see shortly is how multiple standalone `.html` files - e.g. the `header.html`, `footer.html`, `main.html` files above - come together into one `bundle.html` file for an application.
 
-##### In a Multi Page Application
+##### In a Multi Page Architecture
 
 In a Multi Page layout, generic contents - e.g. header and footer sections, etc. - are typically bundled and reused across each page of an application.
 
@@ -831,6 +831,7 @@ public
 <!DOCTYPE html>
 <html>
     <head>
+        <script type="module" src="bundle.js"></script>
         <template name="pages" src="/bundle.html"></template>
     </head>
     <body>
@@ -849,6 +850,7 @@ public/about
 <!DOCTYPE html>
 <html>
     <head>
+        <script type="module" src="bundle.js"></script>
         <template name="pages" src="/bundle.html"></template>
     </head>
     <body>
@@ -859,7 +861,9 @@ public/about
 </html>
 ```
 
-##### In a Single Page Application
+> In this layout, navigation is traditional - a new page loads each time. The `bundle.js` script comes with the appropriate OOHTML support level for the import resolution.
+
+##### In a Single Page Architecture
 
 In a Single Page layout, page-specific contents - e.g. main sections - are typically bundled together as nested `<template>` elements in a way that models their URL structure.
 
@@ -887,6 +891,7 @@ public
 <!DOCTYPE html>
 <html>
     <head>
+        <script type="module" src="bundle.js"></script>
         <template name="pages" src="/bundle.html"></template>
     </head>
     <body template="/"> <!-- This template attribute could change to /about or /products -->
@@ -896,3 +901,9 @@ public
     </body>
 </html>
 ```
+
+> In this layout, navigation is instant and sleek - Webflo prevents a page reload, initiates a request for the new URL, then set the URL path as a global `template` attribute. The `bundle.js` script comes with the appropriate OOHTML support level for the import resolution.
+
+##### In a Hybrid Architecture
+
+A hybrid of the two architectures above is possible in one application, to take advantage of the unique benefits of each! Here, 
