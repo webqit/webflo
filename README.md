@@ -629,7 +629,7 @@ You can access the `document` object (and its `document.state.page` property) bo
   </html>
   ```
   
-  Where your rendering logic is an external script, your `<script>` element would need to have an `ssr` Boolean attribute to get the the rendering engine to fetch and execute the script on the server.
+  Where your rendering logic is an external script, your `<script>` element would need to have an `ssr` Boolean attribute to get the rendering engine to fetch and execute your script on the server.
   
   ```html
   <!--
@@ -693,7 +693,7 @@ Getting your application data `document.state.page` rendered into HTML can be a 
 
 Where your application UI is more than basic, you would benefit from using OOHTML features in HTML and on the DOM! (Documents created by Webflo are OOHTML-ready by default.) Here, you are able to write reactive UI logic, namespace-based HTML, HTML modules and imports, etc - without the usual framework thinking.
 
-To write **reactive UI logic**, OOHTML makes it possible to define `<script>` elements right along with your HTML elements - where you get to write all things logic in JavaScript!
+To write **reactive UI logic**, OOHTML makes it possible to define `<script>` elements right along with your HTML elements - where you get to do all things logic in the language for logic - JavaScript!
 
 ```html
  <!--
@@ -722,7 +722,7 @@ To write **reactive UI logic**, OOHTML makes it possible to define `<script>` el
 ```
 
 > **Note**
-> <br>You'll find it logical that UI logic is the whole essence of the HTML `<script>` element, after all! OOHTML just extends the regular `<script>` element with the `subscript` type to give them *reactivity* and keep them scoped to their host element! (You can learn more [here](https://github.com/webqit/oohtml#subscript).)
+> <br>You'll find it logical that UI logic is the whole essence of the HTML `<script>` element, after all! OOHTML just extends the regular `<script>` element with the `subscript` type to give them *reactivity* and keep them scoped to their host element! (You can learn more [here](https://github.com/webqit/oohtml#subscript).) Note, too, that these reactive script elements do not require any `setTimeout()` construct as would be required by a regular `<script>` element.
 
 From here, you can go on to use any DOM manipulation library of your choice; e.g jQuery, or even better, the jQuery-like [Play UI](https://github.com/webqit/play-ui) library.
 
