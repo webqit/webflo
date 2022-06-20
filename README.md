@@ -96,30 +96,30 @@ This way, you are able to break work down on each of your application routes!
 <summary><b>Build <i>future-proof</i> anything</b> by banking more on the standards and less on abstractions! Webflo <i>just follows</i> where a native feature, standard, or conventional HTML, CSS or JS <i>just works</i>!</summary>
  <br>
 
-All parts of a Webflo app speak the same language and seamlessly talk to each other and directly to the web platform itself!
+All parts of a Webflo app speak directly to the web platform itself!
  
 For when your application involves routing:
-+ [The Fetch Standard](https://fetch.spec.whatwg.org/) (across client, server, and Service Worker environments) - comprising of the [Request](https://developer.mozilla.org/en-US/docs/Web/API/Request), [Response](https://developer.mozilla.org/en-US/docs/Web/API/Response), and [Headers](https://developer.mozilla.org/en-US/docs/Web/API/Headers) interfaces - for all things *requests and responses*. ([Details ahead](#))
++ [The Fetch Standard](https://fetch.spec.whatwg.org/), comprising of the [Request](https://developer.mozilla.org/en-US/docs/Web/API/Request), [Response](https://developer.mozilla.org/en-US/docs/Web/API/Response), and [Headers](https://developer.mozilla.org/en-US/docs/Web/API/Headers) interfaces, is used for all things *requests and responses* - across client, server, and Service Worker environments. ([Details ahead](#requests-and-responses))
 
-  > Your Request and Response objects are also able to *seamlessly exchange* - in addition to JSON - other standard objects like [FormData](https://developer.mozilla.org/en-US/docs/Web/API/FormData), [Blob](https://developer.mozilla.org/en-US/docs/Web/API/Blob), [File](https://developer.mozilla.org/en-US/docs/Web/API/File), and [ReadableStream](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream)
+  > This paves the way to using other native APIs as-is, when handling requests and responses. For example, your Request and Response objects are able to *seamlessly exchange* - in addition to JSON - instances of the native [FormData](https://developer.mozilla.org/en-US/docs/Web/API/FormData), [Blob](https://developer.mozilla.org/en-US/docs/Web/API/Blob), [File](https://developer.mozilla.org/en-US/docs/Web/API/File), and [ReadableStream](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream) objects!
 
-+ [WHATWG URL](https://url.spec.whatwg.org/) and [WHATWG URLPattern](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) (across client, server, and Service Worker environments) for all things *URL* and *URL pattern matching*. ([Details ahead](#))
++ [WHATWG URL](https://url.spec.whatwg.org/) and [WHATWG URLPattern](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) are used for all things *URL* and *URL pattern matching*, respectively - across client, server, and Service Worker environments. ([Details ahead](#))
 
 For when your application involves pages and a UI:
-+ [The HTML Standard](https://html.spec.whatwg.org/) (across client, server, and Service Worker environments) for all things *markup* - conventional `.html`-based pages and templates, valid HTML syntax, etc. You go with a "zero-JavaScript" proposition or with *Progressive Enhancement* that makes do with "just-enough JavaScript"!
++ [The HTML Standard](https://html.spec.whatwg.org/) is held for all things *markup* - across client, server, and Service Worker environments! Webflo is all about using conventional `.html`-based pages and templates, valid HTML syntax, etc. You are able go with a "zero-JavaScript" proposition or with *Progressive Enhancement* that makes do with "just-enough JavaScript"!
 
-  > Your markup is also easily extendable with the [HTML Modules (`<template name="partials"></template>`)](https://github.com/webqit/oohtml#html-modules) and [HTML Imports (`<import template="partials"></import>`)](https://github.com/webqit/oohtml#html-imports) templating system, [Reactive Scripts (`<script type="subscript"></script>`)](https://github.com/webqit/oohtml#subscript), and whatever else is possible with HTML.
+  > Your markup is also easily extendable with [OOHTML](https://github.com/webqit/oohtml) - a set of new features that make it fun to author HTML documents: [HTML Modules (`<template name="partials"></template>`)](https://github.com/webqit/oohtml#html-modules) and [HTML Imports (`<import template="partials"></import>`)](https://github.com/webqit/oohtml#html-imports), [Reactive Scripts (`<script type="subscript"></script>`)](https://github.com/webqit/oohtml#subscript) and more!
 
-+ [WHATWG DOM](https://dom.spec.whatwg.org/) (across client and server environments) for all things *programmatic pages* - rendering, manipulation, interactivity, etc.
++ [WHATWG DOM](https://dom.spec.whatwg.org/) is universally available - across client and server environments - for all things *dynamic UIs*: rendering, manipulation, interactivity, etc.
 
-  > Your DOM is also easily enrichable with [Custom Elements](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements), [Subscript Elements](https://github.com/webqit/oohtml#subscript), [The State API (`document.state` and `element.state`)](https://github.com/webqit/oohtml#state-api), and whatever else is possible with the DOM.
+  > Your DOM is also easily enrichable with [Custom Elements](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements), plus [Subscript Elements](https://github.com/webqit/oohtml#subscript) and [The State API (`document.state` and `element.state`)](https://github.com/webqit/oohtml#state-api) from OOHTML.
 
 For when your application needs to give an app-like experience:
-+ [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) (with full support for route handlers) - for offline and [Progressive Web Apps (PWA)](https://web.dev/progressive-web-apps/) capabilities.
++ [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API), extended with full support for routing, come into play for offline and [Progressive Web Apps (PWA)](https://web.dev/progressive-web-apps/) capabilities.
   
   > You are also able to easily make your web app installable by complementing this with a [Web App Manifest](https://developer.mozilla.org/en-US/docs/Web/Manifest).
 
-This standards-based approach lets you work the way the web works now, and the way it'll work in the future!
+This standards-based stack lets you work the way the web works now, but, also the way it'll work in the future!
 </details>
 
 *This and more - ahead!*
