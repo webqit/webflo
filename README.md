@@ -96,7 +96,7 @@ This way, you are able to break work down on each of your application routes!
 <summary><b>Build <i>future-proof</i> anything</b> by banking more on the standards and less on abstractions! Webflo <i>just follows</i> where a native feature, standard, or conventional HTML, CSS or JS <i>just works</i>!</summary>
  <br>
 
-Here's a glimpse of the standards-based stack you have of Webflo!
+Here's a glimpse of the standards-based stack you get of Webflo!
  
 For when your application involves routing:
 + [The Fetch Standard](https://fetch.spec.whatwg.org/), comprising of the [Request](https://developer.mozilla.org/en-US/docs/Web/API/Request), [Response](https://developer.mozilla.org/en-US/docs/Web/API/Response), and [Headers](https://developer.mozilla.org/en-US/docs/Web/API/Headers) interfaces, is used for all things *requests and responses* - across client, server, and Service Worker environments. ([Details ahead](#requests-and-responses))
