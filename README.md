@@ -901,7 +901,7 @@ public
 <main exportgroup="main.html">Welcome to our Home Page</main>
 ```
 
-And the appropriate `<main>` element is imported based on the URL path. This time, Webflo takes care of setting the URL path as a global `template` attribute on the `<body>` element such that `<import>` elements that inherit this global `template` attribute are resolved on each page navigation.
+And the appropriate `<main>` element is imported based on the URL path. This time, Webflo takes care of setting the URL path as a global `template` attribute on the `<body>` element such that `<import>` elements that inherit this global attribute are resolved on each page navigation.
 
 ```html
 <!--
@@ -923,7 +923,7 @@ public
 ```
 
 > **Note**
-> <br>In this architecture, navigation is instant and sleek - Webflo prevents a page reload, initiates a request for the new URL, then set the URL path as a global `template` attribute. The `bundle.js` script comes with the appropriate OOHTML support level for the import resolution.
+> <br>In this architecture, navigation is instant and sleek - Webflo prevents a page reload, obtains and sets data at `document.state.page` for the new URL, then set the URL path as a global `template` attribute. The `bundle.js` script comes with the appropriate OOHTML support level for the import resolution.
 
 ##### In a Hybrid Architecture
 
