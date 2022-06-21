@@ -1009,3 +1009,12 @@ The `--auto-embed` flag gets the bundler to automatically embed the generated `b
 
 > **Note**
 > <br>If your HTML files are actually based off the `public` directory, you'll need to tell the above command to run in the `public` directory either by configuring the bundler via `oohtml config bundler` or by rewriting the command with a prefix: `cd public && oohtml bundle --recursive --auto-embed=page`. 
+
+## Getting Involved
+
+All forms of contributions and PR are welcome! To report bugs or request features, please submit an [issue](https://github.com/webqit/webflo/issues). For general discussions, ideation or community help, please join our github [Discussions](https://github.com/webqit/webflo/discussions).
+
+## License
+
+MIT.
+
