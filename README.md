@@ -255,7 +255,7 @@ export default function(event, context, next) {
 ```
 
 > **Note**
-> <br>The above function is built as part of your application's JS bundle on calling `npm run generate` on your terminal. (It is typically bundled to the file `./public/bundle.js`. And the `--auto-embed` flag in that command gets this automatically embedded on your `./public/index.html` page as `<script type="module" src="/bundle.js"></script>`.) Then it responds from right in the browser on visiting http://localhost:3000.
+> <br>The above function is built as part of your application's JS bundle on calling `npm run generate` on your terminal. (It is typically bundled to the file `./public/bundle.js`. And the `--auto-embed` flag in that command gets it automatically embedded on your `./public/index.html` page as `<script type="module" src="/bundle.js"></script>`.) Then it responds from right in the browser on visiting http://localhost:3000.
 
 For *browser-based* applications that want to support offline usage via Service-Workers (e.g Progressive Web Apps), Webflo allows us to define equivalent handlers for requests hitting the Service Worker. These worker-based handlers go into a directory named `worker`.
 
