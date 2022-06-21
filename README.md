@@ -7,7 +7,7 @@
 
 <!-- /BADGES -->
 
-Webflo is a universal *web*, *mobile*, and *API backend* framework built to solve for the underrated `.html` + `.css` + `.js` stack! This has been written on a clean slate to draw directly on all of HTML, CSS and JavaScript - and in essence, starve your *tooling budget* to feed your *developer experience* and *application performance*! 🔥
+Webflo is a universal *web*, *mobile*, and *API backend* framework built to solve for the underrated `.html` + `.css` + `.js` stack! 🔥 This has been written on a clean slate to draw directly on at the language level of the stack - and in essence, starve your *tooling budget* to feed your *developer experience* and *application performance*!
 
 Webflo lets you build anything - from as basic as a static `index.html` page to as rich as a universal app that's either a *[Multi Page Application (MPA)](#in-a-multi-page-architecture)*, *[Single Page Application (SPA)](#in-a-single-page-architecture)*, or a hybrid of these, capable of *Server Side Generation (SSG)*, *[Server Side Rendering (SSR)](#rendering-and-templating)*, *[Client Side Rendering (CSR)](#rendering-and-templating)*, or a hybrid of these, offline and *PWA* capabilities, etc. - this time, without *loosing* the *vanilla* advantage!
 
@@ -133,7 +133,7 @@ cd my-app
 
 With [npm available on your terminal](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm), run the following command to install Webflo to your project:
 
-> System Requirements: Node.js 12.0 or later
+> System Requirements: Node.js 14.0 or later
 
 ```shell
 $ npm i @webqit/webflo
@@ -340,7 +340,7 @@ export default function(event, context, next) {
 }
 ```
 
-This step-based workflow helps to decomplicate routing and navigation, and gets us scaling horizontally as our application grows larger.
+This step-based workflow helps to decomplicate routing and gets us scaling horizontally as our application grows larger.
 
 Workflows may be designed with as many or as few step functions as necessary; the flow control parameters `next.stepname` and `next.pathname` can be used at any point to handle the rest of an URL's steps that have no corresponding step functions.
 
