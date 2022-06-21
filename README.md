@@ -769,10 +769,10 @@ In a Single Page Application (SPA), each navigation lands in the same `index.htm
 ```html
 my-app
   └── public
-      ├── index.html ------------------------------- <!DOCTYPE html>
       ├── about/main.html -------------------------- <main></main> <!-- To appear at main area of index.html -->
       ├── prodcuts/main.html ----------------------- <main></main> <!-- To appear at main area of index.html -->
-      └── main.html -------------------------------- <main></main> <!-- To appear at main area of index.html -->
+      ├── main.html -------------------------------- <main></main> <!-- To appear at main area of index.html -->
+      └── index.html ------------------------------- <!DOCTYPE html>
 ```
 
 This, in both cases, is templating - the ability to define HTML *partials* once, and have them reused multiple times. Webflo just concerns itself with templating, and the choice of a Multi Page Application or Single Page Application becomes yours! And heck, you can even have the best of both worlds in the same application! It's all *templating*!
@@ -911,16 +911,16 @@ public
         <script type="module" src="/bundle.js"></script>
         <template name="page" src="/bundle.html"></template>
     </head>
-    <body template="page/"> <!-- This template attribute automatically changes to page/about or page/products as we navigate to http://localhost:3000/about and http://localhost:3000/products respectively -->
+    <body template="page/"> <!-- This "template" attribute automatically changes to page/about or page/products as we navigate to http://localhost:3000/about and http://localhost:3000/products respectively -->
         <header></header>
-        <import name="main.html"></import> <!-- This import element omits a template attribute so as to inherit the global one -->
+        <import name="main.html"></import> <!-- This import element omits its "template" attribute so as to inherit the global one -->
         <footer></footer>
     </body>
 </html>
 ```
 
 > **Note**
-> <br>In this architecture, navigation is instant and sleek - Webflo prevents a page reload, obtains and sets data at `document.state.page` for the new URL, then set the URL path as a global `template` attribute on the `<body>` element. The `bundle.js` script comes with the appropriate OOHTML support level required for the imports to function.
+> <br>In this architecture, navigation is instant and sleek - Webflo prevents a full page reload, obtains and sets data at `document.state.page` for the new URL, then sets the `template` attribute on the `<body>` element to the new URL path. The `bundle.js` script comes with the appropriate OOHTML support level required for the imports to function.
 
 ##### In a Hybrid Architecture
 
@@ -931,10 +931,10 @@ my-app
   └── public
       ├── about/index.html ------------------------- <!DOCTYPE html>
       ├── prodcuts
-      │     ├── index.html ------------------------------- <!DOCTYPE html>
       │     ├── free/main.html --------------------------- <main></main> <!-- To appear at main area of index.html -->
       │     ├── paid/main.html --------------------------- <main></main> <!-- To appear at main area of index.html -->
-      │     └── main.html -------------------------------- <main></main> <!-- To appear at main area of index.html -->
+      │     ├── main.html -------------------------------- <main></main> <!-- To appear at main area of index.html -->
+      │     └── index.html ------------------------------- <!DOCTYPE html>
       ├── index.html ------------------------------- <!DOCTYPE html>
       ├── header.html ------------------------------ <header></header> <!-- To appear at top of each index.html page -->
       └── footer.html ------------------------------ <footer></footer> <!-- To appear at bottom of each index.html page -->
