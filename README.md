@@ -301,7 +301,7 @@ public
 
 ### Step Functions and Workflows
 
-Whether routing in the `/client`, `/worker`, or `/server` directory above, nested URLs follow the concept of Step Functions! As seen earlier, these are parent-child layout of handlers that model an URL strucuture.
+Whether routing in the `/client`, `/worker`, or `/server` directory above, nested URLs follow the concept of Step Functions! These are parent-child layout of handlers that model an URL strucuture.
 
 ```shell
 server
@@ -310,7 +310,7 @@ server
         └── stickers/index.js ------------------ http://localhost:3000/products/stickers
 ```
 
-Each handler calls a `next()` function to propagate flow to a child step, if any; is able to pass a `context` object along, and can *recompose* the child step's return value.
+Each step calls a `next()` function to forward the current request to the next step (if any), is able to pass a `context` object along, and can *recompose* the return value.
 
 ```js
 /**
@@ -342,9 +342,9 @@ export default function(event, context, next) {
 
 This step-based workflow helps to decomplicate routing and gets us scaling horizontally as our application grows larger.
 
-Workflows may be designed with as many or as few step functions as necessary; the flow control parameters `next.stepname` and `next.pathname` can be used at any point to handle the rest of an URL's steps that have no corresponding step functions.
+Workflows may be designed with as many or as few step functions as necessary; the flow control parameters `next.stepname` and `next.pathname` can be used at any point to handle the rest of an URL that have no corresponding step functions.
 
-This means that we could even handle all URLs from the root handler alone.
+For example, it is possible to handle all URLs from the root handler alone.
 
 ```js
 /**
@@ -372,7 +372,7 @@ export default function(event, context, next) {
 }
 ```
 
-Something interesting happens on calling `next()` at the *edge* of the workflow - the point where there are no more child steps - as in the case above: Webflo takes the *default action*!
+Webflo takes a *default action* when `next()` is called at the *edge* of the workflow - the point where there are no more child steps - as in the `return next()` statement above!
 
 For workflows in **the `/server` directory**, the *default action* of `next()`ing at the edge is to go match and return a static file in the `public` directory.
 
