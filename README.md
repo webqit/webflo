@@ -507,7 +507,7 @@ JSON (API) requests - requests made with an [`Accept`](https://developer.mozilla
 #### Scenario 3: Page Requests and Responses
 
 Page (HTML) requests - requests made to the server with an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header that matches `text/html` - are expected to get a page (HTML) response - responses with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) header of `text/html`. Webflo automatically responds this way by rendering workflow return values into an HTML page. (But, workflow responses having a `Content-Type` header already set are sent as-is.)
-+ Here, workflows simply return an object (or an instance of `event.Response` containing same), and Webflo automatically renders it to HTML and adds the appropriate response headers. (API responses for these routes are therefore expected to always be an object.)
++ Here, workflows simply return an object (or an instance of `event.Response` containing same), and Webflo automatically renders it to HTML and adds the appropriate response headers. (Workflow responses for these routes are therefore expected to always be an object.)
 
 Server-Side Rendering (SSR) is the second step for these routes that double as page routes. Here, it is either that an `index.html` file that pairs with the route exists in the `/public` directory - for automatic rendering by Webflo, or that a custom `render` callback has been defined on the route.
 + SSR Option 1: **Automatically-paired HTML files**. These are valid HTML documents named `index.html` in the `/public` directory, or a subdirectory that corresponds with a route.
@@ -569,7 +569,7 @@ Server-Side Rendering (SSR) is the second step for these routes that double as p
   ```
 
   <details>
-  <summary>And, custom <code>render</code> callbacks are step functions too that may be nested as necessary to form a *render* workflow.</summary>
+  <summary>And, custom <code>render</code> callbacks can be step functions too, nested as necessary to form a *render* workflow.</summary>
 
   ```js
   /**
@@ -606,7 +606,7 @@ Whatever the case above, where a request specifies a [`Range`](https://developer
 Workflows may return any other data type: an instance of the native [FormData](https://developer.mozilla.org/en-US/docs/Web/API/FormData), [Blob](https://developer.mozilla.org/en-US/docs/Web/API/Blob), [File](https://developer.mozilla.org/en-US/docs/Web/API/File), or [ReadableStream](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream), etc., or an instance of `event.Response` containing same - usually on routes that do not double as a page route. Webflo tries to set the appropriate response headers for these and sends.
 
 > **Note**
-> <br>The fact that static requests are seen by route handlers, where defined, means that they get a chance to dynamically generate the file responses the client sees!
+> <br>The fact that all requests, even static file requests, are seen by route handlers, where defined, means that they get a chance to dynamically generate the responses that the client sees!
 
 #### Scenario 8: Failure Responses
 
