@@ -598,7 +598,12 @@ Server-Side Rendering (SSR) is the second step on the reponse phase of these pag
   > <br>Typically, though, child steps do not always need to have an equivalent`render` callback being that they automatically inherit rendering from their parent or ancestor.
   </details>
 
-#### Scenario 5: Range Requests and Responses
+
+#### Scenario 5: Single Page Navigation Requests and Responses
+
+In a Single Page Application layout, every navigation event (page-to-page navigation, history back and forward navigation, and form submissions) initiates a request/response flow [without a full page reload](#spa-navigation). The request object Webflo generates for these navigations is assigned an `Accept: application/json` header, so that data can be obtained as a JSON object ([scenerio 2 above](#scenario-2-api-requests-and-responses)) for Client-Side Rendering.
+
+#### Scenario 6: Range Requests and Responses
 
 Whatever the case above, where a request specifies a [`Range`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Range) header, Webflo automatically slices the response body to satisfy the range, and the appropriate [`Content-Range`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Range) response header is set. (But, workflow responses with a `Content-Range` header already set are sent as-is.)
 
@@ -608,16 +613,6 @@ Workflows may return any other data type: an instance of the native [FormData](h
 
 > **Note**
 > <br>The fact that all requests, even static file requests, are seen by route handlers, where defined, means that they get a chance to dynamically generate the responses that the client sees!
-
-#### Single Page Navigation Requests and Responses
-
-In a Single Page Application layout, every navigation event (page-to-page navigation, history back and forward navigation, and form submissions) initiates a request/response flow [without a full page reload](#spa-navigation). The request object Webflo generates for these navigations is assigned an `Accept: application/json` header, so that data can be obtained as a JSON object ([scenerio 2 above](#scenario-2-api-requests-and-responses)) for Client-Side Rendering.
-
-The application client build automatially figues out when to intercept a navigation event and prevent a full page reload, and when not to. It follows the following rules:
-1. When it figures out that the destination page is based off the current running `index.html` document in the browser, a full page reload is prevented and navigation is sleek. This is, in other words, an SPA navigation. Compare between [Single Page Application and Multi Page Application layouts](#templating) ahead.
-2. If navigation is initiated with any of the following keys pressed: Meta Key, Alt Key, Shift Key, Ctrl Key, navigation is allowed to work the default way - regardless of rule 1.
-3. If navigation is initiated from a link element that has the `target` attribute, or the `download` attribute, navigation is allowed to work the default way - regardless of rule 1.
-4. If navigation is initiated from a form element that has the `target` attribute, navigation is allowed to work the default way - regardless of rule 1.
 
 <!--
 ##### SPA Redirects
@@ -1058,6 +1053,13 @@ The `--auto-embed` flag gets the bundler to automatically embed the generated `b
 ### An Application
 
 #### Single Page Applications
+
+The application client build automatially figues out when to intercept a navigation event and prevent a full page reload, and when not to. It follows the following rules:
+1. When it figures out that the destination page is based off the current running `index.html` document in the browser, a full page reload is prevented and navigation is sleek. This is, in other words, an SPA navigation. Compare between [Single Page Application and Multi Page Application layouts](#templating) ahead.
+2. If navigation is initiated with any of the following keys pressed: Meta Key, Alt Key, Shift Key, Ctrl Key, navigation is allowed to work the default way - regardless of rule 1.
+3. If navigation is initiated from a link element that has the `target` attribute, or the `download` attribute, navigation is allowed to work the default way - regardless of rule 1.
+4. If navigation is initiated from a form element that has the `target` attribute, navigation is allowed to work the default way - regardless of rule 1.
+
 #### Nulti Page Applications
 #### Hybrid Page Applications
 
