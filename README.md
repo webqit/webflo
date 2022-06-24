@@ -622,7 +622,7 @@ The application client build automatially figues out when to intercept a navigat
 ##### SPA Redirects
 -->
 
-Failure Responses
+#### Failure Responses
 
 Where workflows return `undefined`, a `404` HTTP response is returned.
   + In the case of client-side workflows, the already running HTML page in the browser receives empty data, and is, at the same time, set to an error state. (Details just ahead.)
