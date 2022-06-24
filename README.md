@@ -30,8 +30,8 @@ Ok, we've put all of that up for a straight read!
  
 Here's a glimpse of your Webflo app.
 
-For when your application has a server-side - and handles requests on the server.
-+ The `server` directory for all things server-side routing. The `public` directory for static files.
+For when your application has a server-side - and handles requests on the server. (Multi Page Applications, API backends, etc.)
++ The `server` directory for all things routing. The `public` directory for static files.
 
   ```shell
   my-app
@@ -39,7 +39,7 @@ For when your application has a server-side - and handles requests on the server
     └── public/logo.png
   ```
   
-  In your route handlers, you are either handling requests or allowing them to flow through. (Details ahead.)
+  A typical `index.js` route handler has the following anatomy.
 
   ```js
   /**
@@ -53,10 +53,12 @@ For when your application has a server-side - and handles requests on the server
       return { title: 'Hello from Server' };  // <------------- http://localhost:3000/ (root URL)
   }
   ```
+ 
+  > Above, you are handling requests for the root URL and allowing others to flow through. (Details ahead.)
   
-  Response becomes JSON (an API response) when handler return value is jsonfyable. (As above for the root URL `http://localhost:3000/`.)
+  Response becomes JSON (an API response) when handler return value is jsonfyable. (As above for the root URL.)
   
-  But it ends up rendered as a page response when there is an `index.html` file in the `public` directory that pairs with the route.
+  But it ends up rendered as a page response when there is an `index.html` file in the `public` directory that pairs with the route (and when the incoming request matches `text/html` in its `Accept` header).
 
   ```shell
   my-app
@@ -64,7 +66,7 @@ For when your application has a server-side - and handles requests on the server
     └── public/index.html
   ```
   
-  > This is Server-Side Rendering, and it happens when the incoming request matches `text/html` in its `Accept` header.
+  A typical `index.html` page has the following anatomy.
   
   ```html
   <!--
@@ -74,15 +76,17 @@ For when your application has a server-side - and handles requests on the server
   <!DOCTYPE html>
   <html>
       <head>
-          <template name="page" src="/bundle.html"></template>   <!-- <-- Reusable HTML Templates and partials -->
-          <link rel="stylesheet" href="/style.css" />   <!-- <----------- Application CSS -->
-          <script type="module" src="/bundle.js"></script>   <!-- <------ Application JS bundle -->
+          <link rel="stylesheet" href="/style.css" />   <!-- ---------------------- Application CSS -->
+          <script type="module" src="/bundle.js"></script>   <!-- ----------------- Application JS bundle -->
+          <template name="page" src="/bundle.html"></template>   <!-- ------------- Reusable HTML Templates and partials (Details ahead) -->
       </head>
       <body>...</body>
   </html>
   ```
+ 
+  > You author HTML pages the HTML way! And above, you're also leveraging HTML includes! (Details ahead.)
 
-For when your application has a client-side - and handles requests in the browser.
+For when your application has a client-side - and handles requests in the browser. (Single Page Applications, etc.)
 + The `client` directory for all things client-side routing. The `worker` directory for, heck, Service Worker based routing - where necessary! (Details ahead.)
 
   ```shell
@@ -106,7 +110,9 @@ For when your application has a client-side - and handles requests in the browse
   }
   ```
   
-  Response for each navigation request is rendered back into the current running page in the browser.
+  Response for navigation requests are rendered back into the current running page in the browser.
+ 
+This and much more - ahead!
 </details>
 
 <details>
