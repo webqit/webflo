@@ -23,14 +23,14 @@ Ok, we've put all of that up for a straight read!
 ## Overview
 
 <details>
- <summary><b>Build <i>scalable</i> anything</b> - from as basic as a static `index.html` page to as rich as a universal app that's either a *Multi Page Application (MPA)*, *Single Page Application (SPA)*, or a hybrid of these, capable of *Server Side Generation (SSG)*, *Server Side Rendering (SSR)*, *Client Side Rendering (CSR)*, or a hybrid of these, offline and *PWA* capabilities, etc. - this time, without *loosing* the *vanilla* advantage!
+ <summary><b>Build <i>scalable</i> anything</b> - from as basic as a static <code>index.html</code> page to as rich as a universal app that's either a <i>Multi Page Application (MPA)</i>, <i>Single Page Application (SPA)</i>, or a hybrid of these, capable of <i>Server Side Generation (SSG)</i>, <i>Server Side Rendering (SSR)</i>, <i>Client Side Rendering (CSR)</i>, or a hybrid of these, offline and <i>PWA</i> capabilities, etc. - this time, <b>without <i>loosing</i> the vanilla advantage</b>!
 </summary>
 <br>
  
 Here's a glimpse of your Webflo app.
 
 For when your application has a Server side.
-+ The `public` directory for static files. The `server` directory for server-side routing - dynamic request handling on the server. (Multi Page Applications, API backends, etc.)
++ The `public` directory for static files. The `server` directory for server-side routing. (Dynamic request handling on the server - Multi Page Applications, API backends, etc.)
 
   ```shell
   my-app
@@ -86,7 +86,7 @@ For when your application has a Server side.
   > These are regular HTML markup! And above, you're also leveraging HTML includes! (Details ahead.)
 
 For when your application has a Client side.
-+ The `client` directory for client-side routing - dynamic request handling right in the browser. (Single Page Applications, etc.) The `worker` directory for, heck, Service Worker based routing - dynamic request handling in the application Service Worker! (Progressive Web Apps, etc.)
++ The `client` directory for client-side routing. (Dynamic request handling right in the browser - Single Page Applications, etc.) The `worker` directory for, heck, Service Worker based routing! (Dynamic request handling in the application Service Worker - Progressive Web Apps, etc.)
 
   ```shell
   my-app
