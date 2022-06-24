@@ -23,7 +23,7 @@ Ok, we've put all of that up for a straight read!
 ## Overview
 
 <details>
- <summary><b>Build <i>scalable</i> anything</b> - from as basic as a static <code>index.html</code> page to as rich as a universal app that's either a <i>Multi Page Application (MPA)</i>, <i>Single Page Application (SPA)</i>, or a hybrid of these, capable of <i>Server Side Generation (SSG)</i>, <i>Server Side Rendering (SSR)</i>, <i>Client Side Rendering (CSR)</i>, or a hybrid of these, offline and <i>PWA</i> capabilities, etc. - this time, <b>without <i>loosing</i> the vanilla advantage</b>!
+ <summary><b>Build <i>scalable</i> anything</b> - from as basic as a static <code>index.html</code> page to as rich as a universal app that's either a <i>Multi Page Application (MPA)</i>, <i>Single Page Application (SPA)</i>, or a hybrid of these, capable of <i>Server Side Generation (SSG)</i>, <i>Server Side Rendering (SSR)</i>, <i>Client Side Rendering (CSR)</i>, or a hybrid of these, offline and <i>PWA</i> capabilities, etc. - this time, <i>without loosing the vanilla advantage</i>!
 </summary>
 <br>
  
