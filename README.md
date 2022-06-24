@@ -601,17 +601,12 @@ Server-Side Rendering (SSR) is the second step for these routes that double as p
 
 Whatever the case above, where a request specifies a [`Range`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Range) header, Webflo automatically slices the response body to satisfy the range, and the appropriate [`Content-Range`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Range) response header is set. (But, workflow responses with a `Content-Range` header already set are sent as-is.)
 
-#### Scenario 6: Other Requests and Responses
+#### Other Requests and Responses
 
 Workflows may return any other data type: an instance of the native [FormData](https://developer.mozilla.org/en-US/docs/Web/API/FormData), [Blob](https://developer.mozilla.org/en-US/docs/Web/API/Blob), [File](https://developer.mozilla.org/en-US/docs/Web/API/File), or [ReadableStream](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream), etc., or an instance of `event.Response` containing same - usually on routes that do not double as a page route. Webflo tries to set the appropriate response headers for these and sends.
 
 > **Note**
 > <br>The fact that all requests, even static file requests, are seen by route handlers, where defined, means that they get a chance to dynamically generate the responses that the client sees!
-
-#### Scenario 8: Failure Responses
-
-Where workflows return `undefined`, a `404` HTTP response is returned.
-  + In the case of client-side workflows, the already running HTML page in the browser receives empty data, and is, at the same time, set to an error state. (Details just ahead.)
 
 #### Single Page Navigation Requests and Responses
 
@@ -626,6 +621,11 @@ The application client build automatially figues out when to intercept a navigat
 <!--
 ##### SPA Redirects
 -->
+
+Failure Responses
+
+Where workflows return `undefined`, a `404` HTTP response is returned.
+  + In the case of client-side workflows, the already running HTML page in the browser receives empty data, and is, at the same time, set to an error state. (Details just ahead.)
 
 ### Rendering and Templating
 
