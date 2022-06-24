@@ -501,7 +501,7 @@ Static file requests like `http://localhost:3000/logo.png` are expected to get a
 
 #### Scenario 2: API Requests and Responses
 
-JSON (API) requests - requests made with an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header that matches `application/json` - are expected to get a JSON (API) response - responses with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) header of `application/json`. Webflo automatically responds this way using workflow return values. (But, workflow responses having a `Content-Type` header already set are sent as-is. (i.e. `return new event.Response('{}', { headers: {'Content-Type': 'application/json'} })`.))
+JSON (API) requests - requests made with an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header that matches `application/json` - are expected to get a JSON (API) response - responses with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) header of `application/json`. Webflo automatically responds this way using workflow return values. (But, workflow responses having a `Content-Type` header already set are sent as-is.)
 + Here, workflows simply return a jsonfyable response, and Webflo automatically jsonfies it and adds the appropriate response headers. (Jsonfyable response is any of `string`, `number`, `boolean`, `object`, `array`, or an instance of `event.Response` containing same.)
 
 #### Scenario 3: Page Requests and Responses
