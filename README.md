@@ -9,8 +9,6 @@
 
 Webflo is a universal *web*, *mobile*, and *API backend* framework built to solve for the underrated `.html` + `.css` + `.js` stack! 🔥 This has been written on a clean slate to draw directly on the plain old stack at the language level - and in essence, starve your *tooling budget* to feed your *developer experience* and *application performance*!
 
-Webflo lets you build anything - from as basic as a static `index.html` page to as rich as a universal app that's either a *Multi Page Application (MPA)*, *Single Page Application (SPA)*, or a hybrid of these, capable of *Server Side Generation (SSG)*, *Server Side Rendering (SSR)*, *Client Side Rendering (CSR)*, or a hybrid of these, offline and *PWA* capabilities, etc. - this time, without *loosing* the *vanilla* advantage!
-
 Ok, we've put all of that up for a straight read!
 
 > **Note**
@@ -25,13 +23,14 @@ Ok, we've put all of that up for a straight read!
 ## Overview
 
 <details>
- <summary><b>Build <i>scalable</i> anything</b> using a <i>Divide-and-Conquer Algorithm<a href="https://en.wikipedia.org/wiki/Divide-and-conquer_algorithm"><small><sup>[i]</sup></small></a></i>! Webflo gives you a <i>workflow</i>-based design pattern for laying out your routes; and this is new!</summary>
+ <summary><b>Build <i>scalable</i> anything</b> - from as basic as a static `index.html` page to as rich as a universal app that's either a *Multi Page Application (MPA)*, *Single Page Application (SPA)*, or a hybrid of these, capable of *Server Side Generation (SSG)*, *Server Side Rendering (SSR)*, *Client Side Rendering (CSR)*, or a hybrid of these, offline and *PWA* capabilities, etc. - this time, without *loosing* the *vanilla* advantage!
+</summary>
 <br>
  
 Here's a glimpse of your Webflo app.
 
-For when your application has a server-side - and handles requests on the server. (Multi Page Applications, API backends, etc.)
-+ The `server` directory for all things routing. The `public` directory for static files.
+For when your application has a Server side.
++ The `public` directory for static files. The `server` directory for server-side routing - dynamic request handling on the server. (Multi Page Applications, API backends, etc.)
 
   ```shell
   my-app
@@ -39,7 +38,7 @@ For when your application has a server-side - and handles requests on the server
     └── public/logo.png
   ```
   
-  A typical `index.js` route handler has the following anatomy.
+  And a typical `index.js` route handler has the following anatomy.
 
   ```js
   /**
@@ -54,11 +53,11 @@ For when your application has a server-side - and handles requests on the server
   }
   ```
  
-  > Above, you are handling requests for the root URL and allowing others to flow through. (Details ahead.)
+  > Above, you are handling requests for the root URL and allowing others to flow through to nested handlers or to the `public` directory. (Details ahead.)
   
   Response becomes JSON (an API response) when handler return value is jsonfyable. (As above for the root URL.)
   
-  But it ends up rendered as a page response when there is an `index.html` file in the `public` directory that pairs with the route (and when the incoming request matches `text/html` in its `Accept` header).
+  Or it ends up rendered as a page response when there is an `index.html` file in the `public` directory that pairs with the route (and when the incoming request matches `text/html` in its `Accept` header).
 
   ```shell
   my-app
@@ -66,7 +65,7 @@ For when your application has a server-side - and handles requests on the server
     └── public/index.html
   ```
   
-  A typical `index.html` page has the following anatomy.
+  And a typical `index.html` page has the following anatomy.
   
   ```html
   <!--
@@ -84,10 +83,10 @@ For when your application has a server-side - and handles requests on the server
   </html>
   ```
  
-  > You author HTML pages the HTML way! And above, you're also leveraging HTML includes! (Details ahead.)
+  > These are regular HTML markup! And above, you're also leveraging HTML includes! (Details ahead.)
 
-For when your application has a client-side - and handles requests in the browser. (Single Page Applications, etc.)
-+ The `client` directory for all things client-side routing. The `worker` directory for, heck, Service Worker based routing - where necessary! (Details ahead.)
+For when your application has a Client side.
++ The `client` directory for client-side routing - dynamic request handling right in the browser. (Single Page Applications, etc.) The `worker` directory for, heck, Service Worker based routing - dynamic request handling in the application Service Worker! (Progressive Web Apps, etc.)
 
   ```shell
   my-app
@@ -95,7 +94,7 @@ For when your application has a client-side - and handles requests in the browse
     └── worker/index.js
   ```
   
-  In your route handlers, you are either handling requests or allowing them to flow through. (Details ahead.)
+  And in both cases, a typical `index.js` route handler has the following anatomy.
 
   ```js
   /**
@@ -109,8 +108,10 @@ For when your application has a client-side - and handles requests in the browse
       return { title: 'Hello from [Browser|Worker]' };  // <--- http://localhost:3000/ (root URL)
   }
   ```
-  
-  Response for navigation requests are rendered back into the current running page in the browser.
+
+  > Above, you are handling requests for the root URL and allowing others to flow through to nested handlers or to the network. (Details ahead.)
+
+  Response for *navigation* requests are rendered back into the current running page in the browser.
  
 This and much more - ahead!
 </details>
@@ -485,7 +486,7 @@ my-app
   └── public/logo.png ------------------------- http://localhost:3000/logo.png
 ```
 
-If there's anything we have now, it is the ability to break work down, optionally across step functions, optionally between layers!
+If there's anything we have now, it is the ability to break work down<a href="https://en.wikipedia.org/wiki/Divide-and-conquer_algorithm"><small><sup>[i]</sup></small></a>, optionally across step functions, optionally between layers! 
 
 ### Requests and Responses
 
