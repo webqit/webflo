@@ -504,25 +504,13 @@ Routes in Webflo can be designed for different types of request/response scenari
     + Workflow responses with a `Content-Type` header already set are sent as-is. (i.e. `return new event.Response('{}', { headers: {'Content-Type': 'application/json'} })`.)
 4. Workflows may return any other data type: an instance of the native [FormData](https://developer.mozilla.org/en-US/docs/Web/API/FormData), [Blob](https://developer.mozilla.org/en-US/docs/Web/API/Blob), [File](https://developer.mozilla.org/en-US/docs/Web/API/File), or [ReadableStream](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream), etc., or an instance of `event.Response` containing same - usually on routes that do not double as a page route. Webflo tries to set the appropriate response headers for these.
 5. Whatever the case above, where a request specifies a [`Range`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Range) header, Webflo automatically slices the response body to satisfy the range, and the appropriate [`Content-Range`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Range) response header is set. (This is applicable on the server.)
-    + Workflow return values with a `Content-Range` header already set are sent as-is.
-+ Where workflows return `undefined`, a `404` HTTP response is returned.
+    + Workflow responses with a `Content-Range` header already set are sent as-is.
+6 Where workflows return `undefined`, a `404` HTTP response is returned.
     + In the case of client-side workflows, the already running HTML page in the browser receives empty data, and is, at the same time, set to an error state. (Details just ahead.)
 
-#### Server-Side: API and Page Requests and Responses
+#### Page Requests and Responses (Server-Side)
 
-On the server, jsonfyable responses effectively become a *JSON API response*! (So, we get an API backend this way by default.)
-
-```js
-/**
-server
- ├── index.js
- */
-export default async function(event, context, next) {
-    return { title: 'Home | FluffyPets' };
-}
-```
-
-But, for a route that is intended to *also* be accessed as a web page, data obtained as JSON objects (as in above) can get automatically rendered to HTML as a *page* response. Incoming requests are identified as *page requests* when they indicate in their `Accept` header that HTML responses are acceptable - `Accept: text/html,etc`. (Browsers automatically do this on navigation requests.) Next, it should be either that a custom `render` callback has been defined on the route, or that an HTML file that pairs with the route exists in the `/public` directory - for automatic rendering by Webflo.
+For routes that are intended to double as a web page (scenerio 3 above), data obtained as JSON objects can get automatically rendered to HTML as a *page* response. Incoming requests are identified as *page requests* when they indicate in their `Accept` header that HTML responses are acceptable - `Accept: text/html,etc`. (Browsers automatically do this on navigation requests.) Next, it should be either that a custom `render` callback has been defined on the route, or that an HTML file that pairs with the route exists in the `/public` directory - for automatic rendering by Webflo.
 
 + **Case 1: Custom `render` callbacks**. These are functions exported as `render` (`export function render() {}`) from the route.
 
@@ -609,7 +597,7 @@ But, for a route that is intended to *also* be accessed as a web page, data obta
   > **Note**
   > <br>Nested routes may not always need to have an equivalent `index.html` file; Webflo goes with one from closest ancestor.
 
-#### Client-Side: Navigation Requests and Responses
+#### Page Requests and Responses (Client-Side)
 
 On the client (the browser), every navigation event (page-to-page navigation, history back and forward navigation, and form submissions) initiates a request/response flow. The request object Webflo generates for these navigations is assigned an `Accept: application/json` header, so that data can be obtained as a JSON object. This request gets handled by route handlers, and the JSON data obtained is simply sent into the already running HTML document as `document.state.page`. This makes it globally accessible to embedded scripts and rendering logic! (Details in [Rendering and Templating](#rendering-and-templating).)
 
