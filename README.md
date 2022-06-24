@@ -57,7 +57,7 @@ For when your app requires a backend.
   
 + The returned object for the root URL - `http://localhost:3000/` - becomes a JSON response...
   
-  ...or is conditionally rendered into an `index.html` file in the `public` directory that pairs with the URL.
+  ...or is conditionally rendered into an `index.html` file in the `public` directory that pairs with the route.
 
   ```shell
   my-app
