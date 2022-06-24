@@ -510,9 +510,98 @@ JSON (API) requests - requets made with an [`Accept`](https://developer.mozilla.
 #### Scenario 3: Page Requests and Responses
 > Environments: Server
 
-Page (HTML) requests - requets made with an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header that matches `text/html` - are expected to get a page (HTML) response - responses with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) response header of `text/html`. Webflo automatically responds this way by rendering workflow return values into an HTML page. (Details [just ahead](#server-side-rendering).)
+Page (HTML) requests - requets made with an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header that matches `text/html` - are expected to get a page (HTML) response - responses with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) response header of `text/html`. Webflo automatically responds this way by rendering workflow return values into an HTML page.
 + Workflows simply return an object (or an instance of `event.Response` containing same), and Webflo automatically renders it to HTML and adds the appropriate response headers. (With this, API responses for routes that double as a page route are expected to always be an object.)
 + Workflow responses having a `Content-Type` header already set are sent as-is. (i.e. `return new event.Response('{}', { headers: {'Content-Type': 'application/json'} })`.)
+
+Server-Side Rendering (SSR) is the second step for routes that double as page routes. Here, it should be either that an `index.html` file that pairs with the route exists in the `/public` directory - for automatic rendering by Webflo, or that a custom `render` callback has been defined on the route.
+
++ SSR Option 1: **Automatically-paired HTML files**. These are valid HTML documents named `index.html` in the `/public` directory, or a subdirectory that corresponds with a route.
+
+  ```js
+  /**
+  server
+   ├── index.js
+   */
+  export default async function(event, context, next) {
+      return { title: 'Home | FluffyPets' };
+  }
+  ```
+
+  ```html
+  <!--
+  public
+   ├── index.html
+  -->
+  <!DOCTYPE html>
+  <html>
+      <head><title>FluffyPets</title></head>
+      <body namespace>
+          <h1 data-id="headline"></h1>
+
+          <script type="subscript">
+           this.namespace.headline = document.state.page.title;
+          </script>
+      </body>
+  </html>
+  ```
+
+  The data obtained above is simply sent into the loaded HTML document instance as `document.state.page`. This makes it globally accessible to embedded scripts and rendering logic! (Details in [Rendering and Templating](#rendering-and-templating).)
+
+  > **Note**
+  > <br>Nested routes may not always need to have an equivalent `index.html` file; Webflo goes with one from closest ancestor.
+
++ SSR Option 2: **Custom `render` callbacks**. These are functions exported as `render` (`export function render() {}`) from the route.
+
+  ```js
+  /**
+  server
+   ├── index.js
+   */
+  export default async function(event, context, next) {
+      return { title: 'Home | FluffyPets' };
+  }
+  export async function render(event, data, next) {
+      return `
+      <!DOCTYPE html>
+      <html>
+          <head><title>FluffyPets</title></head>
+          <body>
+              <h1>${ data.title }</h1>
+          </body>
+      </html>
+      `;
+  }
+  ```
+
+  <details>
+   <summary>But custom <code>render</code> callbacks are step functions too that may be nested as necessary to form a *render* workflow.</summary>
+
+  ```js
+  /**
+  server
+   ├── index.js
+   */
+  export async function render(event, data, next) {
+      // For render callbacks at child step
+      if (next.stepname) {
+          return next();
+      }
+      return `
+      <!DOCTYPE html>
+      <html>
+          <head><title>FluffyPets</title></head>
+          <body>
+              <h1>${ data.title }</h1>
+          </body>
+      </html>
+      `;
+  }
+  ```
+
+  > **Note**
+  > <br>Typically, though, child steps do not always need to have an equivalent`render` callback being that they automatically inherit rendering from their parent or ancestor.
+  </details>
 
 #### Scenario 5: Other Responses (Server-Side)
 > Environments: Server, Client, Service Worker
@@ -537,98 +626,9 @@ Whatever the case above, where a request specifies a [`Range`](https://developer
 Where workflows return `undefined`, a `404` HTTP response is returned.
   + In the case of client-side workflows, the already running HTML page in the browser receives empty data, and is, at the same time, set to an error state. (Details just ahead.)
 
-#### Page Requests and Responses (Server-Side)
+#### Single Page Navigation Requests and Responses
 
-For routes that are intended to double as a web page ([scenerio 3 above](#scenario-3-page-requests-and-responses)), data obtained as JSON objects can get automatically rendered to HTML as a *page* response. Incoming requests are identified as *page requests* when they indicate in their `Accept` header that HTML responses are acceptable - `Accept: text/html,etc`. (Browsers automatically do this on navigation requests.) Next, it should be either that a custom `render` callback has been defined on the route, or that an HTML file that pairs with the route exists in the `/public` directory - for automatic rendering by Webflo.
-
-+ **Case 1: Custom `render` callbacks**. These are functions exported as `render` (`export function render() {}`) from the route.
-
-  ```js
-  /**
-  server
-   ├── index.js
-   */
-  export default async function(event, context, next) {
-      return { title: 'Home | FluffyPets' };
-  }
-  export async function render(event, data, next) {
-      return `
-      <!DOCTYPE html>
-      <html>
-          <head><title>FluffyPets</title></head>
-          <body>
-              <h1>${ data.title }</h1>
-          </body>
-      </html>
-      `;
-  }
-  ```
-  
-  But custom `render` callbacks are step functions too that may be nested as necessary to form a *render* workflow.
-  
-  ```js
-  /**
-  server
-   ├── index.js
-   */
-  export async function render(event, data, next) {
-      // For render callbacks at child step
-      if (next.stepname) {
-          return next();
-      }
-      return `
-      <!DOCTYPE html>
-      <html>
-          <head><title>FluffyPets</title></head>
-          <body>
-              <h1>${ data.title }</h1>
-          </body>
-      </html>
-      `;
-  }
-  ```
-  
-  > **Note**
-  > <br>Typically, though, child steps do not always need to have an equivalent`render` callback being that they automatically inherit rendering from their parent or ancestor.
-
-+ **Case 2: Automatically-paired HTML files**. These are valid HTML documents named `index.html` in the `/public` directory, or a subdirectory that corresponds with a route.
-   
-  ```js
-  /**
-  server
-   ├── index.js
-   */
-  export default async function(event, context, next) {
-      return { title: 'Home | FluffyPets' };
-  }
-  ```
-  
-  ```html
-  <!--
-  public
-   ├── index.html
-  -->
-  <!DOCTYPE html>
-  <html>
-      <head><title>FluffyPets</title></head>
-      <body namespace>
-          <h1 data-id="headline"></h1>
-
-          <script type="subscript">
-           this.namespace.headline = document.state.page.title;
-          </script>
-      </body>
-  </html>
-  ```
-  
-  The data obtained above is simply sent into the loaded HTML document instance as `document.state.page`. This makes it globally accessible to embedded scripts and rendering logic! (Details in [Rendering and Templating](#rendering-and-templating).)
-
-  > **Note**
-  > <br>Nested routes may not always need to have an equivalent `index.html` file; Webflo goes with one from closest ancestor.
-
-#### Page Requests and Responses (Client-Side)
-
-On the client (the browser), every navigation event (page-to-page navigation, history back and forward navigation, and form submissions) initiates a request/response flow. The request object Webflo generates for these navigations is assigned an `Accept: application/json` header, so that data can be obtained as a JSON object ([scenerio 2 above](#scenario-2-api-requests-and-responses)). This request gets handled by route handlers, and the JSON data obtained is simply sent into the already running HTML document as `document.state.page`. This makes it globally accessible to embedded scripts and rendering logic! (Details in [Rendering and Templating](#rendering-and-templating).)
+In a Single Page Application layout, every navigation event (page-to-page navigation, history back and forward navigation, and form submissions) initiates a request/response flow without a full page reload. The request object Webflo generates for these navigations is assigned an `Accept: application/json` header, so that data can be obtained as a JSON object ([scenerio 2 above](#scenario-2-api-requests-and-responses)) for Client-Side Rendering.
 
 The application client build automatially figues out when to intercept a navigation event (page-to-page navigation, history back and forward navigation, and form submissions) and prevent a full page reload, and when not to. It follows the following rules:
 1. When it figures out that the destination page is based off the current running `index.html` document in the browser, a full page reload is prevented and navigation is sleek. This is, in other words, an SPA navigation. Compare between [Single Page Application and Multi Page Application layouts](#templating) ahead.
@@ -638,12 +638,10 @@ The application client build automatially figues out when to intercept a navigat
 
 ### Rendering and Templating
 
-As covered just above, routes that are intended to be accessed as a web page are expected to *first* be accessible as a JSON endpoint (returning an object). On the server, rendering happens *after* data is obtained from the workflow, but only when the browser explicitly asks for a `text/html` response! On the client, rendering happens *after* data is obtained from the workflow on each navigation event, but right into the same loaded document in the browser. In both cases, the concept of *templating* with HTML documents makes it possible to get pages to be as unique, or as generic, as needed on each navigation.
-
 Every rendering and templating concept in Webflo is DOM-based. On the server, Webflo makes this so by making a DOM instance off of your `index.html` file - using the [OOHTML SSR](https://github.com/webqit/oohtml-ssr) library. So, we get the same familiar `document` object and DOM elements everywhere! Webflo simply makes sure that the data obtained on each navigation is available as part of the `document` object - exposed at `document.state.page`.
 
 You can access the `document` object (and its `document.state.page` property) both from a custom `render` callback and from a script that you can directly embed on the page.
-+ **Case 1: From within a `render` callback**. If you defined a custom `render` callback on your route, you could call the `next()` function to advance the *render workflow* into Webflo's default rendering mode. A `window` instance is returned containing the implied document.
++ Case 1: **From within a `render` callback**. If you defined a custom `render` callback on your route, you could call the `next()` function to advance the *render workflow* into Webflo's default rendering mode. A `window` instance is returned containing the implied document.
   
   ```js
   /**
@@ -661,7 +659,7 @@ You can access the `document` object (and its `document.state.page` property) bo
   }
   ```
   
-+ **Case 2: From within an embedded script**. If you embedded a script on your HTML page, you could access the `document.state.page` data as you'd expected.
++ Case 2: **From within an embedded script**. If you embedded a script on your HTML page, you could access the `document.state.page` data as you'd expected.
   
   ```html
   <!--
