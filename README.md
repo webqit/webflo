@@ -25,7 +25,6 @@ Ok, we've put all of that up for a straight read!
 <details>
  <summary><b>Build <i>scalable</i> anything</b> - from as basic as a static <code>index.html</code> page to as rich as a universal app that's either a <i>Multi Page Application (MPA)</i>, <i>Single Page Application (SPA)</i>, or a hybrid of these, capable of <i>Server Side Generation (SSG)</i>, <i>Server Side Rendering (SSR)</i>, <i>Client Side Rendering (CSR)</i>, or a hybrid of these, offline and <i>PWA</i> capabilities, etc. - this time, <i>without loosing the vanilla advantage</i>!
 </summary>
-<br>
  
 Here's a glimpse of your Webflo app.
 
@@ -118,7 +117,6 @@ This and much more - ahead!
 
 <details>
 <summary><b>Build <i>future-proof</i> anything</b> by banking more on web standards and less on abstractions! Webflo <i>just follows</i> where a native feature, standard, or conventional HTML, CSS or JS <i>just works</i>!</summary>
- <br>
 
 Here's a glimpse of the standards-based stack you get of Webflo!
  
