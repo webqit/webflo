@@ -29,7 +29,7 @@ Ok, we've put all of that up for a straight read!
 Here's a glimpse of your Webflo app.
 
 For when your application has a Server side.
-+ The `public` directory for static files. The `server` directory for server-side routing. (Dynamic request handling on the server - Multi Page Applications, API backends, etc.)
++ The `public` directory for static files. The `server` directory for server-side routing. (Dynamic request handling on the server - for Multi Page Applications, API backends, etc.)
 
   ```shell
   my-app
@@ -85,7 +85,7 @@ For when your application has a Server side.
   > These are regular HTML markup! And above, you're also leveraging HTML includes! (Details ahead.)
 
 For when your application has a Client side.
-+ The `client` directory for client-side routing. (Dynamic request handling right in the browser - Single Page Applications, etc.) The `worker` directory for, heck, Service Worker based routing! (Dynamic request handling in the application Service Worker - Progressive Web Apps, etc.)
++ The `client` directory for client-side routing. (Dynamic request handling right in the browser - for Single Page Applications, etc.) The `worker` directory for, heck, Service Worker based routing! (Dynamic request handling in the application Service Worker - for Progressive Web Apps, etc.)
 
   ```shell
   my-app
