@@ -501,16 +501,14 @@ Static file requests like `http://localhost:3000/logo.png` are expected to get a
 
 #### Scenario 2: API Requests and Responses
 
-JSON (API) requests - requests made with an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header that matches `application/json` - are expected to get a JSON (API) response - responses with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) response header of `application/json`. Webflo automatically responds this way using workflow return values. (But, workflow responses having a `Content-Type` header already set are sent as-is. (i.e. `return new event.Response('{}', { headers: {'Content-Type': 'application/json'} })`.))
+JSON (API) requests - requests made with an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header that matches `application/json` - are expected to get a JSON (API) response - responses with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) header of `application/json`. Webflo automatically responds this way using workflow return values. (But, workflow responses having a `Content-Type` header already set are sent as-is. (i.e. `return new event.Response('{}', { headers: {'Content-Type': 'application/json'} })`.))
 + Here, workflows simply return a jsonfyable response, and Webflo automatically jsonfies it and adds the appropriate response headers. (Jsonfyable response is any of `string`, `number`, `boolean`, `object`, `array`, or an instance of `event.Response` containing same.)
 
 #### Scenario 3: Page Requests and Responses
 
-Page (HTML) requests - requets made to the server with an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header that matches `text/html` - are expected to get a page (HTML) response - responses with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) response header of `text/html`. Webflo automatically responds this way by rendering workflow return values into an HTML page. (But, workflow responses having a `Content-Type` header already set are sent as-is. (i.e. `return new event.Response('{}', { headers: {'Content-Type': 'application/json'} })`.))
-+ Here, workflows simply return an object (or an instance of `event.Response` containing same), and Webflo automatically renders it to HTML and adds the appropriate response headers. (With this, API responses for routes that double as a page route are expected to always be an object.)
-
-Server-Side Rendering (SSR) is the second step for routes that double as page routes. Here, it is either that an `index.html` file that pairs with the route exists in the `/public` directory - for automatic rendering by Webflo, or that a custom `render` callback has been defined on the route.
-
+Page (HTML) requests - requets made to the server with an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header that matches `text/html` - are expected to get a page (HTML) response - responses with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) header of `text/html`. Webflo automatically responds this way by rendering workflow return values into an HTML page. (But, workflow responses having a `Content-Type` header already set are sent as-is. (i.e. `return new event.Response('{}', { headers: {'Content-Type': 'application/json'} })`.))
++ Here, workflows simply return an object (or an instance of `event.Response` containing same), and Webflo automatically renders it to HTML and adds the appropriate response headers. (API responses for these routes that double as page routes are therefore expected to always be an object.)
++ Server-Side Rendering (SSR) is the second step for routes that double as page routes. Here, it is either that an `index.html` file that pairs with the route exists in the `/public` directory - for automatic rendering by Webflo, or that a custom `render` callback has been defined on the route.
 + SSR Option 1: **Automatically-paired HTML files**. These are valid HTML documents named `index.html` in the `/public` directory, or a subdirectory that corresponds with a route.
 
   ```js
@@ -570,7 +568,7 @@ Server-Side Rendering (SSR) is the second step for routes that double as page ro
   ```
 
   <details>
-  <summary>But custom <code>render</code> callbacks are step functions too that may be nested as necessary to form a *render* workflow.</summary>
+  <summary>And, custom <code>render</code> callbacks are step functions too that may be nested as necessary to form a *render* workflow.</summary>
 
   ```js
   /**
@@ -618,7 +616,7 @@ Where workflows return `undefined`, a `404` HTTP response is returned.
 
 In a Single Page Application layout, every navigation event (page-to-page navigation, history back and forward navigation, and form submissions) initiates a request/response flow without a full page reload. The request object Webflo generates for these navigations is assigned an `Accept: application/json` header, so that data can be obtained as a JSON object ([scenerio 2 above](#scenario-2-api-requests-and-responses)) for Client-Side Rendering.
 
-The application client build automatially figues out when to intercept a navigation event (page-to-page navigation, history back and forward navigation, and form submissions) and prevent a full page reload, and when not to. It follows the following rules:
+The application client build automatially figues out when to intercept a navigation event and prevent a full page reload, and when not to. It follows the following rules:
 1. When it figures out that the destination page is based off the current running `index.html` document in the browser, a full page reload is prevented and navigation is sleek. This is, in other words, an SPA navigation. Compare between [Single Page Application and Multi Page Application layouts](#templating) ahead.
 2. If navigation is initiated with any of the following keys pressed: Meta Key, Alt Key, Shift Key, Ctrl Key, navigation is allowed to work the default way - regardless of rule 1.
 3. If navigation is initiated from a link element that has the `target` attribute, or the `download` attribute, navigation is allowed to work the default way - regardless of rule 1.
