@@ -569,7 +569,7 @@ Server-Side Rendering (SSR) is the second step for these routes that double as p
   ```
 
   <details>
-  <summary>And, custom <code>render</code> callbacks can be step functions too, nested as necessary to form a *render* workflow.</summary>
+  <summary>And, custom <code>render</code> callbacks can be step functions too, nested as necessary to form a <i>render</i> workflow.</summary>
 
   ```js
   /**
