@@ -28,11 +28,10 @@ Ok, we've put all of that up for a straight read!
  <summary><b>Build <i>scalable</i> anything</b> using a <i>Divide-and-Conquer Algorithm<a href="https://en.wikipedia.org/wiki/Divide-and-conquer_algorithm"><small><sup>[i]</sup></small></a></i>! Webflo gives you a <i>workflow</i>-based design pattern for laying out your routes; and this is new!</summary>
 <br>
  
-Here's how it all looks.
+Here's a glimpse of your Webflo app.
 
-For when your app requires a backend.
-
-+ The `server` directory for all things server-side routing. The `public` directory  for static files.
+For when your application involves a backend.
++ The `server` directory for all things server-side routing. The `public` directory for static files.
 
   ```shell
   my-app
@@ -40,7 +39,7 @@ For when your app requires a backend.
     └── public/logo.png
   ```
   
-  Requests are either handled or allowed to flow through.
+  In your route handlers, requests are either handled or allowed to flow through.
 
   ```js
   /**
@@ -67,7 +66,7 @@ For when your app requires a backend.
         └── index.html
   ```
   
-  > This is Server-Side Rendering, and it happens when the incoming request includes `text/html` in its `Accept` header.
+  > This is Server-Side Rendering, and it happens when the incoming request matches `text/html` in its `Accept` header.
   
   ```html
   <!--
@@ -85,16 +84,15 @@ For when your app requires a backend.
   </html>
   ```
 
-For when your app requires a frontend.
-
-+ The `client` directory for all things client-side routing.
+For when your application involves a frontend.
++ The `client` directory for all things client-side routing. (Details ahead.)
 
   ```shell
   my-app
     └── client/index.js
   ```
   
-  Requests are either handled or allowed to flow through.
+  In your route handlers, requests are either handled or allowed to flow through.
 
   ```js
   /**
@@ -109,20 +107,17 @@ For when your app requires a frontend.
   }
   ```
   
-+ The returned object for the root URL - `http://localhost:3000/` - is rendered back to the current running page in the browser.
+  The returned object for the root URL - `http://localhost:3000/` - is rendered back into the current running page in the browser.
 
-> This is Client-Side Rendering.
-
-For when your app requires a Progress Web Apps (PWA) capabilities via Service Workers.
-
-+ The `worker` directory for routing at the Service Worker layer.
+For when your application needs to give an app-like experience (via Service Workers):
+ + The `worker` directory for routing<sup>*</sup> at the Service Worker layer. (<sup>*</sup>This is unique to Webflo!)
 
   ```shell
   my-app
     └── worker/index.js
   ```
   
-  Requests are either handled or allowed to flow through.
+  In your route handlers, requests are either handled or allowed to flow through.
 
   ```js
   /**
@@ -137,7 +132,7 @@ For when your app requires a Progress Web Apps (PWA) capabilities via Service Wo
   }
   ```
   
-+ The returned object for the root URL - `http://localhost:3000/` - is rendered back to the current running page in the browser.
+  The returned object for the root URL - `http://localhost:3000/` - is rendered back to the current running page in the browser.
 </details>
 
 <details>
