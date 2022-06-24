@@ -30,7 +30,7 @@ Ok, we've put all of that up for a straight read!
  
 Here's a glimpse of your Webflo app.
 
-For when your application involves a backend.
+For when your application has a server-side - and handles requests on the server.
 + The `server` directory for all things server-side routing. The `public` directory for static files.
 
   ```shell
@@ -39,7 +39,7 @@ For when your application involves a backend.
     └── public/logo.png
   ```
   
-  In your route handlers, requests are either handled or allowed to flow through.
+  In your route handlers, you are either handling requests or allowing them to flow through. (Details ahead.)
 
   ```js
   /**
@@ -54,16 +54,14 @@ For when your application involves a backend.
   }
   ```
   
-+ The returned object for the root URL - `http://localhost:3000/` - becomes a JSON response...
+  Response becomes JSON (an API response) when handler return value is jsonfyable. (As above for the root URL `http://localhost:3000/`.)
   
-  ...or is conditionally rendered into an `index.html` file in the `public` directory that pairs with the route.
+  But it ends up rendered as a page response when there is an `index.html` file in the `public` directory that pairs with the route.
 
   ```shell
   my-app
     ├── server/index.js
-    └── public
-        ├── logo.png
-        └── index.html
+    └── public/index.html
   ```
   
   > This is Server-Side Rendering, and it happens when the incoming request matches `text/html` in its `Accept` header.
@@ -84,55 +82,31 @@ For when your application involves a backend.
   </html>
   ```
 
-For when your application involves a frontend.
-+ The `client` directory for all things client-side routing. (Details ahead.)
+For when your application has a client-side - and handles requests in the browser.
++ The `client` directory for all things client-side routing. The `worker` directory for, heck, Service Worker based routing - where necessary! (Details ahead.)
 
   ```shell
   my-app
-    └── client/index.js
-  ```
-  
-  In your route handlers, requests are either handled or allowed to flow through.
-
-  ```js
-  /**
-  client
-   ├── index.js
-   */
-  export default function(event, context, next) {
-      if (next.pathname) {
-          return next();  // <--------------------------------- http://localhost:3000/logo.png (or other non-root URLs)
-      }
-      return { title: 'Hello from Browser' };  // <------------ http://localhost:3000/ (root URL)
-  }
-  ```
-  
-  The returned object for the root URL - `http://localhost:3000/` - is rendered back into the current running page in the browser.
-
-For when your application needs to give an app-like experience (via Service Workers):
- + The `worker` directory for routing<sup>*</sup> at the Service Worker layer. (<sup>*</sup>This is unique to Webflo!)
-
-  ```shell
-  my-app
+    ├── client/index.js
     └── worker/index.js
   ```
   
-  In your route handlers, requests are either handled or allowed to flow through.
+  In your route handlers, you are either handling requests or allowing them to flow through. (Details ahead.)
 
   ```js
   /**
-  worker
+  [client|worker]
    ├── index.js
    */
   export default function(event, context, next) {
       if (next.pathname) {
           return next();  // <--------------------------------- http://localhost:3000/logo.png (or other non-root URLs)
       }
-      return { title: 'Hello from Service Worker' };  // <------------ http://localhost:3000/ (root URL)
+      return { title: 'Hello from [Browser|Worker]' };  // <--- http://localhost:3000/ (root URL)
   }
   ```
   
-  The returned object for the root URL - `http://localhost:3000/` - is rendered back to the current running page in the browser.
+  Response for each navigation request is rendered back into the current running page in the browser.
 </details>
 
 <details>
