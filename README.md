@@ -501,17 +501,15 @@ Static file requests like `http://localhost:3000/logo.png` are expected to get a
 
 #### Scenario 2: API Requests and Responses
 
-JSON (API) requests - requets made with an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header that matches `application/json` - are expected to get a JSON (API) response - responses with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) response header of `application/json`. Webflo automatically responds this way using workflow return values.
-+ Workflows simply return a jsonfyable response, and Webflo automatically jsonfies it and adds the appropriate response headers. (Jsonfyable response is any of `string`, `number`, `boolean`, `object`, `array`, or an instance of `event.Response` containing same.)
-+ Workflow responses having a `Content-Type` header already set are sent as-is. (i.e. `return new event.Response('{}', { headers: {'Content-Type': 'application/json'} })`.)
+JSON (API) requests - requests made with an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header that matches `application/json` - are expected to get a JSON (API) response - responses with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) response header of `application/json`. Webflo automatically responds this way using workflow return values. (But, workflow responses having a `Content-Type` header already set are sent as-is. (i.e. `return new event.Response('{}', { headers: {'Content-Type': 'application/json'} })`.))
++ Here, workflows simply return a jsonfyable response, and Webflo automatically jsonfies it and adds the appropriate response headers. (Jsonfyable response is any of `string`, `number`, `boolean`, `object`, `array`, or an instance of `event.Response` containing same.)
 
 #### Scenario 3: Page Requests and Responses
 
-Page (HTML) requests - requets made to the server with an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header that matches `text/html` - are expected to get a page (HTML) response - responses with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) response header of `text/html`. Webflo automatically responds this way by rendering workflow return values into an HTML page.
-+ Workflows simply return an object (or an instance of `event.Response` containing same), and Webflo automatically renders it to HTML and adds the appropriate response headers. (With this, API responses for routes that double as a page route are expected to always be an object.)
-+ Workflow responses having a `Content-Type` header already set are sent as-is. (i.e. `return new event.Response('{}', { headers: {'Content-Type': 'application/json'} })`.)
+Page (HTML) requests - requets made to the server with an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header that matches `text/html` - are expected to get a page (HTML) response - responses with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) response header of `text/html`. Webflo automatically responds this way by rendering workflow return values into an HTML page. (But, workflow responses having a `Content-Type` header already set are sent as-is. (i.e. `return new event.Response('{}', { headers: {'Content-Type': 'application/json'} })`.))
++ Here, workflows simply return an object (or an instance of `event.Response` containing same), and Webflo automatically renders it to HTML and adds the appropriate response headers. (With this, API responses for routes that double as a page route are expected to always be an object.)
 
-Server-Side Rendering (SSR) is the second step for routes that double as page routes. Here, it should be either that an `index.html` file that pairs with the route exists in the `/public` directory - for automatic rendering by Webflo, or that a custom `render` callback has been defined on the route.
+Server-Side Rendering (SSR) is the second step for routes that double as page routes. Here, it is either that an `index.html` file that pairs with the route exists in the `/public` directory - for automatic rendering by Webflo, or that a custom `render` callback has been defined on the route.
 
 + SSR Option 1: **Automatically-paired HTML files**. These are valid HTML documents named `index.html` in the `/public` directory, or a subdirectory that corresponds with a route.
 
@@ -546,7 +544,7 @@ Server-Side Rendering (SSR) is the second step for routes that double as page ro
   The data obtained above is simply sent into the loaded HTML document instance as `document.state.page`. This makes it globally accessible to embedded scripts and rendering logic! (Details in [Rendering and Templating](#rendering-and-templating).)
 
   > **Note**
-  > <br>Nested routes may not always need to have an equivalent `index.html` file; Webflo goes with one from closest ancestor.
+  > <br>Nested routes may not always need to have an equivalent `index.html` file; Webflo goes with one from the closest ancestor.
 
 + SSR Option 2: **Custom `render` callbacks**. These are functions exported as `render` (`export function render() {}`) from the route.
 
@@ -602,8 +600,7 @@ Server-Side Rendering (SSR) is the second step for routes that double as page ro
 
 #### Scenario 5: Range Requests and Responses
 
-Whatever the case above, where a request specifies a [`Range`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Range) header, Webflo automatically slices the response body to satisfy the range, and the appropriate [`Content-Range`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Range) response header is set.
-+ Workflow responses with a `Content-Range` header already set are sent as-is.
+Whatever the case above, where a request specifies a [`Range`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Range) header, Webflo automatically slices the response body to satisfy the range, and the appropriate [`Content-Range`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Range) response header is set. (But, workflow responses with a `Content-Range` header already set are sent as-is.)
 
 #### Scenario 6: Other Requests and Responses
 
