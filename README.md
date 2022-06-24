@@ -112,7 +112,7 @@ For when your application has a Client side.
 
   > Above, you are handling requests for the root URL and allowing others to flow through to nested handlers or to the network. (Details ahead.)
 
-  Response for *navigation* requests are rendered back into the current running page in the browser.
+  Responses for *navigation* requests are rendered back into the current running page in the browser.
  
 This and much more - ahead!
 </details>
@@ -500,7 +500,7 @@ A nested handler's return value goes as-is to its parent handler, where it gets 
 
 But, where workflows return `undefined`, a `404` HTTP response is returned. In the case of client-side workflows - in `/client`, the already running HTML page in the browser receives empty data, and is, at the same time, set to an error state. (Details in [Rendering and Templating](#rendering-and-templating).)
 
-#### Server-Side: API and Page Responses
+#### Server-Side: API and Page Requests and Responses
 
 On the server, jsonfyable responses effectively become a *JSON API response*! (So, we get an API backend this way by default.)
 
@@ -601,9 +601,15 @@ But, for a route that is intended to *also* be accessed as a web page, data obta
   > **Note**
   > <br>Nested routes may not always need to have an equivalent `index.html` file; Webflo makes do with one from parent or ancestor.
 
-#### Client-Side: Navigation Responses
+#### Client-Side: Navigation Requests and Responses
 
 On the client (the browser), every navigation event (page-to-page navigation, history back and forward navigation, and form submissions) initiates a request/response flow. The request object Webflo generates for these navigations is assigned an `Accept: application/json` header, so that data can be obtained as a JSON object. This request gets handled by route handlers, and the JSON data obtained is simply sent into the already running HTML document as `document.state.page`. This makes it globally accessible to embedded scripts and rendering logic! (Details in [Rendering and Templating](#rendering-and-templating).)
+
+The application client build automatially figues out when to intercept a navigation event (page-to-page navigation, history back and forward navigation, and form submissions) and prevent a full page reload, and when not to. It follows the following rules:
+1. When it figures out that the destination page is based off the current running `index.html` document in the browser, a full page reload is prevented and navigation is sleek. This is, in other words, an SPA navigation. Compare between [Single Page Application and Multi Page Application layouts](#templating) ahead.
+2. If navigation is initiated with any of the following keys pressed: Meta Key, Alt Key, Shift Key, Ctrl Key, navigation is allowed to work the default way - regardless of rule 1.
+3. If navigation is initiated from a link element that has the `target` attribute, or the `download` attribute, navigation is allowed to work the default way - regardless of rule 1.
+4. If navigation is initiated from a form element that has the `target` attribute, navigation is allowed to work the default way - regardless of rule 1.
 
 ### Rendering and Templating
 
@@ -1029,7 +1035,7 @@ Template `.html` files are bundled from the filesystem into a single file using 
 
 The `--recursive` flag gets the bundler to recursively bundle *subroots* in a hybrid architecture - subdirectories with their own `index.html` document. (Subroots are ignored by default.)
 
-The `--auto-embed` flag gets the bundler to automatically embed the generated `bundle.html` file on the matched `index.html` document. A value of `page` for the flag ends up as the name of the *embed* template: `<template name="page" src="/bundle"></template>`.
+The `--auto-embed` flag gets the bundler to automatically embed the generated `bundle.html` file on the matched `index.html` document. A value of `page` for the flag ends up as the name of the *embed* template: `<template name="page" src="/bundle.html"></template>`.
 
 > **Note**
 > <br>If your HTML files are actually based off the `public` directory, you'll need to tell the above command to run in the `public` directory either by configuring the bundler via `oohtml config bundler` or by rewriting the command with a prefix: `cd public && oohtml bundle --recursive --auto-embed=page`. 
