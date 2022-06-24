@@ -494,14 +494,11 @@ If there's anything we have now, it is the ability to break work down<a href="ht
 Routes in Webflo can be designed for different types of request/response scenarios. 
 
 #### Scenario 1: Static File Requests and Responses
-> Environments: Server
+> Environments: Server, Service Worker
 
 Static file requests like `http://localhost:3000/logo.png` are expected to get a file response. These requests are automatically handled by Webflo when `next()`ed forward by route handlers.
 + The appropriate headers like [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type), [`Content-Length`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Length), etc. are added.
-+ Where a request has an [`Accept-Encoding`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Encoding) header (e.g. `gzip`, `br`) and the target file has a matching encoded version on the file system (e.g. `logo.png.gz`, `logo.png.br`), the encoded version is served and the appropriate [`Content-Encoding`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding) response header is set.
-
-> **Note**
-> <br>The fact that static requests are seen by route handlers, where defined, means that they get a chance to dynamically generate the file responses the client sees!
++ Server-side, where a request has an [`Accept-Encoding`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Encoding) header (e.g. `gzip`, `br`) and the target file has a matching encoded version on the file system (e.g. `logo.png.gz`, `logo.png.br`), the encoded version is served and the appropriate [`Content-Encoding`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding) response header is set.
 
 #### Scenario 2: API Requests and Responses
 > Environments: Server, Service Worker
@@ -521,6 +518,9 @@ Page (HTML) requests - requets made with an [`Accept`](https://developer.mozilla
 > Environments: Server, Client, Service Worker
 
 Workflows may return any other data type: an instance of the native [FormData](https://developer.mozilla.org/en-US/docs/Web/API/FormData), [Blob](https://developer.mozilla.org/en-US/docs/Web/API/Blob), [File](https://developer.mozilla.org/en-US/docs/Web/API/File), or [ReadableStream](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream), etc., or an instance of `event.Response` containing same - usually on routes that do not double as a page route. Webflo tries to set the appropriate response headers for these and sends.
+
+> **Note**
+> <br>The fact that static requests are seen by route handlers, where defined, means that they get a chance to dynamically generate the file responses the client sees!
 
 #### Scenario 6: Range Requests and Responses
 > Environments: Server
