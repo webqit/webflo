@@ -19,6 +19,7 @@ Ok, we've put all of that up for a straight read!
 + [Overview](#overview)
 + [Installation](#installation)
 + [Concepts](#concepts)
++ [Workflow API](#workflow-api)
 
 ## Overview
 
@@ -490,15 +491,22 @@ If there's anything we have now, it is the ability to break work down<a href="ht
 
 ### Requests and Responses
 
-Routes in Webflo can be designed for different types of request/response scenarios.
+Routes in Webflo can be designed for different types of request/response scenarios:
 
-Generally, handler functions can return any type of jsonfyable data (`string`, `number`, `boolean`, `object`, `array`), or other primitive types like `ArrayBuffer`, `Blob`, etc, or an instance of `event.Response` containing the same. (Here `event.Response` is essentially the [WHATWG Response](https://developer.mozilla.org/en-US/docs/Web/API/Response) object, available in all environments - `/client`, `/worker`, and `/server`.)
-
-A nested handler's return value goes as-is to its parent handler, where it gets a chance to be recomposed. Whatever is obtained from the root handler is sent:
-+ either into the response stream (with jsonfyable data automatically translating to a proper JSON response),
-+ or into an HTML document for rendering (where applicable), as detailed ahead.
-
-But, where workflows return `undefined`, a `404` HTTP response is returned. In the case of client-side workflows - in `/client`, the already running HTML page in the browser receives empty data, and is, at the same time, set to an error state. (Details in [Rendering and Templating](#rendering-and-templating).)
+1. A static file request like `http://localhost:3000/logo.png` is expected to get a file response. These requests are automatically handled by Webflo when `next()`ed forward by route handlers.
+  + Appropriate headers like [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type), [`Content-Length`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Length), etc. are added.
+  + Where a request has an [`Accept-Encoding`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Encoding) header (e.g. `gzip`, `br`) and the target file has a matching encoded version on the file system (e.g. `logo.png.gz`, `logo.png.br`), the encoded version is served and the appropriate [`Content-Encoding`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding) response header is set.
+2. A JSON (API) request - usually with an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header that matches `application/json` - is a expected to get a JSON (API) response - usually with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) response header of `application/json`. Webflo automatically responds this way using workflow return values.
+  + Workflows simply return a jsonfyable response, and Webflo automatically jsonfies it and adds the appropriate response headers. (Jsonfyable response is any of `string`, `number`, `boolean`, `object`, `array`, or an instance of `event.Response` containing same.)
+  + Workflow responses with a `Content-Type` header already set are sent as-is. (i.e. `return new event.Response('{}', { headers: {'Content-Type': 'application/json'} })`.)
+3. A page (HTML) request - usually with an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header that matches `text/html` - is a expected to get a page (HTML) response - usually with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) response header of `text/html`. Webflo automatically responds this way by rendering workflow return values into an HTML page. (Details just ahead.)
+  + Workflows simply return an object (or an instance of `event.Response` containing same), and Webflo automatically renders it to HTML and adds the appropriate response headers. (Now, API responses for routes that double as a page route are expected to always be an object.)
+  + Workflow responses with a `Content-Type` header already set are sent as-is. (i.e. `return new event.Response('{}', { headers: {'Content-Type': 'application/json'} })`.)
+4. Workflows may return any other data type: an instance of the native [FormData](https://developer.mozilla.org/en-US/docs/Web/API/FormData), [Blob](https://developer.mozilla.org/en-US/docs/Web/API/Blob), [File](https://developer.mozilla.org/en-US/docs/Web/API/File), or [ReadableStream](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream), etc., or an instance of `event.Response` containing same - usually on routes that do not double as a page route. Webflo tries to set the appropriate response headers for these.
+5. Whatever the case above, where a request specifies a [`Range`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Range) header, Webflo automatically slices the response body to satisfy the range, and the appropriate [`Content-Range`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Range) response header is set. (This is applicable on the server.)
+  + Workflow return values with a `Content-Range` header already set are sent as-is.
++ Where workflows return `undefined`, a `404` HTTP response is returned.
+  + In the case of client-side workflows, the already running HTML page in the browser receives empty data, and is, at the same time, set to an error state. (Details just ahead.)
 
 #### Server-Side: API and Page Requests and Responses
 
@@ -599,7 +607,7 @@ But, for a route that is intended to *also* be accessed as a web page, data obta
   The data obtained above is simply sent into the loaded HTML document instance as `document.state.page`. This makes it globally accessible to embedded scripts and rendering logic! (Details in [Rendering and Templating](#rendering-and-templating).)
 
   > **Note**
-  > <br>Nested routes may not always need to have an equivalent `index.html` file; Webflo makes do with one from parent or ancestor.
+  > <br>Nested routes may not always need to have an equivalent `index.html` file; Webflo goes with one from closest ancestor.
 
 #### Client-Side: Navigation Requests and Responses
 
