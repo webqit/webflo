@@ -54,9 +54,9 @@ For when your application has a Server side.
  
   > Above, you are handling requests for the root URL and allowing others to flow through to nested handlers or to the `public` directory. (Details ahead.)
   
-  Response becomes JSON (an API response) when handler return value is jsonfyable. (As above for the root URL.)
+  Response is a JSON (API) response when handler return value is jsonfyable. (As above for the root URL.)
   
-  Or it ends up rendered as a page response when there is an `index.html` file in the `public` directory that pairs with the route (and when the incoming request matches `text/html` in its `Accept` header).
+  Or it ends up being rendered as a page response when there is an `index.html` file in the `public` directory that pairs with the route (and when the incoming request matches `text/html` in its `Accept` header).
 
   ```shell
   my-app
