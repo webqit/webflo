@@ -28,68 +28,116 @@ Ok, we've put all of that up for a straight read!
  <summary><b>Build <i>scalable</i> anything</b> using a <i>Divide-and-Conquer Algorithm<a href="https://en.wikipedia.org/wiki/Divide-and-conquer_algorithm"><small><sup>[i]</sup></small></a></i>! Webflo gives you a <i>workflow</i>-based design pattern for laying out your routes; and this is new!</summary>
 <br>
  
-Webflo lets you layout your application routes using *handler functions* as the building block, each defined in an `index.js` file.
+Here's how it all looks.
 
-```js
-/**
- ├── index.js
- */
-export default function(event, context, next) {
-    return { title: 'Home' };
-}
-```
+For when your app requires a backend.
 
-You nest them as *step functions* in a structure that models your application's URL structure.
++ The `server` directory for all things server-side routing. The `public` directory  for static files.
 
-```shell
-├── index.js --------------------------------- http://localhost:3000
-└── products/index.js ------------------------ http://localhost:3000/products
-      └── stickers/index.js ------------------ http://localhost:3000/products/stickers
-```
+  ```shell
+  my-app
+    ├── server/index.js
+    └── public/logo.png
+  ```
+  
+  Requests are either handled or allowed to flow through.
 
-They form a step-based workflow for your routes, with each step *owning* the next...
+  ```js
+  /**
+  server
+   ├── index.js
+   */
+  export default function(event, context, next) {
+      if (next.pathname) {
+          return next();  // <--------------------------------- http://localhost:3000/logo.png (or other non-root URLs)
+      }
+      return { title: 'Hello from Server' };  // <------------- http://localhost:3000/ (root URL)
+  }
+  ```
+  
++ The returned object for the root URL - `http://localhost:3000/` - becomes a JSON response...
+  
+  ...or is conditionally rendered into an `index.html` file in the `public` directory that pairs with the URL.
 
-```js
-/**
- ├── index.js
- */
-export default function(event, context, next) {
-    if (next.stepname) {
-        return next();
-    }
-    return { title: 'Home' };
-}
-```
+  ```shell
+  my-app
+    ├── server/index.js
+    └── public
+        ├── logo.png
+        └── index.html
+  ```
+  
+  > This is Server-Side Rendering, and it happens when the incoming request includes `text/html` in its `Accept` header.
+  
+  ```html
+  <!--
+  public
+    ├── index.html
+  -->
+  <!DOCTYPE html>
+  <html>
+      <head>
+          <template name="page" src="/bundle.html"></template>   <!-- <-- Reusable HTML Templates and partials -->
+          <link rel="stylesheet" href="/style.css" />   <!-- <----------- Application CSS -->
+          <script type="module" src="/bundle.js"></script>   <!-- <------ Application JS bundle -->
+      </head>
+      <body>...</body>
+  </html>
+  ```
 
-```js
-/**
- ├── products/index.js
- */
-export default function(event, context, next) {
-    if (next.stepname) {
-        return next();
-    }
-    return { title: 'Products' };
-}
-```
+For when your app requires a frontend.
 
-...enabling *all sorts of composition* along the way!
++ The `client` directory for all things client-side routing.
 
-```js
-/**
- ├── index.js
- */
-export default async function(event, context, next) {
-    if (next.stepname) {
-        let childContext = { user: { id: 2 }, };
-        let childResponse = await next( childContext );
-        return { ...childResponse, title: childResponse.title + ' | FluffyPets' };
-    }
-    return { title: 'Home | FluffyPets' };
-}
-```
+  ```shell
+  my-app
+    └── client/index.js
+  ```
+  
+  Requests are either handled or allowed to flow through.
 
-This way, you are able to break work down on each of your application routes!
+  ```js
+  /**
+  client
+   ├── index.js
+   */
+  export default function(event, context, next) {
+      if (next.pathname) {
+          return next();  // <--------------------------------- http://localhost:3000/logo.png (or other non-root URLs)
+      }
+      return { title: 'Hello from Browser' };  // <------------ http://localhost:3000/ (root URL)
+  }
+  ```
+  
++ The returned object for the root URL - `http://localhost:3000/` - is rendered back to the current running page in the browser.
+
+> This is Client-Side Rendering.
+
+For when your app requires a Progress Web Apps (PWA) capabilities via Service Workers.
+
++ The `worker` directory for routing at the Service Worker layer.
+
+  ```shell
+  my-app
+    └── worker/index.js
+  ```
+  
+  Requests are either handled or allowed to flow through.
+
+  ```js
+  /**
+  worker
+   ├── index.js
+   */
+  export default function(event, context, next) {
+      if (next.pathname) {
+          return next();  // <--------------------------------- http://localhost:3000/logo.png (or other non-root URLs)
+      }
+      return { title: 'Hello from Service Worker' };  // <------------ http://localhost:3000/ (root URL)
+  }
+  ```
+  
++ The returned object for the root URL - `http://localhost:3000/` - is rendered back to the current running page in the browser.
 </details>
 
 <details>
