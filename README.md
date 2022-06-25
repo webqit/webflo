@@ -516,7 +516,7 @@ HTML page requests (requests made to the server with an [`Accept`](https://devel
 
 In a Single Page Application layout, every navigation event (page-to-page navigation, history back and forward navigation, and form submissions) is expected to initiate a request/response flow without a full page reload, since the destination URLs are often based off the already loaded document. The Webflo client JS intercepts these navigation events and generates the equivalent request object with an `Accept` header of `application/json`, so that data can be obtained as a JSON object ([scenerio 2 above](#scenario-2-api-requests-and-responses)) for [Client-Side Rendering](#client-side-rendering-csr).
 
-The generated request also [hints the server](#custom-redirect-responses) how to return cross-SPA redirects (redirects that will point to another origin, or to another SPA root (in a [Multi SPA](#multi-single-page-applications-multi-spa) layout)) so that it can be handled manually by the client. The following headers are set: `X-Redirect-Policy: manual-when-cross-spa`, `X-Redirect-Code: 200`.
+The generated request also [hints the server](#custom-redirect-responses) on how to return cross-SPA redirects (redirects that will point to another origin, or to another SPA root (in a [Multi SPA](#multi-single-page-applications-multi-spa) layout)) so that it can be handled manually by the client. The following headers are set: `X-Redirect-Policy: manual-when-cross-spa`, `X-Redirect-Code: 200`.
 + Same-SPA redirects are sent as-is, and the Webflo client JS receives and renders the final data and updates the address bar with the final URL.
 + Cross-SPA redirects are communicated back as hinted and the destination URL is opened as a fresh page load.
 
