@@ -497,44 +497,58 @@ Routes in Webflo can be designed for different types of request/response scenari
 #### Scenario 1: Static File Requests and Responses
 
 Static file requests like `http://localhost:3000/logo.png` are expected to get a file response. These requests are automatically handled by Webflo when `next()`ed forward by route handlers, or where there are no route handlers.
-+ Server-side: Webflo serves files from the `public` directory; file conents along with the appropriate headers like [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type), [`Content-Length`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Length), etc. are returned as an instance of `event.Response`. Where a request has an [`Accept-Encoding`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Encoding) header (e.g. `gzip`, `br`) and there exists a matching *encoded version* of the said file on the file system (e.g. `./public/logo.png.gz`, `./public/logo.png.br`), the encoded version is served and the appropriate [`Content-Encoding`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding) response header is set.
-+ Client-side: Webflo serves static files from the network, or from the application cache, where available.
++ On the server, Webflo serves files from the `public` directory. File conents along with the appropriate headers like [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type), [`Content-Length`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Length), etc. are returned as an instance of `event.Response`. Where a request has an [`Accept-Encoding`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Encoding) header (e.g. `gzip`, `br`) and there exists a matching *compressed version* of the said file on the file system (e.g. `./public/logo.png.gz`, `./public/logo.png.br`), the compressed version is served and the appropriate [`Content-Encoding`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding) response header is set.
++ On the client, Webflo serves static files from the network, or from the application cache, where available.
 
 #### Scenario 2: API Requests and Responses
 
-JSON (API) requests - requests made with an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header that matches `application/json` - are expected to get a JSON (API) response - responses with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) header of `application/json`. Webflo automatically responds by simply jsonfying workflow return values which are usually plain objects or other jsonfyable types - `string`, `number`, `boolean`, `array`.
+JSON (API) requests (requests made with an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header that matches `application/json`) are expected to get a JSON (API) response (responses with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) header of `application/json`). Webflo automatically responds by simply jsonfying workflow return values which are usually plain objects or other jsonfyable types - `string`, `number`, `boolean`, `array`.
 + Routes intended to be accessed this way are expected to return a jsonfyable value (or an instance of `event.Response` containing same) from the workflow.
-+ Workflow responses that are an instance of `event.Response` having a `Content-Type` header already set are sent as-is.
++ Workflow responses that are an instance of `event.Response` with a `Content-Type` header already set are sent as-is.
 
 #### Scenario 3: Page Requests and Responses
 
-Page (HTML) requests - requests made to the server with an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header that matches `text/html` - are expected to get a page (HTML) response - responses with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) header of `text/html`. (This is the request/response scenario behind every page load in the browser.) Webflo automatically responds by rendering workflow return values into an HTML response.
-+ Routes intended to be accessed this way are expected to return a jsonfyable value (or an instance of `event.Response` containing same) from the workflow. Returned objects are, next, [rendered to HTML](#server-side-rendering-ssr).
-+ Workflow responses that are an instance of `event.Response` having a `Content-Type` header already set are sent as-is.
+HTML page requests (requests made to the server with an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header that matches `text/html`) are expected to get a HTML response (responses with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) header of `text/html`). (This is the request/response scenario with every page load in the browser.) Webflo automatically responds by rendering the workflow return value into an HTML response - via [Server-Side Rendering](#server-side-rendering-ssr).
++ Routes intended to be accessed this way are expected to return a plain object (or an instance of `event.Response` containing same) from the workflow.
++ Workflow responses that are an instance of `event.Response` with a `Content-Type` header already set are sent as-is, and not rendered.
 
-#### Scenario 5: Single Page Navigation Requests and Responses
+#### Scenario 4: Single Page Navigation Requests and Responses
 
-In a Single Page Application layout, every navigation event (page-to-page navigation, history back and forward navigation, and form submissions) initiates a request/response flow without a full page reload. As long the target URLs remain [based off the already loaded document](#spa-navigation), Webflo intercepts each navigation event and generates an appropriate request object with an `Accept` header of `application/json`, so that data can be obtained as JSON ([scenerio 2 above](#scenario-2-api-requests-and-responses)) for [Client-Side Rendering](#client-side-rendering-csr).
+In a Single Page Application layout, every navigation event (page-to-page navigation, history back and forward navigation, and form submissions) is expected to initiate a request/response flow without a full page reload, since the destination URLs are often based off the already loaded document. The Webflo client JS intercepts these navigation events and generates the equivalent request object with an `Accept` header of `application/json`, so that data can be obtained as a JSON object ([scenerio 2 above](#scenario-2-api-requests-and-responses)) for [Client-Side Rendering](#client-side-rendering-csr).
 
-#### Scenario 6: Range Requests and Responses
+The generated request also [hints the server](#custom-redirect-responses) that redirect responses (e.g. `return new event.Response(null, {status: 302, headers:{Location: url}})`) that will point to another origin, or to another SPA root (in a [Multi SPA](#multi-single-page-applications-multi-spa) layout), should be communicated back with a non-rediret status code so that it can be handled manually by the Webflo client JS. The following headers are set: `X-Redirect-Policy: manual-when-cross-spa`, `X-Redirect-Code: 200`.
++ Same-SPA redirects are sent as-is, and the Webflo client JS receives and renders the final data and updates the address bar with the final URL.
++ Cross-SPA redirects are communicated back as hinted and the destination URL is opened as a fresh page load.
 
-Whatever the case above, where a request specifies a [`Range`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Range) header, Webflo automatically slices the response body to satisfy the range, and the appropriate [`Content-Range`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Range) response header is set. (But, workflow responses with a `Content-Range` header already set are sent as-is.)
+#### Scenario 5: Range Requests and Responses
+
+In all cases, where a request specifies a [`Range`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Range) header, Webflo automatically slices the response body to satisfy the range, and the appropriate [`Content-Range`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Range) response header is set.
++ Workflow responses that are an instance of `event.Response` with a `Content-Range` header already set are sent as-is.
 
 #### Other Requests and Responses
 
-Workflows may return any other data type: an instance of the native [FormData](https://developer.mozilla.org/en-US/docs/Web/API/FormData), [Blob](https://developer.mozilla.org/en-US/docs/Web/API/Blob), [File](https://developer.mozilla.org/en-US/docs/Web/API/File), or [ReadableStream](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream), etc., or an instance of `event.Response` containing same - usually on routes that do not double as a page route. Webflo tries to set the appropriate response headers for these and sends.
+Workflows may return any other data type, e.g. an instance of the native [FormData](https://developer.mozilla.org/en-US/docs/Web/API/FormData), [Blob](https://developer.mozilla.org/en-US/docs/Web/API/Blob), [File](https://developer.mozilla.org/en-US/docs/Web/API/File), or [ReadableStream](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream), etc., or an instance of `event.Response` containing same - usually on routes that do not double as a page route. Webflo tries to send these along with the appropriate response headers.
 
 > **Note**
 > <br>The fact that all requests, even static file requests, are seen by route handlers, where defined, means that they get a chance to dynamically generate the responses that the client sees!
 
-<!--
-##### SPA Redirects
--->
+##### Custom Redirect Responses
+
+It is possible to hint the server on how to serve redirect responses. The response code for these redirects could be substituted with a non-rediret status code so that it can be recieved as a normal response and handled manually. The following pair of headers make this possible: `X-Redirect-Code`, `X-Redirect-Policy`.
++ The `X-Redirect-Code` can be any valid (but preferably, 2xx) HTTP status code. This is the response code that should be used instead of the actual redirect code.
++ The `X-Redirect-Policy` header can be any of `manual` - treat all redirects as manual, `manual-if-cross-origin` - treat cross-origin redirects as manual, `manual-if-cross-spa` - treat cross-SPA redirects as manual.
+
+Re-coded redirects have the standard `Location` header, and an `X-Redirect-Code` response header containing the original redirect status code.
 
 #### Failure Responses
 
-Where workflows return `undefined`, a `404` HTTP response is returned.
-  + In the case of client-side workflows, the already running HTML page in the browser receives empty data, and is, at the same time, set to an error state. (Details just ahead.)
+Where workflows return `undefined`, a `Not Found` status is implied.
++ On the server side, a `404` HTTP response is returned.
++ On the client-side, the initiating document in the browser has its `document.state.page` emptied.
+
+Where workflows throw an exception, an *error* status is implied.
++ On the server side, the error is logged and a `500` HTTP response is returned.
++ On the client-side, the error is logged to the console and the initiating document in the browser has its `document.state.page` emptied.
 
 ### Rendering and Templating
 
