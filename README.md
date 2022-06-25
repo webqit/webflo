@@ -490,6 +490,325 @@ my-app
 
 If there's anything we have now, it is the ability to break work down<a href="https://en.wikipedia.org/wiki/Divide-and-conquer_algorithm"><small><sup>[i]</sup></small></a>, optionally across step functions, optionally between layers! 
 
+### Pages, Layout and Templating
+
+HTML files in the `public` directory, just like every other *public* file, are served statically when accessed directly - e.g. `http://localhost:3000/index.html`. But `index.html` files, specifically, are treated as *pages* by Webflo. They are, therefore, also accessible with path URLs like `http://localhost:3000`.
+
+```shell
+my-app
+  └── public/index.html ----------------------- http://localhost:3000/index.html, http://localhost:3000
+```
+
+But, where an `index.html` file is paired with a route...
+
+```shell
+my-app
+  ├── server/index.js
+  └── public/index.html
+```
+
+...the route handler determines what happens.
+
+```js
+/**
+server
+ ├── index.js
+ */
+export default async function(event, context, next) {
+    // For http://localhost:3000/index.html, etc
+    if (next.pathname) {
+        return next();
+    }
+    // For http://localhost:3000 specifically
+    return { ... };
+}
+```
+
+Now, we are able to access the data component of a route differently from its HTML component!
+
+```shell
+my-app
+  └── server/index.js ------------------------- http://localhost:3000 -------------------- application/json
+  └── public/index.html ----------------------- http://localhost:3000/index.html --------- text/html
+```
+
+But, we can also access the route in a way that gets the data rendered into the `index.html` file for a dynamic page response. We'd simply set the [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header of the request to match `text/html` - e.g. `text/html`, `text/*`, `*/html`, `*/*`, and Webflo will automatically perform [Server-Side Rendering](#client-side-rendering-ssr).
+
+> **Note**
+> <br>The `Accept` header hint is already how browsers make requests on every page load. So, it just works!
+
+For Single Page Applications, subsequent navigations, after the initial page load, now only fetch the data component of destination URLs and perform [Client-Side Rendering](#client-side-rendering-csr) on the same running document. Navigation is sleek and instant!
+
+> **Note**
+> <br>Unless disabled in config, SPA routing is automatically built into your app's JS bundle from the `npm run generate` command. So, it just works!
+
+With no extra work, your application can function as either a *Multi Page App (MPA)* or a *Single Page App (SPA)*! And as we'll see, even a hybrid of these, that we'll call Multi SPA, is possible!
+
+> **Note**
+> <br>In a Single Page Application, all pages are based off a single `index.html` document. In a Multi Page Application, pages are individual `index.html`  documents - ideally. But, Server-Side Rendering makes it possible to serve the same, but dynamically-rendered, `index.html` document across page loads - essentially an SPA architecture hiding on the server. But, here, lets take Multi Page Applications for an individual-page architecture.
+
+#### Layout and Templating Overview
+
+In a Multi Page Application (with an individual-page architecture), each page is its own `index.html` document, and it is often necessary to have certain page sections - e.g. site header, footer, and sidebar, etc. - stay consistent across pages. These sections can be defined once and *imported* on each page.
+
+```html
+my-app
+  └── public
+      ├── about/index.html ------------------------- <!DOCTYPE html>
+      ├── prodcuts/index.html ---------------------- <!DOCTYPE html>
+      ├── index.html ------------------------------- <!DOCTYPE html>
+      ├── header.html ------------------------------ <header></header> <!-- To appear at top of each index.html page -->
+      └── footer.html ------------------------------ <footer></footer> <!-- To appear at bottom of each index.html page -->
+```
+
+In a Single Page Application, each page is the same `index.html` document, and it is often necessary to have the main page sections change on each route. These sections can be defined per-route and *imported* on navigating to their respective URLs.
+
+```html
+my-app
+  └── public
+      ├── about/main.html -------------------------- <main></main> <!-- To appear at main area of index.html -->
+      ├── prodcuts/main.html ----------------------- <main></main> <!-- To appear at main area of index.html -->
+      ├── main.html -------------------------------- <main></main> <!-- To appear at main area of index.html -->
+      └── index.html ------------------------------- <!DOCTYPE html>
+```
+
+This, in both cases, is templating - the ability to define HTML *partials* once, and have them reused multiple times. Webflo just concerns itself with templating, and the choice of a Multi Page Application or Single Page Application becomes yours! And heck, you can even have the best of both worlds in the same application! It's all a *layout* thing!
+
+Now, with pages in Webflo being DOM-based, documents can be manipulated directly with DOM APIs, e.g. to replace or insert nodes. But even better, templating in Webflo is based on the [HTML Modules](https://github.com/webqit/oohtml#html-modules) and [HTML Imports](https://github.com/webqit/oohtml#html-imports) features of [OOHTML](https://github.com/webqit/oohtml) - unless disabled in config. These features provide a powerful declarative templating system on top of the standard [HTML `<template>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template) element - with a *module*, *export* and *import* paradigm.
+
+Here, you are able to define reusable contents in a `<template>` element...
+
+```html
+<head>
+    <template name="page">
+        <header exportgroup="header.html">Header Area</header>
+        <main exportgroup="main.html">Main Area</main>
+    </template>
+</head>
+```
+
+...and have them imported anywhere on the root document using an `<import>` element:
+
+```html
+<body>
+    <import template="page" name="header.html"></import>
+    <import template="page" name="main.html"></import>
+</body>
+```
+
+The *module* element - `<template name>` - is able to load its contents from a remote `.html` file that serves as a bundle:
+
+```html
+<!--
+public
+ ├── bundle.html
+-->
+<header exportgroup="header.html">Header Area</header>
+<main exportgroup="main.html">Main Area</main>
+```
+
+```html
+<head>
+    <template name="page" src="/bundle.html"></template>
+</head>
+```
+
+What [we'll see shortly](#bundling) is how multiple standalone `.html` files - e.g. the `header.html`, `footer.html`, `main.html` files above - come together into one `bundle.html` file for an application.
+
+#### In a Multi Page Layout
+
+In a Multi Page layout (as [above](#layout-and-templating-overview)), generic contents - e.g. header and footer sections, etc. - are typically bundled into one `bundle.html` file that can be embedded on each page of the application.
+
+```html
+<!--
+public
+ ├── index.html
+-->
+<!DOCTYPE html>
+<html>
+    <head>
+        <script type="module" src="/bundle.js"></script>
+        <template name="page" src="/bundle.html"></template>
+    </head>
+    <body>
+        <import template="page" name="header.html"></import>
+        <main>Welcome to our Home Page</main>
+        <import template="page" name="footer.html"></import>
+    </body>
+</html>
+```
+
+```html
+<!--
+public/about
+ ├── index.html
+-->
+<!DOCTYPE html>
+<html>
+    <head>
+        <script type="module" src="/bundle.js"></script>
+        <template name="page" src="/bundle.html"></template>
+    </head>
+    <body>
+        <import template="page" name="header.html"></import>
+        <main>Welcome to our About Page</main>
+        <import template="page" name="footer.html"></import>
+    </body>
+</html>
+```
+
+```html
+<!--
+public/products
+ ├── index.html
+-->
+<!DOCTYPE html>
+<html>
+    <head>
+        <script type="module" src="/bundle.js"></script>
+        <template name="page" src="/bundle.html"></template>
+    </head>
+    <body>
+        <import template="page" name="header.html"></import>
+        <main>Welcome to our Products Page</main>
+        <import template="page" name="footer.html"></import>
+    </body>
+</html>
+```
+
+> **Note**
+> <br>In this architecture, navigation is traditional - a new page loads each time. The `bundle.js` script comes with the appropriate OOHTML support level required for the imports to function.
+
+#### In a Single Page Layout
+
+In a Single Page layout (as [above](#layout-and-templating-overview)), page-specific contents - e.g. main sections - are typically bundled together into one `bundle.html` file that can be embedded on the document root. Nested routes end up as nested `<template>` elements to form the equivalent of their URL structure.
+
+```html
+<!--
+public
+ ├── bundle.html
+-->
+<template name="about">
+    <main exportgroup="main.html">Welcome to our About Page</main>
+</template>
+<template name="products">
+    <main exportgroup="main.html">Welcome to our Products Page</main>
+</template>
+<main exportgroup="main.html">Welcome to our Home Page</main>
+```
+
+Now, the `<main>` elements is imported on navigating to their respective URLs. This time, Webflo takes care of setting the URL path as a global `template` attribute on the `<body>` element such that `<import>` elements that inherit this global attribute are resolved on from its current value.
+
+```html
+<!--
+public
+ ├── index.html
+-->
+<!DOCTYPE html>
+<html>
+    <head>
+        <script type="module" src="/bundle.js"></script>
+        <template name="page" src="/bundle.html"></template>
+    </head>
+    <body template="page/"> <!-- This "template" attribute automatically changes to page/about or page/products as we navigate to http://localhost:3000/about and http://localhost:3000/products respectively -->
+        <header></header>
+        <import name="main.html"></import> <!-- This import element omits its "template" attribute so as to inherit the global one -->
+        <footer></footer>
+    </body>
+</html>
+```
+
+> **Note**
+> <br>In this architecture, navigation is instant and sleek - Webflo prevents a full page reload, obtains and sets data at `document.state.page` for the new URL, then sets the `template` attribute on the `<body>` element to the new URL path. The `bundle.js` script comes with the appropriate OOHTML support level required for the imports to function.
+
+#### In a Hybrid Page Layout
+
+It's all a *layout* thing, so a hybrid of the two architectures above is possible in one application, to take advantage of the unique benefits of each! Here, you are able to have routes that are standalone `index.html` documents (MPA), which in turn, are able to act as a single document root for their subroutes (SPA).
+
+```html
+my-app
+  └── public
+      ├── about/index.html ------------------------- <!DOCTYPE html> <!-- Document root 1 -->
+      ├── prodcuts
+      │     ├── free/main.html --------------------------- <main></main> <!-- To appear at main area of document root 2 -->
+      │     ├── paid/main.html --------------------------- <main></main> <!-- To appear at main area of document root 2 -->
+      │     ├── main.html -------------------------------- <main></main> <!-- To appear at main area of document root 2 -->
+      │     └── index.html ------------------------------- <!DOCTYPE html> <!-- Document root 2, (doubles as an SPA) -->
+      ├── index.html ------------------------------- <!DOCTYPE html> <!-- Document root 0 -->
+      ├── header.html ------------------------------ <header></header> <!-- To appear at top of each document root -->
+      └── footer.html ------------------------------ <footer></footer> <!-- To appear at bottom of each document root -->
+```
+
+The above gives us three document roots: `/index.html`, `/about/index.html`, `/prodcuts/index.html`. The `/prodcuts` route doubles as a Single Page Application such that visiting the `/prodcuts` route loads the document root `/prodcuts/index.html` and lets Webflo SPA routing determine which of `/prodcuts/main.html`, `/prodcuts/free/main.html`, `/prodcuts/paid/main.html` is imported on a given URL.
+
+Webflo ensures that only the amount of JavaScript for a document root is actually loaded! So, above, a common JavaScript build is shared across the three document roots alongside an often tiny root-specific build.
+
+```html
+<!--
+public
+ ├── products/index.html
+-->
+<!DOCTYPE html>
+<html>
+    <head>
+        <script type="module" src="webflo.bundle.js"></script>
+        <script type="module" src="/products/bundle.js"></script>
+        <template name="pages" src="/bundle.html"></template>
+    </head>
+    <body>...</body>
+</html>
+```
+
+```html
+<!--
+public
+ ├── about/index.html
+-->
+<!DOCTYPE html>
+<html>
+    <head>
+        <script type="module" src="webflo.bundle.js"></script>
+        <script type="module" src="/about/bundle.js"></script>
+        <template name="pages" src="/bundle.html"></template>
+    </head>
+    <body>...</body>
+</html>
+```
+
+```html
+<!--
+public
+ ├── index.html
+-->
+<!DOCTYPE html>
+<html>
+    <head>
+        <script type="module" src="webflo.bundle.js"></script>
+        <script type="module" src="/bundle.js"></script>
+        <template name="pages" src="/bundle.html"></template>
+    </head>
+    <body>...</body>
+</html>
+```
+
+> **Note**
+> <br>The Webflo `generate` command automatically figures out a given architecture and generates the appropriate scripts for the application! It also factors in the location of each document root so that all navigations to these roots are handled as a regular page load.
+
+#### Bundling
+
+Template `.html` files are bundled from the filesystem into a single file using the [OOHTML CLI](https://github.com/webqit/oohtml-cli) utility. On installing this utility, you may want to add the following scripts to your `package.json`.
+
+```json
+"generate:html": "oohtml bundle --recursive --auto-embed=page"
+```
+
+The `--recursive` flag gets the bundler to recursively bundle *subroots* in a hybrid architecture - subdirectories with their own `index.html` document. (Subroots are ignored by default.)
+
+The `--auto-embed` flag gets the bundler to automatically embed the generated `bundle.html` file on the matched `index.html` document. A value of `page` for the flag ends up as the name of the *embed* template: `<template name="page" src="/bundle.html"></template>`.
+
+> **Note**
+> <br>If your HTML files are actually based off the `public` directory, you'll need to tell the above command to run in the `public` directory either by configuring the bundler via `oohtml config bundler` or by rewriting the command with a prefix: `cd public && oohtml bundle --recursive --auto-embed=page`. 
+
 ### Requests and Responses
 
 Routes in Webflo can be designed for different types of request/response scenarios. Webflo does the heavy lifting on each request/response flow!
@@ -806,266 +1125,6 @@ From here, you can go on to use any DOM manipulation library of your choice; e.g
 ```
 
 You'll find many other OOHTML features that let you write the most enjoyable HTML. And when you need to write class-based components, you'll find a friend in [Custom Elements](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements)!
-
-#### Templating
-
-In a Multi Page Application (MPA), each navigation lands in a new `index.html` page, and it is often necessary to have parts of the UI - e.g. site header, footer, and sidebar, etc. - *persist* across these *multiple* pages.
-
-```html
-my-app
-  └── public
-      ├── about/index.html ------------------------- <!DOCTYPE html>
-      ├── prodcuts/index.html ---------------------- <!DOCTYPE html>
-      ├── index.html ------------------------------- <!DOCTYPE html>
-      ├── header.html ------------------------------ <header></header> <!-- To appear at top of each index.html page -->
-      └── footer.html ------------------------------ <footer></footer> <!-- To appear at bottom of each index.html page -->
-```
-
-In a Single Page Application (SPA), each navigation lands in the same `index.html`, and it is often necessary to have parts of this *single* page - e.g. main content area, etc. - dynamically *change* based on the URL.
-
-```html
-my-app
-  └── public
-      ├── about/main.html -------------------------- <main></main> <!-- To appear at main area of index.html -->
-      ├── prodcuts/main.html ----------------------- <main></main> <!-- To appear at main area of index.html -->
-      ├── main.html -------------------------------- <main></main> <!-- To appear at main area of index.html -->
-      └── index.html ------------------------------- <!DOCTYPE html>
-```
-
-This, in both cases, is templating - the ability to define HTML *partials* once, and have them reused multiple times. Webflo just concerns itself with templating, and the choice of a Multi Page Application or Single Page Application becomes yours! And heck, you can even have the best of both worlds in the same application! It's all *templating*!
-
-Templating in Webflo is based on the [HTML Modules](https://github.com/webqit/oohtml#html-modules) and [HTML Imports](https://github.com/webqit/oohtml#html-imports) features of [OOHTML](https://github.com/webqit/oohtml), which is, itself, based on the [HTML `<template>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template) element. Here, you are able to define reusable contents in a `<template>` element...
-
-```html
-<head>
-    <template name="page">
-        <header exportgroup="header.html">Header Area</header>
-        <main exportgroup="main.html">Main Area</main>
-    </template>
-</head>
-```
-
-...and have them imported anywhere with an `<import>` element:
-
-```html
-<body>
-    <import template="page" name="header.html"></import>
-    <import template="page" name="main.html"></import>
-</body>
-```
-
-This *module*, *export* and *import* paradigm comes full-fledged for every templating need! For example, the *module* element - `<template name>` - is able to load its contents from a remote `.html` file that serves as a bundle:
-
-```html
-<!--
-public
- ├── bundle.html
--->
-<header exportgroup="header.html">Header Area</header>
-<main exportgroup="main.html">Main Area</main>
-```
-
-```html
-<head>
-    <template name="page" src="/bundle.html"></template>
-</head>
-```
-
-What [we'll see shortly](#bundling) is how multiple standalone `.html` files - e.g. the `header.html`, `footer.html`, `main.html` files above - come together into one `bundle.html` file for an application.
-
-##### In a Multi Page Layout
-
-In a Multi Page layout, generic contents - e.g. header and footer sections, etc. - are typically bundled and reused across each page of an application.
-
-```html
-<!--
-public
- ├── index.html
--->
-<!DOCTYPE html>
-<html>
-    <head>
-        <script type="module" src="/bundle.js"></script>
-        <template name="page" src="/bundle.html"></template>
-    </head>
-    <body>
-        <import template="page" name="header.html"></import>
-        <main>Welcome to our Home Page</main>
-        <import template="page" name="footer.html"></import>
-    </body>
-</html>
-```
-
-```html
-<!--
-public/about
- ├── index.html
--->
-<!DOCTYPE html>
-<html>
-    <head>
-        <script type="module" src="/bundle.js"></script>
-        <template name="page" src="/bundle.html"></template>
-    </head>
-    <body>
-        <import template="page" name="header.html"></import>
-        <main>Welcome to our About Page</main>
-        <import template="page" name="footer.html"></import>
-    </body>
-</html>
-```
-
-```html
-<!--
-public/products
- ├── index.html
--->
-<!DOCTYPE html>
-<html>
-    <head>
-        <script type="module" src="/bundle.js"></script>
-        <template name="page" src="/bundle.html"></template>
-    </head>
-    <body>
-        <import template="page" name="header.html"></import>
-        <main>Welcome to our Products Page</main>
-        <import template="page" name="footer.html"></import>
-    </body>
-</html>
-```
-
-> **Note**
-> <br>In this architecture, navigation is traditional - a new page loads each time. The `bundle.js` script comes with the appropriate OOHTML support level required for the imports to function.
-
-##### In a Single Page Layout
-
-In a Single Page layout, page-specific contents - e.g. main sections - are typically bundled together as nested `<template>` elements in a way that models their URL structure.
-
-```html
-<!--
-public
- ├── bundle.html
--->
-<template name="about">
-    <main exportgroup="main.html">Welcome to our About Page</main>
-</template>
-<template name="products">
-    <main exportgroup="main.html">Welcome to our Products Page</main>
-</template>
-<main exportgroup="main.html">Welcome to our Home Page</main>
-```
-
-And the appropriate `<main>` element is imported based on the URL path. This time, Webflo takes care of setting the URL path as a global `template` attribute on the `<body>` element such that `<import>` elements that inherit this global attribute are resolved on each page navigation.
-
-```html
-<!--
-public
- ├── index.html
--->
-<!DOCTYPE html>
-<html>
-    <head>
-        <script type="module" src="/bundle.js"></script>
-        <template name="page" src="/bundle.html"></template>
-    </head>
-    <body template="page/"> <!-- This "template" attribute automatically changes to page/about or page/products as we navigate to http://localhost:3000/about and http://localhost:3000/products respectively -->
-        <header></header>
-        <import name="main.html"></import> <!-- This import element omits its "template" attribute so as to inherit the global one -->
-        <footer></footer>
-    </body>
-</html>
-```
-
-> **Note**
-> <br>In this architecture, navigation is instant and sleek - Webflo prevents a full page reload, obtains and sets data at `document.state.page` for the new URL, then sets the `template` attribute on the `<body>` element to the new URL path. The `bundle.js` script comes with the appropriate OOHTML support level required for the imports to function.
-
-##### In a Hybrid Page Layout
-
-It's all *templating*, so a hybrid of the two architectures above is possible in one application, to take advantage of the unique benefits of each! Here, subroutes are defined either as a standalone page - of `index.html` - or as the `main.html` (or similar) part of a base `index.html` page.
-
-```html
-my-app
-  └── public
-      ├── about/index.html ------------------------- <!DOCTYPE html>
-      ├── prodcuts
-      │     ├── free/main.html --------------------------- <main></main> <!-- To appear at main area of index.html -->
-      │     ├── paid/main.html --------------------------- <main></main> <!-- To appear at main area of index.html -->
-      │     ├── main.html -------------------------------- <main></main> <!-- To appear at main area of index.html -->
-      │     └── index.html ------------------------------- <!DOCTYPE html>
-      ├── index.html ------------------------------- <!DOCTYPE html>
-      ├── header.html ------------------------------ <header></header> <!-- To appear at top of each index.html page -->
-      └── footer.html ------------------------------ <footer></footer> <!-- To appear at bottom of each index.html page -->
-```
-
-The above gives us three document roots: `/index.html`, `/about/index.html`, `/prodcuts/index.html`. The `/prodcuts` route is to function as a Single Page Application such that visiting the `/prodcuts` route loads the document root `/prodcuts/index.html` and lets the client-side *navigation + templating system* determine which of `/prodcuts/main.html`, `/prodcuts/free/main.html`, `/prodcuts/paid/main.html` is resolved based on the application URL path.
-
-Webflo ensures that only the amount of JavaScript for a document root is actually loaded! So, above, a common JavaScript build is shared across the three document roots alongside an often tiny root-specific build.
-
-```html
-<!--
-public
- ├── products/index.html
--->
-<!DOCTYPE html>
-<html>
-    <head>
-        <script type="module" src="webflo.bundle.js"></script>
-        <script type="module" src="/products/bundle.js"></script>
-        <template name="pages" src="/bundle.html"></template>
-    </head>
-    <body>...</body>
-</html>
-```
-
-```html
-<!--
-public
- ├── about/index.html
--->
-<!DOCTYPE html>
-<html>
-    <head>
-        <script type="module" src="webflo.bundle.js"></script>
-        <script type="module" src="/about/bundle.js"></script>
-        <template name="pages" src="/bundle.html"></template>
-    </head>
-    <body>...</body>
-</html>
-```
-
-```html
-<!--
-public
- ├── index.html
--->
-<!DOCTYPE html>
-<html>
-    <head>
-        <script type="module" src="webflo.bundle.js"></script>
-        <script type="module" src="/bundle.js"></script>
-        <template name="pages" src="/bundle.html"></template>
-    </head>
-    <body>...</body>
-</html>
-```
-
-> **Note**
-> <br>The Webflo `generate` command automatically figures out a given architecture and generates the appropriate scripts for the application! It also factors in the location of each document root so that all navigations to these roots are handled as a regular page load.
-
-##### Bundling
-
-Template `.html` files are bundled from the filesystem into a single file using the [OOHTML CLI](https://github.com/webqit/oohtml-cli) utility. On installing this utility, you may want to add the following scripts to your `package.json`.
-
-```json
-"generate:html": "oohtml bundle --recursive --auto-embed=page"
-```
-
-The `--recursive` flag gets the bundler to recursively bundle *subroots* in a hybrid architecture - subdirectories with their own `index.html` document. (Subroots are ignored by default.)
-
-The `--auto-embed` flag gets the bundler to automatically embed the generated `bundle.html` file on the matched `index.html` document. A value of `page` for the flag ends up as the name of the *embed* template: `<template name="page" src="/bundle.html"></template>`.
-
-> **Note**
-> <br>If your HTML files are actually based off the `public` directory, you'll need to tell the above command to run in the `public` directory either by configuring the bundler via `oohtml config bundler` or by rewriting the command with a prefix: `cd public && oohtml bundle --recursive --auto-embed=page`. 
 
 ### An Application
 
