@@ -545,6 +545,7 @@ Re-coded redirects have the standard `Location` header, and an `X-Redirect-Code`
 Where workflows return `undefined`, a `Not Found` status is implied.
 + On the server side, a `404` HTTP response is returned.
 + On the client-side, the initiating document in the browser has its `document.state.page` emptied.
+
 Where workflows throw an exception, an *error* status is implied.
 + On the server side, the error is logged and a `500` HTTP response is returned.
 + On the client-side, the error is logged to the console and the initiating document in the browser has its `document.state.page` emptied.
