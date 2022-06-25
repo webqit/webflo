@@ -497,19 +497,8 @@ Routes in Webflo can be designed for different types of request/response scenari
 #### Scenario 1: Static File Requests and Responses
 
 Static file requests like `http://localhost:3000/logo.png` are expected to get a file response. These requests are automatically handled by Webflo when `next()`ed forward by route handlers, or where there are no route handlers.
-+ Route handlers know to always `next()` all requests which they aren't specifically made to handle.
-
-  ```js
-  export default async function(event, context, next) {
-      // Non-handler-specific URLs forwarded to child step if any, or to Webflo
-      if (next.pathname) return next();
-      // Handler-specific URL handled
-      return { ... };
-  }
-  ```
-
-+ Server-side, Webflo serves files from the `public` directory; file conents along with the appropriate headers like [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type), [`Content-Length`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Length), etc. are returned as an instance of `event.Response`. Where a request has an [`Accept-Encoding`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Encoding) header (e.g. `gzip`, `br`) and there exists a matching *encoded version* of the said file on the file system (e.g. `./public/logo.png.gz`, `./public/logo.png.br`), the encoded version is served and the appropriate [`Content-Encoding`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding) response header is set.
-+ Client-side, Webflo serves static files from the network, or from the application cache, where available.
++ Server-side: Webflo serves files from the `public` directory; file conents along with the appropriate headers like [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type), [`Content-Length`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Length), etc. are returned as an instance of `event.Response`. Where a request has an [`Accept-Encoding`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Encoding) header (e.g. `gzip`, `br`) and there exists a matching *encoded version* of the said file on the file system (e.g. `./public/logo.png.gz`, `./public/logo.png.br`), the encoded version is served and the appropriate [`Content-Encoding`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding) response header is set.
++ Client-side: Webflo serves static files from the network, or from the application cache, where available.
 
 #### Scenario 2: API Requests and Responses
 
