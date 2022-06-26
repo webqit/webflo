@@ -1060,14 +1060,14 @@ Where workflows throw an exception, an *error* status is implied.
 
 #### Client-Side Applications
 
-Web pages that embed the Webflo client JS bundle deliver a great user experience.
+Web pages that embed the Webflo client JS bundle deliver a great user experience. The `npm run generate` command does both the building and embedding of the script for each document root in the application.
 + **First-paint-ready.** On the first page request, you get SEO ready HTML that's also optimized for the first paint of your route with [Server-Side Rendering](#client-and-server-side-rendering).
-+ **Fluid and app-like.** On being loaded, the state of the application is restored through hydration and [subsequent navigations](#spa-navigation) are sleek and instant - thanks to the Webflo client JS.
++ **Fluid and app-like.** On being loaded, the state of the application is restored through hydration and [subsequent navigations](#spa-navigation) are sleek and instant - data is fetched and [Client-Side Rendering](#client-and-server-side-rendering) is performed.
 
 ##### SPA Navigation
 
 Unless disabled in config, it is factored-in at build time for the application client JS to be able to automatially figues out when to intercept a navigation event and prevent a full page reload, and when not to. It follows the following rules:
-1. When it figures out that the destination URL is based off the current running `index.html` document in the browser (an SPA architecture), a full page reload is prevented, data is fetched and [Client-Side Rendering](#client-and-server-side-rendering) is performed. But where the destination URL points out of the current document root (a [Multi SPA](#in-a-multi-spa-layout) architecture), navigation is allowed as a normal page load, and the new page root is loaded.
+1. When it figures out that the destination URL is based off the current running `index.html` document in the browser (an SPA architecture), a full page reload is prevented for *soft* navigation. But where the destination URL points out of the current document root (a [Multi SPA](#in-a-multi-spa-layout) architecture), navigation is allowed as a normal page load, and the new page root is loaded.
 2. If navigation is initiated with any of the following keys pressed: Meta Key, Alt Key, Shift Key, Ctrl Key, navigation is allowed to work the default way - regardless of rule 1.
 3. If navigation is initiated from a link element that has the `target` attribute, or the `download` attribute, navigation is allowed to work the default way - regardless of rule 1.
 4. If navigation is initiated from a form element that has the `target` attribute, navigation is allowed to work the default way - regardless of rule 1.
