@@ -1061,18 +1061,8 @@ Where workflows throw an exception, an *error* status is implied.
 #### Client-Side Applications
 
 Web pages that embed the Webflo client JS bundle deliver a great user experience.
-
-<details>
-<summary>First-paint-ready.</summary>
-
-On the first page request, you get SEO ready HTML that's also optimized for the first paint of your route with [Server-Side Rendering](#client-and-server-side-rendering).
-</details>
-
-<details>
-<summary>Fluid and app-like.</summary>
-
-On being loaded, the state of the application is restored through hydration and [subsequent navigations](#spa-navigation) are sleek and instant - thanks to the Webflo client JS.
-</details>
++ **First-paint-ready.** On the first page request, you get SEO ready HTML that's also optimized for the first paint of your route with [Server-Side Rendering](#client-and-server-side-rendering).
++ **Fluid and app-like.** On being loaded, the state of the application is restored through hydration and [subsequent navigations](#spa-navigation) are sleek and instant - thanks to the Webflo client JS.
 
 ##### SPA Navigation
 
