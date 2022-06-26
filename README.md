@@ -885,7 +885,7 @@ However, since the `document` objects in Webflo natively support [OOHTML](https:
 
 Note that because these scripts are naturally reactive, we do not require any `setTimeout()` construct like we required earlier in the case of the classic `<script>` element. These expressions self-update as the values they depend on become available, removed, or updated - i.e. as `document.state` gets updated.
 
-Going forward, we can get to write more succint code! Using the [Namespaced HTML](https://github.com/webqit/oohtml#namespaced-html) feature in OOHTML, we could do without those `querySelector()` calls up there. Also, we could go on to use any DOM manipulation library of our choice; e.g jQuery, or even better, the jQuery-like [Play UI](https://github.com/webqit/play-ui) library.
+Going forward, we can get to write more succinct code! Using the [Namespaced HTML](https://github.com/webqit/oohtml#namespaced-html) feature in OOHTML, we could do without those `querySelector()` calls up there. Also, we could go on to use any DOM manipulation library of our choice; e.g jQuery, or even better, the jQuery-like [Play UI](https://github.com/webqit/play-ui) library.
 
 ```html
  <!--
