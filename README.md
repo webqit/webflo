@@ -229,9 +229,9 @@ If you can't wait to say *Hello World!* 😅, you can have an HTML page say that
 
 + [Handler Functions and Layout](#handler-functions-and-layout)
 + [Step Functions and Workflows](#step-functions-and-workflows)
-+ [Pages, Templating, and Layout](#pages-templating-and-layout)
++ [Pages, Layout and Templating](#pages-layout-and-templating)
++ [Client and Server-Side Rendering](#client-and-server-side-rendering)
 + [Requests and Responses](#requests-and-responses)
-+ [Rendering and Templating](#rendering-and-templating)
 
 ### Handler Functions and Layout
 
@@ -533,12 +533,12 @@ my-app
   └── public/index.html ----------------------- http://localhost:3000/index.html --------- text/html
 ```
 
-But, we can also access the route in a way that gets the data rendered into the automatically-paired `index.html` file for a dynamic page response. We'd simply set the [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header of the request to match `text/html` - e.g. `text/html`, `text/*`, `*/html`, `*/*`, and Webflo will automatically perform [Server-Side Rendering](#client-side-rendering-ssr). (Automatic pairing works the same for nested routes! But top-level `index.html` files are implicitly inherited down the hierarchy.)
+But, we can also access the route in a way that gets the data rendered into the automatically-paired `index.html` file for a dynamic page response. We'd simply set the [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header of the request to match `text/html` - e.g. `text/html`, `text/*`, `*/html`, `*/*`, and Webflo will automatically perform [Server-Side Rendering](#client-and-server-side-rendering). (Automatic pairing works the same for nested routes! But top-level `index.html` files are implicitly inherited down the hierarchy.)
 
 > **Note**
 > <br>The `Accept` header hint is already how browsers make requests on every page load. So, it just works!
 
-Now, for Single Page Applications, subsequent navigations, after the initial page load, just asks for the data on destination URLs and perform [Client-Side Rendering](#client-side-rendering-csr) on the same running document. Navigation is sleek and instant!
+Now, for Single Page Applications, subsequent navigations, after the initial page load, just asks for the data on destination URLs and perform [Client-Side Rendering](#client-and-server-side-rendering) on the same running document. Navigation is sleek and instant!
 
 > **Note**
 > <br>Unless disabled in config, SPA routing is automatically built into your app's JS bundle from the `npm run generate` command. So, it just works!
@@ -575,7 +575,7 @@ my-app
 
 This, in both cases, is templating - the ability to define HTML *partials* once, and have them reused multiple times. Webflo just concerns itself with templating, and the choice of a Multi Page Application or Single Page Application becomes yours! And heck, you can even have the best of both worlds in the same application! It's all a *layout* thing!
 
-Now, with pages in Webflo being DOM-based, documents can be manipulated directly with DOM APIs, e.g. to replace or insert nodes. But even better, templating in Webflo is based on the [HTML Modules](https://github.com/webqit/oohtml#html-modules) and [HTML Imports](https://github.com/webqit/oohtml#html-imports) features in [OOHTML](https://github.com/webqit/oohtml) - unless disabled in config. These features provide a powerful declarative templating system on top of the standard [HTML `<template>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template) element - with a *module*, *export* and *import* paradigm.
+Now, with pages in Webflo being DOM-based (both server-side and client-sside), documents can be manipulated directly with DOM APIs, e.g. to replace or insert nodes, attributes, etc. But even better, templating in Webflo is based on the [HTML Modules](https://github.com/webqit/oohtml#html-modules) and [HTML Imports](https://github.com/webqit/oohtml#html-imports) features in [OOHTML](https://github.com/webqit/oohtml) - unless disabled in config. These features provide a powerful declarative templating system on top of the standard [HTML `<template>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template) element - with a *module*, *export* and *import* paradigm.
 
 Here, you are able to define reusable contents in a `<template>` element...
 
@@ -810,6 +810,192 @@ The `--auto-embed` flag gets the bundler to automatically embed the generated `b
 > **Note**
 > <br>If your HTML files are actually based off the `public` directory, you'll need to tell the above command to run in the `public` directory either by configuring the bundler via `oohtml config bundler` or by rewriting the command with a prefix: `cd public && oohtml bundle --recursive --auto-embed=page`. 
 
+### Client and Server-Side Rendering
+
+With pages in Webflo being DOM-based (both server-side and client-sside), we are able to access and manipulate documents and elements using familiar DOM APIs - e.g. to replace or insert contents, attributes, etc. Rendering in Webflo is based on this concept!
+
+Here, Webflo simply makes sure that the data obtained from each route is available as part of the `document` object, such that it is accessible to our rendering logic as `document.state.page`! So, you could embed a script on your page and render this data on the relevant parts of your document.
+
+```html
+<!--
+public
+ ├── index.html
+-->
+<!DOCTYPE html>
+<html>
+    <head>
+        <title></title>
+        <script>
+         setTimeout(() => {
+             console.log( document.state.page ); // { title: 'Home | FluffyPets' }
+             let { title } = document.state.page;
+             document.title = title;
+         }, 0);
+        </script>
+    </head>
+    <body></body>
+</html>
+```
+
+Where your rendering logic is an external script, your `<script>` element would need to have an `ssr` Boolean attribute to get the rendering engine to fetch and run your script on the server.
+
+```html
+<!--
+public
+ ├── index.html
+-->
+<!DOCTYPE html>
+<html>
+    <head>
+        <title></title>
+        <script src="app.js" ssr></script>
+    </head>
+    <body></body>
+</html>
+```
+
+From here, even the most-rudimentary form of rendering (using vanilla HTML and native DOM methods) becomes possible, and this is a good thing: you get away with less tooling until you absolutely need to add up on tooling!
+
+However, since the `document` objects in Webflo natively support [OOHTML](https://github.com/webqit/oohtml) - unless disabled in config, we are able to write reactive UI logic! Here, OOHTML makes it possible to embed reactive `<script>` elements (called [Subscript](https://github.com/webqit/oohtml#subscript)) right on HTML elements - where each expression automatically self-updates whenever references to data, or its properties, get an update!
+
+```html
+ <!--
+ public
+  ├── index.html
+ -->
+ <!DOCTYPE html>
+ <html>
+     <head>
+         <title></title>
+     </head>
+     <body>
+         <h1></h1>
+         <script type="subscript">
+          let { title } = document.state.page;
+          document.title = title;
+          let h1Element = this.querySelector('h1');
+          h1Element.innerHTML = title;
+         </script>
+     </body>
+ </html>
+```
+
+> **Note**
+> <br>Now, this comes logical since logic is the whole essence of the HTML `<script>` element, after all! Compared to other syntax alternatives, this uniquely enables us to do all things logic in the actual language for logic - JavaScript. Then, OOHTML gives us more by extending the regular `<script>` element with the `subscript` type which gets any JavaScript code to be *reactive*!
+
+Note that because these scripts are naturally reactive, we do not require any `setTimeout()` construct like we required earlier in the case of the classic `<script>` element. These expressions self-update as the values they depend on become available, removed, or updated - i.e. as `document.state` gets updated.
+
+Going forward, we can get to write more succint code! Using the [Namespaced HTML](https://github.com/webqit/oohtml#namespaced-html) feature in OOHTML, we could do without those `querySelector()` calls up there. Also, we could go on to use any DOM manipulation library of our choice; e.g jQuery, or even better, the jQuery-like [Play UI](https://github.com/webqit/play-ui) library.
+
+```html
+ <!--
+ public
+  ├── index.html
+ -->
+ <!DOCTYPE html>
+ <html>
+     <head>
+         <title></title>
+         <script src="/jquery.js"></script>
+     </head>
+     <body namespace>
+         <h1 id="headline1"></h1>
+         <script type="subscript">
+          let { title } = document.state.page;
+          document.title = title;
+          let { headline1, headline2 } = this.namespace;
+          $(headline1).html(title);
+          $(headline2).html(title);
+         </script>
+     </body>
+ </html>
+```
+
+Above, we've also referenced some currently non-existent element `headline2` - ahead of when it becomes added in the DOM! This should give a glimpse of the powerful reactivity we get with having OOHTML around on our document!
+
+```js
+setTimeout(() => {
+    let headline2 = document.createElement('h2');
+    headline2.id = 'headline2';
+    document.body.append(headline2);
+}, 1000);
+```
+
+Taking things further, it is possible to write class-based components that abstract away all logic! You can find a friend in [Custom Elements](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements)! Plus, your Custom Elements can function reactively using [SubscriptElement](https://github.com/webqit/oohtml#subscript) as base class!
+
+#### Custom Render Functions
+
+Custom `render` functions can be defined on a route (`export function render() {}`) to handle, or control, rendering.
+
+```js
+/**
+server
+ ├── index.js
+ */
+export default async function(event, context, next) {
+    return { title: 'Home | FluffyPets' };
+}
+export async function render(event, data, next) {
+    return `
+    <!DOCTYPE html>
+    <html>
+        <head><title>FluffyPets</title></head>
+        <body>
+            <h1>${ data.title }</h1>
+        </body>
+    </html>
+    `;
+}
+```
+
+<details>
+<summary>And, custom <code>render</code> functions can be step functions too, nested as necessary to form a <i>render</i> workflow.</summary>
+
+```js
+/**
+server
+ ├── index.js
+ */
+export async function render(event, data, next) {
+    // For render callbacks at child step
+    if (next.stepname) {
+        return next();
+    }
+    return `
+    <!DOCTYPE html>
+    <html>
+        <head><title>FluffyPets</title></head>
+        <body>
+            <h1>${ data.title }</h1>
+        </body>
+    </html>
+    `;
+}
+```
+
+> **Note**
+> <br>Typically, though, child steps do not always need to have an equivalent`render` callback being that they automatically inherit rendering from their parent or ancestor.
+</details>
+
+But, custom render functions do not always need to do as much as entirely handling rendering. It is possible to get them to trigger Webflo's native rendering and simply modify the documents being rendered. Here, you would simply call the `next()` function to advance the *render workflow* into Webflo's default rendering. A `window` instance is returned containing the document being rendered.
+
+```js
+/**
+server
+ ├── index.js
+ */
+export default async function(event, context, next) {
+    return { title: 'Home | FluffyPets' };
+}
+export async function render(event, data, next) {
+    let window = await next( data );
+    let { document } = window;
+    console.log( document.state.page ); // { title: 'Home | FluffyPets' }
+    return window;
+}
+```
+Custom render functions must return a value, and `window` objects are accepted. (Actually, any object that has a `toString()` method can be returned.)
+
 ### Requests and Responses
 
 Routes in Webflo can be designed for different types of request/response scenarios. Webflo does the heavy lifting on each request/response flow!
@@ -828,15 +1014,15 @@ JSON (API) requests (requests made with an [`Accept`](https://developer.mozilla.
 
 #### Scenario 3: Page Requests and Responses
 
-HTML page requests (requests made to the server with an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header that matches `text/html`) are expected to get a HTML response (responses with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) header of `text/html`). (This is the request/response scenario with every page load in the browser.) Webflo automatically responds by rendering the workflow return value into an HTML response - via [Server-Side Rendering](#server-side-rendering-ssr).
-+ Routes intended to be accessed this way are expected to return a plain object (or an instance of `event.Response` containing same) from the workflow. There also needs to be either an `index.html` file in the `public` directory that pairs with the route, or a custom `render` function on the route.
+HTML page requests (requests made to the server with an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header that matches `text/html`) are expected to get a HTML response (responses with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) header of `text/html`). Webflo automatically responds by rendering the workflow return value into an HTML response - via [Server-Side Rendering](#client-and-server-side-rendering).
++ Routes intended to be accessed this way are expected to return a plain object (or an instance of `event.Response` containing same) from the workflow in order to be renderable.
 + Workflow responses that are an instance of `event.Response` with a `Content-Type` header already set are sent as-is, and not rendered.
 
 #### Scenario 4: Single Page Navigation Requests and Responses
 
-In a Single Page Application layout, every navigation event (page-to-page navigation, history back and forward navigation, and form submissions) is expected to initiate a request/response flow without a full page reload, since the destination URLs are often based off the already loaded document. The Webflo client JS intercepts these navigation events and generates the equivalent request object with an `Accept` header of `application/json`, so that data can be obtained as a JSON object ([scenerio 2 above](#scenario-2-api-requests-and-responses)) for [Client-Side Rendering](#client-side-rendering-csr).
+In a Single Page Application layout, every navigation event (page-to-page navigation, history back and forward navigation, and form submissions) is expected to initiate a request/response flow without a full page reload, since the destination URLs are often based off the already loaded document. The Webflo client JS intercepts these navigation events and generates the equivalent request object with an `Accept` header of `application/json`, so that data can be obtained as a JSON object ([scenerio 2 above](#scenario-2-api-requests-and-responses)) for [Client-Side Rendering](#client-and-server-side-rendering).
 
-The generated request also [hints the server](#custom-redirect-responses) on how to return cross-SPA redirects (redirects that will point to another origin, or to another SPA root (in a [Multi SPA](#multi-single-page-applications-multi-spa) layout)) so that it can be handled manually by the client. The following headers are set: `X-Redirect-Policy: manual-when-cross-spa`, `X-Redirect-Code: 200`.
+The generated request also [hints the server](#custom-redirect-responses) on how to return cross-SPA redirects (redirects that will point to another origin, or to another SPA root (in a [Multi SPA](#hybrid-page-layout) layout)) so that it can be handled manually by the client. The following headers are set: `X-Redirect-Policy: manual-when-cross-spa`, `X-Redirect-Code: 200`.
 + Same-SPA redirects are sent as-is, and the Webflo client JS receives and renders the final data and updates the address bar with the final URL.
 + Cross-SPA redirects are communicated back as hinted and the destination URL is opened as a fresh page load.
 
@@ -870,269 +1056,12 @@ Where workflows throw an exception, an *error* status is implied.
 + On the server side, the error is logged and a `500` HTTP response is returned.
 + On the client-side, the error is logged to the console and the initiating document in the browser has its `document.state.page` emptied.
 
-### Rendering and Templating
-
-Every rendering and templating concept in Webflo is DOM-based. On the server, Webflo makes this so by making a DOM instance off of your `index.html` file - using the [OOHTML SSR](https://github.com/webqit/oohtml-ssr) library. So, we get the same familiar `document` object and DOM elements everywhere! Webflo simply makes sure that the data obtained on each navigation is available as part of the `document` object - exposed at `document.state.page`.
-
-You can access the `document` object (and its `document.state.page` property) both from a custom `render` callback and from a script that you can directly embed on the page.
-+ Case 1: **From within a `render` callback**. If you defined a custom `render` callback on your route, you could call the `next()` function to advance the *render workflow* into Webflo's default rendering mode. A `window` instance is returned containing the implied document.
-  
-  ```js
-  /**
-  server
-   ├── index.js
-   */
-  export default async function(event, context, next) {
-      return { title: 'Home | FluffyPets' };
-  }
-  export async function render(event, data, next) {
-      let window = await next( data );
-      let { document } = window;
-      console.log( document.state.page ); // { title: 'Home | FluffyPets' }
-      return window;
-  }
-  ```
-  
-+ Case 2: **From within an embedded script**. If you embedded a script on your HTML page, you could access the `document.state.page` data as you'd expected.
-  
-  ```html
-  <!--
-  public
-   ├── index.html
-  -->
-  <!DOCTYPE html>
-  <html>
-      <head>
-          <title>FluffyPets</title>
-          <script>
-           setTimeout(() => {
-               console.log( document.state.page ); // { title: 'Home | FluffyPets' }
-           }, 0);
-          </script>
-      </head>
-      <body></body>
-  </html>
-  ```
-  
-  Where your rendering logic is an external script, your `<script>` element would need to have an `ssr` Boolean attribute to get the rendering engine to fetch and execute your script on the server.
-  
-  ```html
-  <!--
-  public
-   ├── index.html
-  -->
-  <!DOCTYPE html>
-  <html>
-      <head>
-          <title>FluffyPets</title>
-          <script src="app.js" ssr></script>
-      </head>
-      <body></body>
-  </html>
-  ```
-
-From here, even the most-rudimentary form of rendering and templating becomes possible (using vanilla HTML and native DOM methods), and this is a good thing: you get away with less tooling until you absolutely need to add up on tooling!
-
-However, the `document` objects in Webflo can be a lot fun to work with: they support Object-Oriented HTML (OOHTML) natively, and this gives us a lot of (optional) syntax sugars on top of vanilla HTML and the DOM!
-
-> **Note**
-> <br>You can learn more about OOHTML [here](https://github.com/webqit/oohtml).
-
-> **Note**
-> <br>You can disable OOHTML (or some of its features) in config where you do not need to use its features in HTML and the DOM.
-
-#### Server-Side Rendering (SSR)
-
-Server-Side Rendering (SSR) is the second step on the reponse phase of [page requests](#page-requests-and-responses). Here, it is either that an `index.html` file that pairs with the route exists in the `/public` directory - for automatic rendering by Webflo, or that a custom `render` callback has been defined on the route.
-+ SSR Option 1: **Automatically-paired HTML files**. These are valid HTML documents named `index.html` in the `/public` directory, or a subdirectory that corresponds with a route.
-
-  ```js
-  /**
-  server
-   ├── index.js
-   */
-  export default async function(event, context, next) {
-      return { title: 'Home | FluffyPets' };
-  }
-  ```
-
-  ```html
-  <!--
-  public
-   ├── index.html
-  -->
-  <!DOCTYPE html>
-  <html>
-      <head><title>FluffyPets</title></head>
-      <body namespace>
-          <h1 data-id="headline"></h1>
-
-          <script type="subscript">
-           this.namespace.headline = document.state.page.title;
-          </script>
-      </body>
-  </html>
-  ```
-
-  The data obtained above is simply sent into the loaded HTML document instance as `document.state.page`. This makes it globally accessible to embedded scripts and rendering logic! (Details in [Rendering and Templating](#rendering-and-templating).)
-
-  > **Note**
-  > <br>Nested routes may not always need to have an equivalent `index.html` file; Webflo goes with one from the closest ancestor.
-
-+ SSR Option 2: **Custom `render` callbacks**. These are functions exported as `render` (`export function render() {}`) from the route.
-
-  ```js
-  /**
-  server
-   ├── index.js
-   */
-  export default async function(event, context, next) {
-      return { title: 'Home | FluffyPets' };
-  }
-  export async function render(event, data, next) {
-      return `
-      <!DOCTYPE html>
-      <html>
-          <head><title>FluffyPets</title></head>
-          <body>
-              <h1>${ data.title }</h1>
-          </body>
-      </html>
-      `;
-  }
-  ```
-
-  <details>
-  <summary>And, custom <code>render</code> callbacks can be step functions too, nested as necessary to form a <i>render</i> workflow.</summary>
-
-  ```js
-  /**
-  server
-   ├── index.js
-   */
-  export async function render(event, data, next) {
-      // For render callbacks at child step
-      if (next.stepname) {
-          return next();
-      }
-      return `
-      <!DOCTYPE html>
-      <html>
-          <head><title>FluffyPets</title></head>
-          <body>
-              <h1>${ data.title }</h1>
-          </body>
-      </html>
-      `;
-  }
-  ```
-
-  > **Note**
-  > <br>Typically, though, child steps do not always need to have an equivalent`render` callback being that they automatically inherit rendering from their parent or ancestor.
-  </details>
-
-#### Client-Side Rendering (CSR)
-
-Getting your application data `document.state.page` rendered into HTML can be a trival thing for applications that do not have much going on in the UI. Webflo allows your tooling budget to be as low as just using vanilla DOM APIs!
-
-```html
- <!--
- public
-  ├── index.html
- -->
- <!DOCTYPE html>
- <html>
-     <head>
-         <title>FluffyPets</title>
-         <script>
-          let app = document.state;
-          setTimeout(() => {
-              let titleElement = querySelector('title');
-              let h1Element = querySelector('h1');
-              titleElement.innerHTML = app.page.title;
-              h1Element.innerHTML = app.page.title;
-          }, 0);
-         </script>
-     </head>
-     <body>
-         <h1></h1>
-     </body>
- </html>
-```
-
-> **Note**
-> <br>We've used a *quick* `setTimeout()` strategy there to wait until the DOM is fully ready to be accessed; also, to wait for data to be available at `document.state.data`. In practice, the assumed delay of `0` may be too small. But, for when you can afford it, a better strategy is to actually *observe* for *[DOM readiness](https://developer.mozilla.org/en-US/docs/Web/API/Window/DOMContentLoaded_event)* and *[data availability](#)*.
-
-> **Note**
-> <br>If you're considering the vanilla approach for your baisc UI, you probbably should! Low tooling budgets are a win in this case, and bare DOM manipulations are nothing to feel guilty of! (You may want to keep all of that JS in an external JS file to make your HTML tidy.)
-
-Where your application UI is more than basic, you would benefit from using OOHTML features in HTML and on the DOM! (Documents created by Webflo are OOHTML-ready by default.) Here, you are able to write reactive UI logic, namespace-based HTML, HTML modules and imports, etc - without the usual framework thinking.
-
-To write **reactive UI logic**, OOHTML makes it possible to define `<script>` elements right along with your HTML elements - where you get to do all things logic in the language for logic - JavaScript!
-
-```html
- <!--
- public
-  ├── index.html
- -->
- <!DOCTYPE html>
- <html>
-     <head>
-         <title>FluffyPets</title>
-         <script type="subscript">
-          let app = document.state;
-          let titleElement = this.querySelector('title');
-          titleElement.innerHTML = app.page.title;
-         </script>
-     </head>
-     <body>
-         <h1></h1>
-         <script type="subscript">
-          let app = document.state;
-          let h1Element = this.querySelector('h1');
-          h1Element.innerHTML = app.page.title;
-         </script>
-     </body>
- </html>
-```
-
-> **Note**
-> <br>You'll find it logical that UI logic is the whole essence of the HTML `<script>` element, after all! OOHTML just extends the regular `<script>` element with the `subscript` type to give them *reactivity* and keep them scoped to their host element! (You can learn more [here](https://github.com/webqit/oohtml#subscript).) Note, too, that these reactive script elements do not require any `setTimeout()` construct as the earlier classic `<script>` had.
-
-From here, you can go on to use any DOM manipulation library of your choice; e.g jQuery, or even better, the jQuery-like [Play UI](https://github.com/webqit/play-ui) library.
-
-```html
- <!--
- public
-  ├── index.html
- -->
- <!DOCTYPE html>
- <html>
-     <head>
-         <title>FluffyPets</title>
-         <script type="subscript">
-          let app = document.state;
-          $('title').html(app.page.title);
-         </script>
-     </head>
-     <body>
-         <h1></h1>
-         <script type="subscript">
-          let app = document.state;
-          $('h1').html(app.page.title);
-         </script>
-     </body>
- </html>
-```
-
-You'll find many other OOHTML features that let you write the most enjoyable HTML. And when you need to write class-based components, you'll find a friend in [Custom Elements](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements)!
-
 ### An Application
 
 #### Single Page Applications
 
 The application client build automatially figues out when to intercept a navigation event and prevent a full page reload, and when not to. It follows the following rules:
-1. When it figures out that the destination page is based off the current running `index.html` document in the browser, a full page reload is prevented and navigation is sleek. This is, in other words, an SPA navigation. Compare between [Single Page Application and Multi Page Application layouts](#templating) ahead.
+1. When it figures out that the destination page is based off the current running `index.html` document in the browser, a full page reload is prevented and navigation is sleek. This is, in other words, an SPA navigation.
 2. If navigation is initiated with any of the following keys pressed: Meta Key, Alt Key, Shift Key, Ctrl Key, navigation is allowed to work the default way - regardless of rule 1.
 3. If navigation is initiated from a link element that has the `target` attribute, or the `download` attribute, navigation is allowed to work the default way - regardless of rule 1.
 4. If navigation is initiated from a form element that has the `target` attribute, navigation is allowed to work the default way - regardless of rule 1.
