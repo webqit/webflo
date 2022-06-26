@@ -229,6 +229,7 @@ If you can't wait to say *Hello World!* 😅, you can have an HTML page say that
 
 + [Handler Functions and Layout](#handler-functions-and-layout)
 + [Step Functions and Workflows](#step-functions-and-workflows)
++ [Pages, Templating, and Layout](#pages-templating-and-layout)
 + [Requests and Responses](#requests-and-responses)
 + [Rendering and Templating](#rendering-and-templating)
 
@@ -499,7 +500,7 @@ my-app
   └── public/index.html ----------------------- http://localhost:3000/index.html, http://localhost:3000
 ```
 
-But, where an `index.html` file is paired with a route...
+But, where an `index.html` file pairs with a route...
 
 ```shell
 my-app
@@ -532,24 +533,24 @@ my-app
   └── public/index.html ----------------------- http://localhost:3000/index.html --------- text/html
 ```
 
-But, we can also access the route in a way that gets the data rendered into the `index.html` file for a dynamic page response. We'd simply set the [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header of the request to match `text/html` - e.g. `text/html`, `text/*`, `*/html`, `*/*`, and Webflo will automatically perform [Server-Side Rendering](#client-side-rendering-ssr).
+But, we can also access the route in a way that gets the data rendered into the automatically-paired `index.html` file for a dynamic page response. We'd simply set the [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header of the request to match `text/html` - e.g. `text/html`, `text/*`, `*/html`, `*/*`, and Webflo will automatically perform [Server-Side Rendering](#client-side-rendering-ssr). (Automatic pairing works the same for nested routes! But top-level `index.html` files are implicitly inherited down the hierarchy.)
 
 > **Note**
 > <br>The `Accept` header hint is already how browsers make requests on every page load. So, it just works!
 
-For Single Page Applications, subsequent navigations, after the initial page load, now only fetch the data component of destination URLs and perform [Client-Side Rendering](#client-side-rendering-csr) on the same running document. Navigation is sleek and instant!
+Now, for Single Page Applications, subsequent navigations, after the initial page load, just asks for the data on destination URLs and perform [Client-Side Rendering](#client-side-rendering-csr) on the same running document. Navigation is sleek and instant!
 
 > **Note**
 > <br>Unless disabled in config, SPA routing is automatically built into your app's JS bundle from the `npm run generate` command. So, it just works!
 
-With no extra work, your application can function as either a *Multi Page App (MPA)* or a *Single Page App (SPA)*! And as we'll see, even a hybrid of these, that we'll call Multi SPA, is possible!
+With no extra work, your application can function as either a *Multi Page App (MPA)* or a *Single Page App (SPA)*!
 
 > **Note**
 > <br>In a Single Page Application, all pages are based off a single `index.html` document. In a Multi Page Application, pages are individual `index.html`  documents - ideally. But, Server-Side Rendering makes it possible to serve the same, but dynamically-rendered, `index.html` document across page loads - essentially an SPA architecture hiding on the server. But, here, lets take Multi Page Applications for an individual-page architecture.
 
 #### Layout and Templating Overview
 
-In a Multi Page Application (with an individual-page architecture), each page is its own `index.html` document, and it is often necessary to have certain page sections - e.g. site header, footer, and sidebar, etc. - stay consistent across pages. These sections can be defined once and *imported* on each page.
+In a Multi Page Application (with an individual-page architecture), each page is its own `index.html` document, and it is often necessary to have certain page sections - e.g. site header, footer, and sidebar, etc. - stay consistent across pages. These sections can be defined once and *imported* on every page.
 
 ```html
 my-app
@@ -561,7 +562,7 @@ my-app
       └── footer.html ------------------------------ <footer></footer> <!-- To appear at bottom of each index.html page -->
 ```
 
-In a Single Page Application, each page is the same `index.html` document, and it is often necessary to have the main page sections change on each route. These sections can be defined per-route and *imported* on navigating to their respective URLs.
+In a Single Page Application, each page is the same `index.html` document, and it is often necessary to have the main page sections change on each route. These sections can be defined per-route and *imported* to the document on navigating to their respective URLs.
 
 ```html
 my-app
@@ -574,7 +575,7 @@ my-app
 
 This, in both cases, is templating - the ability to define HTML *partials* once, and have them reused multiple times. Webflo just concerns itself with templating, and the choice of a Multi Page Application or Single Page Application becomes yours! And heck, you can even have the best of both worlds in the same application! It's all a *layout* thing!
 
-Now, with pages in Webflo being DOM-based, documents can be manipulated directly with DOM APIs, e.g. to replace or insert nodes. But even better, templating in Webflo is based on the [HTML Modules](https://github.com/webqit/oohtml#html-modules) and [HTML Imports](https://github.com/webqit/oohtml#html-imports) features of [OOHTML](https://github.com/webqit/oohtml) - unless disabled in config. These features provide a powerful declarative templating system on top of the standard [HTML `<template>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template) element - with a *module*, *export* and *import* paradigm.
+Now, with pages in Webflo being DOM-based, documents can be manipulated directly with DOM APIs, e.g. to replace or insert nodes. But even better, templating in Webflo is based on the [HTML Modules](https://github.com/webqit/oohtml#html-modules) and [HTML Imports](https://github.com/webqit/oohtml#html-imports) features in [OOHTML](https://github.com/webqit/oohtml) - unless disabled in config. These features provide a powerful declarative templating system on top of the standard [HTML `<template>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template) element - with a *module*, *export* and *import* paradigm.
 
 Here, you are able to define reusable contents in a `<template>` element...
 
@@ -613,7 +614,7 @@ public
 </head>
 ```
 
-What [we'll see shortly](#bundling) is how multiple standalone `.html` files - e.g. the `header.html`, `footer.html`, `main.html` files above - come together into one `bundle.html` file for an application.
+What [we'll see shortly](#bundling) is how multiple standalone `.html` files - e.g. those `header.html`, `footer.html`, `main.html` files above - come together into one `bundle.html` file for an application.
 
 #### In a Multi Page Layout
 
@@ -697,7 +698,7 @@ public
 <main exportgroup="main.html">Welcome to our Home Page</main>
 ```
 
-Now, the `<main>` elements is imported on navigating to their respective URLs. This time, Webflo takes care of setting the URL path as a global `template` attribute on the `<body>` element such that `<import>` elements that inherit this global attribute are resolved on from its current value.
+Now, the `<main>` elements are each imported on navigating to their respective URLs. This time, Webflo takes care of setting the URL path as a global `template` attribute on the `<body>` element such that `<import>` elements that inherit this global attribute are resolved from its current value.
 
 ```html
 <!--
