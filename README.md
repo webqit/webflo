@@ -21,6 +21,7 @@ Ok, we've put all of that up for a straight read!
 + [Concepts](#concepts)
 + [Webflo Applications](#webflo-applications)
 + [Workflow API](#workflow-api)
++ [Command Line Interface](#command-line-interface)
 
 ## Overview
 
@@ -1093,6 +1094,10 @@ Unless disabled in config, it is factored-in at build time for the application c
 > TODO
 
 ### Workflow API
+
+> TODO
+
+### Command Line Interface
 
 > TODO
 
