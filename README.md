@@ -1058,6 +1058,8 @@ Where workflows throw an exception, an *error* status is implied.
 
 ### Webflo Applications
 
+In just a few concepts, Webflo comes for any type of application - from as basic as a static index.html page to as rich as a universal app that's either a Multi Page Application (MPA), Single Page Application (SPA), or a hybrid of these, implementing Server Side Rendering (SSR), Client Side Rendering (CSR), or a hybrid of these, offline and PWA capabilities, etc. - this time, without loosing the vanilla advantage!
+
 #### Client-Side Applications
 
 Web pages that embed the Webflo client JS bundle deliver a great user experience. (The `npm run generate` command does both the building and embedding of the script for each document root in the application.)
