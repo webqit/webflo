@@ -19,7 +19,7 @@ Ok, we've put all of that up for a straight read!
 + [Overview](#overview)
 + [Installation](#installation)
 + [Concepts](#concepts)
-+ [An Application](#an-application)
++ [Webflo Applications](#webflo-applications)
 + [Workflow API](#workflow-api)
 
 ## Overview
@@ -792,8 +792,7 @@ public
 </html>
 ```
 
-> **Note**
-> <br>The Webflo `generate` command automatically figures out a given architecture and generates the appropriate scripts for the application! It also factors in the location of each document root so that all navigations to these roots are handled as a regular page load.
+The Webflo `generate` command automatically figures out a given architecture and generates the appropriate scripts for the application! It also factors into the generated scripts the location of each document root so that [all navigations to these roots are handled as a regular page load](#spa-navigation).
 
 #### Bundling
 
@@ -803,7 +802,7 @@ Template `.html` files are bundled from the filesystem into a single file using 
 "generate:html": "oohtml bundle --recursive --auto-embed=page"
 ```
 
-The `--recursive` flag gets the bundler to recursively bundle *subroots* in a hybrid architecture - subdirectories with their own `index.html` document. (Subroots are ignored by default.)
+The `--recursive` flag gets the bundler to recursively bundle *subroots* in a [Multi SPA](#in-a-multi-spa-layout) layout - where subdirectories with their own `index.html` document. (Subroots are ignored by default.)
 
 The `--auto-embed` flag gets the bundler to automatically embed the generated `bundle.html` file on the matched `index.html` document. A value of `page` for the flag ends up as the name of the *embed* template: `<template name="page" src="/bundle.html"></template>`.
 
@@ -1057,22 +1056,37 @@ Where workflows throw an exception, an *error* status is implied.
 + On the server side, the error is logged and a `500` HTTP response is returned.
 + On the client-side, the error is logged to the console and the initiating document in the browser has its `document.state.page` emptied.
 
-### An Application
+### Webflo Applications
 
-> TODO
-
-<!--
 #### Single Page Applications
 
-The application client build automatially figues out when to intercept a navigation event and prevent a full page reload, and when not to. It follows the following rules:
-1. When it figures out that the destination page is based off the current running `index.html` document in the browser, a full page reload is prevented and navigation is sleek. This is, in other words, an SPA navigation.
+##### SPA Navigation
+
+As [factored-in at build time](#in-a-multi-spa-layout), the application client JS automatially figues out when to intercept a navigation event and prevent a full page reload, and when not to. It follows the following rules:
+1. When it figures out that the destination page is based off the current running `index.html` document in the browser (an SPA architecture), a full page reload is prevented, data is fetched and [Client-Side Rendering](#client-and-server-side-rendering) is performed; navigation is sleek.
 2. If navigation is initiated with any of the following keys pressed: Meta Key, Alt Key, Shift Key, Ctrl Key, navigation is allowed to work the default way - regardless of rule 1.
 3. If navigation is initiated from a link element that has the `target` attribute, or the `download` attribute, navigation is allowed to work the default way - regardless of rule 1.
 4. If navigation is initiated from a form element that has the `target` attribute, navigation is allowed to work the default way - regardless of rule 1.
 
-#### Nulti Page Applications
+##### SPA State
+
+> TODO
+
+#### Multi Page Applications
+
+> TODO
+
 #### Multi SPA Applications
--->
+
+> TODO
+
+#### API Backends
+
+> TODO
+
+#### Static Sites
+
+> TODO
 
 ### Workflow API
 
