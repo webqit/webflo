@@ -1038,7 +1038,7 @@ Workflows may return any other data type, e.g. an instance of the native [FormDa
 > **Note**
 > <br>The fact that all requests, even static file requests, are seen by route handlers, where defined, means that they get a chance to dynamically generate the responses that the client sees!
 
-##### Custom Redirect Responses
+#### Custom Redirect Responses
 
 It is possible to hint the server on how to serve redirect responses. The response code for these redirects could be substituted with a non-rediret status code so that it can be recieved as a normal response and handled manually. The following pair of headers make this possible: `X-Redirect-Code`, `X-Redirect-Policy`.
 + The `X-Redirect-Code` can be any valid (but preferably, 2xx) HTTP status code. This is the response code that should be used instead of the actual redirect code.
