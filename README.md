@@ -136,7 +136,7 @@ For when your application involves pages and a UI:
 
   > Your markup is also easily extendable with [OOHTML](https://github.com/webqit/oohtml) - a set of new features for HTML that makes it fun to hand-author your UI! Within OOHTML are [HTML Modules (`<template name="partials"></template>`)](https://github.com/webqit/oohtml#html-modules) and [HTML Imports (`<import template="partials"></import>`)](https://github.com/webqit/oohtml#html-imports), [Reactive Scripts (`<script type="subscript"></script>`)](https://github.com/webqit/oohtml#subscript) and more!
 
-+ [WHATWG DOM](https://dom.spec.whatwg.org/) is universally available - across client and server environments - for all things *dynamic UIs*: rendering, manipulation, interactivity, etc.
++ [WHATWG DOM](https://dom.spec.whatwg.org/) is universally available - not only on the client-side, but also on the server-side via [OOHTML-SSR](https://github.com/webqit/oohtml-ssr) - for all things *dynamic pages*: rendering, manipulation, interactivity, etc.
 
   > Your DOM is also easily enrichable with [Custom Elements](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements), plus [Subscript Elements](https://github.com/webqit/oohtml#subscript) and [The State API (`document.state` and `element.state`)](https://github.com/webqit/oohtml#state-api) from OOHTML.
 
@@ -573,9 +573,9 @@ my-app
       └── index.html ------------------------------- <!DOCTYPE html>
 ```
 
-This, in both cases, is templating - the ability to define HTML *partials* once, and have them reused multiple times. Webflo just concerns itself with templating, and the choice of a Multi Page Application or Single Page Application becomes yours! And heck, you can even have the best of both worlds in the same application! It's all a *layout* thing!
+This, in both cases, is templating - the ability to define HTML *partials* once, and have them reused multiple times. Webflo just concerns itself with templating, and the choice of a Multi Page Application or Single Page Application becomes yours! And heck, you can even have the best of both worlds in the same application - with an architecture we'll call [Multi SPA](#in-a-multi-spa-layout)! It's all a *layout* thing!
 
-Now, with pages in Webflo being DOM-based (both server-side and client-sside), documents can be manipulated directly with DOM APIs, e.g. to replace or insert nodes, attributes, etc. But even better, templating in Webflo is based on the [HTML Modules](https://github.com/webqit/oohtml#html-modules) and [HTML Imports](https://github.com/webqit/oohtml#html-imports) features in [OOHTML](https://github.com/webqit/oohtml) - unless disabled in config. These features provide a powerful declarative templating system on top of the standard [HTML `<template>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template) element - with a *module*, *export* and *import* paradigm.
+Now, with pages in Webflo being [DOM-based](#overview) (both client-side and [server-side](https://github.com/webqit/oohtml-ssr)), documents can be manipulated directly with DOM APIs, e.g. to replace or insert nodes, attributes, etc. But even better, templating in Webflo is based on the [HTML Modules](https://github.com/webqit/oohtml#html-modules) and [HTML Imports](https://github.com/webqit/oohtml#html-imports) features in [OOHTML](https://github.com/webqit/oohtml) - unless disabled in config. These features provide a powerful declarative templating system on top of the standard [HTML `<template>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template) element - with a *module*, *export* and *import* paradigm.
 
 Here, you are able to define reusable contents in a `<template>` element...
 
@@ -722,7 +722,7 @@ public
 > **Note**
 > <br>In this architecture, navigation is instant and sleek - Webflo prevents a full page reload, obtains and sets data at `document.state.page` for the new URL, then sets the `template` attribute on the `<body>` element to the new URL path. The `bundle.js` script comes with the appropriate OOHTML support level required for the imports to function.
 
-#### In a Hybrid Page Layout
+#### In a Multi SPA Layout
 
 It's all a *layout* thing, so a hybrid of the two architectures above is possible in one application, to take advantage of the unique benefits of each! Here, you are able to have routes that are standalone `index.html` documents (MPA), which in turn, are able to act as a single document root for their subroutes (SPA).
 
@@ -812,7 +812,7 @@ The `--auto-embed` flag gets the bundler to automatically embed the generated `b
 
 ### Client and Server-Side Rendering
 
-With pages in Webflo being DOM-based (both server-side and client-sside), we are able to access and manipulate documents and elements using familiar DOM APIs - e.g. to replace or insert contents, attributes, etc. Rendering in Webflo is based on this concept!
+With pages in Webflo being [DOM-based](#overview) (both client-side and [server-side](https://github.com/webqit/oohtml-ssr)), we are able to access and manipulate documents and elements using familiar DOM APIs - e.g. to replace or insert contents, attributes, etc. Rendering in Webflo is based on this concept!
 
 Here, Webflo simply makes sure that the data obtained from each route is available as part of the `document` object, such that it is accessible to our rendering logic as `document.state.page`! So, you could embed a script on your page and render this data on the relevant parts of your document.
 
@@ -856,7 +856,7 @@ public
 
 From here, even the most-rudimentary form of rendering (using vanilla HTML and native DOM methods) becomes possible, and this is a good thing: you get away with less tooling until you absolutely need to add up on tooling!
 
-However, since the `document` objects in Webflo natively support [OOHTML](https://github.com/webqit/oohtml) - unless disabled in config, we are able to write reactive UI logic! Here, OOHTML makes it possible to embed reactive `<script>` elements (called [Subscript](https://github.com/webqit/oohtml#subscript)) right on HTML elements - where each expression automatically self-updates whenever references to data, or its properties, get an update!
+However, since the `document` objects in Webflo natively support [OOHTML](https://github.com/webqit/oohtml) - unless disabled in config, we are able to write reactive UI logic! Here, OOHTML makes it possible to embed reactive `<script>` elements (called [Subscript](https://github.com/webqit/oohtml#subscript)) right within HTML elements - where each expression automatically self-updates whenever references to data, or its properties, get an update!
 
 ```html
  <!--
@@ -977,7 +977,7 @@ export async function render(event, data, next) {
 > <br>Typically, though, child steps do not always need to have an equivalent`render` callback being that they automatically inherit rendering from their parent or ancestor.
 </details>
 
-But, custom render functions do not always need to do as much as entirely handling rendering. It is possible to get them to trigger Webflo's native rendering and simply modify the documents being rendered. Here, you would simply call the `next()` function to advance the *render workflow* into Webflo's default rendering. A `window` instance is returned containing the document being rendered.
+But, custom render functions do not always need to do as much as entirely handle rendering. It is possible to get them to trigger Webflo's native rendering and simply modify the documents being rendered. Here, you would simply call the `next()` function to advance the *render workflow* into Webflo's default rendering. A `window` instance is returned containing the document being rendered.
 
 ```js
 /**
@@ -994,6 +994,7 @@ export async function render(event, data, next) {
     return window;
 }
 ```
+
 Custom render functions must return a value, and `window` objects are accepted. (Actually, any object that has a `toString()` method can be returned.)
 
 ### Requests and Responses
@@ -1022,7 +1023,7 @@ HTML page requests (requests made to the server with an [`Accept`](https://devel
 
 In a Single Page Application layout, every navigation event (page-to-page navigation, history back and forward navigation, and form submissions) is expected to initiate a request/response flow without a full page reload, since the destination URLs are often based off the already loaded document. The Webflo client JS intercepts these navigation events and generates the equivalent request object with an `Accept` header of `application/json`, so that data can be obtained as a JSON object ([scenerio 2 above](#scenario-2-api-requests-and-responses)) for [Client-Side Rendering](#client-and-server-side-rendering).
 
-The generated request also [hints the server](#custom-redirect-responses) on how to return cross-SPA redirects (redirects that will point to another origin, or to another SPA root (in a [Multi SPA](#hybrid-page-layout) layout)) so that it can be handled manually by the client. The following headers are set: `X-Redirect-Policy: manual-when-cross-spa`, `X-Redirect-Code: 200`.
+The generated request also [hints the server](#custom-redirect-responses) on how to return cross-SPA redirects (redirects that will point to another origin, or to another SPA root (in a [Multi SPA](#in-a-multi-spa-layout) layout)) so that it can be handled manually by the client. The following headers are set: `X-Redirect-Policy: manual-when-cross-spa`, `X-Redirect-Code: 200`.
 + Same-SPA redirects are sent as-is, and the Webflo client JS receives and renders the final data and updates the address bar with the final URL.
 + Cross-SPA redirects are communicated back as hinted and the destination URL is opened as a fresh page load.
 
@@ -1058,6 +1059,9 @@ Where workflows throw an exception, an *error* status is implied.
 
 ### An Application
 
+> TODO
+
+<!--
 #### Single Page Applications
 
 The application client build automatially figues out when to intercept a navigation event and prevent a full page reload, and when not to. It follows the following rules:
@@ -1067,9 +1071,12 @@ The application client build automatially figues out when to intercept a navigat
 4. If navigation is initiated from a form element that has the `target` attribute, navigation is allowed to work the default way - regardless of rule 1.
 
 #### Nulti Page Applications
-#### Hybrid Page Applications
+#### Multi SPA Applications
+-->
 
 ### Workflow API
+
+> TODO
 
 ## Getting Involved
 
