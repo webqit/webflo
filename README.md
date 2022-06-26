@@ -1058,25 +1058,37 @@ Where workflows throw an exception, an *error* status is implied.
 
 ### Webflo Applications
 
-#### Single Page Applications
+#### Client-Side Applications
+
+Web pages that embed the Webflo client JS bundle deliver a great user experience.
+
+<details>
+<summary>First-paint-ready.</summary>
+
+On the first page request, you get SEO ready HTML that's also optimized for the first paint of your route with [Server-Side Rendering](#client-and-server-side-rendering).
+</details>
+
+<details>
+<summary>Fluid and app-like.</summary>
+
+On being loaded, the state of the application is restored through hydration and [subsequent navigations](#spa-navigation) are sleek and instant - thanks to the Webflo client JS.
+</details>
 
 ##### SPA Navigation
 
-As [factored-in at build time](#in-a-multi-spa-layout), the application client JS automatially figues out when to intercept a navigation event and prevent a full page reload, and when not to. It follows the following rules:
-1. When it figures out that the destination page is based off the current running `index.html` document in the browser (an SPA architecture), a full page reload is prevented, data is fetched and [Client-Side Rendering](#client-and-server-side-rendering) is performed; navigation is sleek.
+Unless disabled in config, it is factored-in at build time for the application client JS to be able to automatially figues out when to intercept a navigation event and prevent a full page reload, and when not to. It follows the following rules:
+1. When it figures out that the destination URL is based off the current running `index.html` document in the browser (an SPA architecture), a full page reload is prevented, data is fetched and [Client-Side Rendering](#client-and-server-side-rendering) is performed. But where the destination URL points out of the current document root (a [Multi SPA](#in-a-multi-spa-layout) architecture), navigation is allowed as a normal page load, and the new page root is loaded.
 2. If navigation is initiated with any of the following keys pressed: Meta Key, Alt Key, Shift Key, Ctrl Key, navigation is allowed to work the default way - regardless of rule 1.
 3. If navigation is initiated from a link element that has the `target` attribute, or the `download` attribute, navigation is allowed to work the default way - regardless of rule 1.
 4. If navigation is initiated from a form element that has the `target` attribute, navigation is allowed to work the default way - regardless of rule 1.
+
+> To entirely disable SPA navigation in config where necessary, run `webflo config client` and follow the prompt.
 
 ##### SPA State
 
 > TODO
 
-#### Multi Page Applications
-
-> TODO
-
-#### Multi SPA Applications
+##### Service Workers
 
 > TODO
 
