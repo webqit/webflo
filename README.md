@@ -814,7 +814,9 @@ The `--auto-embed` flag gets the bundler to automatically embed the generated `b
 
 With pages in Webflo being [DOM-based](#overview) (both client-side and [server-side](https://github.com/webqit/oohtml-ssr)), we are able to access and manipulate documents and elements using familiar DOM APIs - e.g. to replace or insert contents, attributes, etc. Rendering in Webflo is based on this concept!
 
-Here, Webflo simply makes sure that the data obtained from each route is available as part of the `document` object, such that it is accessible to our rendering logic as `document.state.page`! So, you could embed a script on your page and render this data on the relevant parts of your document.
+Here, Webflo simply makes sure that the data obtained from each route is available as part of the `document` object, such that it is accessible to our rendering logic as a `page` property on the `document.state` object - `document.state.page`. (The `document.state` object is always available unless disabled in config.)
+
+So, we could embed a script on our page and render this data on the relevant parts of the document.
 
 ```html
 <!--
@@ -1025,7 +1027,7 @@ In a Single Page Application layout, every navigation event (page-to-page naviga
 
 The generated request also [hints the server](#custom-redirect-responses) on how to return cross-SPA redirects (redirects that will point to another origin, or to another SPA root (in a [Multi SPA](#in-a-multi-spa-layout) layout)) so that it can be handled manually by the client. The following headers are set: `X-Redirect-Policy: manual-when-cross-spa`, `X-Redirect-Code: 200`.
 + Same-SPA redirects are sent as-is, and the Webflo client JS receives and renders the final data and updates the address bar with the final URL.
-+ Cross-SPA redirects are communicated back as hinted and the destination URL is opened as a fresh page load.
++ Cross-SPA/cross-origin redirects are communicated back, as hinted, and the destination URL is opened as a fresh page load.
 
 #### Scenario 5: Range Requests and Responses
 
@@ -1051,15 +1053,66 @@ Re-coded redirects have the standard `Location` header, and an `X-Redirect-Code`
 
 Where workflows return `undefined`, a `Not Found` status is implied.
 + On the server side, a `404` HTTP response is returned.
-+ On the client-side, the initiating document in the browser has its `document.state.page` emptied.
++ On the client-side, the initiating document in the browser has its `document.state.page` emptied. The error is also exposed on the [`document.state.network.error`](#the-document.state.network-object) property.
 
 Where workflows throw an exception, an *error* status is implied.
 + On the server side, the error is logged and a `500` HTTP response is returned.
-+ On the client-side, the error is logged to the console and the initiating document in the browser has its `document.state.page` emptied.
++ On the client-side, the initiating document in the browser has its `document.state.page` emptied. The error is also exposed on the [`document.state.network.error`](#the-document.state.network-object) property.
 
 ### Webflo Applications
 
 In just a few concepts, Webflo comes ready for any type of application! Now, additional details of a Webflo app - depending on the type - are covered in the following sections.
+
+#### Application State
+
+For all things application state, Webflo leverages the [State API](https://github.com/webqit/oohtml#state-api) that's natively available in OOHTML-based documents - both client-side and server-side. This API exposes an application-wide `document.state` object, and a per-element `element.state` object. And these are *live* read/write objects that can be observed for property changes using the [Observer API](https://github.com/webqit/observer). It comes off as the simplest approach to state and reactivity!
+
+> **Note**
+> <br>The State API is not available when the OOHTML support level in config is switched from `full` or `scripting`.
+
+##### The `document.state.page` Object
+
+This property represents the data obtained from route handers on each navigation. Webflo simply exposes this data and lets the page's [rendering logic](#client-and-server-side-rendering) take over.
+
+##### The `document.state.url` Object
+
+This is a *live* object that reperesents the properties of the application URL at any point in time. The object exposes the same URL properties as with the [`URL`](https://developer.mozilla.org/en-US/docs/Web/API/URL) API, but as *live* properties that can be both observed as navigation happens and modified to initiate navigation - using the [Observer API](https://github.com/webqit/observer).
+
+```js
+console.log(document.state.url) // { hash, host, hostname, href, origin, password, pathname, port, protocol, search, searchParams, username }
+```
+
+```js
+Observer.observe(document.state.url, 'hash', e => {
+    console.log(document.state.url.hash === e.value); // true
+});
+```
+
+```js
+// Navigates to "/login#form" as if a link was clicked
+document.addEventListener('synthetic-navigation', e => {
+    Observer.set(document.state.url, 'href', '/login#form');
+});
+
+// Or...
+document.addEventListener('synthetic-navigation', e => {
+    Observer.set(document.state.url, { pathname: '/login', hash: '#form' });
+});
+
+console.log(document.state.url.hash); // #form
+```
+
+There is also the convenience `query` property that offers the URL query parameters as a *live* object.
+
+```js
+// For URL: http://localhost:3000/login?as=student
+console.log(document.state.url.query.as) // student
+
+// Re-rewrite the URL and navigate by simply modifying a query parameter
+document.addEventListener('synthetic-navigation', e => {
+    Observer.set(document.state.url.query, 'as', 'business');
+});
+```
 
 #### Client-Side Applications
 
@@ -1070,16 +1123,68 @@ Web pages that embed the Webflo client JS bundle deliver a great user experience
 ##### SPA Navigation
 
 Unless disabled in config, it is factored-in at build time for the application client JS to be able to automatially figure out when to intercept a navigation event and prevent a full page reload, and when not to. It follows the following rules:
-1. When it ascertains that the destination URL is based on the current running `index.html` document in the browser (an SPA architecture), a full page reload is prevented for *soft* navigation. But where the destination URL points out of the current document root (a [Multi SPA](#in-a-multi-spa-layout) architecture), navigation is allowed as a normal page load, and a new page root is loaded.
-2. If navigation is initiated with any of the following keys pressed: Meta Key, Alt Key, Shift Key, Ctrl Key, navigation is allowed to work the default way - regardless of rule 1.
-3. If navigation is initiated from a link element that has the `target` attribute, or the `download` attribute, navigation is allowed to work the default way - regardless of rule 1.
-4. If navigation is initiated from a form element that has the `target` attribute, navigation is allowed to work the default way - regardless of rule 1.
++ When it ascertains that the destination URL is based on the current running `index.html` document in the browser (an SPA architecture), a full page reload is prevented for *soft* navigation. But where the destination URL points out of the current document root (a [Multi SPA](#in-a-multi-spa-layout) architecture), navigation is allowed as a normal page load, and a new page root is loaded.
++ If navigation is initiated with any of the following keys pressed: Meta Key, Alt Key, Shift Key, Ctrl Key, navigation is allowed to work the default way - regardless of the first rule above.
++ If navigation is initiated from a link element that has the `target` attribute, or the `download` attribute, navigation is allowed to work the default way - regardless of the first rule above.
++ If navigation is initiated from a form element that has the `target` attribute, navigation is allowed to work the default way - regardless of the first rule above.
 
 > To entirely disable SPA navigation in config where necessary, run `webflo config client` and follow the prompt.
 
 ##### SPA State
 
-> TODO
+In addition to [the universal lifecycle state](#application-state) of a Webflo application, state on the client side also includes aspects of the client-side lifecycle that can be used to provide visual cues on the UI.
+  
+###### The `document.state.network` Object
+
+This is a *live* object that exposes the network activity and network state of the application.
+
+```js
+console.log(document.state.network) // { requesting, remote, error, redirecting, online, }
+```
+
++ **`network.requesting`: `null|Object`** - This property tells when a request is ongoing, in which case it exposes the `params` object used to initiate the request.
++ **`network.remote`: `null|String`** - This property tells when a remote request is ongoing - usually the same navigation requests as at `network.requesting`, but when not handled by any client-side route handlers, or when `next()`ed to this point by route handlers. It also appears when a route handler calls the special `fetch()` function they receive on their fourth parameter.
++ **`network.error`: `null|Error`** - This property tells when a request is *errored* in which case it contains the `Error` instance. For requests that can be retried, the `Error` instance also has a custom `retry()` method.
++ **`network.redirecting`: `null|String`** - This property tells when a client-side redirect is ongoing - see [Scenario 4: Single Page Navigation Requests and Responses](#scenario-4-single-page-navigation-requests-and-responses) - in which case it exposes the destination URL.
++ **`network.online`: `Boolean`** - This property tells of [the browser's ability to connect to the network](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/onLine).
+
+Bow, being a *live* object means that `document.state.network` can be observed using the [Observer API](https://github.com/webqit/observer).
+
+```js
+// Visualize the network state
+let onlineVisualizer = changes => {
+    changes.forEach(e => {
+        console.log(e.name, ':', e.value);
+    });
+};
+Observer.observe(document.state.network, onlineVisualizer);
+// Or: Observer.observe(document, [ ['state', 'network'] ], onlineVisualizer, { subtree: true });
+```
+
+```js
+// Visualize the 'online' property
+let onlineVisualizer = e => {
+    console.log('You are ', e.value ? 'online' : 'offline');
+};
+Observer.observe(document.state.network, 'online', onlineVisualizer);
+// Or: Observer.observe(document.state, [ ['network', 'online'] ], onlineVisualizer);
+```
+
+```js
+// Catch request errors; attempt a retry
+Observer.observe(document.state.network, 'error', e => {
+    if (!e.value) return;
+    console.error(e.value.message);
+    if (e.value.retry) {
+        console.error('Retrying...');
+        e.value.retry();
+    }
+});
+```
+
+###### Form Actions
+
+When navigation occurs [via form submissions](#scenario-4-single-page-navigation-requests-and-responses), the form element and the submit button are made to go on the *active* state. For both of these elements, the Webflo client simply sets the `element.state.active` to `true` while the request is ongoing, then `false`, on completion.
 
 ##### Service Workers
 
