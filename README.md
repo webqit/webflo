@@ -1059,7 +1059,7 @@ Where workflows throw an exception, an *error* status is implied.
 
 ### Webflo Applications
 
-In just a few concepts, Webflo comes ready for any type of application! Additional details of a Webflo app - depending on the type - are covered in the following sections.
+In just a few concepts, Webflo comes ready for any type of application! Now, additional details of a Webflo app - depending on the type - are covered in the following sections.
 
 #### Client-Side Applications
 
