@@ -1059,7 +1059,7 @@ Where workflows throw an exception, an *error* status is implied.
 
 ### Webflo Applications
 
-In just a few concepts, Webflo comes for any type of application - from as basic as a static index.html page to as rich as a universal app that's either a Multi Page Application (MPA), Single Page Application (SPA), or a hybrid of these, implementing Server Side Rendering (SSR), Client Side Rendering (CSR), or a hybrid of these, offline and PWA capabilities, etc. - this time, without loosing the vanilla advantage!
+In just a few concepts, Webflo comes ready for any type of application! Additional details of a Webflo app - depending on the type - are covered in the following sections.
 
 #### Client-Side Applications
 
