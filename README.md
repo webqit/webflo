@@ -1064,8 +1064,8 @@ In just a few concepts, Webflo comes ready for any type of application! Now, add
 #### Client-Side Applications
 
 Web pages that embed the Webflo client JS bundle deliver a great user experience. (The `npm run generate` command does both the building and embedding of the script for each document root in the application.)
-+ **First-paint-ready.** On the first page request, you get SEO ready HTML that's also optimized for the first paint of your route with [Server-Side Rendering](#client-and-server-side-rendering).
-+ **Fluid and app-like.** On being loaded, the state of the application is restored through hydration and [subsequent navigations](#spa-navigation) are sleek and instant - data is fetched and [Client-Side Rendering](#client-and-server-side-rendering) is performed.
++ **First-paint-ready.** On the first page request, you get a [server-rendered](#client-and-server-side-rendering) HTML page that's optimized for the first paint of your page.
++ **Fluid and app-like.** On being loaded, the state of the application is restored through hydration, and [subsequent navigations](#spa-navigation) are sleek and instant while performing [Client-Side Rendering](#client-and-server-side-rendering).
 
 ##### SPA Navigation
 
