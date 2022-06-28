@@ -542,7 +542,7 @@ But, we can also access the route in a way that gets the data rendered into the 
 Now, for Single Page Applications, subsequent navigations, after the initial page load, just asks for the data on destination URLs and perform [Client-Side Rendering](#client-and-server-side-rendering) on the same running document. Navigation is sleek and instant!
 
 > **Note**
-> <br>Unless disabled in config, SPA routing is automatically built into your app's JS bundle from the `npm run generate` command. So, it just works!
+> <br>Unless disabled in [config](#spa_routing), SPA routing is automatically built into your app's JS bundle from the `npm run generate` command. So, it just works!
 
 With no extra work, your application can function as either a *Multi Page App (MPA)* or a *Single Page App (SPA)*!
 
@@ -576,7 +576,7 @@ my-app
 
 This, in both cases, is templating - the ability to define HTML *partials* once, and have them reused multiple times. Webflo just concerns itself with templating, and the choice of a Multi Page Application or Single Page Application becomes yours! And heck, you can even have the best of both worlds in the same application - with an architecture we'll call [Multi SPA](#in-a-multi-spa-layout)! It's all a *layout* thing!
 
-Now, with pages in Webflo being [DOM-based](#overview) (both client-side and [server-side](https://github.com/webqit/oohtml-ssr)), documents can be manipulated directly with DOM APIs, e.g. to replace or insert nodes, attributes, etc. But even better, templating in Webflo is based on the [HTML Modules](https://github.com/webqit/oohtml#html-modules) and [HTML Imports](https://github.com/webqit/oohtml#html-imports) features in [OOHTML](https://github.com/webqit/oohtml) - unless disabled in config. These features provide a powerful declarative templating system on top of the standard [HTML `<template>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template) element - with a *module*, *export* and *import* paradigm.
+Now, with pages in Webflo being [DOM-based](#overview) (both client-side and [server-side](https://github.com/webqit/oohtml-ssr)), documents can be manipulated directly with DOM APIs, e.g. to replace or insert nodes, attributes, etc. But even better, templating in Webflo is based on the [HTML Modules](https://github.com/webqit/oohtml#html-modules) and [HTML Imports](https://github.com/webqit/oohtml#html-imports) features in [OOHTML](https://github.com/webqit/oohtml) - unless disabled in [config](#oohtml_support). These features provide a powerful declarative templating system on top of the standard [HTML `<template>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template) element - with a *module*, *export* and *import* paradigm.
 
 Here, you are able to define reusable contents in a `<template>` element...
 
@@ -858,7 +858,7 @@ public
 
 From here, even the most-rudimentary form of rendering (using vanilla HTML and native DOM methods) becomes possible, and this is a good thing: you get away with less tooling until you absolutely need to add up on tooling!
 
-However, since the `document` objects in Webflo natively support [OOHTML](https://github.com/webqit/oohtml) - unless disabled in config, we are able to write reactive UI logic! Here, OOHTML makes it possible to embed reactive `<script>` elements (called [Subscript](https://github.com/webqit/oohtml#subscript)) right within HTML elements - where each expression automatically self-updates whenever references to data, or its properties, get an update!
+However, since the `document` objects in Webflo natively support [OOHTML](https://github.com/webqit/oohtml) - unless disabled in [config](#oohtml_support), we are able to write reactive UI logic! Here, OOHTML makes it possible to embed reactive `<script>` elements (called [Subscript](https://github.com/webqit/oohtml#subscript)) right within HTML elements - where each expression automatically self-updates whenever references to data, or its properties, get an update!
 
 ```html
  <!--
@@ -1053,11 +1053,11 @@ Re-coded redirects have the standard `Location` header, and an `X-Redirect-Code`
 
 Where workflows return `undefined`, a `Not Found` status is implied.
 + On the server side, a `404` HTTP response is returned.
-+ On the client-side, the initiating document in the browser has its `document.state.page` emptied. The error is also exposed on the [`document.state.network.error`](#the-document.state.network-object) property.
++ On the client-side, the initiating document in the browser has its `document.state.page` emptied. The error is also exposed on the [`document.state.network.error`](#the-documentstatenetwork-object) property.
 
 Where workflows throw an exception, an *error* status is implied.
 + On the server side, the error is logged and a `500` HTTP response is returned.
-+ On the client-side, the initiating document in the browser has its `document.state.page` emptied. The error is also exposed on the [`document.state.network.error`](#the-document.state.network-object) property.
++ On the client-side, the initiating document in the browser has its `document.state.page` emptied. The error is also exposed on the [`document.state.network.error`](#the-documentstatenetwork-object) property.
 
 ### Webflo Applications
 
@@ -1065,14 +1065,20 @@ In just a few concepts, Webflo comes ready for any type of application! Now, add
 
 #### Application State
 
-For all things application state, Webflo leverages the [State API](https://github.com/webqit/oohtml#state-api) that's natively available in OOHTML-based documents - both client-side and server-side. This API exposes an application-wide `document.state` object, and a per-element `element.state` object. And these are *live* read/write objects that can be observed for property changes using the [Observer API](https://github.com/webqit/observer). It comes off as the simplest approach to state and reactivity!
+For all things application state, Webflo leverages the [State API](https://github.com/webqit/oohtml#state-api) that's natively available in OOHTML-based documents - both client-side and server-side. This API exposes an application-wide `document.state` object and a per-element `element.state` object. And these are *live* read/write objects that can be observed for property changes using the [Observer API](https://github.com/webqit/observer). It comes off as the simplest approach to state and reactivity!
 
 > **Note**
-> <br>The State API is not available when the OOHTML support level in config is switched from `full` or `scripting`.
+> <br>The State API is not available when the OOHTML support level in config is switched away from `full` and `scripting`.
 
 ##### The `document.state.page` Object
 
-This property represents the data obtained from route handers on each navigation. Webflo simply exposes this data and lets the page's [rendering logic](#client-and-server-side-rendering) take over.
+This property represents the data obtained from route handers on each navigation. Webflo simply exposes this data and lets the page's [rendering logic](#client-and-server-side-rendering), or other parts of the application, take over.
+
+```js
+Observer.observe(document.state, 'page', e => {
+    console.log('Current page data is: ', e.value);
+});
+```
 
 ##### The `document.state.url` Object
 
@@ -1102,13 +1108,13 @@ document.addEventListener('synthetic-navigation', e => {
 console.log(document.state.url.hash); // #form
 ```
 
-There is also the convenience `query` property that offers the URL query parameters as a *live* object.
+There is also the *convenience* `query` property that offers the URL parameters as a *live* object.
 
 ```js
 // For URL: http://localhost:3000/login?as=student
 console.log(document.state.url.query.as) // student
 
-// Re-rewrite the URL and navigate by simply modifying a query parameter
+// Re-rewrite the URL and initiate navigation by simply modifying a query parameter
 document.addEventListener('synthetic-navigation', e => {
     Observer.set(document.state.url.query, 'as', 'business');
 });
@@ -1121,8 +1127,9 @@ Web pages that embed the Webflo client JS bundle deliver a great user experience
 + **Fluid and app-like.** On being loaded, the state of the application is restored through hydration, and [subsequent navigations](#spa-navigation) are sleek and instant, while performing [Client-Side Rendering](#client-and-server-side-rendering).
 
 ##### SPA Navigation
+##### SPA Navigation
 
-Unless disabled in config, it is factored-in at build time for the application client JS to be able to automatially figure out when to intercept a navigation event and prevent a full page reload, and when not to. It follows the following rules:
+Unless disabled in [config](#spa_navigation), it is factored-in at build time for the application client JS to be able to automatially figure out when to intercept a navigation event and prevent a full page reload, and when not to. It follows the following rules:
 + When it ascertains that the destination URL is based on the current running `index.html` document in the browser (an SPA architecture), a full page reload is prevented for *soft* navigation. But where the destination URL points out of the current document root (a [Multi SPA](#in-a-multi-spa-layout) architecture), navigation is allowed as a normal page load, and a new page root is loaded.
 + If navigation is initiated with any of the following keys pressed: Meta Key, Alt Key, Shift Key, Ctrl Key, navigation is allowed to work the default way - regardless of the first rule above.
 + If navigation is initiated from a link element that has the `target` attribute, or the `download` attribute, navigation is allowed to work the default way - regardless of the first rule above.
@@ -1188,7 +1195,7 @@ When navigation occurs [via form submissions](#scenario-4-single-page-navigation
 
 ##### Service Workers
 
-> TODO
+Webflo client-side applications are intended to provide an app-like-first experience. So unless disabled in [config](#enable_service_worker), a [Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) is built as part of your application on running the `npm run generate` command.
 
 #### API Backends
 
