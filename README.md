@@ -1082,7 +1082,7 @@ Observer.observe(document.state, 'page', e => {
 
 ##### The `document.state.url` Object
 
-This is a *live* object that reperesents the properties of the application URL at any point in time. The object exposes the same URL properties as with the [`URL`](https://developer.mozilla.org/en-US/docs/Web/API/URL) API, but as *live* properties that can be both observed as navigation happens and modified to initiate navigation - using the [Observer API](https://github.com/webqit/observer).
+This is a *live* object that reperesents the properties of the application URL at any point in time. The object exposes the same URL properties as with the [`URL`](https://developer.mozilla.org/en-US/docs/Web/API/URL) API, but as *live* properties that can be observed as navigation happens, and modified to initiate navigation - all using the [Observer API](https://github.com/webqit/observer).
 
 ```js
 console.log(document.state.url) // { hash, host, hostname, href, origin, password, pathname, port, protocol, search, searchParams, username }
