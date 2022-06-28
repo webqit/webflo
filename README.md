@@ -301,7 +301,7 @@ export default function(event, context, next) {
 ```
 
 > **Note**
-> <br>The above function is built as part of your application's Service Worker JS bundle on running the `npm run generate` command. (It is typically bundled to the file `./public/worker.js`, and the main application bundle automatically connects to it.) Then it responds from within the Service Worker on visiting http://localhost:3000.
+> <br>The above function is built as part of your application's Service Worker JS bundle on running the `npm run generate` command. (It is typically bundled to the file `./public/worker.js`, and the main application bundle automatically connects to it.) Then it responds from within the Service Worker on visiting http://localhost:3000. (More details [ahead](#service-workers).)
 
 So, depending on what's being built, an application's handler functions may take the following form (in part or in whole as with universal applications):
 
@@ -1127,7 +1127,6 @@ Web pages that embed the Webflo client JS bundle deliver a great user experience
 + **Fluid and app-like.** On being loaded, the state of the application is restored through hydration, and [subsequent navigations](#spa-navigation) are sleek and instant, while performing [Client-Side Rendering](#client-and-server-side-rendering).
 
 ##### SPA Navigation
-##### SPA Navigation
 
 Unless disabled in [config](#spa_navigation), it is factored-in at build time for the application client JS to be able to automatially figure out when to intercept a navigation event and prevent a full page reload, and when not to. It follows the following rules:
 + When it ascertains that the destination URL is based on the current running `index.html` document in the browser (an SPA architecture), a full page reload is prevented for *soft* navigation. But where the destination URL points out of the current document root (a [Multi SPA](#in-a-multi-spa-layout) architecture), navigation is allowed as a normal page load, and a new page root is loaded.
@@ -1195,7 +1194,14 @@ When navigation occurs [via form submissions](#scenario-4-single-page-navigation
 
 ##### Service Workers
 
-Webflo client-side applications are intended to provide an app-like-first experience. So unless disabled in [config](#enable_service_worker), a [Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) is built as part of your application on running the `npm run generate` command.
+Webflo client-side applications are intended to provide an app-like-first experience. So unless disabled in [config](#enable_service_worker), a [Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) is built as part of your application on running the `npm run generate` command. You may define [route handlers in the `/worker` directory](#handler-functions-and-layout) of your application, and these will be built into the service worker to handle Same-Origin requests of the application. Where there are no *worker* handlers, or where they forward these requests, the request is fetched, either from the cache, or from the network, depending on the fetching strategy built into the service worker.
+
+###### Fetching Strategy
+
++ **Network First** - This strategy tells the Service Worker to always attempt fetching from the network first for given resources, before fetching from the cache. On every successful network fetch, a copy of the response is saved to the cache for next time. (This is good for files that need to be fresh to the user on a "best effort" basis.) Unless [changed](#default_fetching_strategy), this is Webflo's default fetching strategy. When not the default strategy, a list of specific files that should be fetched this way can be [configured](#network_first_urls).
++ **Cache First** - This strategy tells the Service Worker to always attempt fetching from the cache first for given resources, before fetching from the network. Where they have to be fetched from the network, a copy of the response is saved to the cache for next time. (This is good for files that do not critially need to be fresh to the user.) When not the default strategy, a list of specific files that should be fetched this way can be [configured](#cache_first_urls).
++ **Network Only** - This strategy tells the Service Worker to always fetch given resources from the network only. They are simply not available when offline. (This is good for files that critially need to be fresh to the user.) When not the default strategy, a list of specific files that should be fetched this way can be [configured](#network_only_urls).
++ **Cache Only** - This strategy tells the Service Worker to always fetch given resources from the cache only. (This is good for files that do not change often.) When not the default strategy, a list of specific files that should be fetched this way can be [configured](#cache_only_urls). The listed files are pre-cached ahead of when they'll be needed - and are served from the cache each time. (Pre-caching happens on the one-time `install` event of the Service Worker.)
 
 #### API Backends
 
