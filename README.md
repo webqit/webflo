@@ -1138,7 +1138,7 @@ Unless disabled in [config](#spa_navigation), it is factored-in at build time fo
 
 ##### SPA State
 
-In addition to [the universal lifecycle state](#application-state) of a Webflo application, state on the client side also includes aspects of the client-side lifecycle that can be used to provide visual cues on the UI.
+In addition to [the universal lifecycle state](#application-state) of a Webflo application, state on the client side also includes the following aspects of the client-side lifecycle that can be used to provide visual cues on the UI.
   
 ###### The `document.state.network` Object
 
@@ -1199,9 +1199,11 @@ Webflo client-side applications are intended to provide an app-like-first experi
 ###### Fetching Strategy
 
 + **Network First** - This strategy tells the Service Worker to always attempt fetching from the network first for given resources, before fetching from the cache. On every successful network fetch, a copy of the response is saved to the cache for next time. (This is good for files that need to be fresh to the user on a "best effort" basis.) Unless [changed](#default_fetching_strategy), this is Webflo's default fetching strategy. When not the default strategy, a list of specific files that should be fetched this way can be [configured](#network_first_urls).
-+ **Cache First** - This strategy tells the Service Worker to always attempt fetching from the cache first for given resources, before fetching from the network. Where they have to be fetched from the network, a copy of the response is saved to the cache for next time. (This is good for files that do not critially need to be fresh to the user.) When not the default strategy, a list of specific files that should be fetched this way can be [configured](#cache_first_urls).
++ **Cache First** - This strategy tells the Service Worker to always attempt fetching from the cache first for given resources, before fetching from the network. After serving a cached response, or where not found in cache, a network fetch happens and a copy of the response is saved to the cache for next time. (This is good for files that do not critially need to be fresh to the user.) When not the default strategy, a list of specific files that should be fetched this way can be [configured](#cache_first_urls).
 + **Network Only** - This strategy tells the Service Worker to always fetch given resources from the network only. They are simply not available when offline. (This is good for files that critially need to be fresh to the user.) When not the default strategy, a list of specific files that should be fetched this way can be [configured](#network_only_urls).
 + **Cache Only** - This strategy tells the Service Worker to always fetch given resources from the cache only. (This is good for files that do not change often.) When not the default strategy, a list of specific files that should be fetched this way can be [configured](#cache_only_urls). The listed files are pre-cached ahead of when they'll be needed - and are served from the cache each time. (Pre-caching happens on the one-time `install` event of the Service Worker.)
+
+In all cases above, the convention for specifying files for a strategy accepts [URL patterns](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) - against which files can be matched on the fly. For example, to place all files in an `/image` directory on the *Cache First* strategy, the pattern `/image/*` (or `/image/**`, to include nested directories) can be used. To place all `.svg` files in an `/icons` directory on the *Cache Only* strategy, the pattern `/icons/*.svg` (or `/icons/**.svg`, to include nested directories) can be used. (Specifically for the *Cache Only* strategy, patterns are resolved at Service Worker build-time.)
 
 #### API Backends
 
