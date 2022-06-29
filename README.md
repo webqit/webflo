@@ -1264,7 +1264,7 @@ When navigation occurs [via form submissions](#scenario-4-single-page-navigation
 
 ##### Service Workers
 
-Webflo client-side applications are intended to provide an app-like-first experience. So unless disabled in [config](#enable_service_worker), a [Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) is built as part of your application on running the `npm run generate` command. You may define [route handlers in the `/worker` directory](#handler-functions-and-layout) of your application, and these will be built into the service worker to handle Same-Origin requests of the application. Where there are no *worker* handlers, or where they forward these requests, the request is fetched, either from the cache, or from the network, depending on the fetching strategy built into the service worker.
+Webflo client-side applications are intended to provide an app-like-first experience. So unless disabled in [config](#enable_service_worker), a [Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) is built as part of your application on running the `npm run generate` command. You may define [route handlers in the `/worker` directory](#handler-functions-and-layout) of your application, and these will be built into the service worker to handle Same-Origin requests of the application. Where there are no *worker* handlers, or where they forward these requests, the request is fetched, either from the cache, or from the network, depending on the fetching strategy built into the Service Worker.
 
 ###### Fetching Strategy
 
@@ -1313,7 +1313,7 @@ A couple APIs exists in browsers for establishing a two-way communication channe
     
     ```js
     // On the client side
-    let response = await worker.messaging.request({ type: 'TEST' });
+    let response = await workport.messaging.request({ type: 'TEST' });
     console.log(response); // { type: 'WORKS' }
     ```
     
