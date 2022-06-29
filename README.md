@@ -21,7 +21,7 @@ Ok, we've put all of that up for a straight read!
 + [Concepts](#concepts)
 + [Webflo Applications](#webflo-applications)
 + [Workflow API](#workflow-api)
-+ [Command Line Interface](#command-line-interface)
++ [Webflo Config](#webflo-config)
 
 ## Overview
 
@@ -1063,6 +1063,11 @@ Where workflows throw an exception, an *error* status is implied.
 
 In just a few concepts, Webflo comes ready for any type of application! Now, additional details of a Webflo app - depending on the type - are covered in the following sections.
 
++ [Application State](#application-state)
++ [Client-Side Applications](#client-side-applications)
++ [API Backends](#api-backends)
++ [Static Sites](#static-sites)
+
 #### Application State
 
 For all things application state, Webflo leverages the [State API](https://github.com/webqit/oohtml#state-api) that's natively available in OOHTML-based documents - both client-side and server-side. This API exposes an application-wide `document.state` object and a per-element `element.state` object. And these are *live* read/write objects that can be observed for property changes using the [Observer API](https://github.com/webqit/observer). It comes off as the simplest approach to state and reactivity!
@@ -1270,7 +1275,7 @@ This way, there is one source of truth for your application - both when visiting
 
 > TODO
 
-### Command Line Interface
+### Webflo Config
 
 > TODO
 
