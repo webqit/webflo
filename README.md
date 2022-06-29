@@ -247,7 +247,7 @@ export default function(event, context, next) {
 }
 ```
 
-Each function receives an `event` object representing the current flow. (But details ahead.)
+Each function receives an `event` object representing the current flow - including the request `event.request`. (But details ahead.)
 
 For *server-based* applications (e.g. traditional web apps and API backends), server-side handlers go into a directory named `server`.
 
@@ -370,7 +370,25 @@ export default function(event, context, next) {
 
 This step-based workflow helps to decomplicate routing and gets us scaling horizontally as our application grows larger.
 
-Workflows may be designed with as many or as few step functions as necessary; the flow control parameters `next.stepname` and `next.pathname` can be used at any point to handle the rest of an URL that have no corresponding step functions.
+Workflows may be designed with *wildcard* steps using a hyphen `-` as step name. Wildcard steps match all paths at the given level of the route! A `this.stepname` property can always be used to see the current URL step that matched.
+
+```js
+/**
+server
+ ├── -/index.js
+ */
+export default function(event, context, next) {
+    if (next.stepname) {
+        return next();
+    }
+    if (this.stepname === 'products') {
+        return { title: 'Products' };
+    }
+    return { title: 'Untitled' };
+}
+```
+
+Additionally, workflows may be designed with as many or as few step functions as necessary; the flow control parameters `next.stepname` and `next.pathname` can be used at any point to handle the rest of an URL that have no corresponding step functions.
 
 For example, it is possible to handle all URLs from the root handler alone.
 
@@ -534,7 +552,7 @@ my-app
   └── public/index.html ----------------------- http://localhost:3000/index.html --------- text/html
 ```
 
-But, we can also access the route in a way that gets the data rendered into the automatically-paired `index.html` file for a dynamic page response. We'd simply set the [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header of the request to match `text/html` - e.g. `text/html`, `text/*`, `*/html`, `*/*`, and Webflo will automatically perform [Server-Side Rendering](#client-and-server-side-rendering). (Automatic pairing works the same for nested routes! But top-level `index.html` files are implicitly inherited down the hierarchy.)
+But, we can also access the route in a way that gets the data rendered into the automatically-paired `index.html` file for a dynamic page response. We'd simply set the [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header of the request to match `text/html` - e.g. `text/html`, `text/*`, `*/html`, `*/*`, and Webflo will automatically perform [Server-Side Rendering](#client-and-server-side-rendering) to give a page response. (Automatic pairing works the same for nested routes! But top-level `index.html` files are implicitly inherited down the hierarchy.)
 
 > **Note**
 > <br>The `Accept` header hint is already how browsers make requests on every page load. So, it just works!
@@ -1001,7 +1019,9 @@ Custom render functions must return a value, and `window` objects are accepted. 
 
 ### Requests and Responses
 
-Routes in Webflo can be designed for different types of request/response scenarios. Webflo does the heavy lifting on each request/response flow!
+On each request, the event object passed to route handlers exposes the incoming request as `event.request`. This is an instance of `event.Request` - an extension of the [WHATWG Request](https://developer.mozilla.org/en-US/docs/Web/API/Request) class. The event object also exposes `event.Response` - an extension of the [WHATWG Response](https://developer.mozilla.org/en-US/docs/Web/API/Response) class, for returning instance-based responses.
+
+Now, routes in Webflo can be designed for different types of request/response scenarios. Webflo does the heavy lifting on each request/response flow!
 
 #### Scenario 1: Static File Requests and Responses
 
@@ -1048,6 +1068,49 @@ It is possible to hint the server on how to serve redirect responses. The respon
 + The `X-Redirect-Policy` header can be any of `manual` - treat all redirects as manual, `manual-if-cross-origin` - treat cross-origin redirects as manual, `manual-if-cross-spa` - treat cross-SPA redirects as manual.
 
 Re-coded redirects have the standard `Location` header, and an `X-Redirect-Code` response header containing the original redirect status code.
+
+#### Cookie Responses
+
+Handlers can set [response cookies](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie) via the standard `Response` constructor, or using the standard `Headers.set()` method.
+
+```js
+let response = event.Response(data, { headers: { 'Set-Cookie': cookieString }});
+```
+
+```js
+response.headers.set('Set-Cookie', cookieString);
+```
+
+Webflo also offers a *convenience* method.
+
+```js
+let response = event.Response(data, { headers: { cookies: cookieString }});
+```
+
+```js
+response.headers.cookies = { 'Cookie-1': cookieString, 'Cookie-2': cookie2String };
+```
+
+```js
+let cookieObject = { value: 'cookie-val', expires, maxAge, domain, path, secure, HttpOnly, sameSite };
+let cookie2Object = { value: 'cookie2-val' };
+response.headers.cookies = { 'Cookie-1': cookieObject };
+response.headers.cookies = { 'Cookie-2': cookie2Object };
+
+console.log(response.headers.cookies); // { 'Cookie-1': cookieObject, 'Cookie-2': cookie2Object };
+````
+
+Set cookies are accessed on the next request via request headers.
+
+```js
+console.log(event.request.headers.get('Cookie')); // Cookie-1=cookie-val&Cookie-2=cookie2-val;
+````
+
+Webflo also offers a *convenience* method.
+
+```js
+console.log(event.request.headers.cookies); // { 'Cookie-1': 'cookie-val', 'Cookie-2': 'cookie2-val' };
+````
 
 #### Failure Responses
 
