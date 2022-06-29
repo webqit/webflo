@@ -815,10 +815,12 @@ The Webflo `generate` command automatically figures out a given architecture and
 
 #### Bundling
 
-Template `.html` files are bundled from the filesystem into a single file using the [OOHTML CLI](https://github.com/webqit/oohtml-cli) utility. On installing this utility, you may want to add the following scripts to your `package.json`.
+Template `.html` files are bundled from the filesystem into a single file using the [OOHTML CLI](https://github.com/webqit/oohtml-cli) utility. On installing this utility, you may want to add the following to your npm scripts in `package.json`.
 
 ```json
-"generate:html": "oohtml bundle --recursive --auto-embed=page"
+"scripts": {
+    "generate:templates": "oohtml bundle --recursive --auto-embed=page"
+}
 ```
 
 The `--recursive` flag gets the bundler to recursively bundle *subroots* in a [Multi SPA](#in-a-multi-spa-layout) layout - where subdirectories with their own `index.html` document. (Subroots are ignored by default.)
@@ -1455,7 +1457,25 @@ This way, there is one source of truth for your application - both when visiting
 
 #### Static Sites
 
-> TODO
+You can build an entire static site from off the `/public` directory alone! It's all about placing files and HTML pages there to be served statically! 
+
+Here, static pages means pages that are not server-rendered during the request/response cycle, but served directly from files. You are free to hand-author each of them - either as standalone `index.html` files, or as a combination of `index.html` *roots* plus *templates* that can all get resolved client-side. The [Pages, Layout and Templating](https://github.com/webqit/webflo/blob/master/README.md#pages-layout-and-templating) section covers layout patterns.
+
+On the other hand, if you have a dynamic site, you can make a static site off it! The idea is to turn on your server and crawl your dynamic site via HTTP requests, outputting static HTML representations of each page. This is called *Pre-Rendering* or *Static-Site Generation* (SSG)!
+
+A simple tool, like [`staticgen`](https://github.com/tj/staticgen), or the basic [`wget`](https://www.gnu.org/software/wget/) command (similar to `curl`), can get this done in an instant. On figuring out the command that works best for you, you may want to add an alias of the command to your npm scripts in `package.json`.
+
+
+```json
+"scripts": {
+    "generate:site": "wget -P public -nv -nH -r -E localhost:3000"
+}
+```
+
+> **Note**
+> <br>Above, we used the `-P` flag to specify the output directory as `public`, the `-nv` flag to opt into “non-verbose” mode which outputs less information, the `-r` flag to get it to crawl and download recursively, and the `-E` flag to get it to add the `.html` extension to generated files.
+
+You have a static site!
 
 ### Workflow API
 
