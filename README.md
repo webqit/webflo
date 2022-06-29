@@ -1122,9 +1122,11 @@ document.addEventListener('synthetic-navigation', e => {
 
 #### Client-Side Applications
 
-Web pages that embed the Webflo client JS bundle deliver a great user experience. (The `npm run generate` command does both the building and embedding of the script for each document root in the application.)
+Web pages that embed the Webflo client JS bundle deliver a great user experience.
 + **First-paint-ready.** On the first page request, you get a [server-rendered](#client-and-server-side-rendering) HTML page that's optimized for the first paint of your application.
 + **Fluid and app-like.** On being loaded, the state of the application is restored through hydration, and [subsequent navigations](#spa-navigation) are sleek and instant, while performing [Client-Side Rendering](#client-and-server-side-rendering).
+
+For these client-side applications, the `npm run generate` command does both the building and embedding of the script for each document root in the application.
 
 ##### SPA Navigation
 
