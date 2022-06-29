@@ -1494,7 +1494,7 @@ Your baby steps with Webflo could be a ["Hello World" `index.html` file](#instal
 You could soon be taking all your ideas to Webflo! 😃
 
 > **Warning**
-> Webflo is still evolving and some things may change quickly! Let's not go to production just yet! 
+> <br>Webflo is still evolving and some things may change quickly! Let's not go to production just yet! 
 
 ## Getting Involved
 
