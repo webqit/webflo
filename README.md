@@ -1209,7 +1209,7 @@ In all cases above, the convention for specifying files for a strategy accepts [
 
 #### API Backends
 
-In Webflo, an API backend is what you, in essence, come off with on your server-side routes.
+In Webflo, an API backend is what you, in essence, come off with with server-side route handlers.
 
 ```js
 /**
