@@ -22,6 +22,8 @@ Ok, we've put all of that up for a straight read!
 + [Webflo Applications](#webflo-applications)
 + [Workflow API](#workflow-api)
 + [Webflo Config](#webflo-config)
++ [Getting Started](#getting-started)
++ [Getting Involved](#getting-involved)
 
 ## Overview
 
