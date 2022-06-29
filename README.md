@@ -1069,6 +1069,16 @@ It is possible to hint the server on how to serve redirect responses. The respon
 
 Re-coded redirects have the standard `Location` header, and an `X-Redirect-Code` response header containing the original redirect status code.
 
+#### Failure Responses
+
+Where workflows return `undefined`, a `Not Found` status is implied.
++ On the server side, a `404` HTTP response is returned.
++ On the client-side, the initiating document in the browser has its `document.state.page` emptied. The error is also exposed on the [`document.state.network.error`](#the-documentstatenetwork-object) property.
+
+Where workflows throw an exception, an *error* status is implied.
++ On the server side, the error is logged and a `500` HTTP response is returned.
++ On the client-side, the initiating document in the browser has its `document.state.page` emptied. The error is also exposed on the [`document.state.network.error`](#the-documentstatenetwork-object) property.
+
 #### Cookie Responses
 
 Handlers can set [response cookies](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie) via the standard `Response` constructor, or using the standard `Headers.set()` method.
@@ -1107,16 +1117,6 @@ Webflo also offers a *convenience* method.
 ```js
 console.log(event.request.headers.cookies); // { 'Cookie-1': 'cookie-val', 'Cookie-2': 'cookie2-val' };
 ````
-
-#### Failure Responses
-
-Where workflows return `undefined`, a `Not Found` status is implied.
-+ On the server side, a `404` HTTP response is returned.
-+ On the client-side, the initiating document in the browser has its `document.state.page` emptied. The error is also exposed on the [`document.state.network.error`](#the-documentstatenetwork-object) property.
-
-Where workflows throw an exception, an *error* status is implied.
-+ On the server side, the error is logged and a `500` HTTP response is returned.
-+ On the client-side, the initiating document in the browser has its `document.state.page` emptied. The error is also exposed on the [`document.state.network.error`](#the-documentstatenetwork-object) property.
 
 ### Webflo Applications
 
@@ -1291,7 +1291,7 @@ A couple APIs exists in browsers for establishing a two-way communication channe
   }
   ```
 
-  For cross-thread messaging, each side of the API exposes the following methods:
+  For cross-thread messaging, both sides of the API exposes the following methods:
   
   + **`.messaging.post()`** - for sending arbitrary data to the other side. E.g. `workport.messaging.post({ type: 'TEST' })`.
   + **`.messaging.listen()`** - for listening to `message` event from the other side. E.g. `workport.messaging.listen(event => console.log(event.data.type))`. (See [`window: onmessage`](https://developer.mozilla.org/en-US/docs/Web/API/Window/message_event), [`worker: onmessage`](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/message_event).)
@@ -1329,7 +1329,7 @@ A couple APIs exists in browsers for establishing a two-way communication channe
     workport.messaging.channel(channelId).broadcast({ type: 'TEST' });
     ```
   
-  For [UI Nofitications](https://developer.mozilla.org/en-US/docs/Web/API/notification), each side of the API exposes the following methods:
+  For [UI Nofitications](https://developer.mozilla.org/en-US/docs/Web/API/notification), both sides of the API exposes the following methods:
   
   + **`.nofitications.fire()`** - for firing up a UI notification. This uses the [`Nofitications constructor`](https://developer.mozilla.org/en-US/docs/Web/API/Notification/Notification), and thus, accepts the same arguments as the constructor. But it returns a `Promise` that resolves when the notification is *clicked* or *closed*, but rejects when the notification encounters an error, or when the application isn't granted the [notification permission](https://developer.mozilla.org/en-US/docs/Web/API/Notification/requestPermission).
     
@@ -1361,7 +1361,7 @@ A couple APIs exists in browsers for establishing a two-way communication channe
 
 + Route *events* - simple route events that fire when messaging and notification events happen.
 
-  On both client and worker sides of your application, you can define an event listener alongside your *root* route handler. The event listener is called to handle all messaging and notification events that happen.
+  On both the client and worker side of your application, you can define an event listener alongside your *root* route handler. The event listener is called to handle all messaging and notification events that happen.
   
   ```js
   /**
