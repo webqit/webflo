@@ -1218,34 +1218,20 @@ A couple APIs exists in browsers for establishing a two-way communication channe
 
 + The `workport` API - an object with simple methods for working with *cross-thread* messages, UI and Push Notifications.
   
-  On the client - `window` - side of your application, the `workport` object is accessible from route handlers as `this.runtime.workport`.
+  On both the client and worker side of your application, the `workport` object is accessible from route handlers as `this.runtime.workport`.
   
   ```js
   /**
-  client
+  [client|worker]
    ├── index.js
    */
   export default async function(event, context, next) {
-      let { workport: worker } = this.runtime;
-      worker.messaging.post({ ... });
+      let { workport } = this.runtime;
+      workport.messaging.post({ ... });
       return { ... };
   }
   ```
-  
-  On the Service Worker side of your application, the `workport` object is accessible from route handlers as `this.runtime.workport`.
-  
-  ```js
-  /**
-  worker
-   ├── index.js
-   */
-  export default async function(event, context, next) {
-      let { workport: client } = this.runtime;
-      client.messaging.post({ ... });
-      return { ... };
-  }
-  ```
-  
+
   For cross-thread messaging, each side of the API exposes the following methods:
   
   + **`.messaging.post()`** - for sending arbitrary data to the other side. E.g. `workport.messaging.post({ type: 'TEST' })`.
