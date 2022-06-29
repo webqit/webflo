@@ -1140,7 +1140,7 @@ Unless disabled in [config](#spa_navigation), it is factored-in at build time fo
 
 ##### SPA State
 
-In addition to [the universal lifecycle state](#application-state) of a Webflo application, state on the client side also includes the following aspects of the client-side lifecycle that can be used to provide visual cues on the UI.
+In addition to [the universal concept of state](#application-state) of a Webflo application, state on the client side also includes the following aspects of the client-side lifecycle that can be used to provide visual cues on the UI.
   
 ###### The `document.state.network` Object
 
