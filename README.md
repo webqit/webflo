@@ -58,7 +58,7 @@ For when your application has a Server side.
   }
   ```
  
-  > Above, you are handling requests for the root URL and allowing others to flow through to nested handlers or to the `public` directory. (Details ahead.)
+  > Above, you are handling requests for the root URL and allowing others to flow through to step handlers or to the `public` directory. (Details ahead.)
   
   Response is a JSON (API) response when handler return value is jsonfyable. (As above for the root URL.)
   
