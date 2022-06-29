@@ -2,8 +2,6 @@
 /**
  * @imports
  */
-import { Observer } from './Runtime.js';
-import WorkerComm from './WorkerComm.js';
 import Router from './Router.js';
 
 export default class RuntimeClient {
@@ -15,12 +13,6 @@ export default class RuntimeClient {
      */
 	constructor(cx) {
 		this.cx = cx;
-		if (this.cx.service_worker_support) {
-			const workerComm = new WorkerComm(this.cx.worker_filename, { scope: this.cx.worker_scope, startMessages: true });
-			Observer.observe(workerComm, changes => {
-				//console.log('SERVICE_WORKER_STATE_CHANGE', changes[0].name, changes[0].value);
-			});
-		}
 	}
 
 	 /**
@@ -35,44 +27,26 @@ export default class RuntimeClient {
 		// The app router
         const router = new Router(this.cx, httpEvent.url.pathname);
         const handle = async () => {
-			if (this.cx.params.address_bar_synchrony === 'instant') {
-				await this.render(httpEvent, {}, router);
-			}
 			// --------
 			// ROUTE FOR DATA
 			// --------
 			let httpMethodName = httpEvent.request.method.toLowerCase();
-			let response = await router.route([httpMethodName === 'delete' ? 'del' : httpMethodName, 'default'], httpEvent, {}, async event => {
+			return router.route([httpMethodName === 'delete' ? 'del' : httpMethodName, 'default'], httpEvent, {}, async event => {
 				return remoteFetch(event.request);
 			}, remoteFetch);
-			if (!(response instanceof httpEvent.Response)) {
-                response = new httpEvent.Response(response);
-            }
-
-            // --------
-            // Rendering
-            // --------
-            if (response.ok && response.headers.contentType === 'application/json') {
-                await this.render(httpEvent, response, router);
-				await this.scrollIntoView(httpEvent);
-            } else if (!response.ok) {
-				await this.unrender();
-			}
-
-            return response;
 		};
-		
 		// --------
         // PIPE THROUGH MIDDLEWARES
         // --------
-        return (this.cx.middlewares || []).concat(handle).reverse().reduce((next, fn) => {
-            return () => fn.call(this.cx, httpEvent, router, next);
-        }, null)();
+		return await (this.cx.middlewares || []).concat(handle).reverse().reduce((next, fn) => {
+			return () => fn.call(this.cx, httpEvent, router, next);
+		}, null)();
 	}
 
 	// Renderer
-    async render(httpEvent, response, router) {
-		let data = response.json ? await response.json() : response;
+    async render(httpEvent, response) {
+		let data = await response.json();
+		const router = new Router(this.cx, httpEvent.url.pathname);
 		return router.route('render', httpEvent, data, async (httpEvent, data) => {
 			// --------
 			// OOHTML would waiting for DOM-ready in order to be initialized
@@ -94,17 +68,15 @@ export default class RuntimeClient {
 				window.document.body.setAttribute('template', 'page/' + httpEvent.url.pathname.split('/').filter(a => a).map(a => a + '+-').join('/'));
 				await new Promise(res => (window.document.templatesReadyState === 'complete' && res(), window.document.addEventListener('templatesreadystatechange', res)));
 			}
+			await this.scrollIntoView(httpEvent);
 			return window;
 		});
 	}
 
 	// Unrender
-	async unrender() {
+	async unrender(httpEvent) {
 		if (window.document.state) {
 			window.document.setState({ page: {} }, { update: 'merge' });
-		}
-		if (window.document.templates) {
-			window.document.body.setAttribute('template', '');
 		}
 	}
 

@@ -23,6 +23,7 @@ export default class Worker extends Dotfile {
     withDefaults(config) {
         return _merge(true, {
             cache_name: 'cache_v0',
+            default_fetching_strategy: 'network-first',
             cache_only_urls: [],
             cache_first_urls: [],
             network_only_urls: [],
@@ -42,6 +43,15 @@ export default class Worker extends Dotfile {
         if (config.cache_name && config.cache_name.indexOf('_v') > -1 && _isNumeric(_after(config.cache_name, '_v'))) {
             config.cache_name = _before(config.cache_name, '_v') + '_v' + (parseInt(_after(config.cache_name, '_v')) + 1);
         }
+        // Choices
+        const CHOICES = _merge({
+            default_fetching_strategy: [
+                {value: 'network-first', title: 'Network-first (Webflo default)'},
+                {value: 'cache-first', title: 'Cache-first'},
+                {value: 'network-only', title: 'Network-only'},
+                {value: 'cache-only', title: 'Cache-only'},
+            ],
+        }, choices);
         // Questions
         return [
             {
@@ -51,28 +61,36 @@ export default class Worker extends Dotfile {
                 initial: config.cache_name,
             },
             {
-                name: 'cache_only_urls',
-                type: 'list',
-                message: 'Specify URLs for a "cache-only" fetching strategy (comma-separated, globe supported)',
-                initial: (config.cache_only_urls || []).join(', '),
+                name: 'default_fetching_strategy',
+                type: 'select',
+                message: '[default_fetching_strategy]: Choose the default fetching strategy',
+                choices: CHOICES.default_fetching_strategy,
+                initial: this.indexOfInitial(CHOICES.default_fetching_strategy, config.default_fetching_strategy),
+                validation: ['important'],
+            },
+            {
+                name: 'network_first_urls',
+                type: (prev, answers) => answers.default_fetching_strategy === 'network-first' ? null : 'list',
+                message: 'Specify URLs for a "network-first-then-cache" fetching strategy (comma-separated, globe supported)',
+                initial: (config.network_first_urls || []).join(', '),
             },
             {
                 name: 'cache_first_urls',
-                type: 'list',
+                type: (prev, answers) => answers.default_fetching_strategy === 'cache-first' ? null : 'list',
                 message: 'Specify URLs for a "cache-first-then-network" fetching strategy (comma-separated, globe supported)',
                 initial: (config.cache_first_urls || []).join(', '),
             },
             {
                 name: 'network_only_urls',
-                type: 'list',
+                type: (prev, answers) => answers.default_fetching_strategy === 'network-only' ? null : 'list',
                 message: 'Specify URLs for a "network-only" fetching strategy (comma-separated, globe supported)',
                 initial: (config.network_only_urls || []).join(', '),
             },
             {
-                name: 'network_first_urls',
-                type: 'list',
-                message: 'Specify URLs for a "network-first-then-cache" fetching strategy (comma-separated, globe supported)',
-                initial: (config.network_first_urls || []).join(', '),
+                name: 'cache_only_urls',
+                type: (prev, answers) => answers.default_fetching_strategy === 'cache-only' ? null : 'list',
+                message: 'Specify URLs for a "cache-only" fetching strategy (comma-separated, globe supported)',
+                initial: (config.cache_only_urls || []).join(', '),
             },
             {
                 name: 'skip_waiting',

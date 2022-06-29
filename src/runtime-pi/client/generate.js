@@ -42,28 +42,29 @@ export async function generate() {
     const dirSelf = Path.dirname(Url.fileURLToPath(import.meta.url)).replace(/\\/g, '/');
     // -----------
     // Scan Subdocuments
-    const scanSubscopes = scope => {
-        let dir = Path.join(dirPublic, scope), passes = 0;
-        return [ Fs.readdirSync(dir).reduce((scopes, f) => {
+    const scanSubroots = (sparoot, rootFileName) => {
+        let dir = Path.join(dirPublic, sparoot), passes = 0;
+        return [ Fs.readdirSync(dir).reduce((sparoots, f) => {
             let resource = Path.join(dir, f);
             if (Fs.statSync(resource).isDirectory()) {
-                let subscope = Path.join(scope, f);
-                if (Fs.existsSync(Path.join(resource, 'index.html'))) {
-                    return scopes.concat(subscope);
+                let subsparoot = Path.join(sparoot, f);
+                if (Fs.existsSync(Path.join(resource, rootFileName))) {
+                    return sparoots.concat(subsparoot);
                 }
                 passes ++;
-                return scopes.concat(scanSubscopes(subscope)[ 0 ]);
+                return sparoots.concat(scanSubroots(subsparoot, rootFileName)[ 0 ]);
             }
-            return scopes;
+            return sparoots;
         }, []), passes ];
     };
     // -----------
     // Generate client build
-    const generateClient = async function(scope) {
-        let [ subscopes, passes ] = scanSubscopes(scope);
-        let routing = { scope, subscopes, passes };
-        let codeSplitting = !!(scope !== '/' || subscopes.length);
-        let outfileMain = Path.join(scope, clientConfig.bundle_filename),
+    const generateClient = async function(sparoot, spaGraphCallback = null) {
+        let [ subsparoots, targets ] = (sparoot && scanSubroots(sparoot, 'index.html')) || [ [], false ];
+        if (!sparoot) sparoot = '/';
+        let spaRouting = { root: sparoot, subroots: subsparoots, targets };
+        let codeSplitting = !!(sparoot !== '/' || subsparoots.length);
+        let outfileMain = Path.join(sparoot, clientConfig.bundle_filename),
             outfileWebflo = _beforeLast(clientConfig.bundle_filename, '.js') + '.webflo.js';
         let gen = { imports: {}, code: [], };
         // ------------------
@@ -88,7 +89,7 @@ export async function generate() {
         // ------------------
         if (!codeSplitting) {
             initWebflo(gen);
-        } else if (scope === '/') {
+        } else if (sparoot === '/') {
             if (cx.logger) {
                 cx.logger.log(cx.logger.style.keyword(`-----------------`));
                 cx.logger.log(`Base Build`);
@@ -100,17 +101,17 @@ export async function generate() {
         // ------------------
         if (cx.logger) {
             cx.logger.log(cx.logger.style.keyword(`-----------------`));
-            cx.logger.log(`Client Build ` + cx.logger.style.comment(`(scope:${scope}; is-split:${codeSplitting})`));
+            cx.logger.log(`Client Build ` + cx.logger.style.comment(`(sparoot:${sparoot}; is-split:${codeSplitting})`));
             cx.logger.log(cx.logger.style.keyword(`-----------------`));
         }
         gen.code.push(`const { start } = WebQit.Webflo`);
         // ------------------
         // Bundle
-        declareStart.call(cx, gen, dirClient, dirPublic, clientConfig, routing);
+        declareStart.call(cx, gen, dirClient, dirPublic, clientConfig, spaRouting);
         await bundle.call(cx, gen, Path.join(dirPublic, outfileMain), true/* asModule */);
         // ------------------
         // Embed/unembed
-        let targetDocumentFile = Path.join(dirPublic, scope, 'index.html'),
+        let targetDocumentFile = Path.join(dirPublic, sparoot, 'index.html'),
             outfileWebfloPublic = Path.join(clientConfig.public_base_url, outfileWebflo),
             outfileMainPublic = Path.join(clientConfig.public_base_url, outfileMain),
             embedList = [],
@@ -128,21 +129,23 @@ export async function generate() {
         handleEmbeds(targetDocumentFile, embedList, unembedList);
         // ------------------
         // Recurse
+        spaGraphCallback && spaGraphCallback(sparoot, subsparoots);
         if (cx.flags.recursive) {
-            while (subscopes.length) {
-                await generateClient(subscopes.shift());
+            while (subsparoots.length) {
+                await generateClient(subsparoots.shift(), spaGraphCallback);
             }
         }
     };
     // -----------
     // Generate worker build
-    const generateWorker = async function(scope) {
-        let subscopes = [];
-        let routing = { scope, subscopes };
+    const generateWorker = async function(workerroot, workerGraphCallbak = null) {
+        let [ subworkerroots, targets ] = workerroot && scanSubroots(workerroot, 'workerroot') || [ [], false ];
+        if (!workerroot) workerroot = '/';
+        let workerRouting = { root: workerroot, subroots: subworkerroots, targets };
         let gen = { imports: {}, code: [], };
         if (cx.logger) {
             cx.logger.log(cx.logger.style.comment(`-----------------`));
-            cx.logger.log(`Worker Build - scope:${scope}`);
+            cx.logger.log(`Worker Build - workerroot:${workerroot}`);
             cx.logger.log(cx.logger.style.comment(`-----------------`));
         }
         // ------------------
@@ -157,17 +160,28 @@ export async function generate() {
                 return urls.concat(url);
             }, []);
         }
-        declareStart.call(cx, gen, dirWorker, dirPublic, workerConfig, routing);
-        await bundle.call(cx, gen, Path.join(dirPublic, scope, clientConfig.worker_filename));
+        declareStart.call(cx, gen, dirWorker, dirPublic, workerConfig, workerRouting);
+        await bundle.call(cx, gen, Path.join(dirPublic, workerroot, clientConfig.worker_filename));
+        // ------------------
+        // Recurse
+        workerGraphCallbak && workerGraphCallbak(workerroot, subworkerroots);
         if (cx.flags.recursive) {
-            while (subscopes.length) {
-                await generateWorker(subscopes.shift());
+            while (subworkerroots.length) {
+                await generateWorker(subworkerroots.shift());
             }
         }
     };
     // -----------
     // Generate now...
-    await generateClient('/');
+    let sparootsFile = Path.join(dirPublic, 'sparoots.json');
+    if (clientConfig.spa_routing !== false) {
+        const sparoots = [];
+        await generateClient('/', root => sparoots.push(root));
+        Fs.writeFileSync(sparootsFile, JSON.stringify(sparoots, null, 4));
+    } else {
+        await generateClient();
+        Fs.existsSync(sparootsFile) && Fs.unlinkSync(sparootsFile);
+    }
     if (clientConfig.service_worker_support) {
         await generateWorker('/');
     }
@@ -215,8 +229,8 @@ function declareStart(gen, routesDir, targetDir, paramsObj, routing) {
  */
 function declareRoutesObj(gen, routesDir, targetDir, varName, routing) {
     const cx = this || {};
-    let _routesDir = Path.join(routesDir, routing.scope),
-        _targetDir = Path.join(targetDir, routing.scope);
+    let _routesDir = Path.join(routesDir, routing.root),
+        _targetDir = Path.join(targetDir, routing.root);
     cx.logger && cx.logger.log(cx.logger.style.keyword(`> `) + `Declaring routes...`);
     // ----------------
     // Directory walker
@@ -225,7 +239,7 @@ function declareRoutesObj(gen, routesDir, targetDir, varName, routing) {
             let resource = Path.join(dir, f);
             let namespace = _beforeLast('/' + Path.relative(routesDir, resource), '/index.js') || '/';
             if (Fs.statSync(resource).isDirectory()) {
-                if (routing.subscopes.includes(namespace)) return;
+                if (routing.subroots.includes(namespace)) return;
                 walk(resource, callback);
             } else {
                 let relativePath = Path.relative(_targetDir, resource);
@@ -368,7 +382,7 @@ async function bundle(gen, outfile, asModule = false) {
     }
     // Remove moduleFile build
     Fs.unlinkSync(bundlingConfig.entryPoints[0]);
-    removals.forEach(file => Fs.unlinkSync(file));
+    removals.forEach(file => Fs.existsSync(file) && Fs.unlinkSync(file));
     if (waiting) waiting.stop();
     // ----------------
     // Stats

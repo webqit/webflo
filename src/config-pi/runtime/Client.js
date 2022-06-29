@@ -24,7 +24,7 @@ export default class Client extends Dotfile {
         return _merge(true, {
             bundle_filename: 'bundle.js',
             public_base_url: '/',
-            address_bar_synchrony: 'standard',
+            spa_routing: true,
             oohtml_support: 'full',
             service_worker_support: true,
             worker_scope: '/',
@@ -36,10 +36,6 @@ export default class Client extends Dotfile {
     questions(config, choices = {}) {
         // Choices
         const CHOICES = _merge({
-            address_bar_synchrony: [
-                {value: 'standard', title: 'standard - on response'},
-                {value: 'instant', title: 'instant - on request'},
-            ],
             oohtml_support: [
                 {value: 'full', title: 'Full'},
                 {value: 'namespacing', title: 'namespacing'},
@@ -64,11 +60,12 @@ export default class Client extends Dotfile {
                 validation: ['important'],
             },
             {
-                name: 'address_bar_synchrony',
-                type: 'select',
-                message: '[address_bar_synchrony]: Specify how the address bar synchronizes with navigation',
-                choices: CHOICES.address_bar_synchrony,
-                initial: this.indexOfInitial(CHOICES.address_bar_synchrony, config.address_bar_synchrony),
+                name: 'spa_routing',
+                type: 'toggle',
+                message: '[spa_routing]: Enable Single Page Routing Mode',
+                active: 'YES',
+                inactive: 'NO',
+                initial: config.spa_routing,
                 validation: ['important'],
             },
             {

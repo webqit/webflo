@@ -1,0 +1,8 @@
+{
+  "title": "Webflo Test",
+  "type": "module",
+  "scripts": {
+    "generate": "webflo generate::client --recursive --compression --auto-embed",
+    "bundle": "oohtml bundle"
+  }
+}

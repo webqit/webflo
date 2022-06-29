@@ -5,6 +5,7 @@
 import { _any } from '@webqit/util/arr/index.js';
 import { HttpEvent, Request, Response, Observer } from '../Runtime.js';
 import { urlPattern } from '../../util.js';
+import Workport from './Workport.js';
 
 /**
  * ---------------------------
@@ -76,6 +77,7 @@ export default class Worker {
 			// URL schemes that might arrive here but not supported; e.g.: chrome-extension://
 			if (!event.request.url.startsWith('http')) return;
 			event.respondWith((async (req, evt) => {
+				this.workport.setCurrentClient(await Clients.get(event.clientId));
 				const requestInit = [
 					'method', 'headers', 'mode', 'credentials', 'cache', 'redirect', 'referrer', 'integrity',
 				].reduce((init, prop) => ({ [prop]: req[prop], ...init }), {});
@@ -91,6 +93,33 @@ export default class Worker {
 				}
 				return this.go(req.url, requestInit, { event: evt });
 			})(event.request, event));
+		});
+
+		// -------------
+		// Workport
+		let workport = new Workport();
+		Observer.set(this, 'workport', workport);
+		workport.messaging.listen(evt => {
+			let responsePort = evt.ports[0];
+			let client = this.clients.get('*');
+			let response = client.alert && await client.alert(evt);
+			if (responsePort) {
+				if (response instanceof Promise) {
+					response.then(data => {
+						responsePort.postMessage(data);
+					});
+				} else {
+					responsePort.postMessage(response);
+				}
+			}
+		});
+		workport.notifications.listen(evt => {
+			let client = this.clients.get('*');
+			client.alert && await client.alert(evt);
+		});
+		workport.push.listen(evt => {
+			let client = this.clients.get('*');
+			client.alert && await client.alert(evt);
 		});
 
 		// ---------------
@@ -163,40 +192,32 @@ export default class Worker {
 		}
 		const matchUrl = (patterns, url) => _any((patterns || []).map(p => p.trim()).filter(p => p), p => urlPattern(p, self.origin).test(url));
 		const execFetch = () => {
-			if (matchUrl(this.cx.params.cache_only_urls, request.url)) {
-				Observer.set(this.network, 'strategy', 'cache-only');
-				return this.cacheFetch(request, { networkFallback: false, cacheRefresh: false });
-			}
-			// network_only_urls
-			if (matchUrl(this.cx.params.network_only_urls, request.url)) {
-				Observer.set(this.network, 'strategy', 'network-only');
-				return this.networkFetch(request, { cacheFallback: false, cacheRefresh: false });
+			// network_first_urls
+			if (!this.cx.params.default_fetching_strategy || this.cx.params.default_fetching_strategy === 'network-first' || matchUrl(this.cx.params.network_first_urls, request.url)) {
+				Observer.set(this.network, 'strategy', 'network-first');
+				return this.networkFetch(request, { cacheFallback: true, cacheRefresh: true });
 			}
 			// cache_first_urls
-			if (matchUrl(this.cx.params.cache_first_urls, request.url)) {
+			if (this.cx.params.default_fetching_strategy === 'cache-first' || matchUrl(this.cx.params.cache_first_urls, request.url)) {
 				Observer.set(this.network, 'strategy', 'cache-first');
 				return this.cacheFetch(request, { networkFallback: true, cacheRefresh: true });
 			}
-			Observer.set(this.network, 'strategy', 'network-first');
-			return this.networkFetch(request, { cacheFallback: true, cacheRefresh: true });
+			// network_only_urls
+			if (this.cx.params.default_fetching_strategy === 'network-only' || matchUrl(this.cx.params.network_only_urls, request.url)) {
+				Observer.set(this.network, 'strategy', 'network-only');
+				return this.networkFetch(request, { cacheFallback: false, cacheRefresh: false });
+			}
+			// cache_only_urls
+			if (this.cx.params.default_fetching_strategy === 'cache-only' || matchUrl(this.cx.params.cache_only_urls, request.url)) {
+				Observer.set(this.network, 'strategy', 'cache-only');
+				return this.cacheFetch(request, { networkFallback: false, cacheRefresh: false });
+			}
 		};
 		let response = execFetch(request);
 		// This catch() is NOT intended to handle failure of the fetch
 		response.catch(e => Observer.set(this.network, 'error', e.message));
 		// Return xResponse
 		return response.then(_response => Response.compat(_response));
-	}
-
-	// Caching strategy: cache_first
-	cacheFetch(request, params = {}) {
-		return this.getRequestCache(request).then(cache => cache.match(request).then(response => {
-			// Nothing cache, use network
-			if (!response && params.networkFallback) return this.networkFetch(request, { ...params, cacheFallback: false });
-			// Note: fetch, but for refreshing purposes only... not the returned response
-			if (response && params.cacheRefresh) this.networkFetch(request, { ...params, justRefreshing: true });
-			Observer.set(this.network, 'cache', true);
-			return response;
-		}));
 	}
 
 	// Caching strategy: network_first
@@ -212,6 +233,18 @@ export default class Worker {
 		}).catch(() => this.getRequestCache(request).then(cache => {
 			Observer.set(this.network, 'cache', true);
 			return cache.match(request);
+		}));
+	}
+
+	// Caching strategy: cache_first
+	cacheFetch(request, params = {}) {
+		return this.getRequestCache(request).then(cache => cache.match(request).then(response => {
+			// Nothing cache, use network
+			if (!response && params.networkFallback) return this.networkFetch(request, { ...params, cacheFallback: false });
+			// Note: fetch, but for refreshing purposes only... not the returned response
+			if (response && params.cacheRefresh) this.networkFetch(request, { ...params, justRefreshing: true });
+			Observer.set(this.network, 'cache', true);
+			return response;
 		}));
 	}
 

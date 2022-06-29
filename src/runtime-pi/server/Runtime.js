@@ -312,7 +312,7 @@ export default class Runtime {
             client = this.clients.get(url.hostname);
         }
         let response = await client.handle(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
-        let finalResponse = await this.handleResponse(httpEvent, response, autoHeaders.filter(header => header.type === 'response'));
+        let finalResponse = await this.handleResponse(_context, httpEvent, response, autoHeaders.filter(header => header.type === 'response'));
         // Logging
         if (this.cx.logger) {
             let log = this.generateLog(httpEvent, finalResponse);
@@ -378,7 +378,7 @@ export default class Runtime {
     }
 
     // Handles response object
-    async handleResponse(e, response, autoHeaders = []) {
+    async handleResponse(cx, e, response, autoHeaders = []) {
         if (!(response instanceof Response)) { response = new Response(response); }
         Observer.set(this.network, 'remote', false);
         Observer.set(this.network, 'error', null);
@@ -401,14 +401,21 @@ export default class Runtime {
         if (response.headers.redirect) {
             let xRedirectPolicy = e.request.headers.get('X-Redirect-Policy');
             let xRedirectCode = e.request.headers.get('X-Redirect-Code') || 300;
-            let isSameOriginRedirect = (new whatwag.URL(response.headers.location, e.url.origin)).origin === e.url.origin;
-            if (xRedirectPolicy === 'manual' || (!isSameOriginRedirect && xRedirectPolicy === 'manual-when-cross-origin') || (isSameOriginRedirect && xRedirectPolicy === 'manual-when-same-origin')) {
-                response.attrs.status = xRedirectCode;
+            let destinationUrl = new whatwag.URL(response.headers.location, e.url.origin);
+            let isSameOriginRedirect = destinationUrl.origin === e.url.origin;
+            let isSameSpaRedirect, sparootsFile = Path.join(cx.CWD, cx.layout.PUBLIC_DIR, 'sparoots.json');
+            if (isSameOriginRedirect && xRedirectPolicy === 'manual-when-cross-spa' && Fs.existsSync(sparootsFile)) {
+                let sparoots = _arrFrom(JSON.parse(Fs.readFileSync(sparootsFile))).sort((a, b) => a.length > b.length ? 1 : -1);
+                let matchRoot = path => sparoots.reduce((prev, root) => prev || (`${path}/`.startsWith(`${root}/`) && root), null);
+                isSameSpaRedirect = matchRoot(destinationUrl.pathname) === matchRoot(e.url.pathname);
+            }
+            if (xRedirectPolicy === 'manual' || (!isSameOriginRedirect && xRedirectPolicy === 'manual-when-cross-origin') || (!isSameSpaRedirect && xRedirectPolicy === 'manual-when-cross-spa')) {
                 response.headers.json({
                     'X-Redirect-Code': response.status,
                     'Access-Control-Allow-Origin': '*',
                     'Cache-Control': 'no-store',
                 });
+                response.attrs.status = xRedirectCode;
             }
             return response;
         }
