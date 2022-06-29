@@ -1075,9 +1075,7 @@ Handlers can set [response cookies](https://developer.mozilla.org/en-US/docs/Web
 
 ```js
 let response = event.Response(data, { headers: { 'Set-Cookie': cookieString }});
-```
 
-```js
 response.headers.set('Set-Cookie', cookieString);
 ```
 
@@ -1085,9 +1083,7 @@ Webflo also offers a *convenience* method.
 
 ```js
 let response = event.Response(data, { headers: { cookies: cookieString }});
-```
 
-```js
 response.headers.cookies = { 'Cookie-1': cookieString, 'Cookie-2': cookie2String };
 ```
 
