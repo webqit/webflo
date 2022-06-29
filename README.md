@@ -1154,7 +1154,7 @@ console.log(document.state.network) // { requesting, remote, error, redirecting,
 + **`network.redirecting`: `null|String`** - This property tells when a client-side redirect is ongoing - see [Scenario 4: Single Page Navigation Requests and Responses](#scenario-4-single-page-navigation-requests-and-responses) - in which case it exposes the destination URL.
 + **`network.online`: `Boolean`** - This property tells of [the browser's ability to connect to the network](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/onLine).
 
-Bow, being a *live* object means that `document.state.network` can be observed using the [Observer API](https://github.com/webqit/observer).
+Now, being a *live* object means that `document.state.network` can be observed using the [Observer API](https://github.com/webqit/observer).
 
 ```js
 // Visualize the network state
@@ -1207,7 +1207,58 @@ In all cases above, the convention for specifying files for a strategy accepts [
 
 #### API Backends
 
-> TODO
+In Webflo, an API backend is what you, in essence, come off with on your server-side routes.
+
+```js
+/**
+server
+ ├── index.js
+ */
+export default function(event, context, next) {
+    if (next.pathname) return next();
+    return { ... };
+}
+```
+
+You are always able to lay out your route handlers in the structure for a formalized REST API.
+
+```shell
+server
+ ├── index.js
+ ├── api/v1/index.js
+ └── api/v1/products/index.js
+```
+
+And if you will partition your backend for both page routes and a formalized REST API...
+
+```shell
+server
+ ├── index.js                  ──┐
+ ├── cart/index.js               ├── Page Routes
+ ├── products/index.js         ──┘
+ ├── api/v1/index.js           ──┐
+ ├── api/v1/orders/index.js      ├── REST API
+ └── api/v1/products/index.js  ──┘
+```
+
+...you could get your page routes to run off your REST API by re-routing your `next()` calls to consume the appropriate API route.
+
+```js
+/**
+server
+ ├── cart/index.js
+ */
+export default async function(event, context, next) {
+    if (next.pathname) {
+        return next();
+    }
+    // Items to display in cart are in the "/api/v1/orders" route
+    let cartItems = await next(context, `/api/v1/orders?user_id=1`);
+    return { title: 'Your Cart', ...cartItems };
+}
+```
+
+This way, there is one source of truth for your application - both when visiting from a page and from a REST API.
 
 #### Static Sites
 
