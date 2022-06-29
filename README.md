@@ -1156,7 +1156,7 @@ console.log(document.state.network) // { requesting, remote, error, redirecting,
 ```
 
 + **`network.requesting`: `null|Object`** - This property tells when a request is ongoing, in which case it exposes the `params` object used to initiate the request.
-+ **`network.remote`: `null|String`** - This property tells when a remote request is ongoing - usually the same navigation requests as at `network.requesting`, but when not handled by any client-side route handlers, or when `next()`ed to this point by route handlers. The `remote` property also goes live when a route handler calls the special `fetch()` function they receive on their fourth parameter.
++ **`network.remote`: `null|String`** - This property tells when a remote request is ongoing - usually the same navigation requests as at `network.requesting`, but when not handled by any client-side route handlers, or when `next()`ed to this point by route handlers. The `remote` property also goes live when a route handler calls the special `this.runtime.remoteFetch()` function.
 + **`network.error`: `null|Error`** - This property tells when a request is *errored* in which case it contains an `Error` instance of the error. For requests that can be retried, the `Error` instance also has a custom `retry()` method.
 + **`network.redirecting`: `null|String`** - This property tells when a client-side redirect is ongoing - see [Scenario 4: Single Page Navigation Requests and Responses](#scenario-4-single-page-navigation-requests-and-responses) - in which case it exposes the destination URL.
 + **`network.online`: `Boolean`** - This property tells of [the browser's ability to connect to the network](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/onLine).
@@ -1197,7 +1197,7 @@ Observer.observe(document.state.network, 'error', e => {
 
 ###### Form Actions
 
-When navigation occurs [via form submissions](#scenario-4-single-page-navigation-requests-and-responses), the form element and the submit button are made to go on the *active* state. For both of these elements, the Webflo client simply sets the `element.state.active` to `true` while the request is ongoing, then `false`, on completion.
+When navigation occurs [via form submissions](#scenario-4-single-page-navigation-requests-and-responses), the form element and the submit button are made to go on the *active* state while the request is processed. For both of these elements, the Webflo client simply sets the `element.state.active` to `true` on submission, then `false`, on completion.
 
 ##### Service Workers
 
@@ -1212,6 +1212,133 @@ Webflo client-side applications are intended to provide an app-like-first experi
 
 In all cases above, the convention for specifying URLs for a strategy accepts [URL patterns](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) - against which URLs can be matched on the fly. For example, to place all files in an `/image` directory on the *Cache First* strategy, the pattern `/image/*` (or `/image/**`, to include nested directories) can be used. To place all `.svg` files in an `/icons` directory on the *Cache Only* strategy, the pattern `/icons/*.svg` (or `/icons/**.svg`, to include nested directories) can be used. (Specifically for the *Cache Only* strategy, patterns are resolved at Service Worker build-time.)
 
+###### Cross-Thread Communications
+
+A couple APIs exists in browsers for establishing a two-way communication channel between a page and its service worker, for firing UI Notifications from either ends, and for implementing Push Notifications. Webflo offers to simply this with a unifying set of conventions:
+
++ The `workport` API - an object with simple methods for working with *cross-thread* messages, UI and Push Notifications.
+  
+  On the client - `window` - side of your application, the `workport` object is accessible from route handlers as `this.runtime.workport`.
+  
+  ```js
+  /**
+  client
+   ├── index.js
+   */
+  export default async function(event, context, next) {
+      let { workport: worker } = this.runtime;
+      worker.messaging.post({ ... });
+      return { ... };
+  }
+  ```
+  
+  On the Service Worker side of your application, the `workport` object is accessible from route handlers as `this.runtime.workport`.
+  
+  ```js
+  /**
+  worker
+   ├── index.js
+   */
+  export default async function(event, context, next) {
+      let { workport: client } = this.runtime;
+      client.messaging.post({ ... });
+      return { ... };
+  }
+  ```
+  
+  For cross-thread messaging, each side of the API exposes the following methods:
+  
+  + **`.messaging.post()`** - for sending arbitrary data to the other side. E.g. `workport.messaging.post({ type: 'TEST' })`.
+  + **`.messaging.listen()`** - for listening to `message` event from the other side. E.g. `workport.messaging.listen(event => console.log(event.data.type))`. (See [`window: onmessage`](https://developer.mozilla.org/en-US/docs/Web/API/Window/message_event), [`worker: onmessage`](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/message_event).)
+  + **`.messaging.request()`** - for sending *replyable* messages to the other side, using the [MessageChannel](https://developer.mozilla.org/docs/Web/API/MessageChannel/MessageChannel) API.
+    
+    ```js
+    // On the worker side
+    workport.messaging.listen(event => {
+        console.log(event.data);
+        if (event.ports[0]) {
+            event.ports[0].postMessage({ type: 'WORKS' });
+        }
+    });
+    ```
+    
+    ```js
+    // On the client side
+    let response = await worker.messaging.request({ type: 'TEST' });
+    console.log(response); // { type: 'WORKS' }
+    ```
+    
+  + **`.messaging.channel()`** - for sending *broadcast* messages to the other side - including all other browsing contents that live on the same origin, using the [Broadcast Channel](https://developer.mozilla.org/docs/Web/API/Broadcast_Channel_API) API.
+    
+    ```js
+    // On the worker side
+    let channelId = 'channel-1';
+    workport.messaging.channel(channelId).listen(event => {
+        console.log(event.data);
+    });
+    ```
+    
+    ```js
+    // On the client side
+    let channelId = 'channel-1';
+    workport.messaging.channel(channelId).broadcast({ type: 'TEST' });
+    ```
+  
+  For UI [Nofitications](https://developer.mozilla.org/en-US/docs/Web/API/notification), each side of the API exposes the following methods:
+  
+  + **`.nofitications.fire()`** - for firing up a UI notification. This uses the [`Nofitications constructor`](https://developer.mozilla.org/en-US/docs/Web/API/Notification/Notification), and thus, accepts the same arguments as the constructor. But it returns a `Promise` that resolves when the notification is *clicked* or *closed*, but rejects when the notification encounters an error, or when the application isn't granted the [notification permission](https://developer.mozilla.org/en-US/docs/Web/API/Notification/requestPermission).
+    
+    ```js
+    let title = 'Test Nofitication';
+    let options = { body: '...', icon: '...', actions: [ ... ] };
+    workport.nofitications.fire(title, options).then(event => {
+        console.log(event.action);
+    });
+    ```
+  
+  + **`.nofitications.listen()`** - (in Service-Workers) for listening to [`notificationclick`](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope/notificationclick_event) events. (Handlers are called each time a notification is clicked.)
+    
+    ```js
+    workport.nofitications.listen(event => {
+        console.log(event.action);
+    });
+    ```
+    
+  For [Push Nofitications](https://developer.mozilla.org/en-US/docs/Web/API/Push_API), the client-side of the API exposes the following methods:
+  
+  + **`.push.subscribe()`** - the equivalent of the [`PushManager.subscribe()`](https://developer.mozilla.org/en-US/docs/Web/API/PushManager/subscribe) method. (But this can also take the *applicationServerKey* as a first argument, and other options as a second argument, in which case it automatically runs the key through an `urlBase64ToUint8Array()` function.)
+  + **`.push.unsubscribe()`** - the equivalent of the [`PushSubscription.unsubscribe()`](https://developer.mozilla.org/en-US/docs/Web/API/PushSubscription/unsubscribe) method.
+  + **`.push.getSubscription()`** - the equivalent of the [`PushManager.getSubscription()`](https://developer.mozilla.org/en-US/docs/Web/API/PushManager/getSubscription) method.
+
+  The worker-side of the API exposes the following methods:
+  
+  + **`.push.listen()`** - for listening to the [`push`](https://developer.mozilla.org/en-US/docs/Web/API/PushEvent) from within Service Workers. E.g. `workport.push.listen(event => console.log(event.data.type))`.
+
++ Route *events* - simple route events that fire when messaging and notification events happen.
+
+  Both on the client - `window` - side and worker side of your application, you can define event listener alongside your *root* route handler. The event handlers are called to handle all messaging and notification events that happen.
+  
+  ```js
+  /**
+  [client|worker]
+   ├── index.js
+   */
+  export default async function(event, context, next) {
+      return { ... };
+  }
+  export async function alert(event, context, next) {
+      return { ... };
+  }
+  ```
+  
+  For *replyable* messages, the event handler's return value is automatically sent back as response.
+  
+  The event type is given in the `event.type` property. This could be:
+  
+  + **`message`** - both client and worker side
+  + **`notificationclick`** - worker side
+  + **`push`** - worker side
+    
 #### API Backends
 
 In Webflo, an API backend is what you, in essence, come off with with your server-side routes.
