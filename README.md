@@ -1270,7 +1270,7 @@ A couple APIs exists in browsers for establishing a two-way communication channe
     workport.messaging.channel(channelId).broadcast({ type: 'TEST' });
     ```
   
-  For UI [Nofitications](https://developer.mozilla.org/en-US/docs/Web/API/notification), each side of the API exposes the following methods:
+  For [UI Nofitications](https://developer.mozilla.org/en-US/docs/Web/API/notification), each side of the API exposes the following methods:
   
   + **`.nofitications.fire()`** - for firing up a UI notification. This uses the [`Nofitications constructor`](https://developer.mozilla.org/en-US/docs/Web/API/Notification/Notification), and thus, accepts the same arguments as the constructor. But it returns a `Promise` that resolves when the notification is *clicked* or *closed*, but rejects when the notification encounters an error, or when the application isn't granted the [notification permission](https://developer.mozilla.org/en-US/docs/Web/API/Notification/requestPermission).
     
@@ -1302,7 +1302,7 @@ A couple APIs exists in browsers for establishing a two-way communication channe
 
 + Route *events* - simple route events that fire when messaging and notification events happen.
 
-  Both on the client - `window` - side and worker side of your application, you can define event listener alongside your *root* route handler. The event handlers are called to handle all messaging and notification events that happen.
+  On both client and worker sides of your application, you can define an event listener alongside your *root* route handler. The event listener is called to handle all messaging and notification events that happen.
   
   ```js
   /**
@@ -1317,14 +1317,28 @@ A couple APIs exists in browsers for establishing a two-way communication channe
   }
   ```
   
-  For *replyable* messages, the event handler's return value is automatically sent back as response.
-  
   The event type is given in the `event.type` property. This could be:
   
-  + **`message`** - both client and worker side
-  + **`notificationclick`** - worker side
-  + **`push`** - worker side
-    
+  + **`message`** - both client and worker side. For *replyable* messages, the event handler's return value is automatically sent back as response.
+  + **`notificationclick`** - worker side.
+  + **`push`** - worker side.
+  
+  The `next()` function could be used to delegate the handling of an event to step handlers where defined. This time, the path name must be given as a second argument to the call.
+  
+  ```js
+  /**
+  worker
+   ├── index.js
+   */
+  export async function alert(event, context, next) {
+      if (event.type === 'push') {
+          await next(context, '/services/push');
+          return;
+      }
+      console.log(event.type);
+  }
+  ```
+  
 #### API Backends
 
 In Webflo, an API backend is what you, in essence, come off with with your server-side routes.
