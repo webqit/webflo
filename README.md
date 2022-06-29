@@ -1100,7 +1100,7 @@ response.headers.cookies = { 'Cookie-2': cookie2Object };
 console.log(response.headers.cookies); // { 'Cookie-1': cookieObject, 'Cookie-2': cookie2Object };
 ````
 
-Set cookies are accessed on the next request via request headers.
+Set cookies are [accessed](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cookie) on the next request via request headers.
 
 ```js
 console.log(event.request.headers.get('Cookie')); // Cookie-1=cookie-val&Cookie-2=cookie2-val;
