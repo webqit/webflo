@@ -1485,6 +1485,15 @@ You have a static site!
 
 > TODO
 
+## Getting Started
+
+Your baby steps with Webflo could be a ["Hello World" `index.html` file](#installation), optionally, next with a route handler that returns an equivalent  `{ title: 'Hello World'}` object!
+
+You could soon be taking all your ideas to Webflo! 😃
+
+> **Warning**
+> Webflo is still evolving and some things may change quickly! Let's not go to production just yet! 
+
 ## Getting Involved
 
 All forms of contributions and PR are welcome! To report bugs or request features, please submit an [issue](https://github.com/webqit/webflo/issues). For general discussions, ideation or community help, please join our github [Discussions](https://github.com/webqit/webflo/discussions).
