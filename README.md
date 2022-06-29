@@ -1219,7 +1219,7 @@ console.log(document.state.network) // { requesting, remote, error, redirecting,
 ```
 
 + **`network.requesting`: `null|Object`** - This property tells when a request is ongoing, in which case it exposes the `params` object used to initiate the request.
-+ **`network.remote`: `null|String`** - This property tells when a remote request is ongoing - usually the same navigation requests as at `network.requesting`, but when not handled by any client-side route handlers, or when `next()`ed to this point by route handlers. The `remote` property also goes live when a route handler calls the special `this.runtime.remoteFetch()` function.
++ **`network.remote`: `null|String`** - This property tells when a remote request is ongoing - usually the same navigation requests as at `network.requesting`, but when not handled by any client-side route handlers, or when `next()`ed to this point by route handlers. The `remote` property also goes live when a route handler calls the special `fetch()` function that they recieve on their fourth parameter.
 + **`network.error`: `null|Error`** - This property tells when a request is *errored* in which case it contains an `Error` instance of the error. For requests that can be retried, the `Error` instance also has a custom `retry()` method.
 + **`network.redirecting`: `null|String`** - This property tells when a client-side redirect is ongoing - see [Scenario 4: Single Page Navigation Requests and Responses](#scenario-4-single-page-navigation-requests-and-responses) - in which case it exposes the destination URL.
 + **`network.online`: `Boolean`** - This property tells of [the browser's ability to connect to the network](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/onLine).
@@ -1264,7 +1264,7 @@ When navigation occurs [via form submissions](#scenario-4-single-page-navigation
 
 ##### Service Workers
 
-Webflo client-side applications are intended to provide an app-like-first experience. So unless disabled in [config](#enable_service_worker), a [Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) is built as part of your application on running the `npm run generate` command. You may define [route handlers in the `/worker` directory](#handler-functions-and-layout) of your application, and these will be built into the service worker to handle Same-Origin requests of the application. Where there are no *worker* handlers, or where they forward these requests, the request is fetched, either from the cache, or from the network, depending on the fetching strategy built into the service worker.
+Webflo client-side applications are intended to provide an app-like-first experience. So unless disabled in [config](#enable_service_worker), a [Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) is built as part of your application on running the `npm run generate` command. You may define [route handlers in the `/worker` directory](#handler-functions-and-layout) of your application, and these will be built into the service worker to handle Same-Origin requests of the application. Where there are no *worker* handlers, or where they forward these requests, the request is fetched, either from the cache, or from the network, depending on the fetching strategy built into the Service Worker.
 
 ###### Fetching Strategy
 
@@ -1313,7 +1313,7 @@ A couple APIs exists in browsers for establishing a two-way communication channe
     
     ```js
     // On the client side
-    let response = await worker.messaging.request({ type: 'TEST' });
+    let response = await workport.messaging.request({ type: 'TEST' });
     console.log(response); // { type: 'WORKS' }
     ```
     
