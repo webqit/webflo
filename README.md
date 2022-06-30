@@ -559,7 +559,7 @@ But, we can also access the route in a way that gets the data rendered into the 
 > **Note**
 > <br>The `Accept` header hint is already how browsers make requests on every page load. So, it just works!
 
-Now, for Single Page Applications, subsequent navigations, after the initial page load, just asks for the data on destination URLs and perform [Client-Side Rendering](#client-and-server-side-rendering) on the same running document. Navigation is sleek and instant!
+Now, for Single Page Applications, subsequent navigations, after the initial page load, just ask for the data on destination URLs and perform [Client-Side Rendering](#client-and-server-side-rendering) on the same running document. Navigation is sleek and instant!
 
 > **Note**
 > <br>Unless disabled in [config](#spa_routing), SPA routing is automatically built into your app's JS bundle from the `npm run generate` command. So, it just works!
@@ -949,7 +949,7 @@ Taking things further, it is possible to write class-based components that abstr
 
 #### Custom Render Functions
 
-Custom `render` functions can be defined on a route (`export function render() {}`) to handle, or control, rendering.
+Custom `render` functions can be defined on a route (`export function render() {}`) to entirely handle, or extend, rendering.
 
 ```js
 /**
@@ -1068,10 +1068,10 @@ Workflows may return any other data type, e.g. an instance of the native [FormDa
 #### Custom Redirect Responses
 
 It is possible to hint the server on how to serve redirect responses. The response code for these redirects could be substituted with a non-rediret status code so that it can be recieved as a normal response and handled manually. The following pair of headers make this possible: `X-Redirect-Code`, `X-Redirect-Policy`.
-+ The `X-Redirect-Code` can be any valid (but preferably, 2xx) HTTP status code. This is the response code that should be used instead of the actual redirect code.
-+ The `X-Redirect-Policy` header can be any of `manual` - treat all redirects as manual, `manual-if-cross-origin` - treat cross-origin redirects as manual, `manual-if-cross-spa` - treat cross-SPA redirects as manual.
++ The `X-Redirect-Code` can be any valid (but preferably, 2xx) HTTP status code. This is the response code that you want Webflo to substitute the actual redirect code with.
++ The `X-Redirect-Policy` header can be any of `manual` - treat all redirects as manual, `manual-if-cross-origin` - treat cross-origin redirects as manual, `manual-if-cross-spa` - treat cross-SPA redirects (including cross-origin redirects) as manual.
 
-Re-coded redirects have the standard `Location` header, and an `X-Redirect-Code` response header containing the original redirect status code.
+Re-coded redirects have the standard `Location` header, and its own `X-Redirect-Code` response header containing the original redirect status code.
 
 #### Failure Responses
 
