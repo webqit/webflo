@@ -24,10 +24,10 @@ export default class Worker extends Dotfile {
         return _merge(true, {
             cache_name: 'cache_v0',
             default_fetching_strategy: 'network-first',
-            cache_only_urls: [],
+            network_first_urls: [],
             cache_first_urls: [],
             network_only_urls: [],
-            network_first_urls: [],
+            cache_only_urls: [ '/page-3/{*.json}' ],
             skip_waiting: false,
             // -----------------
             support_push: false,

@@ -168,7 +168,7 @@ export default class Runtime {
 		if (this.cx.service_worker_support) {
 			let workport = new Workport(this.cx.worker_filename, { scope: this.cx.worker_scope, startMessages: true });
 			Observer.set(this, 'workport', workport);
-			workport.messaging.listen(evt => {
+			workport.messaging.listen(async evt => {
 				let responsePort = evt.ports[0];
 				let client = this.clients.get('*');
 				let response = client.alert && await client.alert(evt);
@@ -286,16 +286,16 @@ export default class Runtime {
 			// ------------
 			if (response.redirected) {
 				Observer.set(this.location, { href: response.url }, { detail: { redirected: true }, });
-			} else {
+			} else if (![302, 301].includes(finalResponse.status)) {
 				Observer.set(this.location, url);
 			}
 			// ------------
 			// States
 			// ------------
 			Observer.set(this.network, 'requesting', null);
-			if (['link', 'form'].includes(e.detail.srcType)) {
+			if (['link', 'form'].includes(detail.srcType)) {
 				detail.src.state && (detail.src.state.active = false);
-            	detail.submitter && etail.submitter.state && (detail.submitter.state.active = false);
+            	detail.submitter && detail.submitter.state && (detail.submitter.state.active = false);
 			}
 			// ------------
 			// Rendering
@@ -309,6 +309,7 @@ export default class Runtime {
 				client.unrender && await client.unrender(httpEvent);
 			}
 		} catch(e) {
+			console.error(e);
 			Observer.set(this.network, 'error', { ...e, retry: () => this.go(url, init = {}, detail) });
 			return e;
 		}
@@ -338,7 +339,7 @@ export default class Runtime {
 		if (!response.redirected) {
 			let location = response.headers.get('Location');
 			if (location && response.status === this._xRedirectCode) {
-				response.attrs.status = response.headers.get('X-Redirect-Code');
+				response.attrs.status = parseInt(response.headers.get('X-Redirect-Code'));
 				Observer.set(this.network, 'redirecting', location);
 				window.location = location;
 			}

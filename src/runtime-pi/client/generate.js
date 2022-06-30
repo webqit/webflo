@@ -155,10 +155,30 @@ export async function generate() {
         // ------------------
         // Bundle
         if (workerConfig.cache_only_urls.length) {
-            workerConfig.cache_only_urls = workerConfig.cache_only_urls.reduce((urls, url) => {
-                // TODO: if (urlPattern(url, self.origin).isPattern()) {}
-                return urls.concat(url);
-            }, []);
+            // Separate URLs from patterns
+            let [ urls, patterns ] = workerConfig.cache_only_urls.reduce(([ urls, patterns ], url) => {
+                let patternInstance = urlPattern(url, 'http://localhost'),
+                    isPattern = patternInstance.isPattern();
+                if (isPattern && (patternInstance.pattern.pattern.hostname !== 'localhost' || patternInstance.pattern.pattern.port)) {
+                    throw new Error(`Pattern URLs must have no origin part. Recieved "${url}".`);
+                }
+                return isPattern ? [ urls, patterns.concat(patternInstance) ] : [ urls.concat(url), patterns ];
+            }, [ [], [] ]);
+            // Resolve patterns
+            if (patterns.length) {
+                // List all files
+                let scan = dir => Fs.readdirSync(dir).reduce((result, f) => {
+                    let resource = Path.join(dir, f);
+                    return result.concat(Fs.statSync(resource).isDirectory() ? scan(resource) : '/' + Path.relative(dirPublic, resource));
+                }, []);
+                let files = scan(dirPublic);
+                // Resolve patterns from files
+                workerConfig.cache_only_urls = patterns.reduce((all, pattern) => {
+                    let matchedFiles = files.filter(file => pattern.test(file, 'http://localhost'));
+                    if (matchedFiles.length) return all.concat(matchedFiles);
+                    throw new Error(`The pattern "${pattern.pattern.pattern.pathname}" didn't match any files.`);
+                }, urls);
+            }
         }
         declareStart.call(cx, gen, dirWorker, dirPublic, workerConfig, workerRouting);
         await bundle.call(cx, gen, Path.join(dirPublic, workerroot, clientConfig.worker_filename));

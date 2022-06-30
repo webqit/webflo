@@ -72,12 +72,13 @@ export default class Worker {
 		});
 
 		// -------------
-		// ONFETCH		
+		// ONFETCH
 		self.addEventListener('fetch', event => {
 			// URL schemes that might arrive here but not supported; e.g.: chrome-extension://
 			if (!event.request.url.startsWith('http')) return;
 			event.respondWith((async (req, evt) => {
-				this.workport.setCurrentClient(await Clients.get(event.clientId));
+				let requestingClient = await self.clients.get(event.clientId);
+				this.workport.setCurrentClient(requestingClient);
 				const requestInit = [
 					'method', 'headers', 'mode', 'credentials', 'cache', 'redirect', 'referrer', 'integrity',
 				].reduce((init, prop) => ({ [prop]: req[prop], ...init }), {});
@@ -99,7 +100,7 @@ export default class Worker {
 		// Workport
 		let workport = new Workport();
 		Observer.set(this, 'workport', workport);
-		workport.messaging.listen(evt => {
+		workport.messaging.listen(async evt => {
 			let responsePort = evt.ports[0];
 			let client = this.clients.get('*');
 			let response = client.alert && await client.alert(evt);
@@ -113,11 +114,11 @@ export default class Worker {
 				}
 			}
 		});
-		workport.notifications.listen(evt => {
+		workport.notifications.listen(async evt => {
 			let client = this.clients.get('*');
 			client.alert && await client.alert(evt);
 		});
-		workport.push.listen(evt => {
+		workport.push.listen(async evt => {
 			let client = this.clients.get('*');
 			client.alert && await client.alert(evt);
 		});

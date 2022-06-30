@@ -46,7 +46,7 @@ export default class Router {
         // The loop
         // ----------------
         const next = async function(thisTick) {
-            const thisContext = { runtime: this.cx.runtime };
+            const thisContext = { };
             if (!thisTick.trail || thisTick.trail.length < thisTick.destination.length) {
                 thisTick = await $this.readTick(thisTick);
                 // -------------

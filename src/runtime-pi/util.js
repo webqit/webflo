@@ -135,9 +135,9 @@ export const path = {
 export const urlPattern = (pattern, baseUrl = null) => ({
     pattern: new URLPattern(pattern, baseUrl),
     isPattern() {
-        return Object.keys(this.pattern.keys).some(compName => this.pattern.keys[compName].length);
+        return Object.keys(this.pattern.keys || {}).some(compName => this.pattern.keys[compName].length);
     },
-    test(...args) { this.pattern.test(...args) }, 
+    test(...args) { return this.pattern.test(...args) }, 
     exec(...args) {
         let components = this.pattern.exec(...args);
         if (!components) return;

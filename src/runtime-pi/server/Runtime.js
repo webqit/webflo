@@ -405,7 +405,8 @@ export default class Runtime {
             let isSameOriginRedirect = destinationUrl.origin === e.url.origin;
             let isSameSpaRedirect, sparootsFile = Path.join(cx.CWD, cx.layout.PUBLIC_DIR, 'sparoots.json');
             if (isSameOriginRedirect && xRedirectPolicy === 'manual-when-cross-spa' && Fs.existsSync(sparootsFile)) {
-                let sparoots = _arrFrom(JSON.parse(Fs.readFileSync(sparootsFile))).sort((a, b) => a.length > b.length ? 1 : -1);
+                // Longest-first sorting
+                let sparoots = _arrFrom(JSON.parse(Fs.readFileSync(sparootsFile))).sort((a, b) => a.length > b.length ? -1 : 1);
                 let matchRoot = path => sparoots.reduce((prev, root) => prev || (`${path}/`.startsWith(`${root}/`) && root), null);
                 isSameSpaRedirect = matchRoot(destinationUrl.pathname) === matchRoot(e.url.pathname);
             }
