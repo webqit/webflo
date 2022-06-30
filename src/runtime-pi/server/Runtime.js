@@ -307,19 +307,25 @@ export default class Runtime {
             return this.getSession(_context, httpEvent, id, options, callback);
         });
         // Response
-        let client = this.clients.get('*');
+        let client = this.clients.get('*'), response, finalResponse;
         if (this.cx.server.shared) {
             client = this.clients.get(url.hostname);
         }
-        let response = await client.handle(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
-        let finalResponse = await this.handleResponse(_context, httpEvent, response, autoHeaders.filter(header => header.type === 'response'));
+        try {
+            response = await client.handle(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
+            finalResponse = await this.handleResponse(_context, httpEvent, response, autoHeaders.filter(header => header.type === 'response'));
+        } catch(e) {
+            finalResponse = new Response(null, { status: 500, statusText: e.message });
+            console.error(e);
+        }
         // Logging
         if (this.cx.logger) {
             let log = this.generateLog(httpEvent, finalResponse);
             this.cx.logger.log(log);
         }
+        // ------------
         // Return value
-        return finalResponse;
+		return finalResponse;
     }
 
     // Generates request object

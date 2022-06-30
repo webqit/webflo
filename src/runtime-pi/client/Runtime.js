@@ -249,7 +249,7 @@ export default class Runtime {
 		// Put his forward before instantiating a request and aborting previous
 		// Same-page hash-links clicks on chrome recurse here from histroy popstate
         if (detail.srcType !== 'init' && (_before(url.href, '#') === _before(init.referrer, '#') && (init.method || 'GET').toUpperCase() === 'GET')) {
-			return new Error('Destination URL same as source URL');
+			return new Response(null, { status: 304 }); // Not Modified
         }
 		// ------------
         if (this._abortController) {
@@ -311,7 +311,7 @@ export default class Runtime {
 		} catch(e) {
 			console.error(e);
 			Observer.set(this.network, 'error', { ...e, retry: () => this.go(url, init = {}, detail) });
-			return e;
+			finalResponse = new Response(null, { status: 500, statusText: e.message });
 		}
 		// ------------
         // Return value

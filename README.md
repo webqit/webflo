@@ -249,7 +249,7 @@ export default function(event, context, next) {
 }
 ```
 
-Each function receives an `event` object representing the current flow - including the request `event.request`. (But details ahead.)
+Each function receives an `event` object representing details - e.g. `event.request`, `event.url`, `event.session` - about the current flow. (Details ahead.)
 
 For *server-based* applications (e.g. traditional web apps and API backends), server-side handlers go into a directory named `server`.
 
