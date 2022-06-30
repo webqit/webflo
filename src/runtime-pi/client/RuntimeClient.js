@@ -62,10 +62,10 @@ export default class RuntimeClient {
 						url: this.cx.runtime.location,
 					}, { update: true });
 				}
-				window.document.setState({ page: data }, { update: 'merge' });
+				window.document.setState({ data }, { update: 'merge' });
 			}
 			if (window.document.templates) {
-				window.document.body.setAttribute('template', 'page/' + httpEvent.url.pathname.split('/').filter(a => a).map(a => a + '+-').join('/'));
+				window.document.body.setAttribute('template', 'routes/' + httpEvent.url.pathname.split('/').filter(a => a).map(a => a + '+-').join('/'));
 				await new Promise(res => (window.document.templatesReadyState === 'complete' && res(), window.document.addEventListener('templatesreadystatechange', res)));
 			}
 			await this.scrollIntoView(httpEvent);
@@ -76,7 +76,7 @@ export default class RuntimeClient {
 	// Unrender
 	async unrender(httpEvent) {
 		if (window.document.state) {
-			window.document.setState({ page: {} }, { update: 'merge' });
+			window.document.setState({ data: {} }, { update: 'merge' });
 		}
 	}
 

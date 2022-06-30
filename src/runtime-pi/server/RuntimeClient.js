@@ -99,10 +99,10 @@ export default class RuntimeClient {
                         env: 'server',
                     }, { update: true });
                 }
-                window.document.setState({ page: data, url: httpEvent.url }, { update: 'merge' });
+                window.document.setState({ data, url: httpEvent.url }, { update: 'merge' });
             }
             if (window.document.templates) {
-                window.document.body.setAttribute('template', 'page/' + httpEvent.url.pathname.split('/').filter(a => a).map(a => a + '+-').join('/'));
+                window.document.body.setAttribute('template', 'routes/' + httpEvent.url.pathname.split('/').filter(a => a).map(a => a + '+-').join('/'));
             }
             await new Promise(res => setTimeout(res, 10));
             return window;

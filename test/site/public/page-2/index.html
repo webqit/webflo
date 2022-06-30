@@ -5,14 +5,13 @@
         -->
 		<script type="module" src="/bundle.webflo.js" by="webflo"></script>
 		<script type="module" src="/page-2/bundle.js" by="webflo"></script>
-        <template name="page" src="/page-2/bundle.html" by="oohtml-cli" loading="lazy"></template>
-	</head>
+	<template name="routes" src="/page-2/bundle.html" by="oohtml-cli"></template></head>
     <body>
 
         <h1>Page 2</h1>
 
         <!--
-        <import template="page" name="main.html"></import>
+        <import template="routes" name="main.html"></import>
         -->
 
         <ul>
@@ -35,7 +34,7 @@
         <script>
             setTimeout(() => {
                 let importEl = document.createElement('import');
-                importEl.setAttribute('template', 'page');
+                importEl.setAttribute('template', 'routes');
                 importEl.setAttribute('name', 'main.html');
                 document.body.append('importEl');
                 document.body.appendChild(importEl);

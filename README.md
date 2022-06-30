@@ -82,7 +82,7 @@ For when your application has a Server side.
       <head>
           <link rel="stylesheet" href="/style.css" />   <!-- ---------------------- Application CSS -->
           <script type="module" src="/bundle.js"></script>   <!-- ----------------- Application JS bundle -->
-          <template name="page" src="/bundle.html"></template>   <!-- ------------- Reusable HTML Templates and partials (Details ahead) -->
+          <template name="routes" src="/bundle.html"></template>   <!-- ------------- Reusable HTML Templates and partials (Details ahead) -->
       </head>
       <body>...</body>
   </html>
@@ -602,7 +602,7 @@ Here, you are able to define reusable contents in a `<template>` element...
 
 ```html
 <head>
-    <template name="page">
+    <template name="routes">
         <header exportgroup="header.html">Header Area</header>
         <main exportgroup="main.html">Main Area</main>
     </template>
@@ -613,8 +613,8 @@ Here, you are able to define reusable contents in a `<template>` element...
 
 ```html
 <body>
-    <import template="page" name="header.html"></import>
-    <import template="page" name="main.html"></import>
+    <import template="routes" name="header.html"></import>
+    <import template="routes" name="main.html"></import>
 </body>
 ```
 
@@ -631,7 +631,7 @@ public
 
 ```html
 <head>
-    <template name="page" src="/bundle.html"></template>
+    <template name="routes" src="/bundle.html"></template>
 </head>
 ```
 
@@ -650,12 +650,12 @@ public
 <html>
     <head>
         <script type="module" src="/bundle.js"></script>
-        <template name="page" src="/bundle.html"></template>
+        <template name="routes" src="/bundle.html"></template>
     </head>
     <body>
-        <import template="page" name="header.html"></import>
+        <import template="routes" name="header.html"></import>
         <main>Welcome to our Home Page</main>
-        <import template="page" name="footer.html"></import>
+        <import template="routes" name="footer.html"></import>
     </body>
 </html>
 ```
@@ -669,12 +669,12 @@ public/about
 <html>
     <head>
         <script type="module" src="/bundle.js"></script>
-        <template name="page" src="/bundle.html"></template>
+        <template name="routes" src="/bundle.html"></template>
     </head>
     <body>
-        <import template="page" name="header.html"></import>
+        <import template="routes" name="header.html"></import>
         <main>Welcome to our About Page</main>
-        <import template="page" name="footer.html"></import>
+        <import template="routes" name="footer.html"></import>
     </body>
 </html>
 ```
@@ -688,12 +688,12 @@ public/products
 <html>
     <head>
         <script type="module" src="/bundle.js"></script>
-        <template name="page" src="/bundle.html"></template>
+        <template name="routes" src="/bundle.html"></template>
     </head>
     <body>
-        <import template="page" name="header.html"></import>
+        <import template="routes" name="header.html"></import>
         <main>Welcome to our Products Page</main>
-        <import template="page" name="footer.html"></import>
+        <import template="routes" name="footer.html"></import>
     </body>
 </html>
 ```
@@ -730,9 +730,9 @@ public
 <html>
     <head>
         <script type="module" src="/bundle.js"></script>
-        <template name="page" src="/bundle.html"></template>
+        <template name="routes" src="/bundle.html"></template>
     </head>
-    <body template="page/"> <!-- This "template" attribute automatically changes to page/about or page/products as we navigate to http://localhost:3000/about and http://localhost:3000/products respectively -->
+    <body template="routes/"> <!-- This "template" attribute automatically changes to routes/about or routes/products as we navigate to http://localhost:3000/about and http://localhost:3000/products respectively -->
         <header></header>
         <import name="main.html"></import> <!-- This import element omits its "template" attribute so as to inherit the global one -->
         <footer></footer>
@@ -741,7 +741,7 @@ public
 ```
 
 > **Note**
-> <br>In this architecture, navigation is instant and sleek - Webflo prevents a full page reload, obtains and sets data at `document.state.page` for the new URL, then sets the `template` attribute on the `<body>` element to the new URL path. The `bundle.js` script comes with the appropriate OOHTML support level required for the imports to function.
+> <br>In this architecture, navigation is instant and sleek - Webflo prevents a full page reload, obtains and sets data at `document.state.data` for the new URL, then sets the `template` attribute on the `<body>` element to the new URL path. The `bundle.js` script comes with the appropriate OOHTML support level required for the imports to function.
 
 #### In a Multi SPA Layout
 
@@ -821,22 +821,22 @@ Template `.html` files are bundled from the filesystem into a single file using 
 
 ```json
 "scripts": {
-    "generate:templates": "oohtml bundle --recursive --auto-embed=page"
+    "generate:templates": "oohtml bundle --recursive --auto-embed=routes"
 }
 ```
 
 The `--recursive` flag gets the bundler to recursively bundle *subroots* in a [Multi SPA](#in-a-multi-spa-layout) layout - where subdirectories with their own `index.html` document. (Subroots are ignored by default.)
 
-The `--auto-embed` flag gets the bundler to automatically embed the generated `bundle.html` file on the matched `index.html` document. A value of `page` for the flag ends up as the name of the *embed* template: `<template name="page" src="/bundle.html"></template>`.
+The `--auto-embed` flag gets the bundler to automatically embed the generated `bundle.html` file on the matched `index.html` document. A value of `routes` for the flag ends up as the name of the *embed* template: `<template name="routes" src="/bundle.html"></template>`.
 
 > **Note**
-> <br>If your HTML files are actually based off the `public` directory, you'll need to tell the above command to run in the `public` directory, either by [configuring the bundler](https://github.com/webqit/oohtml-cli#other-options), or by rewriting the command with a prefix: `cd public && oohtml bundle --recursive --auto-embed=page`. 
+> <br>If your HTML files are actually based off the `public` directory, you'll need to tell the above command to run in the `public` directory, either by [configuring the bundler](https://github.com/webqit/oohtml-cli#other-options), or by rewriting the command with a prefix: `cd public && oohtml bundle --recursive --auto-embed=routes`. 
 
 ### Client and Server-Side Rendering
 
 With pages in Webflo being [DOM-based](#overview) (both client-side and [server-side](https://github.com/webqit/oohtml-ssr)), we are able to access and manipulate documents and elements using familiar DOM APIs - e.g. to replace or insert contents, attributes, etc. Rendering in Webflo is based on this concept!
 
-Here, Webflo simply makes sure that the data obtained from each route is available as part of the `document` object, such that it is accessible to our rendering logic as a `page` property on the `document.state` object - `document.state.page`. (The `document.state` object is always available unless disabled in config.)
+Here, Webflo simply makes sure that the data obtained from each route is available as part of the `document` object, such that it is accessible to our rendering logic as a `data` property on the `document.state` object - `document.state.data`. (The `document.state` object is always available unless disabled in config.)
 
 So, we could embed a script on our page and render this data on the relevant parts of the document.
 
@@ -851,8 +851,8 @@ public
         <title></title>
         <script>
          setTimeout(() => {
-             console.log( document.state.page ); // { title: 'Home | FluffyPets' }
-             let { title } = document.state.page;
+             console.log( document.state.data ); // { title: 'Home | FluffyPets' }
+             let { title } = document.state.data;
              document.title = title;
          }, 0);
         </script>
@@ -895,7 +895,7 @@ However, since the `document` objects in Webflo natively support [OOHTML](https:
      <body>
          <h1></h1>
          <script type="subscript">
-          let { title } = document.state.page;
+          let { title } = document.state.data;
           document.title = title;
           let h1Element = this.querySelector('h1');
           h1Element.innerHTML = title;
@@ -925,7 +925,7 @@ Going forward, we can get to write more succinct code! Using the [Namespaced HTM
      <body namespace>
          <h1 id="headline1"></h1>
          <script type="subscript">
-          let { title } = document.state.page;
+          let { title } = document.state.data;
           document.title = title;
           let { headline1, headline2 } = this.namespace;
           $(headline1).html(title);
@@ -1014,7 +1014,7 @@ export default async function(event, context, next) {
 export async function render(event, data, next) {
     let window = await next( data );
     let { document } = window;
-    console.log( document.state.page ); // { title: 'Home | FluffyPets' }
+    console.log( document.state.data ); // { title: 'Home | FluffyPets' }
     return window;
 }
 ```
@@ -1077,11 +1077,11 @@ Re-coded redirects have the standard `Location` header, and its own `X-Redirect-
 
 Where workflows return `undefined`, a `Not Found` status is implied.
 + On the server side, a `404` HTTP response is returned.
-+ On the client-side, the initiating document in the browser has its `document.state.page` emptied. The error is also exposed on the [`document.state.network.error`](#the-documentstatenetwork-object) property.
++ On the client-side, the initiating document in the browser has its `document.state.data` emptied. The error is also exposed on the [`document.state.network.error`](#the-documentstatenetwork-object) property.
 
 Where workflows throw an exception, an *error* status is implied.
 + On the server side, the error is logged and a `500` HTTP response is returned.
-+ On the client-side, the initiating document in the browser has its `document.state.page` emptied. The error is also exposed on the [`document.state.network.error`](#the-documentstatenetwork-object) property.
++ On the client-side, the initiating document in the browser has its `document.state.data` emptied. The error is also exposed on the [`document.state.network.error`](#the-documentstatenetwork-object) property.
 
 #### Cookie Responses
 
@@ -1138,12 +1138,12 @@ For all things application state, Webflo leverages the [State API](https://githu
 > **Note**
 > <br>The State API is not available when the OOHTML support level in config is switched away from `full` and `scripting`.
 
-##### The `document.state.page` Object
+##### The `document.state.data` Object
 
 This property represents the data obtained from route handers on each navigation. Webflo simply exposes this data and lets the page's [rendering logic](#client-and-server-side-rendering), or other parts of the application, take over.
 
 ```js
-Observer.observe(document.state, 'page', e => {
+Observer.observe(document.state, 'data', e => {
     console.log('Current page data is: ', e.value);
 });
 ```
