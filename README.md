@@ -949,7 +949,7 @@ Taking things further, it is possible to write class-based components that abstr
 
 #### Custom Render Functions
 
-Custom `render` functions can be defined on a route (`export function render() {}`) to handle, or control, rendering.
+Custom `render` functions can be defined on a route (`export function render() {}`) to entirely handle, or extend, rendering.
 
 ```js
 /**
