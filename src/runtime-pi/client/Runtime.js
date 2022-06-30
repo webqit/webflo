@@ -102,11 +102,7 @@ export default class Runtime {
 			if (!anchor.target && !anchor.download && this.isSpaRoute(anchor, e)) {
 				// Publish everything, including hash
 				this.go(Url.copy(anchor), {}, { src: anchor, srcType: 'link', });
-				// URLs with # will cause a natural navigation
-				// even if pointing to a different page, a natural navigation will still happen
-				// because with the Observer.set() above, window.document.location.href would have become
-				// the destination page, which makes it look like same page navigation
-				if (!anchor.href.includes('#')) {
+				if (!(_before(window.document.location.href, '#') === _before(anchor.href, '#') && anchor.href.includes('#'))) {
 					e.preventDefault();
 				}
 			}
@@ -147,11 +143,7 @@ export default class Runtime {
 					method: submitParams.method,
 					body: formData,
 				}, { ...submitParams, src: form, srcType: 'form', });
-				// URLs with # will cause a natural navigation
-				// even if pointing to a different page, a natural navigation will still happen
-				// because with the Observer.set() above, window.document.location.href would have become
-				// the destination page, which makes it look like same page navigation
-				if (!actionEl.hash) {
+				if (!(_before(window.document.location.href, '#') === _before(actionEl.href, '#') && actionEl.href.includes('#'))) {
 					e.preventDefault();
 				}
 			}
