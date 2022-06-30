@@ -157,8 +157,8 @@ export default class Runtime {
 
 		// -----------------------
 		// Service Worker && COMM
-		if (this.cx.service_worker_support) {
-			let workport = new Workport(this.cx.worker_filename, { scope: this.cx.worker_scope, startMessages: true });
+		if (this.cx.params.service_worker_support) {
+			let workport = new Workport(this.cx.params.worker_filename, { scope: this.cx.params.worker_scope, startMessages: true });
 			Observer.set(this, 'workport', workport);
 			workport.messaging.listen(async evt => {
 				let responsePort = evt.ports[0];
