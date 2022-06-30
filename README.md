@@ -559,7 +559,7 @@ But, we can also access the route in a way that gets the data rendered into the 
 > **Note**
 > <br>The `Accept` header hint is already how browsers make requests on every page load. So, it just works!
 
-Now, for Single Page Applications, subsequent navigations, after the initial page load, just asks for the data on destination URLs and perform [Client-Side Rendering](#client-and-server-side-rendering) on the same running document. Navigation is sleek and instant!
+Now, for Single Page Applications, subsequent navigations, after the initial page load, just ask for the data on destination URLs and perform [Client-Side Rendering](#client-and-server-side-rendering) on the same running document. Navigation is sleek and instant!
 
 > **Note**
 > <br>Unless disabled in [config](#spa_routing), SPA routing is automatically built into your app's JS bundle from the `npm run generate` command. So, it just works!
