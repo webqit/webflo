@@ -27,7 +27,7 @@ export default class Worker extends Dotfile {
             network_first_urls: [],
             cache_first_urls: [],
             network_only_urls: [],
-            cache_only_urls: [ '/page-3/{*.json}' ],
+            cache_only_urls: [],
             skip_waiting: false,
             // -----------------
             support_push: false,
