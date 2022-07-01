@@ -929,7 +929,9 @@ Going forward, we can get to write more succinct code! Using the [Namespaced HTM
           document.title = title;
           let { headline1, headline2 } = this.namespace;
           $(headline1).html(title);
-          $(headline2).html(title);
+          if (headline2) {
+              $(headline2).html(title);
+          }
          </script>
      </body>
  </html>
@@ -1065,12 +1067,19 @@ For all things application state, Webflo leverages the [State API](https://githu
 
 #### The `document.state.data` Object
 
-This property represents the data obtained from route handers on each navigation. Webflo simply exposes this data and lets the page's [rendering logic](#client-and-server-side-rendering), or other parts of the application, take over.
+This property reperesents the application data at any point in time - obtained from route handers on each navigation. Webflo simply updates this property and lets the page's [rendering logic](#client-and-server-side-rendering), or other parts of the application, take over.
 
 ```js
 Observer.observe(document.state, 'data', e => {
     console.log('Current page data is: ', e.value);
 });
+```
+
+```html
+<script type="subscript">
+ let { title } = document.state.data;
+ document.title = title;
+</script>
 ```
 
 #### The `document.state.url` Object
@@ -1113,11 +1122,18 @@ document.addEventListener('synthetic-navigation', e => {
 });
 ```
 
+```html
+<script type="subscript">
+ let { query: { as: role } } = document.state.url;
+ document.title = 'Login as ' + role;
+</script>
+```
+
 ### Requests and Responses
 
-On each request, the event object passed to route handlers exposes the incoming request as `event.request`. This is an instance of `event.Request` - an extension of the [WHATWG Request](https://developer.mozilla.org/en-US/docs/Web/API/Request) class. The event object also exposes `event.Response` - an extension of the [WHATWG Response](https://developer.mozilla.org/en-US/docs/Web/API/Response) class, for returning instance-based responses.
+On each request, the event object passed to route handlers exposes the incoming request as `event.request`. This is an instance of `event.Request` - an extension of the [WHATWG Request](https://developer.mozilla.org/en-US/docs/Web/API/Request) class. The event object also exposes `event.Response` - an extension of the [WHATWG Response](https://developer.mozilla.org/en-US/docs/Web/API/Response) class, for returning instance-based responses. You enjoy routing that is based on standard interfaces!
 
-Now, routes in Webflo can be designed for different types of request/response scenarios. Webflo does the heavy lifting on each request/response flow!
+Routes in Webflo can be designed for different types of request/response scenarios. Here are some important ones:
 
 #### Scenario 1: Static File Requests and Responses
 
@@ -1216,9 +1232,10 @@ console.log(event.request.headers.cookies); // { 'Cookie-1': 'cookie-val', 'Cook
 
 ### Webflo Applications
 
-In just a few concepts, Webflo comes ready for any type of application! Now, here's how it all works.
+In just a few concepts, Webflo comes ready for any type of application!
 
 + [Client-Side Applications](#client-side-applications)
++ [Progressive Web Apps](#progressive-web-apps)
 + [API Backends](#api-backends)
 + [Static Sites](#static-sites)
 
@@ -1249,16 +1266,77 @@ On the client side of a Webflo application, [the idea of state](#the-idea-of-sta
 This is a *live* object that exposes the network activity and network state of the application.
 
 ```js
-console.log(document.state.network) // { requesting, remote, error, redirecting, online, }
+console.log(document.state.network) // { requesting, remote, error, redirecting, connectivity, }
 ```
 
 + **`network.requesting`: `null|Object`** - This property tells when a request is ongoing, in which case it exposes the `params` object used to initiate the request.
+  
+  On the UI, this could be used to hide a menu drawer that may have been open.
+  
+  ```html
+  <menu-drawer>
+      <script type="subscript">
+      let { network: { requesting } } = document.state;
+      if (requesting) {
+          $(this).attr('open', false);
+      }
+      </script>
+  </menu-drawer>
+  ```
+  
 + **`network.remote`: `null|String`** - This property tells when a remote request is ongoing - usually the same navigation requests as at `network.requesting`, but when not handled by any client-side route handlers, or when `next()`ed to this point by route handlers. The `remote` property also goes live when a route handler calls the special `fetch()` function that they recieve on their fourth parameter.
+  
+  On the UI, this could be used to show/hide a spinner, or progress bar, to provide a visual cue.
+  
+  ```html
+  <progress-bar>
+      <script type="subscript">
+      let { network: { remote } } = document.state;
+      $(this).attr('hidden', !remote);
+      </script>
+  </progress-bar>
+  ```
+  
 + **`network.error`: `null|Error`** - This property tells when a request is *errored* in which case it contains an `Error` instance of the error. For requests that can be retried, the `Error` instance also has a custom `retry()` method.
+  
+  On the UI, this could be used to show/hide cute error elements.
+  
+  ```html
+  <nice-error>
+      <script type="subscript">
+      let { network: { error } } = document.state;
+      $(this).attr('hidden', !error);
+      </script>
+  </nice-error>
+  ```
+  
 + **`network.redirecting`: `null|String`** - This property tells when a client-side redirect is ongoing - see [Scenario 4: Single Page Navigation Requests and Responses](#scenario-4-single-page-navigation-requests-and-responses) - in which case it exposes the destination URL.
-+ **`network.online`: `Boolean`** - This property tells of [the browser's ability to connect to the network](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/onLine).
-
-Now, being a *live* object means that `document.state.network` can be observed using the [Observer API](https://github.com/webqit/observer).
+  
+  On the UI, this could be used to prevent further interactions with the outgoing page.
+  
+  ```html
+  <body>
+      <script type="subscript">
+      let { network: { redirecting } } = document.state;
+      $(this).css(redirecting ? { pointerEvents: 'none', filter: 'blur(2)' } : { pointerEvents: 'auto', filter: 'blur(0)' });
+      </script>
+  </body>
+  ```
+  
++ **`network.connectivity`: `String`** - This property tells of [the browser's ability to connect to the network](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/onLine): `online`, `offline`.
+  
+  On the UI, this could be used to show/hide a connectivity status.
+  
+  ```html
+  <body>
+      <script type="subscript">
+      let { network: { connectivity } } = document.state;
+      $(this).attr( 'connectivity', connectivity });
+      </script>
+  </body>
+  ```
+  
+Here are some additional examples with the [Observer API](https://github.com/webqit/observer).
 
 ```js
 // Visualize the network state
@@ -1272,12 +1350,12 @@ Observer.observe(document.state.network, onlineVisualizer);
 ```
 
 ```js
-// Visualize the 'online' property
-let onlineVisualizer = e => {
-    console.log('You are ', e.value ? 'online' : 'offline');
+// Visualize the 'connectivity' property
+let connectivityVisualizer = e => {
+    console.log('You are ', e.value);
 };
-Observer.observe(document.state.network, 'online', onlineVisualizer);
-// Or: Observer.observe(document.state, [ ['network', 'online'] ], onlineVisualizer);
+Observer.observe(document.state.network, 'connectivity', connectivityVisualizer);
+// Or: Observer.observe(document.state, [ ['network', 'connectivity'] ], connectivityeVisualizer);
 ```
 
 ```js
@@ -1292,17 +1370,32 @@ Observer.observe(document.state.network, 'error', e => {
 });
 ```
 
-###### Form Actions
+##### Form Actions
 
 When navigation occurs [via form submissions](#scenario-4-single-page-navigation-requests-and-responses), the form element and the submit button are made to go on the *active* state while the request is processed. For both of these elements, the Webflo client simply sets the `element.state.active` to `true` on submission, then `false`, on completion.
 
-<!-- TODO: method overrides -->
+```html
+<form method="post">
+    <input name="username" placeholder="Your username..." />
+    <script>
+    $(this).css({ opacity: this.state.active ? '0.5' : '1' });
+    </script>
+</form>
+```
 
-##### Service Workers
+You would realize that HTML forms can only accept two HTTP methods on their `method` attribute: `GET`, `POST`. The same constraint exists on the equivalent `formmethod` attribues in submit buttons. You are able to overcome this in Webflo by using alternative `data-` attributes: `data-method`, `data-formmethod`, respectively.
 
-Webflo client-side applications are intended to provide an app-like-first experience. So unless disabled in [config](#enable_service_worker), a [Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) is built as part of your application on running the `npm run generate` command. You may define [route handlers in the `/worker` directory](#handler-functions-and-layout) of your application, and these will be built into the service worker to handle Same-Origin requests of the application. Where there are no *worker* handlers, or where they forward these requests, the request is fetched, either from the cache, or from the network, depending on the fetching strategy built into the Service Worker.
+```html
+<form data-method="patch">
+    <input name="price" placeholder="Specify new price..." />
+</form>
+```
 
-###### Fetching Strategy
+#### Progressive Web Apps
+
+Webflo client-side applications are intended to provide an app-like-first experience. So unless disabled in [config](#enable_service_worker), a [Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) is built as part of your application on running the `npm run generate` command. You may define [route handlers in the `/worker` directory](#handler-functions-and-layout) of your application, and these will be built into the service worker to handle Same-Origin requests of the application. Where there are no *worker* handlers, or where these forward incoming requests, requests are fetched, either from the cache, or from the network, depending on the fetching strategy built into the Service Worker.
+
+##### Fetching Strategy
 
 + **Network First** - This strategy tells the Service Worker to always attempt fetching from the network first for given resources, before fetching from the cache. On every successful network fetch, a copy of the response is saved to the cache for next time. (This is good for resources that need to be fresh to the user on a "best effort" basis.) Unless [changed](#default_fetching_strategy), this is Webflo's default fetching strategy. When not the default strategy, a list of specific URLs that should be fetched this way can be [configured](#network_first_urls).
 + **Cache First** - This strategy tells the Service Worker to always attempt fetching from the cache first for given resources, before fetching from the network. After serving a cached response, or where not found in cache, a network fetch happens and a copy of the response is saved to the cache for next time. (This is good for resources that do not critially need to be fresh to the user.) When not the default strategy, a list of specific URLs that should be fetched this way can be [configured](#cache_first_urls).
@@ -1311,9 +1404,9 @@ Webflo client-side applications are intended to provide an app-like-first experi
 
 In all cases above, the convention for specifying URLs for a strategy accepts [URL patterns](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) - against which URLs can be matched on the fly. For example, to place all files in an `/image` directory (and subdirectories) on the *Cache First* strategy, the pattern `/image/*` can be used. To place all `.svg` files in an `/icons` directory (including subdirectories) on the *Cache Only* strategy, the pattern `/icons/*.svg` can be used. (Specifically for the *Cache Only* strategy, patterns are resolved at Service Worker build-time, and each pattern must match, at least, a file.)
 
-###### Cross-Thread Communications
+##### Cross-Thread Communications
 
-A couple APIs exists in browsers for establishing a two-way communication channel between a page and its service worker, for firing UI Notifications from either ends, and for implementing Push Notifications. Webflo offers to simply this with a unifying set of conventions:
+A couple APIs exists in browsers for establishing a two-way communication channel between a page and its Service Worker, for firing UI Notifications from either ends, and for implementing Push Notifications. Webflo offers to simply this with a unifying set of conventions:
 
 + The `workport` API - an object with simple methods for working with *cross-thread* messages, UI and Push Notifications.
   
