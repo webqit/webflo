@@ -424,7 +424,7 @@ Webflo takes a *default action* when `next()` is called at the *edge* of the wor
 
 For workflows in **the `/server` directory**, the *default action* of `next()`ing at the edge is to go match and return a static file in the `public` directory.
 
-So, above, should our handler receive static file requests like `http://localhost:3000/logo.png`, the expression `return next()` would get Webflo to match and return the logo at `public/logo.png`, if any; a `404` response otherwise.
+So, above, should our handler receive static file requests like `http://localhost:3000/logo.png`, the statement `return next()` would get Webflo to match and return the logo at `public/logo.png`, if any; a `404` response otherwise.
 
 ```shell
 my-app
@@ -433,7 +433,7 @@ my-app
 ```
 
 > **Note**
-> <br>The root handler effectively becomes the single point of entry to the application - being that it sees even static requests!
+> <br>The root handler effectively becomes the single point of entry to the application - being that it sees even requests for static files!
 
 Now, for workflows in **the `/worker` directory**, the *default action* of `next()`ing at the edge is to send the request through the network to the server. (But Webflo will know to attempt resolving the request from the application's caching system built into the Service Worker.)
 
@@ -1030,7 +1030,7 @@ Now, routes in Webflo can be designed for different types of request/response sc
 #### Scenario 1: Static File Requests and Responses
 
 Static file requests like `http://localhost:3000/logo.png` are expected to get a file response. These requests are automatically handled by Webflo when `next()`ed forward by route handlers, or where there are no route handlers.
-+ On the server, Webflo serves files from the `public` directory. File conents along with the appropriate headers like [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type), [`Content-Length`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Length), etc. are returned as an instance of `event.Response`. Where a request has an [`Accept-Encoding`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Encoding) header set (e.g. `gzip`, `br`) and there exists a matching *compressed version* of the said file on the file system (e.g. `./public/logo.png.gz`, `./public/logo.png.br`), the compressed version is served and the appropriate [`Content-Encoding`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding) response header is set.
++ On the server, Webflo serves files from the `public` directory. File contents along with the appropriate headers like [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type), [`Content-Length`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Length), etc. are returned as an instance of `event.Response`. Where a request has an [`Accept-Encoding`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Encoding) header set (e.g. `gzip`, `br`) and there exists a matching *compressed version* of the said file on the file system (e.g. `./public/logo.png.gz`, `./public/logo.png.br`), the compressed version is served and the appropriate [`Content-Encoding`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding) response header is set.
 + On the client, Webflo serves static files from the network, or from the application cache, where available.
 
 #### Scenario 2: API Requests and Responses
@@ -1417,7 +1417,7 @@ export default function(event, context, next) {
 }
 ```
 
-You are always able to lay out your route handlers in the structure for a formalized REST API.
+You are always able to lay out your route handlers in the structure for a formal REST API.
 
 ```shell
 server
@@ -1426,7 +1426,7 @@ server
  └── api/v1/products/index.js
 ```
 
-And if you will partition your backend for both page routes and a formalized REST API...
+And if you will partition your backend for both page routes and a formal REST API...
 
 ```shell
 server
