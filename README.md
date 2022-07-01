@@ -703,7 +703,7 @@ public/products
 
 #### In a Single Page Layout
 
-In a Single Page layout (as [above](#layout-and-templating-overview)), page-specific contents - e.g. main sections - are typically bundled together into one `bundle.html` file that can be embedded on the document root. Nested routes end up as nested `<template>` elements to form the equivalent of their URL structure.
+In a Single Page layout (as seen [earlier](#layout-and-templating-overview)), page-specific contents - e.g. main sections - are typically bundled together into one `bundle.html` file that can be embedded on the document root. Nested routes end up as nested `<template>` elements that form the equivalent of thw application's URL structure.
 
 ```html
 <!--
