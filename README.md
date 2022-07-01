@@ -836,7 +836,7 @@ The `--auto-embed` flag gets the bundler to automatically embed the generated `b
 
 With pages in Webflo being [DOM-based](#overview) (both client-side and [server-side](https://github.com/webqit/oohtml-ssr)), we are able to access and manipulate documents and elements using familiar DOM APIs - e.g. to replace or insert contents, attributes, etc. Rendering in Webflo is based on this concept!
 
-Here, Webflo simply makes sure that the data obtained from each route is available as part of the `document` object, such that it is accessible to our rendering logic as a `data` property on the `document.state` object - `document.state.data`. (The `document.state` object is always available unless disabled in config.)
+Here, Webflo simply makes sure that the data obtained from each route is available as part of the `document` object, such that it is accessible to our rendering logic as a `data` property on the [`document.state`](#the-idea-of-state) object - [`document.state.data`](#the-documentstatedata-object).
 
 So, we could embed a script on our page and render this data on the relevant parts of the document.
 
@@ -1021,6 +1021,98 @@ export async function render(event, data, next) {
 
 Custom render functions must return a value, and `window` objects are accepted. (Actually, any object that has a `toString()` method can be returned.)
 
+#### The Idea of State
+
+There often needs to be a central point in an application where things are stored and managed. You could think of it is having a global object initialized `window.store = {}` on which different parts of an application can store and retrieve values. This is the basic idea of state. But it also doesn't go without the idea of *observability* - something that lets the different parts of the application observe and respond to changes made on this object!
+
+*State* and *Observability* in Webflo applications come down to this basic form: there is an object...
+
+```js
+state = {}
+```
+
+...and there is a way to observe property changes on it...
+
+```js
+Observer.observe(state, changes => {
+    changes.forEach(change => {
+        console.log(change.name, change.value);
+    });
+});
+```
+
+```js
+Observer.observe(state, propertyName, change => {
+    console.log(change.name, change.value);
+});
+```
+
+...plus, all references to the object and its properties from within embedded Subscript code are reactive.
+
+```html
+<script type="subscript">
+    // Always log the value of this property in realtime
+    console.log(state.propertyName);
+</script>
+```
+
+This way, all the moving parts of your application remain coordinated, and can easily be rendered to reflect them on the UI!
+
+For all things application state, Webflo leverages the [State API](https://github.com/webqit/oohtml#state-api) that's natively available in OOHTML-based documents - both client-side and server-side. This API exposes an application-wide `document.state` object and a per-element `element.state` object. And these are *live* read/write objects that can be observed for property changes using the [Observer API](https://github.com/webqit/observer). It comes off as the simplest approach to state and reactivity!
+
+> **Note**
+> <br>The State API is not available when the OOHTML support level in config is switched away from `full` and `scripting`.
+
+#### The `document.state.data` Object
+
+This property represents the data obtained from route handers on each navigation. Webflo simply exposes this data and lets the page's [rendering logic](#client-and-server-side-rendering), or other parts of the application, take over.
+
+```js
+Observer.observe(document.state, 'data', e => {
+    console.log('Current page data is: ', e.value);
+});
+```
+
+#### The `document.state.url` Object
+
+This is a *live* object that reperesents the properties of the application URL at any point in time. The object exposes the same URL properties as with the [`URL`](https://developer.mozilla.org/en-US/docs/Web/API/URL) API, but as *live* properties that can be observed as navigation happens, and modified to initiate navigation - all using the [Observer API](https://github.com/webqit/observer).
+
+```js
+console.log(document.state.url) // { hash, host, hostname, href, origin, password, pathname, port, protocol, search, searchParams, username }
+```
+
+```js
+Observer.observe(document.state.url, 'hash', e => {
+    console.log(document.state.url.hash === e.value); // true
+});
+```
+
+```js
+// Navigates to "/login#form" as if a link was clicked
+document.addEventListener('synthetic-navigation', e => {
+    Observer.set(document.state.url, 'href', '/login#form');
+});
+
+// Or...
+document.addEventListener('synthetic-navigation', e => {
+    Observer.set(document.state.url, { pathname: '/login', hash: '#form' });
+});
+
+console.log(document.state.url.hash); // #form
+```
+
+There is also the *convenience* `query` property that offers the URL parameters as a *live* object.
+
+```js
+// For URL: http://localhost:3000/login?as=student
+console.log(document.state.url.query.as) // student
+
+// Re-rewrite the URL and initiate navigation by simply modifying a query parameter
+document.addEventListener('synthetic-navigation', e => {
+    Observer.set(document.state.url.query, 'as', 'business');
+});
+```
+
 ### Requests and Responses
 
 On each request, the event object passed to route handlers exposes the incoming request as `event.request`. This is an instance of `event.Request` - an extension of the [WHATWG Request](https://developer.mozilla.org/en-US/docs/Web/API/Request) class. The event object also exposes `event.Response` - an extension of the [WHATWG Response](https://developer.mozilla.org/en-US/docs/Web/API/Response) class, for returning instance-based responses.
@@ -1120,73 +1212,15 @@ Webflo also offers a *convenience* method.
 
 ```js
 console.log(event.request.headers.cookies); // { 'Cookie-1': 'cookie-val', 'Cookie-2': 'cookie2-val' };
-````
+```
 
 ### Webflo Applications
 
-In just a few concepts, Webflo comes ready for any type of application! Now, additional details of a Webflo app - depending on the type - are covered in the following sections.
+In just a few concepts, Webflo comes ready for any type of application! Now, here's how it all works.
 
-+ [Application State](#application-state)
 + [Client-Side Applications](#client-side-applications)
 + [API Backends](#api-backends)
 + [Static Sites](#static-sites)
-
-#### Application State
-
-For all things application state, Webflo leverages the [State API](https://github.com/webqit/oohtml#state-api) that's natively available in OOHTML-based documents - both client-side and server-side. This API exposes an application-wide `document.state` object and a per-element `element.state` object. And these are *live* read/write objects that can be observed for property changes using the [Observer API](https://github.com/webqit/observer). It comes off as the simplest approach to state and reactivity!
-
-> **Note**
-> <br>The State API is not available when the OOHTML support level in config is switched away from `full` and `scripting`.
-
-##### The `document.state.data` Object
-
-This property represents the data obtained from route handers on each navigation. Webflo simply exposes this data and lets the page's [rendering logic](#client-and-server-side-rendering), or other parts of the application, take over.
-
-```js
-Observer.observe(document.state, 'data', e => {
-    console.log('Current page data is: ', e.value);
-});
-```
-
-##### The `document.state.url` Object
-
-This is a *live* object that reperesents the properties of the application URL at any point in time. The object exposes the same URL properties as with the [`URL`](https://developer.mozilla.org/en-US/docs/Web/API/URL) API, but as *live* properties that can be observed as navigation happens, and modified to initiate navigation - all using the [Observer API](https://github.com/webqit/observer).
-
-```js
-console.log(document.state.url) // { hash, host, hostname, href, origin, password, pathname, port, protocol, search, searchParams, username }
-```
-
-```js
-Observer.observe(document.state.url, 'hash', e => {
-    console.log(document.state.url.hash === e.value); // true
-});
-```
-
-```js
-// Navigates to "/login#form" as if a link was clicked
-document.addEventListener('synthetic-navigation', e => {
-    Observer.set(document.state.url, 'href', '/login#form');
-});
-
-// Or...
-document.addEventListener('synthetic-navigation', e => {
-    Observer.set(document.state.url, { pathname: '/login', hash: '#form' });
-});
-
-console.log(document.state.url.hash); // #form
-```
-
-There is also the *convenience* `query` property that offers the URL parameters as a *live* object.
-
-```js
-// For URL: http://localhost:3000/login?as=student
-console.log(document.state.url.query.as) // student
-
-// Re-rewrite the URL and initiate navigation by simply modifying a query parameter
-document.addEventListener('synthetic-navigation', e => {
-    Observer.set(document.state.url.query, 'as', 'business');
-});
-```
 
 #### Client-Side Applications
 
@@ -1208,7 +1242,7 @@ Unless disabled in [config](#spa_navigation), it is factored-in at build time fo
 
 ##### SPA State
 
-In addition to [the universal concept of state](#application-state) of a Webflo application, state on the client side also includes the following aspects of the client-side lifecycle that can be used to provide visual cues on the UI.
+On the client side of a Webflo application, [the idea of state](#the-idea-of-state) also goes further to include the following aspects of the client-side lifecycle that can be used to provide visual cues on the UI.
   
 ###### The `document.state.network` Object
 
@@ -1261,6 +1295,8 @@ Observer.observe(document.state.network, 'error', e => {
 ###### Form Actions
 
 When navigation occurs [via form submissions](#scenario-4-single-page-navigation-requests-and-responses), the form element and the submit button are made to go on the *active* state while the request is processed. For both of these elements, the Webflo client simply sets the `element.state.active` to `true` on submission, then `false`, on completion.
+
+<!-- TODO: method overrides -->
 
 ##### Service Workers
 
