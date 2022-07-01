@@ -1241,11 +1241,9 @@ In just a few concepts, Webflo comes ready for any type of application!
 
 #### Client-Side Applications
 
-Web pages that embed the Webflo client JS bundle deliver a great user experience.
-+ **First-paint-ready.** On the first page request, you get a [server-rendered](#client-and-server-side-rendering) HTML page that's optimized for the first paint of your application.
-+ **Fluid and app-like.** On being loaded, the state of the application is restored through hydration, and [subsequent navigations](#spa-navigation) are sleek and instant, while performing [Client-Side Rendering](#client-and-server-side-rendering).
+Web pages that embed the Webflo client JS bundle deliver a great user experience. It's simple: the `npm run generate` command does both the building and embedding of the script, or scripts, for the document root, or document roots (in a [Multi Page](#in-a-multi-page-layout) / [Multi SPA](#in-a-multi-spa-layout) layout)!
 
-For these client-side applications, the `npm run generate` command does both the building and embedding of the script for each document root in the application.
+On being loaded, the state of the application is initialized, or is restored through hydration - where [Server-Side Rendering](#client-and-server-side-rendering) was involved to optimize for first paint, and an app-like experience kicks in! For [Single-Page Applications](#in-a-single-page-layout), [Client-Side Rendering](#client-and-server-side-rendering) is performed on each navigation.
 
 ##### SPA Navigation
 
@@ -1259,7 +1257,7 @@ Unless disabled in [config](#spa_navigation), it is factored-in at build time fo
 
 ##### SPA State
 
-On the client side of a Webflo application, [the idea of state](#the-idea-of-state) also goes further to include the following aspects of the client-side lifecycle that can be used to provide visual cues on the UI.
+On the client side of a Webflo application, [the idea of state](#the-idea-of-state) also includes the following aspects of the client-side lifecycle that can be used to provide visual cues on the UI.
   
 ###### The `document.state.network` Object
 
@@ -1372,22 +1370,22 @@ Observer.observe(document.state.network, 'error', e => {
 
 ##### Form Actions
 
-When navigation occurs [via form submissions](#scenario-4-single-page-navigation-requests-and-responses), the form element and the submit button are made to go on the *active* state while the request is processed. For both of these elements, the Webflo client simply sets the `element.state.active` to `true` on submission, then `false`, on completion.
+When navigation occurs [via form submissions](#scenario-4-single-page-navigation-requests-and-responses), the form element and the submit button are made to go on the *active* state while the request is being processed. For both of these elements, the Webflo client simply sets the `element.state.active` to `true` on submission, then `false`, on completion.
 
 ```html
 <form method="post">
     <input name="username" placeholder="Your username..." />
     <script>
-    $(this).css({ opacity: this.state.active ? '0.5' : '1' });
+    $(this).css(this.state.active ? { pointerEvents: 'none', opacity: 'o.5' } : { pointerEvents: 'auto', opacity: '1' });
     </script>
 </form>
 ```
 
-You would realize that HTML forms can only accept two HTTP methods on their `method` attribute: `GET`, `POST`. The same constraint exists on the equivalent `formmethod` attribues in submit buttons. You are able to overcome this in Webflo by using alternative `data-` attributes: `data-method`, `data-formmethod`, respectively.
+One more thing: HTML forms can only accept two HTTP methods on their `method` attribute: `GET`, `POST`! The same constraint exists on the equivalent `formmethod` attribue in submit buttons. You are able to overcome this in Webflo by using alternative `data-` attributes: `data-method`, `data-formmethod`, respectively.
 
 ```html
 <form data-method="patch">
-    <input name="price" placeholder="Specify new price..." />
+    <input name="price" placeholder="Enter new price..." />
 </form>
 ```
 
@@ -1560,10 +1558,10 @@ And if you will partition your backend for both page routes and a formal REST AP
 ```shell
 server
  ├── index.js                  ──┐
- ├── cart/index.js               ├── Page Routes
+ ├── cart/index.js               ├─ Page Routes
  ├── products/index.js         ──┘
  ├── api/v1/index.js           ──┐
- ├── api/v1/orders/index.js      ├── REST API
+ ├── api/v1/orders/index.js      ├─ REST API
  └── api/v1/products/index.js  ──┘
 ```
 
@@ -1628,12 +1626,6 @@ You could soon be taking all your ideas to Webflo! 😃
 ## Getting Involved
 
 All forms of contributions and PR are welcome! To report bugs or request features, please submit an [issue](https://github.com/webqit/webflo/issues). For general discussions, ideation or community help, please join our github [Discussions](https://github.com/webqit/webflo/discussions).
-
-## License
-
-MIT.
-
-...
 
 ## Getting Involved
 

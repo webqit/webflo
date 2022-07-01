@@ -118,7 +118,7 @@ export default class Runtime {
 				return params;
 			}, {});
 			// We support method hacking
-			submitParams.method = (submitter && submitter.dataset.method) || form.dataset.method || submitParams.method;
+			submitParams.method = (submitter && submitter.dataset.formmethod) || form.dataset.method || submitParams.method;
 			submitParams.submitter = submitter;
 			// ---------------
 			var actionEl = window.document.createElement('a');
@@ -152,8 +152,8 @@ export default class Runtime {
 		// -----------------------
 		// Initialize network
 		Observer.set(this, 'network', {});
-		window.addEventListener('online', () => Observer.set(this.network, 'online', navigator.onLine));
-		window.addEventListener('offline', () => Observer.set(this.network, 'online', navigator.onLine));
+		window.addEventListener('online', () => Observer.set(this.network, 'connectivity', 'online'));
+		window.addEventListener('offline', () => Observer.set(this.network, 'connectivity', 'offline'));
 
 		// -----------------------
 		// Service Worker && COMM
