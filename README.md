@@ -1438,7 +1438,7 @@ Webflo client-side applications are intended to provide an app-like-first experi
 + **Cache First** - This strategy tells the Service Worker to always attempt fetching from the cache first for given resources, before fetching from the network. After serving a cached response, or where not found in cache, a network fetch happens and a copy of the response is saved to the cache for next time. (This is good for resources that do not critially need to be fresh to the user.) When not the default strategy, a list of specific URLs that should be fetched this way can be configured.
     
     <details>
-    <summary>Config (Alternative)</summary>
+    <summary>Config (Other)</summary>
 
     ```json
     { "default_fetching_strategy": "cache-first" }
@@ -1456,7 +1456,7 @@ Webflo client-side applications are intended to provide an app-like-first experi
 + **Network Only** - This strategy tells the Service Worker to always fetch given resources from the network only. They are simply not available when offline. (This is good for resources that critially need to be fresh to the user.) When not the default strategy, a list of specific URLs that should be fetched this way can be configured.
     
     <details>
-    <summary>Config (Alternative)</summary>
+    <summary>Config (Other)</summary>
 
     ```json
     { "default_fetching_strategy": "network-only" }
@@ -1474,7 +1474,7 @@ Webflo client-side applications are intended to provide an app-like-first experi
 + **Cache Only** - This strategy tells the Service Worker to always fetch given resources from the cache only. (This is good for resources that do not change often.) When not the default strategy, a list of specific URLs that should be fetched this way can be configured. The listed resources are pre-cached ahead of when they'll be needed - and are served from the cache each time. (Pre-caching happens on the one-time `install` event of the Service Worker.)
 
     <details>
-    <summary>Config (Alternative)</summary>
+    <summary>Config (Other)</summary>
 
     ```json
     { "default_fetching_strategy": "cache-only" }
