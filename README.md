@@ -566,7 +566,7 @@ But, we can also access the route in a way that gets the data rendered into the 
 Now, for Single Page Applications, subsequent navigations, after the initial page load, just ask for the data on destination URLs and perform [Client-Side Rendering](#client-and-server-side-rendering) on the same running document. Navigation is sleek and instant!
 
 > **Note**
-> <br>Unless disabled, [SPA Routing](#spa_routing) is automatically built into your app's JS bundle from the `npm run generate` command. So, it just works!
+> <br>Unless disabled, [SPA Routing](#spa-routing) is automatically built into your app's JS bundle from the `npm run generate` command. So, it just works!
 
 With no extra work, your application can function as either a *Multi Page App (MPA)* or a *Single Page App (SPA)*!
 
