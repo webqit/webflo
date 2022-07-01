@@ -198,7 +198,7 @@ All is now set! The commands `npm start` and `npm run generate` will be coming i
 
 ### "Hello World!"
 
-To be sure that Webflo is listening, run `npx webflo help` on the terminal. An overview of available commands will be shown.
+To be sure that Webflo is listening, run `npx webflo help` on the terminal. An overview of available commands should be shown.
 
 If you can't wait to say *Hello World!* 😅, you can have an HTML page say that right now!
 + Create an `index.html` file in a new subdirectory `public`.
@@ -238,7 +238,7 @@ If you can't wait to say *Hello World!* 😅, you can have an HTML page say that
 
 ### Handler Functions and Layout
 
-Whether building a *server-based*, *browser-based*, or *universal* application, Webflo gives us one consistent way to handle routing and navigation: using *handler functions*!
+Whether building a *server-based*, *browser-based*, or *universal* application, Webflo gives you one consistent way to handle routing and navigation: using *handler functions*!
 
 ```js
 /**
@@ -249,7 +249,7 @@ export default function(event, context, next) {
 }
 ```
 
-Each function receives an `event` object representing details - e.g. `event.request`, `event.url`, `event.session` - about the current flow. (Details ahead.)
+Each function receives an `event` object representing details - e.g. `event.request`, `event.url`, `event.session` - about the current request. (Details ahead.)
 
 For *server-based* applications (e.g. traditional web apps and API backends), server-side handlers go into a directory named `server`.
 
