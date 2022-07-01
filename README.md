@@ -22,6 +22,7 @@ Ok, we've put all of that up for a straight read!
 + [Webflo Applications](#webflo-applications)
 + [Workflow API](#workflow-api)
 + [Webflo Config](#webflo-config)
++ [Technology Stack](#technology-stack)
 + [Getting Started](#getting-started)
 + [Getting Involved](#getting-involved)
 
@@ -137,9 +138,9 @@ For when your application involves routing:
 For when your application involves pages and a UI:
 + [The HTML Standard](https://html.spec.whatwg.org/) is held for all things *markup* - across client, server, and Service Worker environments! Webflo is all about using conventional `.html`-based pages and templates, valid HTML syntax, etc. You are able to get away with a "zero-JavaScript" proposition, or a *Progressive Enhancement* proposition that makes do with "just-enough JavaScript"!
 
-  > Your markup is also easily extendable with [OOHTML](https://github.com/webqit/oohtml) - a set of new features for HTML that makes it fun to hand-author your UI! Within OOHTML are [HTML Modules](https://github.com/webqit/oohtml#html-modules) and [HTML Imports](https://github.com/webqit/oohtml#html-imports), [Reactive Scripts](https://github.com/webqit/oohtml#subscript) and more!
+  > Your markup is also easily extendable with [OOHTML](#oohtml) - a set of new features for HTML that makes it fun to hand-author your UI! Within OOHTML are [HTML Modules](https://github.com/webqit/oohtml#html-modules) and [HTML Imports](https://github.com/webqit/oohtml#html-imports), [Reactive Scripts](https://github.com/webqit/oohtml#subscript) and more!
 
-+ [WHATWG DOM](https://dom.spec.whatwg.org/) is universally available - not only on the client-side, but also on the server-side via [OOHTML-SSR](https://github.com/webqit/oohtml-ssr) - for all things *dynamic pages*: rendering, manipulation, interactivity, etc.
++ [WHATWG DOM](https://dom.spec.whatwg.org/) is universally available - not only on the client-side, but also on the server-side via [OOHTML-SSR](#oohtml-ssr) - for all things *dynamic pages*: rendering, manipulation, interactivity, etc.
 
   > Your DOM is also easily enrichable with [Custom Elements](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements), plus [Subscript Elements](https://github.com/webqit/oohtml#subscript) and [The State API](https://github.com/webqit/oohtml#state-api) from OOHTML.
 
@@ -249,7 +250,10 @@ export default function(event, context, next) {
 }
 ```
 
-Each function receives an `event` object representing details - e.g. `event.request`, `event.url`, `event.session` - about the current request. (Details ahead.)
+> **Note**
+> <br>Other [*method*](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods)-specific function names may be used: `get`, `post`, `put`, `patch`, `del` (for *delete*), `options`, `head`, etc.
+
+Each function receives an `event` object representing details - e.g. `event.request`, `event.url`, `event.session` - about the current request. ([Details ahead](#workflow-api).)
 
 For *server-based* applications (e.g. traditional web apps and API backends), server-side handlers go into a directory named `server`.
 
@@ -562,7 +566,7 @@ But, we can also access the route in a way that gets the data rendered into the 
 Now, for Single Page Applications, subsequent navigations, after the initial page load, just ask for the data on destination URLs and perform [Client-Side Rendering](#client-and-server-side-rendering) on the same running document. Navigation is sleek and instant!
 
 > **Note**
-> <br>Unless disabled in [config](#spa_routing), SPA routing is automatically built into your app's JS bundle from the `npm run generate` command. So, it just works!
+> <br>Unless disabled, [SPA Routing](#spa_routing) is automatically built into your app's JS bundle from the `npm run generate` command. So, it just works!
 
 With no extra work, your application can function as either a *Multi Page App (MPA)* or a *Single Page App (SPA)*!
 
@@ -596,7 +600,7 @@ my-app
 
 This, in both cases, is templating - the ability to define HTML *partials* once, and have them reused multiple times. Webflo just concerns itself with templating, and the choice of a Multi Page Application or Single Page Application becomes yours! And heck, you can even have the best of both worlds in the same application - with an architecture we'll call [Multi SPA](#in-a-multi-spa-layout)! It's all a *layout* thing!
 
-Now, with pages in Webflo being [DOM-based](#overview) (both client-side and [server-side](https://github.com/webqit/oohtml-ssr)), documents can be manipulated directly with DOM APIs, e.g. to replace or insert nodes, attributes, etc. But even better, templating in Webflo is based on the [HTML Modules](https://github.com/webqit/oohtml#html-modules) and [HTML Imports](https://github.com/webqit/oohtml#html-imports) features in [OOHTML](https://github.com/webqit/oohtml) - unless disabled in [config](#oohtml_support). These features provide a powerful declarative templating system on top of the standard [HTML `<template>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template) element - with a *module*, *export* and *import* paradigm.
+Now, with pages in Webflo being [DOM-based](#overview) (both client-side and [server-side](#oohtml-ssr)), documents can be manipulated directly with DOM APIs, e.g. to replace or insert nodes, attributes, etc. But even better, templating in Webflo is based on the [HTML Modules](https://github.com/webqit/oohtml#html-modules) and [HTML Imports](https://github.com/webqit/oohtml#html-imports) features in [OOHTML](#oohtml) - unless disabled in config. These features provide a powerful declarative templating system on top of the standard [HTML `<template>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template) element - with a *module*, *export* and *import* paradigm.
 
 Here, you are able to define reusable contents in a `<template>` element...
 
@@ -817,7 +821,7 @@ The Webflo `generate` command automatically figures out a given architecture and
 
 #### Bundling
 
-Template `.html` files are bundled from the filesystem into a single file using the [OOHTML CLI](https://github.com/webqit/oohtml-cli) utility. On installing this utility, you may want to add the following to your npm scripts in `package.json`.
+Template `.html` files are bundled from the filesystem into a single file using the [OOHTML CLI](#oohtml-cli) utility. On installing this utility, you may want to add the following to your npm scripts in `package.json`.
 
 ```json
 "scripts": {
@@ -830,11 +834,11 @@ The `--recursive` flag gets the bundler to recursively bundle *subroots* in a [M
 The `--auto-embed` flag gets the bundler to automatically embed the generated `bundle.html` file on the matched `index.html` document. A value of `routes` for the flag ends up as the name of the *embed* template: `<template name="routes" src="/bundle.html"></template>`.
 
 > **Note**
-> <br>If your HTML files are actually based off the `public` directory, you'll need to tell the above command to run in the `public` directory, either by [configuring the bundler](https://github.com/webqit/oohtml-cli#other-options), or by rewriting the command with a prefix: `cd public && oohtml bundle --recursive --auto-embed=routes`. 
+> <br>If your HTML files are actually based off the `public` directory, you'll need to tell the above command to run in the `public` directory, either by [configuring the bundler](https://github.com/webqit/oohtml-cli#other-options), or by rewriting the command with a prefix: `cd public && oohtml bundle --recursive --auto-embed=routes`.
 
 ### Client and Server-Side Rendering
 
-With pages in Webflo being [DOM-based](#overview) (both client-side and [server-side](https://github.com/webqit/oohtml-ssr)), we are able to access and manipulate documents and elements using familiar DOM APIs - e.g. to replace or insert contents, attributes, etc. Rendering in Webflo is based on this concept!
+With pages in Webflo being [DOM-based](#overview) (both client-side and [server-side](#oohtml-ssr)), we are able to access and manipulate documents and elements using familiar DOM APIs - e.g. to replace or insert contents, attributes, etc. Rendering in Webflo is based on this concept!
 
 Here, Webflo simply makes sure that the data obtained from each route is available as part of the `document` object, such that it is accessible to our rendering logic as a `data` property on the [`document.state`](#the-idea-of-state) object - [`document.state.data`](#the-documentstatedata-object).
 
@@ -880,7 +884,7 @@ public
 
 From here, even the most-rudimentary form of rendering (using vanilla HTML and native DOM methods) becomes possible, and this is a good thing: you get away with less tooling until you absolutely need to add up on tooling!
 
-However, since the `document` objects in Webflo natively support [OOHTML](https://github.com/webqit/oohtml) - unless disabled in [config](#oohtml_support), we are able to write reactive UI logic! Here, OOHTML makes it possible to embed reactive `<script>` elements (called [Subscript](https://github.com/webqit/oohtml#subscript)) right within HTML elements - where each expression automatically self-updates whenever references to data, or its properties, get an update!
+However, since the `document` objects in Webflo natively support [OOHTML](#oohtml) - unless disabled in config, we are able to write reactive UI logic! Here, OOHTML makes it possible to embed reactive `<script>` elements (called [Subscript](https://github.com/webqit/oohtml#subscript)) right within HTML elements - where each expression automatically self-updates whenever references to data, or its properties, get an update!
 
 ```html
  <!--
@@ -1060,10 +1064,10 @@ Observer.observe(state, propertyName, change => {
 
 This way, all the moving parts of your application remain coordinated, and can easily be rendered to reflect them on the UI!
 
-For all things application state, Webflo leverages the [State API](https://github.com/webqit/oohtml#state-api) that's natively available in OOHTML-based documents - both client-side and server-side. This API exposes an application-wide `document.state` object and a per-element `element.state` object. And these are *live* read/write objects that can be observed for property changes using the [Observer API](https://github.com/webqit/observer). It comes off as the simplest approach to state and reactivity!
+For all things application state, Webflo leverages the [State API](https://github.com/webqit/oohtml#state-api) that's natively available in OOHTML-based documents - both client-side and server-side. This API exposes an application-wide `document.state` object and a per-element `element.state` object. And these are *live* read/write objects that can be observed for property changes using the [Observer API](#the-observer-api). It comes off as the simplest approach to state and reactivity!
 
 > **Note**
-> <br>The State API is not available when the OOHTML support level in config is switched away from `full` and `scripting`.
+> <br>The State API is not available when the [OOHTML support level](#oohtml) in config is switched away from `full` and `scripting`.
 
 #### The `document.state.data` Object
 
@@ -1084,7 +1088,7 @@ Observer.observe(document.state, 'data', e => {
 
 #### The `document.state.url` Object
 
-This is a *live* object that reperesents the properties of the application URL at any point in time. The object exposes the same URL properties as with the [`URL`](https://developer.mozilla.org/en-US/docs/Web/API/URL) API, but as *live* properties that can be observed as navigation happens, and modified to initiate navigation - all using the [Observer API](https://github.com/webqit/observer).
+This is a *live* object that reperesents the properties of the application URL at any point in time. The object exposes the same URL properties as with the [`URL`](https://developer.mozilla.org/en-US/docs/Web/API/URL) API, but as *live* properties that can be observed as navigation happens, and modified to initiate navigation - all using the [Observer API](#the-observer-api).
 
 ```js
 console.log(document.state.url) // { hash, host, hostname, href, origin, password, pathname, port, protocol, search, searchParams, username }
@@ -1247,13 +1251,21 @@ On being loaded, the state of the application is initialized, or is restored thr
 
 ##### SPA Navigation
 
-Unless disabled in [config](#spa_navigation), it is factored-in at build time for the application client JS to be able to automatially figure out when to intercept a navigation event and prevent a full page reload, and when not to. It follows the following rules:
+Unless disabled in config, it is factored-in at build time for the application client JS to be able to automatially figure out when to intercept a navigation event and prevent a full page reload, and when not to. It follows the following rules:
 + When it ascertains that the destination URL is based on the current running `index.html` document in the browser (an SPA architecture), a full page reload is prevented for *soft* navigation. But where the destination URL points out of the current document root (a [Multi SPA](#in-a-multi-spa-layout) architecture), navigation is allowed as a normal page load, and a new page root is loaded.
 + If navigation is initiated with any of the following keys pressed: Meta Key, Alt Key, Shift Key, Ctrl Key, navigation is allowed to work the default way - regardless of the first rule above.
 + If navigation is initiated from a link element that has the `target` attribute, or the `download` attribute, navigation is allowed to work the default way - regardless of the first rule above.
 + If navigation is initiated from a form element that has the `target` attribute, navigation is allowed to work the default way - regardless of the first rule above.
 
-> To entirely disable SPA navigation in config where necessary, run `webflo config client` and follow the prompt.
+<details>
+<summary>Default Config</summary>
+
+> File: `.webqit/webflo/client.json` | Command: `webflo config client spa_navigation=TRUE`
+
+```json
+{ "spa_navigation": true }
+```
+<details>
 
 ##### SPA State
 
@@ -1334,7 +1346,7 @@ console.log(document.state.network) // { requesting, remote, error, redirecting,
   </body>
   ```
   
-Here are some additional examples with the [Observer API](https://github.com/webqit/observer).
+Here are some additional examples with the [Observer API](#the-observer-api).
 
 ```js
 // Visualize the network state
@@ -1391,16 +1403,97 @@ One more thing: HTML forms can only accept two HTTP methods on their `method` at
 
 #### Progressive Web Apps
 
-Webflo client-side applications are intended to provide an app-like-first experience. So unless disabled in [config](#enable_service_worker), a [Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) is built as part of your application on running the `npm run generate` command. You may define [route handlers in the `/worker` directory](#handler-functions-and-layout) of your application, and these will be built into the service worker to handle Same-Origin requests of the application. Where there are no *worker* handlers, or where these forward incoming requests, requests are fetched, either from the cache, or from the network, depending on the fetching strategy built into the Service Worker.
+Webflo client-side applications are intended to provide an app-like-first experience. So unless disabled in config, a [Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) is built as part of your application on running the `npm run generate` command. You may define [route handlers in the `/worker` directory](#handler-functions-and-layout) of your application, and these will be built into the service worker to handle Same-Origin requests of the application. Where there are no *worker* handlers, or where these forward incoming requests, requests are fetched, either from the cache, or from the network, depending on the fetching strategy built into the Service Worker.
+
+<details>
+<summary>Default Config</summary>
+
+> File: `.webqit/webflo/client.json` | Command: `webflo config client enable_service_worker=TRUE`
+
+```json
+{ "enable_service_worker": true }
+```
+<details>
 
 ##### Fetching Strategy
 
-+ **Network First** - This strategy tells the Service Worker to always attempt fetching from the network first for given resources, before fetching from the cache. On every successful network fetch, a copy of the response is saved to the cache for next time. (This is good for resources that need to be fresh to the user on a "best effort" basis.) Unless [changed](#default_fetching_strategy), this is Webflo's default fetching strategy. When not the default strategy, a list of specific URLs that should be fetched this way can be [configured](#network_first_urls).
-+ **Cache First** - This strategy tells the Service Worker to always attempt fetching from the cache first for given resources, before fetching from the network. After serving a cached response, or where not found in cache, a network fetch happens and a copy of the response is saved to the cache for next time. (This is good for resources that do not critially need to be fresh to the user.) When not the default strategy, a list of specific URLs that should be fetched this way can be [configured](#cache_first_urls).
-+ **Network Only** - This strategy tells the Service Worker to always fetch given resources from the network only. They are simply not available when offline. (This is good for resources that critially need to be fresh to the user.) When not the default strategy, a list of specific URLs that should be fetched this way can be [configured](#network_only_urls).
-+ **Cache Only** - This strategy tells the Service Worker to always fetch given resources from the cache only. (This is good for resources that do not change often.) When not the default strategy, a list of specific URLs that should be fetched this way can be [configured](#cache_only_urls). The listed resources are pre-cached ahead of when they'll be needed - and are served from the cache each time. (Pre-caching happens on the one-time `install` event of the Service Worker.)
++ **Network First** - This strategy tells the Service Worker to always attempt fetching from the network first for given resources, before fetching from the cache. On every successful network fetch, a copy of the response is saved to the cache for next time. (This is good for resources that need to be fresh to the user on a "best effort" basis.) Unless changed, this is Webflo's default fetching strategy. When not the default strategy, a list of specific URLs that should be fetched this way can be configured.
+    
+    <details>
+    <summary>Default Config</summary>
+
+    > File: `.webqit/webflo/client.json` | Command: `webflo config client default_fetching_strategy=network-first`
+
+    ```json
+    { "default_fetching_strategy": "network-first" }
+    ```
+
+    *To list specific URLs...*
+
+    ```json
+    { "network_first_urls": [ "/logo.png" ] }
+    ```
+    <details>
+
++ **Cache First** - This strategy tells the Service Worker to always attempt fetching from the cache first for given resources, before fetching from the network. After serving a cached response, or where not found in cache, a network fetch happens and a copy of the response is saved to the cache for next time. (This is good for resources that do not critially need to be fresh to the user.) When not the default strategy, a list of specific URLs that should be fetched this way can be configured.
+    
+    <details>
+    <summary>Default Config</summary>
+
+    > File: `.webqit/webflo/client.json` | Command: `webflo config client default_fetching_strategy=cache-first`
+
+    ```json
+    { "default_fetching_strategy": "cache-first" }
+    ```
+
+    *To list specific URLs...*
+
+    ```json
+    { "cache_first_urls": [ "/logo.png" ] }
+    ```
+    <details>
+
++ **Network Only** - This strategy tells the Service Worker to always fetch given resources from the network only. They are simply not available when offline. (This is good for resources that critially need to be fresh to the user.) When not the default strategy, a list of specific URLs that should be fetched this way can be configured.
+    
+    <details>
+    <summary>Default Config</summary>
+
+    > File: `.webqit/webflo/client.json` | Command: `webflo config client default_fetching_strategy=network-only`
+
+    ```json
+    { "default_fetching_strategy": "network-only" }
+    ```
+
+    *To list specific URLs...*
+
+    ```json
+    { "network_only_urls": [ "/logo.png" ] }
+    ```
+    <details>
+
++ **Cache Only** - This strategy tells the Service Worker to always fetch given resources from the cache only. (This is good for resources that do not change often.) When not the default strategy, a list of specific URLs that should be fetched this way can be configured. The listed resources are pre-cached ahead of when they'll be needed - and are served from the cache each time. (Pre-caching happens on the one-time `install` event of the Service Worker.)
+
+    <details>
+    <summary>Default Config</summary>
+
+    > File: `.webqit/webflo/client.json` | Command: `webflo config client default_fetching_strategy=cache-only`
+
+    ```json
+    { "default_fetching_strategy": "cache-only" }
+    ```
+
+    *To list specific URLs...*
+
+    ```json
+    { "cache_only_urls": [ "/logo.png" ] }
+    ```
+    <details>
 
 In all cases above, the convention for specifying URLs for a strategy accepts [URL patterns](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) - against which URLs can be matched on the fly. For example, to place all files in an `/image` directory (and subdirectories) on the *Cache First* strategy, the pattern `/image/*` can be used. To place all `.svg` files in an `/icons` directory (including subdirectories) on the *Cache Only* strategy, the pattern `/icons/*.svg` can be used. (Specifically for the *Cache Only* strategy, patterns are resolved at Service Worker build-time, and each pattern must match, at least, a file.)
+
+```json
+{ "cache_only_urls": [ "/icons/*.svg" ] }
+```
 
 ##### Cross-Thread Communications
 
@@ -1612,7 +1705,46 @@ You have a static site!
 
 ### Webflo Config
 
-> TODO
+Webflo comes *convention-first*! But it is entirely configurable for when you need it! The easiest way to do this is to run the command `webflo config` and follow the walkthrough. To simply get an overview, use the command `webflo config help`, and all commands and their description are shown.
+
+## Technology Stack
+
+Webflo applications are often built on/with the following technologies.
+
+### OOHTML
+
+[OOHTML](https://github.com/webqit/oohtml) is a proposed set of new features for HTML that makes it fun to hand-author your UI! Within OOHTML are [HTML Modules](https://github.com/webqit/oohtml#html-modules) and [HTML Imports](https://github.com/webqit/oohtml#html-imports), [Reactive Scripts](https://github.com/webqit/oohtml#subscript) and more!
+
+Webflo natively supports OOHTML in full! But it is also possible to switch this to none, or to partial support - when specific features aren't needed anywhere in your application. Server-side and client-side support for OOHTML exist independently. This is good when, for example, your application places more importance on SSR, and less on CSR, in which case a reduced support for OOHTML can reduce the overall client JS bundle size.
+
+<details>
+<summary>Default Config</summary>
+
+> File: `.webqit/webflo/client.json` | Command: `webflo config client oohtml_support=full`
+
+> File: `.webqit/webflo/client.json` | Command: `webflo config server oohtml_support=full`
+
+```json
+{ "oohtml_support": "full" }
+```
+
+*Values: `full`, `namespacing`, `scripting`, `templating`, `none` - See [details at OOHTML SSR](https://github.com/webqit/oohtml-ssr#options)*
+<details>
+
+
+### OOHTML SSR
+
+[OOHTML SSR](https://github.com/webqit/oohtml-ssr) is a server-side DOM implementation with native support for OOHTML. This is internally used by Webflo as the Server-Side Rendering engine, and it it what gives Webflo its native support for OOHTML.
+
+### OOHTML CLI
+
+[OOHTML CLI](https://github.com/webqit/oohtml-cli) is a small Command Line utility that automates certain aspects of hand-authored OOHTML-based documents.
+
+### The Observer API
+
+[The Observer API](https://github.com/webqit/observer) is a simple set of functions for intercepting and observing JavaScript objects and arrays. (Reflection, Interception, and Events.)
+
+This is part of OOHTML's reactivity system, and it is made available on OOHTML-based documents as `window.WebQit.Observer`.
 
 ## Getting Started
 
@@ -1626,10 +1758,6 @@ You could soon be taking all your ideas to Webflo! 😃
 ## Getting Involved
 
 All forms of contributions and PR are welcome! To report bugs or request features, please submit an [issue](https://github.com/webqit/webflo/issues). For general discussions, ideation or community help, please join our github [Discussions](https://github.com/webqit/webflo/discussions).
-
-## Getting Involved
-
-All forms of contributions and PR are welcome! To report bugs or request features, please submit an [issue](https://github.com/webqit/webflo/issues).
 
 ## License
 
