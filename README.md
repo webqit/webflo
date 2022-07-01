@@ -1258,7 +1258,7 @@ Unless disabled in config, it is factored-in at build time for the application c
 + If navigation is initiated from a form element that has the `target` attribute, navigation is allowed to work the default way - regardless of the first rule above.
 
 <details>
-<summary>Default Config</summary>
+<summary>Config (Default)</summary>
 
 ```json
 { "spa_navigation": true }
@@ -1406,7 +1406,7 @@ One more thing: HTML forms can only accept two HTTP methods on their `method` at
 Webflo client-side applications are intended to provide an app-like-first experience. So unless disabled in config, a [Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) is built as part of your application on running the `npm run generate` command. You may define [route handlers in the `/worker` directory](#handler-functions-and-layout) of your application, and these will be built into the service worker to handle Same-Origin requests of the application. Where there are no *worker* handlers, or where these forward incoming requests, requests are fetched, either from the cache, or from the network, depending on the fetching strategy built into the Service Worker.
 
 <details>
-<summary>Default Config</summary>
+<summary>Config (Default)</summary>
 
 ```json
 { "service_worker_support": true }
@@ -1420,7 +1420,7 @@ Webflo client-side applications are intended to provide an app-like-first experi
 + **Network First** - This strategy tells the Service Worker to always attempt fetching from the network first for given resources, before fetching from the cache. On every successful network fetch, a copy of the response is saved to the cache for next time. (This is good for resources that need to be fresh to the user on a "best effort" basis.) Unless changed, this is Webflo's default fetching strategy. When not the default strategy, a list of specific URLs that should be fetched this way can be configured.
     
     <details>
-    <summary>Default Config</summary>
+    <summary>Config (Default)</summary>
 
     ```json
     { "default_fetching_strategy": "network-first" }
@@ -1438,7 +1438,7 @@ Webflo client-side applications are intended to provide an app-like-first experi
 + **Cache First** - This strategy tells the Service Worker to always attempt fetching from the cache first for given resources, before fetching from the network. After serving a cached response, or where not found in cache, a network fetch happens and a copy of the response is saved to the cache for next time. (This is good for resources that do not critially need to be fresh to the user.) When not the default strategy, a list of specific URLs that should be fetched this way can be configured.
     
     <details>
-    <summary>Default Config</summary>
+    <summary>Config (Alternative)</summary>
 
     ```json
     { "default_fetching_strategy": "cache-first" }
@@ -1456,7 +1456,7 @@ Webflo client-side applications are intended to provide an app-like-first experi
 + **Network Only** - This strategy tells the Service Worker to always fetch given resources from the network only. They are simply not available when offline. (This is good for resources that critially need to be fresh to the user.) When not the default strategy, a list of specific URLs that should be fetched this way can be configured.
     
     <details>
-    <summary>Default Config</summary>
+    <summary>Config (Alternative)</summary>
 
     ```json
     { "default_fetching_strategy": "network-only" }
@@ -1474,7 +1474,7 @@ Webflo client-side applications are intended to provide an app-like-first experi
 + **Cache Only** - This strategy tells the Service Worker to always fetch given resources from the cache only. (This is good for resources that do not change often.) When not the default strategy, a list of specific URLs that should be fetched this way can be configured. The listed resources are pre-cached ahead of when they'll be needed - and are served from the cache each time. (Pre-caching happens on the one-time `install` event of the Service Worker.)
 
     <details>
-    <summary>Default Config</summary>
+    <summary>Config (Alternative)</summary>
 
     ```json
     { "default_fetching_strategy": "cache-only" }
@@ -1718,7 +1718,7 @@ Webflo applications are often built on/with the following technologies.
 Webflo natively supports OOHTML in full! But it is also possible to switch this to none, or to partial support - when specific features aren't needed anywhere in your application. Server-side and client-side support for OOHTML exist independently. This is good when, for example, your application places more importance on SSR, and less on CSR, in which case a reduced support for OOHTML can reduce the overall client JS bundle size.
 
 <details>
-<summary>Default Config</summary>
+<summary>Config (Default)</summary>
 
 ```json
 { "oohtml_support": "full" }
