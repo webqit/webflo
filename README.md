@@ -135,9 +135,9 @@ For when your application involves routing:
 + [WHATWG URL](https://url.spec.whatwg.org/) and [WHATWG URLPattern](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) are used for all things *URL* and *URL pattern matching*, respectively - across client, server, and Service Worker environments. ([Details ahead](#))
 
 For when your application involves pages and a UI:
-+ [The HTML Standard](https://html.spec.whatwg.org/) is held for all things *markup* - across client, server, and Service Worker environments! Webflo is all about using conventional `.html`-based pages and templates, valid HTML syntax, etc. You are able to get away with a "zero-JavaScript" proposition or with *Progressive Enhancement* that makes do with "just-enough JavaScript"!
++ [The HTML Standard](https://html.spec.whatwg.org/) is held for all things *markup* - across client, server, and Service Worker environments! Webflo is all about using conventional `.html`-based pages and templates, valid HTML syntax, etc. You are able to get away with a "zero-JavaScript" proposition, or a *Progressive Enhancement* proposition that makes do with "just-enough JavaScript"!
 
-  > Your markup is also easily extendable with [OOHTML](https://github.com/webqit/oohtml) - a set of new features for HTML that makes it fun to hand-author your UI! Within OOHTML are [HTML Modules (`<template name="partials"></template>`)](https://github.com/webqit/oohtml#html-modules) and [HTML Imports (`<import template="partials"></import>`)](https://github.com/webqit/oohtml#html-imports), [Reactive Scripts (`<script type="subscript"></script>`)](https://github.com/webqit/oohtml#subscript) and more!
+  > Your markup is also easily extendable with [OOHTML](https://github.com/webqit/oohtml) - a set of new features for HTML that makes it fun to hand-author your UI! Within OOHTML are [HTML Modules](https://github.com/webqit/oohtml#html-modules) and [HTML Imports](https://github.com/webqit/oohtml#html-imports), [Reactive Scripts](https://github.com/webqit/oohtml#subscript) and more!
 
 + [WHATWG DOM](https://dom.spec.whatwg.org/) is universally available - not only on the client-side, but also on the server-side via [OOHTML-SSR](https://github.com/webqit/oohtml-ssr) - for all things *dynamic pages*: rendering, manipulation, interactivity, etc.
 
@@ -153,7 +153,7 @@ This and more - ahead! For building web-native apps!
 
 ## Installation
 
-Every Webflo project starts on an empty directory that you can create on your machine. The command below will make a new directory `my-app` from the terminal and navigate into it.
+Every Webflo project starts on an empty directory that you can create on your machine. The command below makes a new directory `my-app` from the terminal and navigates into it.
 
 ```shell
 mkdir my-app
