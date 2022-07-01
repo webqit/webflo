@@ -372,7 +372,7 @@ export default function(event, context, next) {
 
 This step-based workflow helps to decomplicate routing and gets us scaling horizontally as our application grows larger.
 
-Workflows may be designed with *wildcard* steps using a hyphen `-` as step name. Wildcard steps match all paths at the given level of the route! A `this.stepname` property can always be used to see the current URL step that matched.
+Workflows may be designed with *wildcard* steps using a hyphen `-` as step name. Wildcard steps match any URL segment at their level in the layout! A `this.stepname` property could be used to see which URL segment has been matched.
 
 ```js
 /**
