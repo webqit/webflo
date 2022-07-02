@@ -124,7 +124,7 @@ This and much more - ahead!
 </details>
 
 <details>
-<summary><b>Build <i>future-proof anything</i></b> by banking more on web standards and less on abstractions! Webflo <i>just follows</i> where a native feature, standard, or conventional HTML, CSS or JS <i>just works</i>!</summary>
+<summary><b>Build <i>future-proof anything</i></b> by banking more on web standards and less on abstractions! Webflo <i>just follows</i> where a native feature, standard, or conventional HTML, CSS or JS <i>already works</i>!</summary>
 
 Here's a glimpse of the standards-based stack you get of Webflo!
  
