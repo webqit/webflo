@@ -1713,7 +1713,7 @@ Webflo applications are often built on/with the following technologies.
 
 ### OOHTML
 
-[OOHTML](https://github.com/webqit/oohtml) is a proposed set of new features for HTML that makes it fun to hand-author your UI! Within OOHTML are [HTML Modules](https://github.com/webqit/oohtml#html-modules) and [HTML Imports](https://github.com/webqit/oohtml#html-imports), [Reactive Scripts](https://github.com/webqit/oohtml#subscript) and more!
+[OOHTML](https://github.com/webqit/oohtml) is a proposed set of new features for HTML that makes it fun to hand-author your HTML documents! Within OOHTML are [HTML Modules](https://github.com/webqit/oohtml#html-modules) and [HTML Imports](https://github.com/webqit/oohtml#html-imports), [Reactive Scripts](https://github.com/webqit/oohtml#subscript) and more!
 
 Webflo natively supports OOHTML in full! But it is also possible to switch this to none, or to partial support - when specific features aren't needed anywhere in your application. Server-side and client-side support for OOHTML exist independently. This is good when, for example, your application places more importance on SSR, and less on CSR, in which case a reduced support for OOHTML can reduce the overall client JS bundle size.
 
