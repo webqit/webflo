@@ -587,7 +587,7 @@ my-app
       └── footer.html ------------------------------ <footer></footer> <!-- To appear at bottom of each index.html page -->
 ```
 
-In a Single Page Application, each page is the same `index.html` document, and it is often necessary to have the main page sections change on each route. These sections can be defined per-route and *imported* to the document on navigating to their respective URLs.
+In a Single Page Application, each page is the same `index.html` document, and it is often necessary to have the main page sections change on each route. These sections can be defined per-route and *imported* to the document on navigating to their respective route.
 
 ```html
 my-app
@@ -600,7 +600,7 @@ my-app
 
 This, in both cases, is templating - the ability to define HTML *partials* once, and have them reused multiple times. Webflo just concerns itself with templating, and the choice of a Multi Page Application or Single Page Application becomes yours! And heck, you can even have the best of both worlds in the same application - with an architecture we'll call [Multi SPA](#in-a-multi-spa-layout)! It's all a *layout* thing!
 
-Now, with pages in Webflo being [DOM-based](#overview) (both client-side and [server-side](#oohtml-ssr)), documents can be manipulated directly with DOM APIs, e.g. to replace or insert nodes, attributes, etc. But even better, templating in Webflo is based on the [HTML Modules](https://github.com/webqit/oohtml#html-modules) and [HTML Imports](https://github.com/webqit/oohtml#html-imports) features in [OOHTML](#oohtml) - unless disabled in config. These features provide a powerful declarative templating system on top of the standard [HTML `<template>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template) element - with a *module*, *export* and *import* paradigm.
+Now, with pages in Webflo being [DOM-based](#overview) (both client-side and [server-side](#oohtml-ssr)), documents can be manipulated directly with DOM APIs, e.g. to replace or insert nodes, attributes, etc. But even better, templating in Webflo is based on the [HTML Modules](https://github.com/webqit/oohtml#html-modules) and [HTML Imports](https://github.com/webqit/oohtml#html-imports) features in [OOHTML](#oohtml) - unless disabled in config. These features provide a powerful declarative templating system on top of the standard [HTML `<template>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/template) element - all in a *module*, *export* and *import* paradigm.
 
 Here, you are able to define reusable contents in a `<template>` element...
 
@@ -622,7 +622,7 @@ Here, you are able to define reusable contents in a `<template>` element...
 </body>
 ```
 
-The *module* element - `<template name>` - is able to load its contents from a remote `.html` file that serves as a bundle:
+The *module* element - `<template>` - is able to load its contents from a remote `.html` file that serves as a bundle:
 
 ```html
 <!--
@@ -634,6 +634,10 @@ public
 ```
 
 ```html
+<!--
+public
+ ├── index.html
+-->
 <head>
     <template name="routes" src="/bundle.html"></template>
 </head>
@@ -643,7 +647,7 @@ What [we'll see shortly](#bundling) is how multiple standalone `.html` files - e
 
 #### In a Multi Page Layout
 
-In a Multi Page layout (as [above](#layout-and-templating-overview)), generic contents - e.g. header and footer sections, etc. - are typically bundled into one `bundle.html` file that can be embedded on each page of the application.
+In a Multi Page layout (as seen [earlier](#layout-and-templating-overview)), generic contents - e.g. header and footer sections, etc. - are typically bundled into one `bundle.html` file that can be embedded on each page of the application.
 
 ```html
 <!--
@@ -707,7 +711,7 @@ public/products
 
 #### In a Single Page Layout
 
-In a Single Page layout (as seen [earlier](#layout-and-templating-overview)), page-specific contents - e.g. main sections - are typically bundled together into one `bundle.html` file that can be embedded on the document root. Nested routes end up as nested `<template>` elements that form the equivalent of thw application's URL structure.
+In a Single Page layout (as seen [earlier](#layout-and-templating-overview)), page-specific contents - e.g. main sections - are typically bundled together into one `bundle.html` file that can be embedded on the document root. Nested routes end up as nested `<template>` elements that form the equivalent of the application's URL structure.
 
 ```html
 <!--
@@ -723,7 +727,7 @@ public
 <main exportgroup="main.html">Welcome to our Home Page</main>
 ```
 
-Now, the `<main>` elements are each imported on navigating to their respective URLs. This time, Webflo takes care of setting the URL path as a global `template` attribute on the `<body>` element such that `<import>` elements that inherit this global attribute are resolved from its current value.
+Now, the `<main>` elements are each imported on navigating to their respective routes. This time, Webflo takes care of setting the URL path as a global `template` attribute on the `<body>` element such that `<import>` elements that inherit this global attribute are resolved from its current value.
 
 ```html
 <!--
@@ -777,7 +781,7 @@ public
 <!DOCTYPE html>
 <html>
     <head>
-        <script type="module" src="webflo.bundle.js"></script>
+        <script type="module" src="/webflo.bundle.js"></script>
         <script type="module" src="/products/bundle.js"></script>
         <template name="pages" src="/bundle.html"></template>
     </head>
@@ -793,7 +797,7 @@ public
 <!DOCTYPE html>
 <html>
     <head>
-        <script type="module" src="webflo.bundle.js"></script>
+        <script type="module" src="/webflo.bundle.js"></script>
         <script type="module" src="/about/bundle.js"></script>
         <template name="pages" src="/bundle.html"></template>
     </head>
@@ -809,7 +813,7 @@ public
 <!DOCTYPE html>
 <html>
     <head>
-        <script type="module" src="webflo.bundle.js"></script>
+        <script type="module" src="/webflo.bundle.js"></script>
         <script type="module" src="/bundle.js"></script>
         <template name="pages" src="/bundle.html"></template>
     </head>
