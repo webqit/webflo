@@ -1268,7 +1268,8 @@ Unless disabled in config, it is factored-in at build time for the application c
 { "spa_navigation": true }
 ```
 
-> File: `.webqit/webflo/client.json` | Command: `webflo config client spa_navigation=TRUE`
+> **File: `.webqit/webflo/client.json`**
+> **Command: `webflo config client spa_navigation=TRUE`**
 </details>
 
 ##### SPA State
@@ -1416,7 +1417,8 @@ Webflo client-side applications are intended to provide an app-like-first experi
 { "service_worker_support": true }
 ```
 
-> File: `.webqit/webflo/client.json` | Command: `webflo config client service_worker_support=TRUE`
+> **File: `.webqit/webflo/client.json`**
+> **Command: `webflo config client service_worker_support=TRUE`**
 </details>
 
 ##### Fetching Strategy
@@ -1436,13 +1438,14 @@ Webflo client-side applications are intended to provide an app-like-first experi
     { "network_first_urls": [ "/logo.png" ] }
     ```
 
-    > File: `.webqit/webflo/worker.json` | Command: `webflo config worker default_fetching_strategy=network-first`
+    > **File: `.webqit/webflo/worker.json`**
+    > **Command: `webflo config worker default_fetching_strategy=network-first`**
     </details>
 
 + **Cache First** - This strategy tells the Service Worker to always attempt fetching from the cache first for given resources, before fetching from the network. After serving a cached response, or where not found in cache, a network fetch happens and a copy of the response is saved to the cache for next time. (This is good for resources that do not critially need to be fresh to the user.) When not the default strategy, a list of specific URLs that should be fetched this way can be configured.
     
     <details>
-    <summary>Config (Other)</summary>
+    <summary>Config</summary>
 
     ```json
     { "default_fetching_strategy": "cache-first" }
@@ -1454,13 +1457,14 @@ Webflo client-side applications are intended to provide an app-like-first experi
     { "cache_first_urls": [ "/logo.png" ] }
     ```
 
-    > File: `.webqit/webflo/worker.json` | Command: `webflo config worker default_fetching_strategy=cache-first`
+    > **File: `.webqit/webflo/worker.json`**
+    > **Command: `webflo config worker default_fetching_strategy=cache-first`**
     </details>
 
 + **Network Only** - This strategy tells the Service Worker to always fetch given resources from the network only. They are simply not available when offline. (This is good for resources that critially need to be fresh to the user.) When not the default strategy, a list of specific URLs that should be fetched this way can be configured.
     
     <details>
-    <summary>Config (Other)</summary>
+    <summary>Config</summary>
 
     ```json
     { "default_fetching_strategy": "network-only" }
@@ -1472,13 +1476,14 @@ Webflo client-side applications are intended to provide an app-like-first experi
     { "network_only_urls": [ "/logo.png" ] }
     ```
 
-    > File: `.webqit/webflo/worker.json` | Command: `webflo config worker default_fetching_strategy=network-only`
+    > **File: `.webqit/webflo/worker.json`**
+    > **Command: `webflo config worker default_fetching_strategy=network-only`**
     </details>
 
 + **Cache Only** - This strategy tells the Service Worker to always fetch given resources from the cache only. (This is good for resources that do not change often.) When not the default strategy, a list of specific URLs that should be fetched this way can be configured. The listed resources are pre-cached ahead of when they'll be needed - and are served from the cache each time. (Pre-caching happens on the one-time `install` event of the Service Worker.)
 
     <details>
-    <summary>Config (Other)</summary>
+    <summary>Config</summary>
 
     ```json
     { "default_fetching_strategy": "cache-only" }
@@ -1490,7 +1495,8 @@ Webflo client-side applications are intended to provide an app-like-first experi
     { "cache_only_urls": [ "/logo.png" ] }
     ```
 
-    > File: `.webqit/webflo/worker.json` | Command: `webflo config worker default_fetching_strategy=cache-only`
+    > **File: `.webqit/webflo/worker.json`**
+    > **Command: `webflo config worker default_fetching_strategy=cache-only`**
     </details>
 
 In all cases above, the convention for specifying URLs for a strategy accepts [URL patterns](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) - against which URLs can be matched on the fly. For example, to place all files in an `/image` directory (and subdirectories) on the *Cache First* strategy, the pattern `/image/*` can be used. To place all `.svg` files in an `/icons` directory (including subdirectories) on the *Cache Only* strategy, the pattern `/icons/*.svg` can be used. (Specifically for the *Cache Only* strategy, patterns are resolved at Service Worker build-time, and each pattern must match, at least, a file.)
@@ -1730,7 +1736,8 @@ Webflo natively supports OOHTML in full! But it is also possible to switch this 
 
 *Values: `full`, `namespacing`, `scripting`, `templating`, `none` - See [details at OOHTML SSR](https://github.com/webqit/oohtml-ssr#options)*
 
-> File: `.webqit/webflo/client.json` | Command: `webflo config client oohtml_support=full`
+> **File: `.webqit/webflo/client.json`**
+> **Command: `webflo config client oohtml_support=full`**
 
 > File: `.webqit/webflo/server.json` | Command: `webflo config server oohtml_support=full`
 </details>
