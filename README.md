@@ -1269,6 +1269,7 @@ Unless disabled in config, it is factored-in at build time for the application c
 ```
 
 > **File: `.webqit/webflo/client.json`**
+
 > **Command: `webflo config client spa_navigation=TRUE`**
 </details>
 
@@ -1418,6 +1419,7 @@ Webflo client-side applications are intended to provide an app-like-first experi
 ```
 
 > **File: `.webqit/webflo/client.json`**
+
 > **Command: `webflo config client service_worker_support=TRUE`**
 </details>
 
@@ -1439,6 +1441,7 @@ Webflo client-side applications are intended to provide an app-like-first experi
     ```
 
     > **File: `.webqit/webflo/worker.json`**
+    
     > **Command: `webflo config worker default_fetching_strategy=network-first`**
     </details>
 
@@ -1458,6 +1461,7 @@ Webflo client-side applications are intended to provide an app-like-first experi
     ```
 
     > **File: `.webqit/webflo/worker.json`**
+
     > **Command: `webflo config worker default_fetching_strategy=cache-first`**
     </details>
 
@@ -1477,6 +1481,7 @@ Webflo client-side applications are intended to provide an app-like-first experi
     ```
 
     > **File: `.webqit/webflo/worker.json`**
+
     > **Command: `webflo config worker default_fetching_strategy=network-only`**
     </details>
 
@@ -1496,6 +1501,7 @@ Webflo client-side applications are intended to provide an app-like-first experi
     ```
 
     > **File: `.webqit/webflo/worker.json`**
+
     > **Command: `webflo config worker default_fetching_strategy=cache-only`**
     </details>
 
@@ -1737,6 +1743,7 @@ Webflo natively supports OOHTML in full! But it is also possible to switch this 
 *Values: `full`, `namespacing`, `scripting`, `templating`, `none` - See [details at OOHTML SSR](https://github.com/webqit/oohtml-ssr#options)*
 
 > **File: `.webqit/webflo/client.json`**
+
 > **Command: `webflo config client oohtml_support=full`**
 
 > File: `.webqit/webflo/server.json` | Command: `webflo config server oohtml_support=full`
