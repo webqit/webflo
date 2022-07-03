@@ -195,13 +195,13 @@ Other important definitions like project `name`, package `type`, and *aliases* f
 }
 ```
 
-All is now set! The commands `npm start` and `npm run generate` will be coming in often during development.
+And that gets it all ready! The commands `npm start` and `npm run generate` will be coming in often during development.
 
 ### "Hello World!"
 
 To be sure that Webflo is listening, run `npx webflo help` on the terminal. An overview of available commands should be shown.
 
-If you can't wait to say *Hello World!* 😅, you can have an HTML page say that right now!
+If you can't wait to say *Hello World!* 😅, you can have an HTML page say that right away!
 + Create an `index.html` file in a new subdirectory `public`.
   
   ```shell
@@ -225,7 +225,7 @@ If you can't wait to say *Hello World!* 😅, you can have an HTML page say that
 + Start the Webflo server and visit `http://localhost:3000` on your browser to see your page. 😃
 
   ```bash
-  $ npm start
+  npm start
   ```
 
 ## Concepts
@@ -241,6 +241,8 @@ If you can't wait to say *Hello World!* 😅, you can have an HTML page say that
 
 Whether building a *server-based*, *browser-based*, or *universal* application, Webflo gives you one consistent way to handle routing and navigation: using *handler functions*!
 
+You just define a function that gets called to handle a request! No setup!
+
 ```js
 /**
 [server|client|worker]
@@ -251,7 +253,7 @@ export default function(event, context, next) {
 ```
 
 > **Note**
-> <br>Other [*method*](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods)-specific function names may be used: `get`, `post`, `put`, `patch`, `del` (for *delete*), `options`, `head`, etc.
+> <br>Function name may also be specific to a [*HTTP method*](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods): `get`, `post`, `put`, `patch`, `del` (for *delete*), `options`, `head`, etc.
 
 Each function receives an `event` object representing details - e.g. `event.request`, `event.url`, `event.session` - about the current request. ([Details ahead](#workflow-api).)
 
