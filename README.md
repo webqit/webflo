@@ -255,7 +255,7 @@ export default function(event, context, next) {
 > **Note**
 > <br>Function name may also be specific to a [*HTTP method*](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods): `get`, `post`, `put`, `patch`, `del` (for *delete*), `options`, `head`, etc.
 
-Each function receives an `event` object representing details - e.g. `event.request`, `event.url`, `event.session` - about the current request. ([Details ahead](#workflow-api).)
+Each function receives an `event` object representing details about the request - e.g. `event.request`, `event.url`, `event.session`. ([Details ahead](#workflow-api).)
 
 For *server-based* applications (e.g. traditional web apps and API backends), server-side handlers go into a directory named `server`.
 
