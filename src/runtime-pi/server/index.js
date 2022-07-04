@@ -12,7 +12,6 @@ import Runtime from './Runtime.js';
 export const desc = {
     config: {
         headers: 'Configure automatic http headers.',
-        prerendering: 'Configure prerendering.',
         redirects: 'Configure automatic redirects.',
         server: 'Configure server settings.',
         vhosts: 'Configure virtual hosts.',

@@ -1490,7 +1490,7 @@ On the UI, this could be used to show/hide cute error elements.
 
 This property tells when a client-side redirect is ongoing - see [Scenario 4: Single Page Navigation Requests and Responses](#scenario-4-single-page-navigation-requests-and-responses) - in which case it exposes the destination URL.
 
-On the UI, this could be used to prevent further interactions with the outgoing page.
+On the UI, this could be used to mark the current page as stale and prevent further interactions.
 
 ```html
 <body>
@@ -1526,13 +1526,13 @@ Here are some additional examples with the [Observer API](#the-observer-api).
 
 ```js
 // Visualize the network state
-let onlineVisualizer = changes => {
+let networkVisualizer = changes => {
     changes.forEach(e => {
         console.log(e.name, ':', e.value);
     });
 };
-Observer.observe(document.state.network, onlineVisualizer);
-// Or: Observer.observe(document, [ ['state', 'network'] ], onlineVisualizer, { subtree: true });
+Observer.observe(document.state.network, networkVisualizer);
+// Or: Observer.observe(document, [ ['state', 'network'] ], networkVisualizer, { subtree: true });
 ```
 </details>
 
@@ -1700,7 +1700,7 @@ This strategy tells the Service Worker to always fetch given resources from the 
 </details>
 </details>
 
-In all cases above, the convention for specifying URLs for a strategy accepts an [URL patterns](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) - against which URLs can be matched on the fly. For example, to place all files in an `/image` directory (and subdirectories) on the *Cache First* strategy, the pattern `/image/*` can be used. To place all `.svg` files in an `/icons` directory (including subdirectories) on the *Cache Only* strategy, the pattern `/icons/*.svg` can be used. (Specifically for the *Cache Only* strategy, patterns are resolved at Service Worker build-time, and each pattern must match, at least, a file.)
+In all cases above, the convention for specifying URLs for a strategy accepts an [URL pattern](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) - against which URLs can be matched on the fly. For example, to place all files in an `/image` directory (and subdirectories) on the *Cache First* strategy, the pattern `/image/*` can be used. To place all `.svg` files in an `/icons` directory (including subdirectories) on the *Cache Only* strategy, the pattern `/icons/*.svg` can be used. (Specifically for the *Cache Only* strategy, patterns are resolved at Service Worker build-time, and each pattern must match, at least, a file.)
 
 <details>
 <summary>Example...</summary>
@@ -1716,7 +1716,7 @@ A couple APIs exists in browsers for establishing a two-way communication channe
 
 ###### The `workport` API
 
-This is an object with simple methods for working with *cross-thread* messages, UI and Push Notifications.
+This is an object with simple methods for working with *cross-thread* messages, UI Notifications, and Push Notifications.
 
 On both the client and worker side of your application, the `workport` object is accessible from route handlers as `this.runtime.workport`.
 
@@ -1807,10 +1807,10 @@ workport.nofitications.fire(title, options).then(event => {
 <details>
 <summary>Method: <code>.nofitications.listen()</code></summary>
 
-The `.nofitications.listen()` method (in Service-Workers) is used for listening to [`notificationclick`](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope/notificationclick_event) events. (Handlers are called each time a notification is clicked.)
+The `.nofitications.handle()` method (in Service-Workers) is used for handling [`notificationclick`](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope/notificationclick_event) events. (Handlers are called each time a notification is clicked.)
 
 ```js
-workport.nofitications.listen(event => {
+workport.nofitications.handle(event => {
     console.log(event.action);
 });
 ```
