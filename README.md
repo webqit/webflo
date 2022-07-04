@@ -241,7 +241,7 @@ If you can't wait to say *Hello World!* 😅, you can have an HTML page say that
 
 Whether building a *server-based*, *browser-based*, or *universal* application, Webflo gives you one consistent way to handle routing and navigation: using *handler functions*!
 
-You just define a function that gets called to handle a request! No setup!
+You just define an `index.js` file with a function that gets called to handle a request! No setup!
 
 ```js
 /**
