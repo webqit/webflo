@@ -1169,7 +1169,7 @@ This way, all the moving parts of your application remain coordinated, and can e
 Now, for all things application state, Webflo leverages the [State API](https://github.com/webqit/oohtml#state-api) that's natively available in OOHTML-based documents - both client-side and server-side. This API exposes an application-wide `document.state` object and a per-element `element.state` object. And these are *live* read/write objects that can be observed for property changes using the [Observer API](#the-observer-api). It comes off as the simplest approach to state and reactivity!
 
 > **Note**
-> <br>The State API is not available as long as the [OOHTML support level](#oohtml) in config is left as `full`, or set to `scripting`.
+> <br>The State API is available as long as the [OOHTML support level](#oohtml) in config is left as `full`, or set to `scripting`.
 
 #### The `document.state.data` Object
 
