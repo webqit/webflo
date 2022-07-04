@@ -1943,7 +1943,7 @@ A simple tool, like [`staticgen`](https://github.com/tj/staticgen), or the basic
 
 *Happy static!*
 
-### Webflo Config
+## Webflo Config
 
 Webflo comes *convention-first*! But it is entirely configurable for when you need it! The easiest way to do this is to run the command `webflo config` and follow the walkthrough. To simply get an overview, use the command `webflo config help`, and all commands and their description are shown.
 
