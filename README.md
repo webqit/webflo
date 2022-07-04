@@ -1407,7 +1407,7 @@ console.log(document.state.network) // { requesting, remote, error, redirecting,
 ```
 
 <details>
-<summary><code>.network.requesting</code>: <code>`null|Object</code></summary>
+<summary>Property: <code>.network.requesting</code>: <code>`null|Object</code></summary>
 
 This property tells when a request is ongoing, in which case it exposes the `params` object used to initiate the request.
 
@@ -1426,7 +1426,7 @@ On the UI, this could be used to hide a menu drawer that may have been open.
 </details>
 
 <details>
-<summary><code>.network.remote</code>: <code>`null|String</code></summary>
+<summary>Property: <code>.network.remote</code>: <code>`null|String</code></summary>
 
  This property tells when a remote request is ongoing - usually the same navigation requests as at `network.requesting`, but when not handled by any client-side route handlers, or when `next()`ed to this point by route handlers. The `remote` property also goes live when a route handler calls the special `fetch()` function that they recieve on their fourth parameter.
 
@@ -1443,7 +1443,7 @@ On the UI, this could be used to show/hide a spinner, or progress bar, to provid
 </details>
 
 <details>
-<summary><code>.network.error</code>: <code>`null|Error</code></summary>
+<summary>Property: <code>.network.error</code>: <code>`null|Error</code></summary>
 
 This property tells when a request is *errored* in which case it contains an `Error` instance of the error. For requests that can be retried, the `Error` instance also has a custom `retry()` method.
 
@@ -1460,7 +1460,7 @@ On the UI, this could be used to show/hide cute error elements.
 </details>
 
 <details>
-<summary><code>.network.redirecting</code>: <code>`null|String</code></summary>
+<summary>Property: <code>.network.redirecting</code>: <code>`null|String</code></summary>
 
 This property tells when a client-side redirect is ongoing - see [Scenario 4: Single Page Navigation Requests and Responses](#scenario-4-single-page-navigation-requests-and-responses) - in which case it exposes the destination URL.
 
@@ -1477,7 +1477,7 @@ On the UI, this could be used to prevent further interactions with the outgoing 
 </details>
 
 <details>
-<summary><code>.network.connectivity</code>: <code>`String</code></summary>
+<summary>Property: <code>.network.connectivity</code>: <code>`String</code></summary>
 
 This property tells of [the browser's ability to connect to the network](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/onLine): `online`, `offline`.
 
@@ -1674,7 +1674,7 @@ This strategy tells the Service Worker to always fetch given resources from the 
 </details>
 </details>
 
-In all cases above, the convention for specifying URLs for a strategy accepts [URL patterns](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) - against which URLs can be matched on the fly. For example, to place all files in an `/image` directory (and subdirectories) on the *Cache First* strategy, the pattern `/image/*` can be used. To place all `.svg` files in an `/icons` directory (including subdirectories) on the *Cache Only* strategy, the pattern `/icons/*.svg` can be used. (Specifically for the *Cache Only* strategy, patterns are resolved at Service Worker build-time, and each pattern must match, at least, a file.)
+In all cases above, the convention for specifying URLs for a strategy accepts an [URL patterns](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) - against which URLs can be matched on the fly. For example, to place all files in an `/image` directory (and subdirectories) on the *Cache First* strategy, the pattern `/image/*` can be used. To place all `.svg` files in an `/icons` directory (including subdirectories) on the *Cache Only* strategy, the pattern `/icons/*.svg` can be used. (Specifically for the *Cache Only* strategy, patterns are resolved at Service Worker build-time, and each pattern must match, at least, a file.)
 
 <details>
 <summary>Example...</summary>
@@ -1709,19 +1709,19 @@ export default async function(event, context, next) {
 For cross-thread messaging, both sides of the API exposes the following methods:
 
 <details>
-<summary><code>.messaging.post()</code></summary>
+<summary>Method: <code>.messaging.post()</code></summary>
 
 The `.messaging.post()` method is used for sending any arbitrary data to the other side. E.g. `workport.messaging.post({ type: 'TEST' })`.
 </details>
 
 <details>
-<summary><code>.messaging.listen()</code></summary>
+<summary>Method: <code>.messaging.listen()</code></summary>
 
 The `.messaging.listen()` method is used for registering a listener to the `message` event from the other side. E.g. `workport.messaging.listen(event => console.log(event.data.type))`. (See [`window: onmessage`](https://developer.mozilla.org/en-US/docs/Web/API/Window/message_event), [`worker: onmessage`](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/message_event).)
 </details>
 
 <details>
-<summary><code>.messaging.request()</code></summary>
+<summary>Method: <code>.messaging.request()</code></summary>
 
 The `.messaging.request()` method is used for sending a message to the other side and obtaing a response, using the [MessageChannel](https://developer.mozilla.org/docs/Web/API/MessageChannel/MessageChannel) API.
 
@@ -1743,7 +1743,7 @@ console.log(response); // { type: 'WORKS' }
 </details>
 
 <details>
-<summary><code>.messaging.channel()</code></summary>
+<summary>Method: <code>.messaging.channel()</code></summary>
 
 The `.messaging.channel()` method is used for sending *broadcast* messages to the other side - including all other browsing contents that live on the same origin, using the [Broadcast Channel](https://developer.mozilla.org/docs/Web/API/Broadcast_Channel_API) API.
 
@@ -1765,7 +1765,7 @@ workport.messaging.channel(channelId).broadcast({ type: 'TEST' });
 For [UI Nofitications](https://developer.mozilla.org/en-US/docs/Web/API/notification), both sides of the API exposes the following methods:
 
 <details>
-<summary><code>.nofitications.fire()</code></summary>
+<summary>Method: <code>.nofitications.fire()</code></summary>
 
 The `.nofitications.fire()` method is used for firing up a UI notification. This uses the [`Nofitications constructor`](https://developer.mozilla.org/en-US/docs/Web/API/Notification/Notification), and thus, accepts the same arguments as the constructor. But it returns a `Promise` that resolves when the notification is *clicked* or *closed*, but rejects when the notification encounters an error, or when the application isn't granted the [notification permission](https://developer.mozilla.org/en-US/docs/Web/API/Notification/requestPermission).
 
@@ -1779,7 +1779,7 @@ workport.nofitications.fire(title, options).then(event => {
 </details>
 
 <details>
-<summary><code>.nofitications.listen()</code></summary>
+<summary>Method: <code>.nofitications.listen()</code></summary>
 
 The `.nofitications.listen()` method (in Service-Workers) is used for listening to [`notificationclick`](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope/notificationclick_event) events. (Handlers are called each time a notification is clicked.)
 
@@ -1793,30 +1793,30 @@ workport.nofitications.listen(event => {
 For [Push Nofitications](https://developer.mozilla.org/en-US/docs/Web/API/Push_API), the client-side of the API exposes the following methods:
 
 <details>
-<summary><code>.push.subscribe()</code></summary>
+<summary>Method: <code>.push.subscribe()</code></summary>
 
 The `.push.subscribe()` method is the equivalent of the [`PushManager.subscribe()`](https://developer.mozilla.org/en-US/docs/Web/API/PushManager/subscribe) method. (But this can also take the *applicationServerKey* as a first argument, and other options as a second argument, in which case it automatically runs the key through an `urlBase64ToUint8Array()` function.)
 </details>
 
 <details>
-<summary><code>.push.unsubscribe()</code></summary>
+<summary>Method: <code>.push.unsubscribe()</code></summary>
 
 The `.push.unsubscribe()` method is the equivalent of the [`PushSubscription.unsubscribe()`](https://developer.mozilla.org/en-US/docs/Web/API/PushSubscription/unsubscribe) method.
 </details>
 
 <details>
-<summary><code>.push.getSubscription()</code></summary>
+<summary>Method: <code>.push.getSubscription()</code></summary>
 
 The `.push.getSubscription()` method is the equivalent of the [`PushManager.getSubscription()`](https://developer.mozilla.org/en-US/docs/Web/API/PushManager/getSubscription) method.
-<details>
+</details>
 
 The worker-side of the API exposes the following methods:
 
 <details>
-<summary><code>.push.listen()</code></summary>
+<summary>Method: <code>.push.listen()</code></summary>
 
 The `.push.listen()` method is for listening to the [`push`](https://developer.mozilla.org/en-US/docs/Web/API/PushEvent) from within Service Workers. E.g. `workport.push.listen(event => console.log(event.data.type))`.
-<details>
+</details>
 
 ###### Route *events*
 
