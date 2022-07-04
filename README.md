@@ -453,7 +453,6 @@ export default async function(event, context, next) {
 }
 ```
 </details>
-
 </details>
 
 This step-based workflow helps to decomplicate routing and gets us scaling horizontally as our application grows larger.
@@ -475,6 +474,12 @@ export default function(event, context, next) {
     return { title: 'Untitled' };
 }
 ```
+
+<details>
+<summary>More details...</summary>
+
+> Every handler function has a `this.stepname` and `this.pathname` property. Server-side handlers have an extra `this.dirname` property.
+</details>
 
 Additionally, workflows may be designed with as many or as few step functions as necessary; the flow control parameters `next.stepname` and `next.pathname` can be used at any point to handle the rest of an URL that have no corresponding step functions.
 
@@ -642,13 +647,19 @@ my-app
 
 But, we can also access the route in a way that gets the data rendered into the automatically-paired `index.html` file for a dynamic page response. We'd simply set the [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header of the request to match `text/html` - e.g. `text/html`, `text/*`, `*/html`, `*/*`, and Webflo will automatically perform [Server-Side Rendering](#client-and-server-side-rendering) to give a page response. (Automatic pairing works the same for nested routes! But top-level `index.html` files are implicitly inherited down the hierarchy.)
 
-> **Note**
-> <br>The `Accept` header hint is already how browsers make requests on every page load. So, it just works!
+<details>
+<summary>How it works...</summary>
+
+> The `Accept` header hint is already how browsers make requests on every page load. So, it just works!
+</details>
 
 Now, for Single Page Applications, subsequent navigations, after the initial page load, just ask for the data on destination URLs and perform [Client-Side Rendering](#client-and-server-side-rendering) on the same running document. Navigation is sleek and instant!
 
-> **Note**
-> <br>Unless disabled, [SPA Routing](#spa-routing) is automatically built into your app's JS bundle from the `npm run generate` command. So, it just works!
+<details>
+<summary>How it works...</summary>
+
+> Unless disabled, [SPA Routing](#spa-routing) is automatically built into your app's JS bundle from the `npm run generate` command. So, it just works!
+</details>
 
 With no extra work, your application can function as either a *Multi Page App (MPA)* or a *Single Page App (SPA)*!
 
@@ -1407,7 +1418,7 @@ console.log(document.state.network) // { requesting, remote, error, redirecting,
 ```
 
 <details>
-<summary>Property: <code>.network.requesting</code>: <code>`null|Object</code></summary>
+<summary>Property: <code>.network.requesting: null|Object</code></summary>
 
 This property tells when a request is ongoing, in which case it exposes the `params` object used to initiate the request.
 
@@ -1426,7 +1437,7 @@ On the UI, this could be used to hide a menu drawer that may have been open.
 </details>
 
 <details>
-<summary>Property: <code>.network.remote</code>: <code>`null|String</code></summary>
+<summary>Property: <code>.network.remote: null|String</code></summary>
 
  This property tells when a remote request is ongoing - usually the same navigation requests as at `network.requesting`, but when not handled by any client-side route handlers, or when `next()`ed to this point by route handlers. The `remote` property also goes live when a route handler calls the special `fetch()` function that they recieve on their fourth parameter.
 
@@ -1443,7 +1454,7 @@ On the UI, this could be used to show/hide a spinner, or progress bar, to provid
 </details>
 
 <details>
-<summary>Property: <code>.network.error</code>: <code>`null|Error</code></summary>
+<summary>Property: <code>.network.error: null|Error</code></summary>
 
 This property tells when a request is *errored* in which case it contains an `Error` instance of the error. For requests that can be retried, the `Error` instance also has a custom `retry()` method.
 
@@ -1460,7 +1471,7 @@ On the UI, this could be used to show/hide cute error elements.
 </details>
 
 <details>
-<summary>Property: <code>.network.redirecting</code>: <code>`null|String</code></summary>
+<summary>Property: <code>.network.redirecting: null|String</code></summary>
 
 This property tells when a client-side redirect is ongoing - see [Scenario 4: Single Page Navigation Requests and Responses](#scenario-4-single-page-navigation-requests-and-responses) - in which case it exposes the destination URL.
 
@@ -1477,7 +1488,7 @@ On the UI, this could be used to prevent further interactions with the outgoing 
 </details>
 
 <details>
-<summary>Property: <code>.network.connectivity</code>: <code>`String</code></summary>
+<summary>Property: <code>.network.connectivity: String</code></summary>
 
 This property tells of [the browser's ability to connect to the network](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/onLine): `online`, `offline`.
 
