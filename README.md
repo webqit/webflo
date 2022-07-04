@@ -298,7 +298,7 @@ export default function(event, context, next) {
 <details>
 <summary>How it works...</summary>
 
-> The above function is built as part of your application's JS bundle on running the `npm run generate` command. (It is typically bundled to the file `./public/bundle.js`. And the `--auto-embed` flag in that command gets it automatically embedded on your `./public/index.html` page as `<script type="module" src="/bundle.js"></script>`.) Then it responds from right in the browser on visiting http://localhost:3000.
+> The above function is built as part of your application's client-side script from the `npm run generate` command. It is typically bundled to the file `./public/bundle.js`. And the `--auto-embed` flag in that command gets it automatically embedded on your `./public/index.html` page as `<script type="module" src="/bundle.js"></script>`. Then it responds from right in the browser on visiting http://localhost:3000.
 </details>
 
 For *browser-based* applications that want to support offline usage via Service-Workers (e.g Progressive Web Apps), Webflo allows us to define equivalent handlers for requests hitting the Service Worker. These worker-based handlers go into a directory named `worker`.
@@ -319,7 +319,7 @@ export default function(event, context, next) {
 <details>
 <summary>How it works...</summary>
 
-> The above function is built as part of your application's Service Worker JS bundle on running the `npm run generate` command. (It is typically bundled to the file `./public/worker.js`, and the main application bundle automatically connects to it.) Then it responds from within the Service Worker on visiting http://localhost:3000. (More details [ahead](#service-workers).)
+> The above function is built as part of your application's Service Worker script from the `npm run generate` command. It is typically bundled to the file `./public/worker.js`, and the main application bundle automatically connects to it. Then it responds from within the Service Worker on visiting http://localhost:3000. (More details [ahead](#service-workers).)
 </details>
 
 So, depending on what's being built, an application's handler functions may take the following form (in part or in whole):
@@ -478,12 +478,18 @@ export default function(event, context, next) {
 <details>
 <summary>More details...</summary>
 
-> Every handler function has a `this.stepname` and `this.pathname` property. Server-side handlers have an extra `this.dirname` property.
+> Every handler function has the following contextual properties:
+> + `this.stepname` - The exact name of the current step in the URL path.
+> + `this.pathname` - The pathname to the current step in the URL path.
+> + `next.stepname` - The exact name of the next step in the URL path.
+> + `next.pathname` - The pathname for the rest of the steps in the URL path.
+> Server-side handlers have the following in addition:
+> + `this.dirname` - The filesystem pathname to the current step in the URL path.
 </details>
 
 Additionally, workflows may be designed with as many or as few step functions as necessary; the flow control parameters `next.stepname` and `next.pathname` can be used at any point to handle the rest of an URL that have no corresponding step functions.
 
-For example, it is possible to handle all URLs from the root handler alone.
+This means that it is even possible to handle all URLs from the root handler alone.
 
 ```js
 /**
@@ -513,7 +519,7 @@ export default function(event, context, next) {
 
 Webflo takes a *default action* when `next()` is called at the *edge* of the workflow - the point where there are no more child steps - as in the `return next()` statement above!
 
-For workflows in **the `/server` directory**, the *default action* of `next()`ing at the edge is to go match and return a static file in the `public` directory.
+**For workflows in the `/server` directory**, the *default action* of `next()`ing at the edge is to go match and return a static file in the `public` directory.
 
 So, above, should our handler receive static file requests like `http://localhost:3000/logo.png`, the statement `return next()` would get Webflo to match and return the logo at `public/logo.png`, if any; a `404` response otherwise.
 
@@ -526,7 +532,7 @@ my-app
 > **Note**
 > <br>The root handler effectively becomes the single point of entry to the application - being that it sees even requests for static files!
 
-Now, for workflows in **the `/worker` directory**, the *default action* of `next()`ing at the edge is to send the request through the network to the server. (But Webflo will know to attempt resolving the request from the application's caching system built into the Service Worker.)
+**For workflows in the `/worker` directory**, the *default action* of `next()`ing at the edge is to send the request through the network to the server. (But Webflo will know to attempt resolving the request from the application's caching system built into the Service Worker.)
 
 So, above, if we defined handler functions in the `/worker` directory, we could decide to either handle the received requests or just `next()` them to the server.
 
@@ -565,10 +571,13 @@ my-app
   └── public/logo.png ------------------------- http://localhost:3000/logo.png
 ```
 
-> **Note**
-> <br>Handlers in the `/worker` directory are only designed to see Same-Origin requests since Cross-Origin URLs like `https://auth.example.com/oauth` do not belong in the application's layout! These external URLs, however, benefit from the application's caching system built into the Service Worker.
+<details>
+<summary>More details...</summary>
 
-For workflows in **the `/client` directory**, the *default action*  of `next()`ing at the edge is to send the request through the network to the server. But where there is a Service Worker layer, then that becomes the next destination.
+> Handlers in the `/worker` directory are only designed to see Same-Origin requests since Cross-Origin URLs like `https://auth.example.com/oauth` do not belong in the application's layout! These external URLs, however, benefit from the application's caching system built into the Service Worker.
+</details>
+
+**For workflows in the `/client` directory**, the *default action*  of `next()`ing at the edge is to send the request through the network to the server. But where there is a Service Worker layer, then that becomes the next destination.
 
 So, above, if we defined handler functions in the `/client` directory, we could decide to either handle the navigation requests in-browser or just `next()` them, this time, to the Service Worker layer.
 
@@ -651,8 +660,12 @@ But, we can also access the route in a way that gets the data rendered into the 
 <summary>How it works...</summary>
 
 > The `Accept` header hint is already how browsers make requests on every page load. So, it just works!
+</details>
 
-> Note that the automatic pairing of an `index.html` file with a route works the same for nested routes! But top-level `index.html` files are implicitly inherited down the hierarchy.)
+<details>
+<summary>More details...</summary>
+
+> This automatic pairing of an `index.html` file with a route works the same for nested routes! But top-level `index.html` files are implicitly inherited down the hierarchy.)
 </details>
 
 Now, for Single Page Applications, subsequent navigations, after the initial page load, just ask for the data on destination URLs and perform [Client-Side Rendering](#client-and-server-side-rendering) on the same running document. Navigation is sleek and instant!
@@ -660,7 +673,7 @@ Now, for Single Page Applications, subsequent navigations, after the initial pag
 <details>
 <summary>How it works...</summary>
 
-> Unless disabled, [SPA Routing](#spa-routing) is automatically built into your app's JS bundle from the `npm run generate` command. So, it just works!
+> Unless disabled, [SPA Routing](#spa-routing) is automatically built into your application's client-side script from the `npm run generate` command. So, it just works!
 </details>
 
 With no extra work, your application can function as either a *Multi Page App (MPA)* or a *Single Page App (SPA)*!
@@ -873,11 +886,7 @@ my-app
       └── footer.html ------------------------------ <footer></footer> <!-- To appear at bottom of each document root -->
 ```
 
-<details>
-<summary>How it works...</summary>
-
-> The above gives us three document roots: `/index.html`, `/about/index.html`, `/prodcuts/index.html`. The `/prodcuts` route doubles as a Single Page Application such that visiting the `/prodcuts` route loads the document root `/prodcuts/index.html` and lets Webflo SPA routing determine which of `/prodcuts/main.html`, `/prodcuts/free/main.html`, `/prodcuts/paid/main.html` is imported on a given URL.
-</details>
+The above gives us three document roots: `/index.html`, `/about/index.html`, `/prodcuts/index.html`. The `/prodcuts` route doubles as a Single Page Application such that visiting the `/prodcuts` route loads the document root `/prodcuts/index.html` and lets Webflo SPA routing determine which of `/prodcuts/main.html`, `/prodcuts/free/main.html`, `/prodcuts/paid/main.html` is imported on a given URL.
 
 Webflo ensures that only the amount of JavaScript for a document root is actually loaded! So, above, a common JavaScript build is shared across the three document roots alongside an often tiny root-specific build.
 
@@ -929,7 +938,11 @@ public
 </html>
 ```
 
-The Webflo `generate` command automatically figures out a given architecture and generates the appropriate scripts for the application! It also factors into the generated scripts the location of each document root so that [all navigations to these roots are handled as a regular page load](#spa-navigation).
+<details>
+<summary>How it works...</summary>
+
+> The Webflo `generate` command automatically figures out a given architecture and generates the appropriate scripts for the application! It also factors into the generated scripts the location of each document root so that [all navigations to these roots are handled as a regular page load](#spa-navigation).
+</details>
 
 #### Bundling
 
@@ -1376,7 +1389,7 @@ In just a few concepts, Webflo comes ready for any type of application!
 
 #### Client-Side Applications
 
-Web pages that embed the Webflo client JS bundle deliver a great user experience. It's simple: the `npm run generate` command does both the building and embedding of the script, or scripts, for the document root, or document roots (in a [Multi Page](#in-a-multi-page-layout) / [Multi SPA](#in-a-multi-spa-layout) layout)!
+Web pages that embed the Webflo client JS deliver a great user experience. It's simple: the `npm run generate` command does both the building and embedding of the script (or scripts), for the document root (or document roots - in a [Multi Page](#in-a-multi-page-layout) / [Multi SPA](#in-a-multi-spa-layout) layout)!
 
 On being loaded, the state of the application is initialized, or is restored through hydration - where [Server-Side Rendering](#client-and-server-side-rendering) was involved to optimize for first paint, and an app-like experience kicks in! For [Single-Page Applications](#in-a-single-page-layout), [Client-Side Rendering](#client-and-server-side-rendering) is performed on each navigation.
 
@@ -1968,7 +1981,7 @@ Webflo applications are often built on/with the following technologies.
 
 [OOHTML](https://github.com/webqit/oohtml) is a proposed set of new features for HTML that makes it fun to hand-author your HTML documents! Within OOHTML are [HTML Modules](https://github.com/webqit/oohtml#html-modules) and [HTML Imports](https://github.com/webqit/oohtml#html-imports), [Reactive Scripts](https://github.com/webqit/oohtml#subscript) and more!
 
-Webflo natively supports OOHTML in full! But it is also possible to switch this to none, or to partial support - when specific features aren't needed anywhere in your application. Server-side and client-side support for OOHTML exist independently. This is good when, for example, your application places more importance on SSR, and less on CSR, in which case a reduced support for OOHTML can reduce the overall client JS bundle size.
+Webflo natively supports OOHTML in full! But it is also possible to switch this to none, or to partial support - when specific features aren't needed anywhere in your application. Server-side and client-side support for OOHTML exist independently. This is good when, for example, your application places more importance on SSR, and less on CSR, in which case a reduced support for OOHTML can reduce the overall client JS size.
 
 <details>
 <summary>Config (Default)</summary>
