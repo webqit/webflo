@@ -165,7 +165,7 @@ With [npm available on your terminal](https://docs.npmjs.com/downloading-and-ins
 > System Requirements: Node.js 14.0 or later
 
 ```shell
-$ npm i @webqit/webflo
+npm i @webqit/webflo
 ```
 
 The installation automatically creates a `package.json` file at project root, containing `@webqit/webflo` as a project dependency.
