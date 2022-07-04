@@ -16,3 +16,8 @@ export async function start(clientCallback = null) {
         return clientCallback ? clientCallback( ...args.concat( defaultClientCallback ) ) : defaultClientCallback( ...args );
     });
 }
+
+/**
+ * @APIS
+ */
+export * as APIS from './Worker.js';

@@ -3,9 +3,21 @@
  * @imports
  */
 import { _any } from '@webqit/util/arr/index.js';
-import { HttpEvent, Request, Response, Observer } from '../Runtime.js';
 import { urlPattern } from '../../util.js';
 import Workport from './Workport.js';
+import { HttpEvent, Request, Response, Observer } from '../Runtime.js';
+export {
+	URL,
+	FormData,
+	ReadableStream,
+	RequestHeaders,
+	ResponseHeaders,
+	Request,
+	Response,
+	fetch,
+	HttpEvent,
+	Observer,
+} from '../Runtime.js';
 
 /**
  * ---------------------------

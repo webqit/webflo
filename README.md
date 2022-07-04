@@ -1805,7 +1805,7 @@ workport.nofitications.fire(title, options).then(event => {
 </details>
 
 <details>
-<summary>Method: <code>.nofitications.listen()</code></summary>
+<summary>Method: <code>.nofitications.handle()</code></summary>
 
 The `.nofitications.handle()` method (in Service-Workers) is used for handling [`notificationclick`](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope/notificationclick_event) events. (Handlers are called each time a notification is clicked.)
 

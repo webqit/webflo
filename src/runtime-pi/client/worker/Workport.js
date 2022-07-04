@@ -56,7 +56,7 @@ export default class Workport {
                     notification.addEventListener('close', res);
                 });
             },
-            listen: callback => {
+            handle: callback => {
                 self.addEventListener('notificationclick', callback);
                 return this.notifications;
             },

@@ -7,19 +7,6 @@ import RuntimeClient from './RuntimeClient.js';
 import Runtime from './Runtime.js';
 
 /**
- * @desc
- */
-export const desc = {
-    config: {
-        headers: 'Configure automatic http headers.',
-        redirects: 'Configure automatic redirects.',
-        server: 'Configure server settings.',
-        vhosts: 'Configure virtual hosts.',
-    },
-    start: 'Starts the Webflo server.',
-};
-
-/**
  * @start
  */
 export async function start(clientCallback = null) {
@@ -31,10 +18,6 @@ export async function start(clientCallback = null) {
 }
 
 /**
- * @exports
+ * @APIS
  */
-export {
-    Context,
-    RuntimeClient,
-    Runtime,
-}
+export * as APIS from './Runtime.js';

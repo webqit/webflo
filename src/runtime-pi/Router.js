@@ -41,12 +41,13 @@ export default class Router {
     async route(method, event, arg, _default, remoteFetch = null) {
 
         const $this = this;
+        const $runtime = this.cx.runtime;
 
         // ----------------
         // The loop
         // ----------------
         const next = async function(thisTick) {
-            const thisContext = { };
+            const thisContext = { runtime: $runtime };
             if (!thisTick.trail || thisTick.trail.length < thisTick.destination.length) {
                 thisTick = await $this.readTick(thisTick);
                 // -------------
