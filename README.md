@@ -20,7 +20,6 @@ Ok, we've put all of that up for a straight read!
 + [Installation](#installation)
 + [Concepts](#concepts)
 + [Webflo Applications](#webflo-applications)
-+ [Workflow API](#workflow-api)
 + [Webflo Config](#webflo-config)
 + [Technology Stack](#technology-stack)
 + [Getting Started](#getting-started)
@@ -252,8 +251,11 @@ export default function(event, context, next) {
 }
 ```
 
-> **Note**
-> <br>Function name may also be specific to a [*HTTP method*](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods): `get`, `post`, `put`, `patch`, `del` (for *delete*), `options`, `head`, etc.
+<details>
+<summary>More details...</summary>
+
+> Function name may also be specific to a [*HTTP method*](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods): `get`, `post`, `put`, `patch`, `del` (for *delete*), `options`, `head`, etc.
+</details>
 
 Each function receives an `event` object representing details about the request - e.g. `event.request`, `event.url`, `event.session`. ([Details ahead](#workflow-api).)
 
@@ -320,7 +322,7 @@ export default function(event, context, next) {
 > The above function is built as part of your application's Service Worker JS bundle on running the `npm run generate` command. (It is typically bundled to the file `./public/worker.js`, and the main application bundle automatically connects to it.) Then it responds from within the Service Worker on visiting http://localhost:3000. (More details [ahead](#service-workers).)
 </details>
 
-So, depending on what's being built, an application's handler functions may take the following form (in part or in whole as with universal applications):
+So, depending on what's being built, an application's handler functions may take the following form (in part or in whole):
 
 ```shell
 client
@@ -355,7 +357,7 @@ server
         └── stickers/index.js ------------------ http://localhost:3000/products/stickers
 ```
 
-Each step calls a `next()` function to forward the current request to the next step (if any), is able to pass a `context` object along, and can *recompose* the return value.
+Each step calls a `next()` function to forward the current request to the next step.
 
 ```js
 /**
@@ -364,9 +366,7 @@ server
  */
 export default async function(event, context, next) {
     if (next.stepname) {
-        let childContext = { user: { id: 2 }, };
-        let childResponse = await next( childContext );
-        return { ...childResponse, title: childResponse.title + ' | FluffyPets' };
+        return next();
     }
     return { title: 'Home | FluffyPets' };
 }
@@ -384,6 +384,77 @@ export default function(event, context, next) {
     return { title: 'Products' };
 }
 ```
+
+<details>
+<summary>More details...</summary>
+
+Each step can pass a `context` object to a child step, and can *recompose* its return value.
+
+```js
+/**
+server
+ ├── index.js
+ */
+export default async function(event, context, next) {
+    if (next.stepname) {
+        let childContext = { user: { id: 2 }, };
+        let childResponse = await next( childContext );
+        return { ...childResponse, title: childResponse.title + ' | FluffyPets' };
+    }
+    return { title: 'Home | FluffyPets' };
+}
+```
+
+<details>
+<summary>Even more details...</summary>
+
+The `next()` function can be used to re-direct the current request to a different route - using a relative or absolute URL.
+
+```js
+/**
+server
+ ├── index.js
+ */
+export default async function(event, context, next) {
+    if (next.stepname === 'products') {
+        return next( context, '/api/products?params=allowed' ); // With an absolute URL
+    }
+    return { title: 'Home | FluffyPets' };
+}
+```
+
+```js
+/**
+server
+ ├── products/index.js
+ */
+export default async function(event, context, next) {
+    if (next.stepname) {
+        return next();
+    }
+    return next( context, '../api/products?params=allowed' ); // With a relative URL
+}
+```
+
+The `next()` function can also run as an independent request - using [the same parameters as with the WHATWG Request constructor](https://developer.mozilla.org/en-US/docs/Web/API/Request/Request#parameters).
+
+```js
+/**
+server
+ ├── index.js
+ */
+export default async function(event, context, next) {
+    if (next.stepname === 'products') {
+        return next( context, '/api/products?params=allowed', {
+            method: 'get', { headers: { Authorization: 'djjdd' } } 
+        });
+    }
+    return { title: 'Home | FluffyPets' };
+}
+```
+</details>
+
+</details>
 
 This step-based workflow helps to decomplicate routing and gets us scaling horizontally as our application grows larger.
 
@@ -480,7 +551,7 @@ export default async function(event, context, next) {
 }
 ```
 
-Now we get the following layout-to-URL mapping for our application:
+Now we get the following handler-to-URL mapping for our application:
 
 ```shell
 my-app
@@ -515,7 +586,7 @@ export default async function(event, context, next) {
 }
 ```
 
-Our overall layout-to-URL mapping for this application now becomes:
+Our overall handler-to-URL mapping for this application now becomes:
 
 ```shell
 my-app
@@ -581,8 +652,11 @@ Now, for Single Page Applications, subsequent navigations, after the initial pag
 
 With no extra work, your application can function as either a *Multi Page App (MPA)* or a *Single Page App (SPA)*!
 
-> **Note**
-> <br>In a Single Page Application, all pages are based off a single `index.html` document. In a Multi Page Application, pages are individual `index.html`  documents - ideally. But, Server-Side Rendering makes it possible to serve the same, but dynamically-rendered, `index.html` document across page loads - essentially an SPA architecture hiding on the server. But, here, lets take Multi Page Applications for an individual-page architecture.
+<details>
+<summary>Some disambiguation...</summary>
+
+> In a Single Page Application, all pages are based off a single `index.html` document. In a Multi Page Application, pages are individual `index.html`  documents - ideally. But, Server-Side Rendering makes it possible to serve the same, but dynamically-rendered, `index.html` document across page loads - essentially an SPA architecture hiding on the server. But, here, lets take Multi Page Applications for an individual-page architecture.
+</details>
 
 #### Layout and Templating Overview
 
@@ -717,8 +791,11 @@ public/products
 </html>
 ```
 
-> **Note**
-> <br>In this architecture, navigation is traditional - a new page loads each time. The `bundle.js` script comes with the appropriate OOHTML support level required for the imports to function.
+<details>
+<summary>How it works...</summary>
+
+> In this architecture, navigation is traditional - a new page loads each time. The `bundle.js` script comes with the appropriate OOHTML support level required for the imports to function.
+</details>
 
 #### In a Single Page Layout
 
@@ -759,8 +836,11 @@ public
 </html>
 ```
 
-> **Note**
-> <br>In this architecture, navigation is instant and sleek - Webflo prevents a full page reload, obtains and sets data at `document.state.data` for the new URL, then sets the `template` attribute on the `<body>` element to the new URL path. The `bundle.js` script comes with the appropriate OOHTML support level required for the imports to function.
+<details>
+<summary>How it works...</summary>
+
+> In this architecture, navigation is instant and sleek - Webflo prevents a full page reload, obtains and sets data at `document.state.data` for the new URL, then sets the `template` attribute on the `<body>` element to the new URL path. The `bundle.js` script comes with the appropriate OOHTML support level required for the imports to function.
+</details>
 
 #### In a Multi SPA Layout
 
@@ -780,7 +860,11 @@ my-app
       └── footer.html ------------------------------ <footer></footer> <!-- To appear at bottom of each document root -->
 ```
 
-The above gives us three document roots: `/index.html`, `/about/index.html`, `/prodcuts/index.html`. The `/prodcuts` route doubles as a Single Page Application such that visiting the `/prodcuts` route loads the document root `/prodcuts/index.html` and lets Webflo SPA routing determine which of `/prodcuts/main.html`, `/prodcuts/free/main.html`, `/prodcuts/paid/main.html` is imported on a given URL.
+<details>
+<summary>How it works...</summary>
+
+> The above gives us three document roots: `/index.html`, `/about/index.html`, `/prodcuts/index.html`. The `/prodcuts` route doubles as a Single Page Application such that visiting the `/prodcuts` route loads the document root `/prodcuts/index.html` and lets Webflo SPA routing determine which of `/prodcuts/main.html`, `/prodcuts/free/main.html`, `/prodcuts/paid/main.html` is imported on a given URL.
+</details>
 
 Webflo ensures that only the amount of JavaScript for a document root is actually loaded! So, above, a common JavaScript build is shared across the three document roots alongside an often tiny root-specific build.
 
@@ -923,8 +1007,11 @@ However, since the `document` objects in Webflo natively support [OOHTML](#oohtm
  </html>
 ```
 
-> **Note**
-> <br>Now, this comes logical since logic is the whole essence of the HTML `<script>` element, after all! Compared to other syntax alternatives, this uniquely enables us to do all things logic in the actual language for logic - JavaScript. Then, OOHTML gives us more by extending the regular `<script>` element with the `subscript` type which gets any JavaScript code to be *reactive*!
+<details>
+<summary>Re-introducing logic in the actual language for logic - JavaScript...</summary>
+
+> Now, this comes logical being that logic is the whole essence of the HTML `<script>` element after all! Compared to other syntax alternatives, this uniquely enables us to do all things logic in the actual language for logic - JavaScript. Then, OOHTML gives us more by extending the regular `<script>` element with the `subscript` type which gets any JavaScript code to be *reactive*!
+</details>
 
 Note that because these scripts are naturally reactive, we do not require any `setTimeout()` construct like we required earlier in the case of the classic `<script>` element. These expressions self-update as the values they depend on become available, removed, or updated - i.e. as `document.state` gets updated.
 
@@ -1079,14 +1166,21 @@ Observer.observe(state, propertyName, change => {
 
 This way, all the moving parts of your application remain coordinated, and can easily be rendered to reflect them on the UI!
 
-For all things application state, Webflo leverages the [State API](https://github.com/webqit/oohtml#state-api) that's natively available in OOHTML-based documents - both client-side and server-side. This API exposes an application-wide `document.state` object and a per-element `element.state` object. And these are *live* read/write objects that can be observed for property changes using the [Observer API](#the-observer-api). It comes off as the simplest approach to state and reactivity!
+Now, for all things application state, Webflo leverages the [State API](https://github.com/webqit/oohtml#state-api) that's natively available in OOHTML-based documents - both client-side and server-side. This API exposes an application-wide `document.state` object and a per-element `element.state` object. And these are *live* read/write objects that can be observed for property changes using the [Observer API](#the-observer-api). It comes off as the simplest approach to state and reactivity!
 
 > **Note**
-> <br>The State API is not available when the [OOHTML support level](#oohtml) in config is switched away from `full` and `scripting`.
+> <br>The State API is not available as long as the [OOHTML support level](#oohtml) in config is left as `full`, or set to `scripting`.
 
 #### The `document.state.data` Object
 
 This property reperesents the application data at any point in time - obtained from route handers on each navigation. Webflo simply updates this property and lets the page's [rendering logic](#client-and-server-side-rendering), or other parts of the application, take over.
+
+```js
+console.log(document.state.data) // { title: 'Home | FluffyPets' }
+```
+
+<details>
+<summary>More examples...</summary>
 
 ```js
 Observer.observe(document.state, 'data', e => {
@@ -1100,6 +1194,7 @@ Observer.observe(document.state, 'data', e => {
  document.title = title;
 </script>
 ```
+</details>
 
 #### The `document.state.url` Object
 
@@ -1108,6 +1203,9 @@ This is a *live* object that reperesents the properties of the application URL a
 ```js
 console.log(document.state.url) // { hash, host, hostname, href, origin, password, pathname, port, protocol, search, searchParams, username }
 ```
+
+<details>
+<summary>More examples...</summary>
 
 ```js
 Observer.observe(document.state.url, 'hash', e => {
@@ -1147,6 +1245,7 @@ document.addEventListener('synthetic-navigation', e => {
  document.title = 'Login as ' + role;
 </script>
 ```
+</details>
 
 ### Requests and Responses
 
@@ -1214,6 +1313,9 @@ Where workflows throw an exception, an *error* status is implied.
 
 Handlers can set [response cookies](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie) via the standard `Response` constructor, or using the standard `Headers.set()` method.
 
+<details>
+<summary>Examples...</summary>
+
 ```js
 let response = event.Response(data, { headers: { 'Set-Cookie': cookieString }});
 
@@ -1235,19 +1337,20 @@ response.headers.cookies = { 'Cookie-1': cookieObject };
 response.headers.cookies = { 'Cookie-2': cookie2Object };
 
 console.log(response.headers.cookies); // { 'Cookie-1': cookieObject, 'Cookie-2': cookie2Object };
-````
+```
 
 Set cookies are [accessed](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cookie) on the next request via request headers.
 
 ```js
 console.log(event.request.headers.get('Cookie')); // Cookie-1=cookie-val&Cookie-2=cookie2-val;
-````
+```
 
 Webflo also offers a *convenience* method.
 
 ```js
 console.log(event.request.headers.cookies); // { 'Cookie-1': 'cookie-val', 'Cookie-2': 'cookie2-val' };
 ```
+</details>
 
 ### Webflo Applications
 
@@ -1298,6 +1401,9 @@ console.log(document.state.network) // { requesting, remote, error, redirecting,
 
 + **`network.requesting`: `null|Object`** - This property tells when a request is ongoing, in which case it exposes the `params` object used to initiate the request.
   
+  <details>
+  <summary>Examples...</summary>
+
   On the UI, this could be used to hide a menu drawer that may have been open.
   
   ```html
@@ -1310,9 +1416,13 @@ console.log(document.state.network) // { requesting, remote, error, redirecting,
       </script>
   </menu-drawer>
   ```
+  </details>
   
 + **`network.remote`: `null|String`** - This property tells when a remote request is ongoing - usually the same navigation requests as at `network.requesting`, but when not handled by any client-side route handlers, or when `next()`ed to this point by route handlers. The `remote` property also goes live when a route handler calls the special `fetch()` function that they recieve on their fourth parameter.
   
+  <details>
+  <summary>Examples...</summary>
+
   On the UI, this could be used to show/hide a spinner, or progress bar, to provide a visual cue.
   
   ```html
@@ -1323,9 +1433,13 @@ console.log(document.state.network) // { requesting, remote, error, redirecting,
       </script>
   </progress-bar>
   ```
+  </details>
   
 + **`network.error`: `null|Error`** - This property tells when a request is *errored* in which case it contains an `Error` instance of the error. For requests that can be retried, the `Error` instance also has a custom `retry()` method.
-  
+
+  <details>
+  <summary>Examples...</summary>
+
   On the UI, this could be used to show/hide cute error elements.
   
   ```html
@@ -1336,9 +1450,13 @@ console.log(document.state.network) // { requesting, remote, error, redirecting,
       </script>
   </nice-error>
   ```
+  </details>
   
 + **`network.redirecting`: `null|String`** - This property tells when a client-side redirect is ongoing - see [Scenario 4: Single Page Navigation Requests and Responses](#scenario-4-single-page-navigation-requests-and-responses) - in which case it exposes the destination URL.
-  
+
+  <details>
+  <summary>Examples...</summary>
+
   On the UI, this could be used to prevent further interactions with the outgoing page.
   
   ```html
@@ -1349,9 +1467,13 @@ console.log(document.state.network) // { requesting, remote, error, redirecting,
       </script>
   </body>
   ```
+  </details>
   
 + **`network.connectivity`: `String`** - This property tells of [the browser's ability to connect to the network](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/onLine): `online`, `offline`.
-  
+
+  <details>
+  <summary>Examples...</summary>
+
   On the UI, this could be used to show/hide a connectivity status.
   
   ```html
@@ -1362,8 +1484,12 @@ console.log(document.state.network) // { requesting, remote, error, redirecting,
       </script>
   </body>
   ```
+  </details>
   
 Here are some additional examples with the [Observer API](#the-observer-api).
+
+<details>
+<summary>Visualize the network state...</summary>
 
 ```js
 // Visualize the network state
@@ -1375,6 +1501,10 @@ let onlineVisualizer = changes => {
 Observer.observe(document.state.network, onlineVisualizer);
 // Or: Observer.observe(document, [ ['state', 'network'] ], onlineVisualizer, { subtree: true });
 ```
+</details>
+
+<details>
+<summary>Visualize "connectivity"...</summary>
 
 ```js
 // Visualize the 'connectivity' property
@@ -1384,6 +1514,10 @@ let connectivityVisualizer = e => {
 Observer.observe(document.state.network, 'connectivity', connectivityVisualizer);
 // Or: Observer.observe(document.state, [ ['network', 'connectivity'] ], connectivityeVisualizer);
 ```
+</details>
+
+<details>
+<summary>Catch request errors; attempt a retry...</summary>
 
 ```js
 // Catch request errors; attempt a retry
@@ -1396,6 +1530,7 @@ Observer.observe(document.state.network, 'error', e => {
     }
 });
 ```
+</details>
 
 ##### Form Actions
 
@@ -1518,9 +1653,13 @@ Webflo client-side applications are intended to provide an app-like-first experi
 
 In all cases above, the convention for specifying URLs for a strategy accepts [URL patterns](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) - against which URLs can be matched on the fly. For example, to place all files in an `/image` directory (and subdirectories) on the *Cache First* strategy, the pattern `/image/*` can be used. To place all `.svg` files in an `/icons` directory (including subdirectories) on the *Cache Only* strategy, the pattern `/icons/*.svg` can be used. (Specifically for the *Cache Only* strategy, patterns are resolved at Service Worker build-time, and each pattern must match, at least, a file.)
 
+<details>
+<summary>Example...</summary>
+
 ```json
 { "cache_only_urls": [ "/icons/*.svg" ] }
 ```
+</details>
 
 ##### Cross-Thread Communications
 
@@ -1544,71 +1683,115 @@ A couple APIs exists in browsers for establishing a two-way communication channe
 
   For cross-thread messaging, both sides of the API exposes the following methods:
   
-  + **`.messaging.post()`** - for sending arbitrary data to the other side. E.g. `workport.messaging.post({ type: 'TEST' })`.
-  + **`.messaging.listen()`** - for listening to `message` event from the other side. E.g. `workport.messaging.listen(event => console.log(event.data.type))`. (See [`window: onmessage`](https://developer.mozilla.org/en-US/docs/Web/API/Window/message_event), [`worker: onmessage`](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/message_event).)
-  + **`.messaging.request()`** - for sending *replyable* messages to the other side, using the [MessageChannel](https://developer.mozilla.org/docs/Web/API/MessageChannel/MessageChannel) API.
+  <details>
+  <summary><code>.messaging.post()</code></summary>
+
+  The `.messaging.post()` method is used for sending any arbitrary data to the other side. E.g. `workport.messaging.post({ type: 'TEST' })`.
+  </details>
+
+  <details>
+  <summary><code>.messaging.listen()</code></summary>
+
+  The `.messaging.listen()` method is used for registering a listener to the `message` event from the other side. E.g. `workport.messaging.listen(event => console.log(event.data.type))`. (See [`window: onmessage`](https://developer.mozilla.org/en-US/docs/Web/API/Window/message_event), [`worker: onmessage`](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/message_event).)
+  </details>
+
+  <details>
+  <summary><code>.messaging.request()</code></summary>
+
+  The `.messaging.request()` method is used for sending a message to the other side and obtaing a response, using the [MessageChannel](https://developer.mozilla.org/docs/Web/API/MessageChannel/MessageChannel) API.
     
-    ```js
-    // On the worker side
-    workport.messaging.listen(event => {
-        console.log(event.data);
-        if (event.ports[0]) {
-            event.ports[0].postMessage({ type: 'WORKS' });
-        }
-    });
-    ```
+  ```js
+  // On the worker side
+  workport.messaging.listen(event => {
+  console.log(event.data);
+      if (event.ports[0]) {
+          event.ports[0].postMessage({ type: 'WORKS' });
+      }
+  });
+  ```
+
+  ```js
+  // On the client side
+  let response = await workport.messaging.request({ type: 'TEST' });
+  console.log(response); // { type: 'WORKS' }
+  ```
+  </details>
+
+  <details>
+  <summary><code>.messaging.channel()</code></summary>
+
+  The `.messaging.channel()` method is used for sending *broadcast* messages to the other side - including all other browsing contents that live on the same origin, using the [Broadcast Channel](https://developer.mozilla.org/docs/Web/API/Broadcast_Channel_API) API.
     
-    ```js
-    // On the client side
-    let response = await workport.messaging.request({ type: 'TEST' });
-    console.log(response); // { type: 'WORKS' }
-    ```
+  ```js
+  // On the worker side
+  let channelId = 'channel-1';
+  workport.messaging.channel(channelId).listen(event => {
+      console.log(event.data);
+  });
+  ```
     
-  + **`.messaging.channel()`** - for sending *broadcast* messages to the other side - including all other browsing contents that live on the same origin, using the [Broadcast Channel](https://developer.mozilla.org/docs/Web/API/Broadcast_Channel_API) API.
-    
-    ```js
-    // On the worker side
-    let channelId = 'channel-1';
-    workport.messaging.channel(channelId).listen(event => {
-        console.log(event.data);
-    });
-    ```
-    
-    ```js
-    // On the client side
-    let channelId = 'channel-1';
-    workport.messaging.channel(channelId).broadcast({ type: 'TEST' });
-    ```
+  ```js
+  // On the client side
+  let channelId = 'channel-1';
+  workport.messaging.channel(channelId).broadcast({ type: 'TEST' });
+  ```
+  </details>
   
   For [UI Nofitications](https://developer.mozilla.org/en-US/docs/Web/API/notification), both sides of the API exposes the following methods:
-  
-  + **`.nofitications.fire()`** - for firing up a UI notification. This uses the [`Nofitications constructor`](https://developer.mozilla.org/en-US/docs/Web/API/Notification/Notification), and thus, accepts the same arguments as the constructor. But it returns a `Promise` that resolves when the notification is *clicked* or *closed*, but rejects when the notification encounters an error, or when the application isn't granted the [notification permission](https://developer.mozilla.org/en-US/docs/Web/API/Notification/requestPermission).
+
+  <details>
+  <summary><code>.nofitications.fire()</code></summary>
+
+  The `.nofitications.fire()` method is used for firing up a UI notification. This uses the [`Nofitications constructor`](https://developer.mozilla.org/en-US/docs/Web/API/Notification/Notification), and thus, accepts the same arguments as the constructor. But it returns a `Promise` that resolves when the notification is *clicked* or *closed*, but rejects when the notification encounters an error, or when the application isn't granted the [notification permission](https://developer.mozilla.org/en-US/docs/Web/API/Notification/requestPermission).
     
-    ```js
-    let title = 'Test Nofitication';
-    let options = { body: '...', icon: '...', actions: [ ... ] };
-    workport.nofitications.fire(title, options).then(event => {
-        console.log(event.action);
-    });
-    ```
-  
-  + **`.nofitications.listen()`** - (in Service-Workers) for listening to [`notificationclick`](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope/notificationclick_event) events. (Handlers are called each time a notification is clicked.)
+  ```js
+  let title = 'Test Nofitication';
+  let options = { body: '...', icon: '...', actions: [ ... ] };
+  workport.nofitications.fire(title, options).then(event => {
+      console.log(event.action);
+  });
+  ```
+  </details>
+
+  <details>
+  <summary><code>.nofitications.listen()</code></summary>
+
+  The `.nofitications.listen()` method (in Service-Workers) is used for listening to [`notificationclick`](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope/notificationclick_event) events. (Handlers are called each time a notification is clicked.)
     
-    ```js
-    workport.nofitications.listen(event => {
-        console.log(event.action);
-    });
-    ```
+  ```js
+  workport.nofitications.listen(event => {
+      console.log(event.action);
+  });
+  ```
+  </details>
     
   For [Push Nofitications](https://developer.mozilla.org/en-US/docs/Web/API/Push_API), the client-side of the API exposes the following methods:
   
-  + **`.push.subscribe()`** - the equivalent of the [`PushManager.subscribe()`](https://developer.mozilla.org/en-US/docs/Web/API/PushManager/subscribe) method. (But this can also take the *applicationServerKey* as a first argument, and other options as a second argument, in which case it automatically runs the key through an `urlBase64ToUint8Array()` function.)
-  + **`.push.unsubscribe()`** - the equivalent of the [`PushSubscription.unsubscribe()`](https://developer.mozilla.org/en-US/docs/Web/API/PushSubscription/unsubscribe) method.
-  + **`.push.getSubscription()`** - the equivalent of the [`PushManager.getSubscription()`](https://developer.mozilla.org/en-US/docs/Web/API/PushManager/getSubscription) method.
+  <details>
+  <summary><code>.push.subscribe()</code></summary>
+
+  The `.push.subscribe()` method is the equivalent of the [`PushManager.subscribe()`](https://developer.mozilla.org/en-US/docs/Web/API/PushManager/subscribe) method. (But this can also take the *applicationServerKey* as a first argument, and other options as a second argument, in which case it automatically runs the key through an `urlBase64ToUint8Array()` function.)
+  </details>
+
+  <details>
+  <summary><code>.push.unsubscribe()</code></summary>
+
+  The `.push.unsubscribe()` method is the equivalent of the [`PushSubscription.unsubscribe()`](https://developer.mozilla.org/en-US/docs/Web/API/PushSubscription/unsubscribe) method.
+  </details>
+
+  <details>
+  <summary><code>.push.getSubscription()</code></summary>
+
+  The `.push.getSubscription()` method is the equivalent of the [`PushManager.getSubscription()`](https://developer.mozilla.org/en-US/docs/Web/API/PushManager/getSubscription) method.
+  <details>
 
   The worker-side of the API exposes the following methods:
   
-  + **`.push.listen()`** - for listening to the [`push`](https://developer.mozilla.org/en-US/docs/Web/API/PushEvent) from within Service Workers. E.g. `workport.push.listen(event => console.log(event.data.type))`.
+  <details>
+  <summary><code>.push.listen()</code></summary>
+
+  The `.push.listen()` method is for listening to the [`push`](https://developer.mozilla.org/en-US/docs/Web/API/PushEvent) from within Service Workers. E.g. `workport.push.listen(event => console.log(event.data.type))`.
+  <details>
 
 + Route *events* - simple route events that fire when messaging and notification events happen.
 
@@ -1632,7 +1815,10 @@ A couple APIs exists in browsers for establishing a two-way communication channe
   + **`message`** - both client and worker side. For *replyable* messages, the event handler's return value is automatically sent back as response.
   + **`notificationclick`** - worker side.
   + **`push`** - worker side.
-  
+
+  <details>
+  <summary>Advanced...</summary>
+
   The `next()` function could be used to delegate the handling of an event to step handlers where defined. This time, the path name must be given as a second argument to the call.
   
   ```js
@@ -1648,6 +1834,7 @@ A couple APIs exists in browsers for establishing a two-way communication channe
       console.log(event.type);
   }
   ```
+  </details>
   
 #### API Backends
 
@@ -1721,14 +1908,13 @@ A simple tool, like [`staticgen`](https://github.com/tj/staticgen), or the basic
 }
 ```
 
-> **Note**
-> <br>Above, we used the `-P` flag to specify the output directory as `public`, the `-nv` flag to opt into “non-verbose” mode which outputs less information, the `-r` flag to get it to crawl and download recursively, and the `-E` flag to get it to add the `.html` extension to generated files.
+<details>
+<summary>How it works...</summary>
 
-You have a static site!
+> Above, we used the `-P` flag to specify the output directory as `public`, the `-nv` flag to opt into “non-verbose” mode which outputs less information, the `-r` flag to get it to crawl and download recursively, and the `-E` flag to get it to add the `.html` extension to generated files.
+</details>
 
-### Workflow API
-
-> TODO
+*Happy static!*
 
 ### Webflo Config
 
