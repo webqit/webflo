@@ -457,7 +457,7 @@ export default async function(event, context, next) {
 </details>
 </details>
 
-However, workflows may be designed with *wildcard* steps using a hyphen `-` as step name. At runtime, a wildcard step matches any URL segment at its level in the layout! A `this.stepname` property could be used to see which URL segment has been matched.
+However, workflows may be designed with *wildcard* steps using a hyphen `-` as step name. At runtime, a wildcard step matches any URL segment at the given level in the layout! A `this.stepname` property could be used to see which URL segment has been matched.
 
 ```js
 /**
