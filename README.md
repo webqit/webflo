@@ -1369,11 +1369,18 @@ On being loaded, the state of the application is initialized, or is restored thr
 
 ##### SPA Navigation
 
-Unless disabled in config, it is factored-in at build time for the application client JS to be able to automatially figure out when to intercept a navigation event and prevent a full page reload, and when not to. It follows the following rules:
+Unless disabled in config, it is factored-in at build time for the application client JS to be able to automatially figure out when to intercept a navigation event and prevent a full page reload, and when not to.
+
+<details>
+<summary>How it works...</summary>
+
+SPA Navigation follows the following rules:
+
 + When it ascertains that the destination URL is based on the current running `index.html` document in the browser (an SPA architecture), a full page reload is prevented for *soft* navigation. But where the destination URL points out of the current document root (a [Multi SPA](#in-a-multi-spa-layout) architecture), navigation is allowed as a normal page load, and a new page root is loaded.
 + If navigation is initiated with any of the following keys pressed: Meta Key, Alt Key, Shift Key, Ctrl Key, navigation is allowed to work the default way - regardless of the first rule above.
 + If navigation is initiated from a link element that has the `target` attribute, or the `download` attribute, navigation is allowed to work the default way - regardless of the first rule above.
 + If navigation is initiated from a form element that has the `target` attribute, navigation is allowed to work the default way - regardless of the first rule above.
+</details>
 
 <details>
 <summary>Config (Default)</summary>
@@ -1399,92 +1406,92 @@ This is a *live* object that exposes the network activity and network state of t
 console.log(document.state.network) // { requesting, remote, error, redirecting, connectivity, }
 ```
 
-+ **`network.requesting`: `null|Object`** - This property tells when a request is ongoing, in which case it exposes the `params` object used to initiate the request.
-  
-  <details>
-  <summary>Examples...</summary>
+<details>
+<summary><code>.network.requesting</code>: <code>`null|Object</code></summary>
 
-  On the UI, this could be used to hide a menu drawer that may have been open.
-  
-  ```html
-  <menu-drawer>
-      <script type="subscript">
-      let { network: { requesting } } = document.state;
-      if (requesting) {
-          $(this).attr('open', false);
-      }
-      </script>
-  </menu-drawer>
-  ```
-  </details>
-  
-+ **`network.remote`: `null|String`** - This property tells when a remote request is ongoing - usually the same navigation requests as at `network.requesting`, but when not handled by any client-side route handlers, or when `next()`ed to this point by route handlers. The `remote` property also goes live when a route handler calls the special `fetch()` function that they recieve on their fourth parameter.
-  
-  <details>
-  <summary>Examples...</summary>
+This property tells when a request is ongoing, in which case it exposes the `params` object used to initiate the request.
 
-  On the UI, this could be used to show/hide a spinner, or progress bar, to provide a visual cue.
-  
-  ```html
-  <progress-bar>
-      <script type="subscript">
-      let { network: { remote } } = document.state;
-      $(this).attr('hidden', !remote);
-      </script>
-  </progress-bar>
-  ```
-  </details>
-  
-+ **`network.error`: `null|Error`** - This property tells when a request is *errored* in which case it contains an `Error` instance of the error. For requests that can be retried, the `Error` instance also has a custom `retry()` method.
+On the UI, this could be used to hide a menu drawer that may have been open.
 
-  <details>
-  <summary>Examples...</summary>
+```html
+<menu-drawer>
+    <script type="subscript">
+    let { network: { requesting } } = document.state;
+    if (requesting) {
+        $(this).attr('open', false);
+    }
+    </script>
+</menu-drawer>
+```
+</details>
 
-  On the UI, this could be used to show/hide cute error elements.
-  
-  ```html
-  <nice-error>
-      <script type="subscript">
-      let { network: { error } } = document.state;
-      $(this).attr('hidden', !error);
-      </script>
-  </nice-error>
-  ```
-  </details>
-  
-+ **`network.redirecting`: `null|String`** - This property tells when a client-side redirect is ongoing - see [Scenario 4: Single Page Navigation Requests and Responses](#scenario-4-single-page-navigation-requests-and-responses) - in which case it exposes the destination URL.
+<details>
+<summary><code>.network.remote</code>: <code>`null|String</code></summary>
 
-  <details>
-  <summary>Examples...</summary>
+ This property tells when a remote request is ongoing - usually the same navigation requests as at `network.requesting`, but when not handled by any client-side route handlers, or when `next()`ed to this point by route handlers. The `remote` property also goes live when a route handler calls the special `fetch()` function that they recieve on their fourth parameter.
 
-  On the UI, this could be used to prevent further interactions with the outgoing page.
-  
-  ```html
-  <body>
-      <script type="subscript">
-      let { network: { redirecting } } = document.state;
-      $(this).css(redirecting ? { pointerEvents: 'none', filter: 'blur(2)' } : { pointerEvents: 'auto', filter: 'blur(0)' });
-      </script>
-  </body>
-  ```
-  </details>
-  
-+ **`network.connectivity`: `String`** - This property tells of [the browser's ability to connect to the network](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/onLine): `online`, `offline`.
+On the UI, this could be used to show/hide a spinner, or progress bar, to provide a visual cue.
 
-  <details>
-  <summary>Examples...</summary>
+```html
+<progress-bar>
+    <script type="subscript">
+    let { network: { remote } } = document.state;
+    $(this).attr('hidden', !remote);
+    </script>
+</progress-bar>
+```
+</details>
 
-  On the UI, this could be used to show/hide a connectivity status.
-  
-  ```html
-  <body>
-      <script type="subscript">
-      let { network: { connectivity } } = document.state;
-      $(this).attr( 'connectivity', connectivity });
-      </script>
-  </body>
-  ```
-  </details>
+<details>
+<summary><code>.network.error</code>: <code>`null|Error</code></summary>
+
+This property tells when a request is *errored* in which case it contains an `Error` instance of the error. For requests that can be retried, the `Error` instance also has a custom `retry()` method.
+
+On the UI, this could be used to show/hide cute error elements.
+
+```html
+<nice-error>
+    <script type="subscript">
+    let { network: { error } } = document.state;
+    $(this).attr('hidden', !error);
+    </script>
+</nice-error>
+```
+</details>
+
+<details>
+<summary><code>.network.redirecting</code>: <code>`null|String</code></summary>
+
+This property tells when a client-side redirect is ongoing - see [Scenario 4: Single Page Navigation Requests and Responses](#scenario-4-single-page-navigation-requests-and-responses) - in which case it exposes the destination URL.
+
+On the UI, this could be used to prevent further interactions with the outgoing page.
+
+```html
+<body>
+    <script type="subscript">
+    let { network: { redirecting } } = document.state;
+    $(this).css(redirecting ? { pointerEvents: 'none', filter: 'blur(2)' } : { pointerEvents: 'auto', filter: 'blur(0)' });
+    </script>
+</body>
+```
+</details>
+
+<details>
+<summary><code>.network.connectivity</code>: <code>`String</code></summary>
+
+This property tells of [the browser's ability to connect to the network](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/onLine): `online`, `offline`.
+
+On the UI, this could be used to show/hide a connectivity status.
+
+```html
+<body>
+    <script type="subscript">
+    let { network: { connectivity } } = document.state;
+    $(this).attr( 'connectivity', connectivity });
+    </script>
+</body>
+```
+</details>
   
 Here are some additional examples with the [Observer API](#the-observer-api).
 
@@ -1571,85 +1578,101 @@ Webflo client-side applications are intended to provide an app-like-first experi
 
 ##### Fetching Strategy
 
-+ **Network First** - This strategy tells the Service Worker to always attempt fetching from the network first for given resources, before fetching from the cache. On every successful network fetch, a copy of the response is saved to the cache for next time. (This is good for resources that need to be fresh to the user on a "best effort" basis.) Unless changed, this is Webflo's default fetching strategy. When not the default strategy, a list of specific URLs that should be fetched this way can be configured.
-    
-    <details>
-    <summary>Config (Default)</summary>
+<details>
+<summary>Network First</summary>
 
-    ```json
-    { "default_fetching_strategy": "network-first" }
-    ```
+This strategy tells the Service Worker to always attempt fetching from the network first for given resources, before fetching from the cache. On every successful network fetch, a copy of the response is saved to the cache for next time. (This is good for resources that need to be fresh to the user on a "best effort" basis.) Unless changed, this is Webflo's default fetching strategy. When not the default strategy, a list of specific URLs that should be fetched this way can be configured.
 
-    *To list specific URLs...*
+<details>
+<summary>Config (Default)</summary>
 
-    ```json
-    { "network_first_urls": [ "/logo.png" ] }
-    ```
+```json
+{ "default_fetching_strategy": "network-first" }
+```
 
-    > **File: `.webqit/webflo/worker.json`**
-    
-    > **Command: `webflo config worker default_fetching_strategy=network-first`**
-    </details>
+*To list specific URLs...*
 
-+ **Cache First** - This strategy tells the Service Worker to always attempt fetching from the cache first for given resources, before fetching from the network. After serving a cached response, or where not found in cache, a network fetch happens and a copy of the response is saved to the cache for next time. (This is good for resources that do not critially need to be fresh to the user.) When not the default strategy, a list of specific URLs that should be fetched this way can be configured.
-    
-    <details>
-    <summary>Config</summary>
+```json
+{ "network_first_urls": [ "/logo.png" ] }
+```
 
-    ```json
-    { "default_fetching_strategy": "cache-first" }
-    ```
+> **File: `.webqit/webflo/worker.json`**
 
-    *To list specific URLs...*
+> **Command: `webflo config worker default_fetching_strategy=network-first`**
+</details>
+</details>
 
-    ```json
-    { "cache_first_urls": [ "/logo.png" ] }
-    ```
+<details>
+<summary>Cache First</summary>
 
-    > **File: `.webqit/webflo/worker.json`**
+This strategy tells the Service Worker to always attempt fetching from the cache first for given resources, before fetching from the network. After serving a cached response, or where not found in cache, a network fetch happens and a copy of the response is saved to the cache for next time. (This is good for resources that do not critially need to be fresh to the user.) When not the default strategy, a list of specific URLs that should be fetched this way can be configured.
 
-    > **Command: `webflo config worker default_fetching_strategy=cache-first`**
-    </details>
+<details>
+<summary>Config</summary>
 
-+ **Network Only** - This strategy tells the Service Worker to always fetch given resources from the network only. They are simply not available when offline. (This is good for resources that critially need to be fresh to the user.) When not the default strategy, a list of specific URLs that should be fetched this way can be configured.
-    
-    <details>
-    <summary>Config</summary>
+```json
+{ "default_fetching_strategy": "cache-first" }
+```
 
-    ```json
-    { "default_fetching_strategy": "network-only" }
-    ```
+*To list specific URLs...*
 
-    *To list specific URLs...*
+```json
+{ "cache_first_urls": [ "/logo.png" ] }
+```
 
-    ```json
-    { "network_only_urls": [ "/logo.png" ] }
-    ```
+> **File: `.webqit/webflo/worker.json`**
 
-    > **File: `.webqit/webflo/worker.json`**
+> **Command: `webflo config worker default_fetching_strategy=cache-first`**
+</details>
+</details>
 
-    > **Command: `webflo config worker default_fetching_strategy=network-only`**
-    </details>
+<details>
+<summary>Network Only</summary>
 
-+ **Cache Only** - This strategy tells the Service Worker to always fetch given resources from the cache only. (This is good for resources that do not change often.) When not the default strategy, a list of specific URLs that should be fetched this way can be configured. The listed resources are pre-cached ahead of when they'll be needed - and are served from the cache each time. (Pre-caching happens on the one-time `install` event of the Service Worker.)
+This strategy tells the Service Worker to always fetch given resources from the network only. They are simply not available when offline. (This is good for resources that critially need to be fresh to the user.) When not the default strategy, a list of specific URLs that should be fetched this way can be configured.
 
-    <details>
-    <summary>Config</summary>
+<details>
+<summary>Config</summary>
 
-    ```json
-    { "default_fetching_strategy": "cache-only" }
-    ```
+```json
+{ "default_fetching_strategy": "network-only" }
+```
 
-    *To list specific URLs...*
+*To list specific URLs...*
 
-    ```json
-    { "cache_only_urls": [ "/logo.png" ] }
-    ```
+```json
+{ "network_only_urls": [ "/logo.png" ] }
+```
 
-    > **File: `.webqit/webflo/worker.json`**
+> **File: `.webqit/webflo/worker.json`**
 
-    > **Command: `webflo config worker default_fetching_strategy=cache-only`**
-    </details>
+> **Command: `webflo config worker default_fetching_strategy=network-only`**
+</details>
+</details>
+
+<details>
+<summary>Cache Only</summary>
+
+This strategy tells the Service Worker to always fetch given resources from the cache only. (This is good for resources that do not change often.) When not the default strategy, a list of specific URLs that should be fetched this way can be configured. The listed resources are pre-cached ahead of when they'll be needed - and are served from the cache each time. (Pre-caching happens on the one-time `install` event of the Service Worker.)
+
+<details>
+<summary>Config</summary>
+
+```json
+{ "default_fetching_strategy": "cache-only" }
+```
+
+*To list specific URLs...*
+
+```json
+{ "cache_only_urls": [ "/logo.png" ] }
+```
+
+> **File: `.webqit/webflo/worker.json`**
+
+> **Command: `webflo config worker default_fetching_strategy=cache-only`**
+</details>
+</details>
 
 In all cases above, the convention for specifying URLs for a strategy accepts [URL patterns](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) - against which URLs can be matched on the fly. For example, to place all files in an `/image` directory (and subdirectories) on the *Cache First* strategy, the pattern `/image/*` can be used. To place all `.svg` files in an `/icons` directory (including subdirectories) on the *Cache Only* strategy, the pattern `/icons/*.svg` can be used. (Specifically for the *Cache Only* strategy, patterns are resolved at Service Worker build-time, and each pattern must match, at least, a file.)
 
@@ -1665,177 +1688,181 @@ In all cases above, the convention for specifying URLs for a strategy accepts [U
 
 A couple APIs exists in browsers for establishing a two-way communication channel between a page and its Service Worker, for firing UI Notifications from either ends, and for implementing Push Notifications. Webflo offers to simply this with a unifying set of conventions:
 
-+ The `workport` API - an object with simple methods for working with *cross-thread* messages, UI and Push Notifications.
-  
-  On both the client and worker side of your application, the `workport` object is accessible from route handlers as `this.runtime.workport`.
-  
-  ```js
-  /**
-  [client|worker]
-   ├── index.js
-   */
-  export default async function(event, context, next) {
-      let { workport } = this.runtime;
-      workport.messaging.post({ ... });
-      return { ... };
-  }
-  ```
+###### The `workport` API
 
-  For cross-thread messaging, both sides of the API exposes the following methods:
-  
-  <details>
-  <summary><code>.messaging.post()</code></summary>
+This is an object with simple methods for working with *cross-thread* messages, UI and Push Notifications.
 
-  The `.messaging.post()` method is used for sending any arbitrary data to the other side. E.g. `workport.messaging.post({ type: 'TEST' })`.
-  </details>
+On both the client and worker side of your application, the `workport` object is accessible from route handlers as `this.runtime.workport`.
 
-  <details>
-  <summary><code>.messaging.listen()</code></summary>
+```js
+/**
+ [client|worker]
+├── index.js
+*/
+export default async function(event, context, next) {
+    let { workport } = this.runtime;
+    workport.messaging.post({ ... });
+    return { ... };
+}
+```
 
-  The `.messaging.listen()` method is used for registering a listener to the `message` event from the other side. E.g. `workport.messaging.listen(event => console.log(event.data.type))`. (See [`window: onmessage`](https://developer.mozilla.org/en-US/docs/Web/API/Window/message_event), [`worker: onmessage`](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/message_event).)
-  </details>
+For cross-thread messaging, both sides of the API exposes the following methods:
 
-  <details>
-  <summary><code>.messaging.request()</code></summary>
+<details>
+<summary><code>.messaging.post()</code></summary>
 
-  The `.messaging.request()` method is used for sending a message to the other side and obtaing a response, using the [MessageChannel](https://developer.mozilla.org/docs/Web/API/MessageChannel/MessageChannel) API.
-    
-  ```js
-  // On the worker side
-  workport.messaging.listen(event => {
-  console.log(event.data);
-      if (event.ports[0]) {
-          event.ports[0].postMessage({ type: 'WORKS' });
-      }
-  });
-  ```
+The `.messaging.post()` method is used for sending any arbitrary data to the other side. E.g. `workport.messaging.post({ type: 'TEST' })`.
+</details>
 
-  ```js
-  // On the client side
-  let response = await workport.messaging.request({ type: 'TEST' });
-  console.log(response); // { type: 'WORKS' }
-  ```
-  </details>
+<details>
+<summary><code>.messaging.listen()</code></summary>
 
-  <details>
-  <summary><code>.messaging.channel()</code></summary>
+The `.messaging.listen()` method is used for registering a listener to the `message` event from the other side. E.g. `workport.messaging.listen(event => console.log(event.data.type))`. (See [`window: onmessage`](https://developer.mozilla.org/en-US/docs/Web/API/Window/message_event), [`worker: onmessage`](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/message_event).)
+</details>
 
-  The `.messaging.channel()` method is used for sending *broadcast* messages to the other side - including all other browsing contents that live on the same origin, using the [Broadcast Channel](https://developer.mozilla.org/docs/Web/API/Broadcast_Channel_API) API.
-    
-  ```js
-  // On the worker side
-  let channelId = 'channel-1';
-  workport.messaging.channel(channelId).listen(event => {
-      console.log(event.data);
-  });
-  ```
-    
-  ```js
-  // On the client side
-  let channelId = 'channel-1';
-  workport.messaging.channel(channelId).broadcast({ type: 'TEST' });
-  ```
-  </details>
-  
-  For [UI Nofitications](https://developer.mozilla.org/en-US/docs/Web/API/notification), both sides of the API exposes the following methods:
+<details>
+<summary><code>.messaging.request()</code></summary>
 
-  <details>
-  <summary><code>.nofitications.fire()</code></summary>
+The `.messaging.request()` method is used for sending a message to the other side and obtaing a response, using the [MessageChannel](https://developer.mozilla.org/docs/Web/API/MessageChannel/MessageChannel) API.
 
-  The `.nofitications.fire()` method is used for firing up a UI notification. This uses the [`Nofitications constructor`](https://developer.mozilla.org/en-US/docs/Web/API/Notification/Notification), and thus, accepts the same arguments as the constructor. But it returns a `Promise` that resolves when the notification is *clicked* or *closed*, but rejects when the notification encounters an error, or when the application isn't granted the [notification permission](https://developer.mozilla.org/en-US/docs/Web/API/Notification/requestPermission).
-    
-  ```js
-  let title = 'Test Nofitication';
-  let options = { body: '...', icon: '...', actions: [ ... ] };
-  workport.nofitications.fire(title, options).then(event => {
-      console.log(event.action);
-  });
-  ```
-  </details>
+```js
+// On the worker side
+workport.messaging.listen(event => {
+console.log(event.data);
+    if (event.ports[0]) {
+        event.ports[0].postMessage({ type: 'WORKS' });
+    }
+});
+```
 
-  <details>
-  <summary><code>.nofitications.listen()</code></summary>
+```js
+// On the client side
+let response = await workport.messaging.request({ type: 'TEST' });
+console.log(response); // { type: 'WORKS' }
+```
+</details>
 
-  The `.nofitications.listen()` method (in Service-Workers) is used for listening to [`notificationclick`](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope/notificationclick_event) events. (Handlers are called each time a notification is clicked.)
-    
-  ```js
-  workport.nofitications.listen(event => {
-      console.log(event.action);
-  });
-  ```
-  </details>
-    
-  For [Push Nofitications](https://developer.mozilla.org/en-US/docs/Web/API/Push_API), the client-side of the API exposes the following methods:
-  
-  <details>
-  <summary><code>.push.subscribe()</code></summary>
+<details>
+<summary><code>.messaging.channel()</code></summary>
 
-  The `.push.subscribe()` method is the equivalent of the [`PushManager.subscribe()`](https://developer.mozilla.org/en-US/docs/Web/API/PushManager/subscribe) method. (But this can also take the *applicationServerKey* as a first argument, and other options as a second argument, in which case it automatically runs the key through an `urlBase64ToUint8Array()` function.)
-  </details>
+The `.messaging.channel()` method is used for sending *broadcast* messages to the other side - including all other browsing contents that live on the same origin, using the [Broadcast Channel](https://developer.mozilla.org/docs/Web/API/Broadcast_Channel_API) API.
 
-  <details>
-  <summary><code>.push.unsubscribe()</code></summary>
+```js
+// On the worker side
+let channelId = 'channel-1';
+workport.messaging.channel(channelId).listen(event => {
+    console.log(event.data);
+});
+```
 
-  The `.push.unsubscribe()` method is the equivalent of the [`PushSubscription.unsubscribe()`](https://developer.mozilla.org/en-US/docs/Web/API/PushSubscription/unsubscribe) method.
-  </details>
+```js
+// On the client side
+let channelId = 'channel-1';
+workport.messaging.channel(channelId).broadcast({ type: 'TEST' });
+```
+</details>
 
-  <details>
-  <summary><code>.push.getSubscription()</code></summary>
+For [UI Nofitications](https://developer.mozilla.org/en-US/docs/Web/API/notification), both sides of the API exposes the following methods:
 
-  The `.push.getSubscription()` method is the equivalent of the [`PushManager.getSubscription()`](https://developer.mozilla.org/en-US/docs/Web/API/PushManager/getSubscription) method.
-  <details>
+<details>
+<summary><code>.nofitications.fire()</code></summary>
 
-  The worker-side of the API exposes the following methods:
-  
-  <details>
-  <summary><code>.push.listen()</code></summary>
+The `.nofitications.fire()` method is used for firing up a UI notification. This uses the [`Nofitications constructor`](https://developer.mozilla.org/en-US/docs/Web/API/Notification/Notification), and thus, accepts the same arguments as the constructor. But it returns a `Promise` that resolves when the notification is *clicked* or *closed*, but rejects when the notification encounters an error, or when the application isn't granted the [notification permission](https://developer.mozilla.org/en-US/docs/Web/API/Notification/requestPermission).
 
-  The `.push.listen()` method is for listening to the [`push`](https://developer.mozilla.org/en-US/docs/Web/API/PushEvent) from within Service Workers. E.g. `workport.push.listen(event => console.log(event.data.type))`.
-  <details>
+```js
+let title = 'Test Nofitication';
+let options = { body: '...', icon: '...', actions: [ ... ] };
+workport.nofitications.fire(title, options).then(event => {
+    console.log(event.action);
+});
+```
+</details>
 
-+ Route *events* - simple route events that fire when messaging and notification events happen.
+<details>
+<summary><code>.nofitications.listen()</code></summary>
 
-  On both the client and worker side of your application, you can define an event listener alongside your *root* route handler. The event listener is called to handle all messaging and notification events that happen.
-  
-  ```js
-  /**
-  [client|worker]
-   ├── index.js
-   */
-  export default async function(event, context, next) {
-      return { ... };
-  }
-  export async function alert(event, context, next) {
-      return { ... };
-  }
-  ```
-  
-  The event type is given in the `event.type` property. This could be:
-  
-  + **`message`** - both client and worker side. For *replyable* messages, the event handler's return value is automatically sent back as response.
-  + **`notificationclick`** - worker side.
-  + **`push`** - worker side.
+The `.nofitications.listen()` method (in Service-Workers) is used for listening to [`notificationclick`](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope/notificationclick_event) events. (Handlers are called each time a notification is clicked.)
 
-  <details>
-  <summary>Advanced...</summary>
+```js
+workport.nofitications.listen(event => {
+    console.log(event.action);
+});
+```
+</details>
 
-  The `next()` function could be used to delegate the handling of an event to step handlers where defined. This time, the path name must be given as a second argument to the call.
-  
-  ```js
-  /**
-  worker
-   ├── index.js
-   */
-  export async function alert(event, context, next) {
-      if (event.type === 'push') {
-          await next(context, '/services/push');
-          return;
-      }
-      console.log(event.type);
-  }
-  ```
-  </details>
-  
+For [Push Nofitications](https://developer.mozilla.org/en-US/docs/Web/API/Push_API), the client-side of the API exposes the following methods:
+
+<details>
+<summary><code>.push.subscribe()</code></summary>
+
+The `.push.subscribe()` method is the equivalent of the [`PushManager.subscribe()`](https://developer.mozilla.org/en-US/docs/Web/API/PushManager/subscribe) method. (But this can also take the *applicationServerKey* as a first argument, and other options as a second argument, in which case it automatically runs the key through an `urlBase64ToUint8Array()` function.)
+</details>
+
+<details>
+<summary><code>.push.unsubscribe()</code></summary>
+
+The `.push.unsubscribe()` method is the equivalent of the [`PushSubscription.unsubscribe()`](https://developer.mozilla.org/en-US/docs/Web/API/PushSubscription/unsubscribe) method.
+</details>
+
+<details>
+<summary><code>.push.getSubscription()</code></summary>
+
+The `.push.getSubscription()` method is the equivalent of the [`PushManager.getSubscription()`](https://developer.mozilla.org/en-US/docs/Web/API/PushManager/getSubscription) method.
+<details>
+
+The worker-side of the API exposes the following methods:
+
+<details>
+<summary><code>.push.listen()</code></summary>
+
+The `.push.listen()` method is for listening to the [`push`](https://developer.mozilla.org/en-US/docs/Web/API/PushEvent) from within Service Workers. E.g. `workport.push.listen(event => console.log(event.data.type))`.
+<details>
+
+###### Route *events*
+
+These are simple route events that fire when messaging and notification events happen.
+
+On both the client and worker side of your application, you can define an event listener alongside your *root* route handler. The event listener is called to handle all messaging and notification events that happen.
+
+```js
+/**
+ [client|worker]
+├── index.js
+*/
+export default async function(event, context, next) {
+    return { ... };
+}
+export async function alert(event, context, next) {
+    return { ... };
+}
+```
+
+The event type is given in the `event.type` property. This could be:
+
++ **`message`** - both client and worker side. For *replyable* messages, the event handler's return value is automatically sent back as response.
++ **`notificationclick`** - worker side.
++ **`push`** - worker side.
+
+<details>
+<summary>Advanced...</summary>
+
+The `next()` function could be used to delegate the handling of an event to step handlers where defined. This time, the path name must be given as a second argument to the call.
+
+```js
+/**
+ worker
+├── index.js
+*/
+export async function alert(event, context, next) {
+    if (event.type === 'push') {
+        await next(context, '/services/push');
+        return;
+    }
+    console.log(event.type);
+}
+```
+</details>
+
 #### API Backends
 
 In Webflo, an API backend is what you, in essence, come off with with your server-side routes.
