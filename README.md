@@ -272,8 +272,11 @@ export default function(event, context, next) {
 }
 ```
 
-> **Note**
-> <br>The above function responds on starting the server - `npm start` on your terminal - and visiting http://localhost:3000.
+<details>
+<summary>How it works...</summary>
+
+> The above function responds on starting the server - `npm start` on your terminal - and visiting http://localhost:3000.
+</details>
 
 For *browser-based* applications (e.g. Single Page Apps), client-side handlers go into a directory named `client`.
 
