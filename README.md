@@ -385,6 +385,8 @@ export default function(event, context, next) {
 }
 ```
 
+This step-based workflow helps to decomplicate routing and gets us scaling horizontally as our application grows larger.
+
 <details>
 <summary>More details...</summary>
 
@@ -455,9 +457,7 @@ export default async function(event, context, next) {
 </details>
 </details>
 
-This step-based workflow helps to decomplicate routing and gets us scaling horizontally as our application grows larger.
-
-Workflows may be designed with *wildcard* steps using a hyphen `-` as step name. At runtime, a wildcard step matches any URL segment at its level in the layout! A `this.stepname` property could be used to see which URL segment has been matched.
+But, workflows may be designed with *wildcard* steps using a hyphen `-` as step name. At runtime, a wildcard step matches any URL segment at its level in the layout! A `this.stepname` property could be used to see which URL segment has been matched.
 
 ```js
 /**
@@ -645,12 +645,14 @@ my-app
   └── public/index.html ----------------------- http://localhost:3000/index.html --------- text/html
 ```
 
-But, we can also access the route in a way that gets the data rendered into the automatically-paired `index.html` file for a dynamic page response. We'd simply set the [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header of the request to match `text/html` - e.g. `text/html`, `text/*`, `*/html`, `*/*`, and Webflo will automatically perform [Server-Side Rendering](#client-and-server-side-rendering) to give a page response. (Automatic pairing works the same for nested routes! But top-level `index.html` files are implicitly inherited down the hierarchy.)
+But, we can also access the route in a way that gets the data rendered into the automatically-paired `index.html` file for a dynamic page response. We'd simply set the [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header of the request to something that can match as `text/html` - e.g. `text/html`, `text/*`, `*/html`, `*/*`, and Webflo will automatically perform [Server-Side Rendering](#client-and-server-side-rendering) to give a page response. 
 
 <details>
 <summary>How it works...</summary>
 
 > The `Accept` header hint is already how browsers make requests on every page load. So, it just works!
+
+> Note that the automatic pairing of an `index.html` file with a route works the same for nested routes! But top-level `index.html` files are implicitly inherited down the hierarchy.)
 </details>
 
 Now, for Single Page Applications, subsequent navigations, after the initial page load, just ask for the data on destination URLs and perform [Client-Side Rendering](#client-and-server-side-rendering) on the same running document. Navigation is sleek and instant!
