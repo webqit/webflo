@@ -17,7 +17,7 @@ The overall motivation for Webflo is to facilitate *web-native* development - st
 
 ## The Wins...
 
-If there's going to be a web-native application stack ever, we're taking the time to explore that here, today! Keeps tabs with here!
+If there's going to be a web-native application stack ever, we're taking the time to explore that here, today! (You'd want to keep tabs! Even more, it's a mission [we build together](#getting-involved)!)
 
 + HTML-first!
 + No build-step!
@@ -26,9 +26,11 @@ If there's going to be a web-native application stack ever, we're taking the tim
 + Today's JS and DOM APIs!
 + Universal-everything!
 
+*A more detailed overview [just ahead](#overview)!*
+
 ## Documentation
 
-All of Webflo; a 10-min read!
+All of Webflo in a 10-min read!
 
 + [Overview](#overview)
 + [Installation](#installation)
