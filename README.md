@@ -11,10 +11,24 @@ Webflo is a universal *web*, *mobile*, and *API backend* framework built to solv
 
 Ok, we've put all of that up for a straight read!
 
-> **Note**
-> <br>Depending on your current framework background, the hardest part of Webflo might be having to break ties with something that isn't conventional to the `.html` + `.css` + `.js` stack: all of that JSX, CSS-in-JS, etc.!
+## The Catch...
 
-## Documentation 
+The overall motivation for Webflo is to facilitate *web-native* development - starting with demonstrating how existing platform features, and a few proposed new ones, stitch together to make some cool, "futuristic", vanilla-based approach to all things modern web development! You have to be excited about taking a plunge to happily meet Webflo!
+
+## The Wins...
+
+If there's going to be a web-native application stack ever, we're taking the time to explore that here, today! Keeps tabs with here!
+
++ HTML-first!
++ No build-step!
++ Futuristic native reactivity!
++ Futuristic little-to-zero-JS frontends!
++ Today's JS and DOM APIs!
++ Universal-everything!
+
+## Documentation
+
+All of Webflo; a 10-min read!
 
 + [Overview](#overview)
 + [Installation](#installation)
