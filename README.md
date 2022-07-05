@@ -62,14 +62,20 @@ All of Webflo in a 10-min read!
  
 Here's a glimpse of your Webflo app.
 
-For when your application has a Server side.
+For when your application is a static site, or has static files to serve.
 + The `public` directory for static files.
+
+  ```shell
+  my-app
+    └── public/logo.png
+  ```
+
+For when your application has a Server side.
 + The `server` directory for server-side routing. (i.e. dynamic request handling on the server - in the case of Multi Page Applications, API backends, etc.)
 
   ```shell
   my-app
-    ├── server/index.js
-    └── public/logo.png
+    └── server/index.js
   ```
   
   And a typical `index.js` route handler has the following anatomy.
@@ -129,7 +135,7 @@ For when your application has a Client side.
     └── worker/index.js
   ```
   
-  And in both cases, a typical `index.js` route handler has the following anatomy.
+  And in both cases, a typical `index.js` route handler has the following anatomy. (Same with server-side handlers.)
 
   ```js
   /**
