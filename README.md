@@ -35,9 +35,22 @@ All of Webflo in a 10-min read!
 + [Overview](#overview)
 + [Installation](#installation)
 + [Concepts](#concepts)
+  + [Handler Functions and Layout](#handler-functions-and-layout)
+  + [Step Functions and Workflows](#step-functions-and-workflows)
+  + [Pages, Layout and Templating](#pages-layout-and-templating)
+  + [Client and Server-Side Rendering](#client-and-server-side-rendering)
+  + [Requests and Responses](#requests-and-responses)
 + [Webflo Applications](#webflo-applications)
+  + [Client-Side Applications](#client-side-applications)
+  + [Progressive Web Apps](#progressive-web-apps)
+  + [API Backends](#api-backends)
+  + [Static Sites](#static-sites)
 + [Webflo Config](#webflo-config)
-+ [Technology Stack](#technology-stack)
++ [Webflo Tooling](#webflo-tooling)
+  + [OOHTML](#oohtml)
+  + [OOHTML SSR](#oohtml-ssr)
+  + [OOHTML CLI](#oohtml-cli)
+  + [The Observer API](#the-observer-api)
 + [Getting Started](#getting-started)
 + [Getting Involved](#getting-involved)
 
@@ -1989,9 +2002,14 @@ A simple tool, like [`staticgen`](https://github.com/tj/staticgen), or the basic
 
 Webflo comes *convention-first*! But it is entirely configurable for when you need it! The easiest way to do this is to run the command `webflo config` and follow the walkthrough. To simply get an overview, use the command `webflo config help`, and all commands and their description are shown.
 
-## Technology Stack
+## Webflo Tooling
 
 Webflo applications are often built on/with the following technologies.
+
++ [OOHTML](#oohtml)
++ [OOHTML SSR](#oohtml-ssr)
++ [OOHTML CLI](#oohtml-cli)
++ [The Observer API](#the-observer-api)
 
 ### OOHTML
 
