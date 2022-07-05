@@ -13,20 +13,20 @@ Ok, we've put all of that up for a straight read!
 
 ## The Catch...
 
-The overall motivation for Webflo is to facilitate *web-native* development - starting with demonstrating how existing platform features, and a few proposed new ones, stitch together to make some cool, "futuristic", vanilla-based approach to all things modern web development! You have to be excited about taking a plunge to happily meet Webflo!
+The overall motivation for Webflo is to facilitate *web-native* development - essentially demonstrating how existing platform features, and a few proposed new ones, stitch together to make some cool, "futuristic", vanilla web stack! So, you have to be excited about taking a plunge to happily meet Webflo!
 
 ## The Wins...
 
-If there's going to be a web-native application stack ever, we're taking the time to explore that here, today! (You'd want to keep tabs! Even more, it's a mission [we build together](#getting-involved)!)
+Much of what eludes the web today...
 
 + HTML-first!
 + No build-step!
-+ Futuristic native reactivity!
-+ Futuristic little-to-zero-JS frontends!
++ (Futuristic) native reactivity!
++ (Futuristic) little-to-zero-JS frontends!
 + Today's JS and DOM APIs!
 + Universal-everything!
 
-*A more detailed overview [just ahead](#overview)!*
+(But details [just ahead](#overview)!)
 
 ## Documentation
 
