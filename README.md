@@ -420,7 +420,7 @@ export default function(event, context, next) {
 }
 ```
 
-This step-based workflow helps to decomplicate routing and gets us scaling horizontally as our application grows larger.
+We get a step-based workflow that helps to decomplicate routing and lets us scale horizontally as our application grows larger.
 
 <details>
 <summary>More details...</summary>
