@@ -19,14 +19,14 @@ The overall motivation for Webflo is to facilitate *web-native* development - es
 
 Much of what eludes the web today...
 
-+ HTML-first!
++ Being HTML-first!
 + No build-step!
 + (Futuristic) native reactivity!
 + (Futuristic) little-to-zero-JS frontends!
 + Today's JS and DOM APIs!
 + Universal-everything!
 
-(But details [just ahead](#overview)!)
+(Details just ahead!)
 
 ## Documentation
 
