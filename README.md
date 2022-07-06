@@ -560,7 +560,7 @@ So, above, should our handler receive static file requests like `http://localhos
 
 ```shell
 my-app
-  ├── server/index.js ------------------------- http://localhost:3000, http://localhost:3000/prodcuts, http://localhost:3000/prodcuts/stickers, etc
+  ├── server/index.js ------------------------- http://localhost:3000, http://localhost:3000/products, http://localhost:3000/products/stickers, etc
   └── public/logo.png ------------------------- http://localhost:3000/logo.png
 ```
 
@@ -602,7 +602,7 @@ Now we get the following handler-to-URL mapping for our application:
 ```shell
 my-app
   ├── worker/index.js ------------------------- http://localhost:3000/about, http://localhost:3000/logo.png
-  ├── server/index.js ------------------------- http://localhost:3000, http://localhost:3000/prodcuts, http://localhost:3000/prodcuts/stickers, etc
+  ├── server/index.js ------------------------- http://localhost:3000, http://localhost:3000/products, http://localhost:3000/products/stickers, etc
   └── public/logo.png ------------------------- http://localhost:3000/logo.png
 ```
 
@@ -641,7 +641,7 @@ Our overall handler-to-URL mapping for this application now becomes:
 my-app
   ├── client/index.js ------------------------- http://localhost:3000/login
   ├── worker/index.js ------------------------- http://localhost:3000/about, http://localhost:3000/logo.png
-  ├── server/index.js ------------------------- http://localhost:3000, http://localhost:3000/prodcuts, http://localhost:3000/prodcuts/stickers, etc
+  ├── server/index.js ------------------------- http://localhost:3000, http://localhost:3000/products, http://localhost:3000/products/stickers, etc
   └── public/logo.png ------------------------- http://localhost:3000/logo.png
 ```
 
@@ -727,7 +727,7 @@ In a Multi Page Application (with an individual-page architecture), each page is
 my-app
   └── public
       ├── about/index.html ------------------------- <!DOCTYPE html>
-      ├── prodcuts/index.html ---------------------- <!DOCTYPE html>
+      ├── products/index.html ---------------------- <!DOCTYPE html>
       ├── index.html ------------------------------- <!DOCTYPE html>
       ├── header.html ------------------------------ <header></header> <!-- To appear at top of each index.html page -->
       └── footer.html ------------------------------ <footer></footer> <!-- To appear at bottom of each index.html page -->
@@ -739,7 +739,7 @@ In a Single Page Application, each page is the same `index.html` document, and i
 my-app
   └── public
       ├── about/main.html -------------------------- <main></main> <!-- To appear at main area of index.html -->
-      ├── prodcuts/main.html ----------------------- <main></main> <!-- To appear at main area of index.html -->
+      ├── products/main.html ----------------------- <main></main> <!-- To appear at main area of index.html -->
       ├── main.html -------------------------------- <main></main> <!-- To appear at main area of index.html -->
       └── index.html ------------------------------- <!DOCTYPE html>
 ```
@@ -911,7 +911,7 @@ It's all a *layout* thing, so a hybrid of the two architectures above is possibl
 my-app
   └── public
       ├── about/index.html ------------------------- <!DOCTYPE html> <!-- Document root 1 -->
-      ├── prodcuts
+      ├── products
       │     ├── free/main.html --------------------------- <main></main> <!-- To appear at main area of document root 2 -->
       │     ├── paid/main.html --------------------------- <main></main> <!-- To appear at main area of document root 2 -->
       │     ├── main.html -------------------------------- <main></main> <!-- To appear at main area of document root 2 -->
@@ -921,7 +921,7 @@ my-app
       └── footer.html ------------------------------ <footer></footer> <!-- To appear at bottom of each document root -->
 ```
 
-The above gives us three document roots: `/index.html`, `/about/index.html`, `/prodcuts/index.html`. The `/prodcuts` route doubles as a Single Page Application such that visiting the `/prodcuts` route loads the document root `/prodcuts/index.html` and lets Webflo SPA routing determine which of `/prodcuts/main.html`, `/prodcuts/free/main.html`, `/prodcuts/paid/main.html` is imported on a given URL.
+The above gives us three document roots: `/index.html`, `/about/index.html`, `/products/index.html`. The `/products` route doubles as a Single Page Application such that visiting the `/products` route loads the document root `/products/index.html` and lets Webflo SPA routing determine which of `/products/main.html`, `/products/free/main.html`, `/products/paid/main.html` is imported on a given URL.
 
 Webflo ensures that only the amount of JavaScript for a document root is actually loaded! So, above, a common JavaScript build is shared across the three document roots alongside an often tiny root-specific build.
 
