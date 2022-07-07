@@ -7,23 +7,22 @@
 
 <!-- /BADGES -->
 
-Webflo is a universal *web*, *mobile*, and *API backend* framework built to solve for the underrated `.html` + `.css` + `.js` stack! This has been written specifically to draw directly on the plain old stack at the language level - to facilitate building web-native applications!
+Webflo is a universal *web*, *mobile*, and *API backend* framework built to solve for the underrated `.html` + `.css` + `.js` stack! This has been written specifically to facilitate working and thinking in vanilla HTML, CSS and JavaScript - for building more authentic, web-native applications!
 
-Ok, we've put all of that up for a straight read!
+Ok, we've put all of that up for a 10min straight read!
 
 ## The Catch...
 
-The overall motivation for Webflo is to facilitate *web-native* development - essentially demonstrating how existing platform features, and a few proposed new ones, stitch together to make some cool, "futuristic", vanilla web stack! So, you have to be excited about taking a plunge to happily meet Webflo!
+The overall motivation for Webflo is to facilitate *web-native* development - to be the cool framework that draws on native web platform features, including new fascinating features we're proposing as standards! (But that's where it gets a little bit "futuristic"!) So, you have to be excited about taking a plunge to happily meet Webflo!
 
 ## The Wins...
 
 Much of what eludes the web today...
 
-+ Being HTML-first!
-+ No build-step!
-+ (Futuristic) native reactivity!
-+ (Futuristic) little-to-zero-JS frontends!
-+ Today's JS and DOM APIs!
++ An overarching HTML-first thinking!
++ The build-less, vanilla advantage!
++ (Futuristic) Native reactivity!
++ (Futuristic) Minimalist-JS philosophy!
 + Universal-everything!
 
 (Details just ahead!)
@@ -57,7 +56,7 @@ All of Webflo in a 10-min read!
 ## Overview
 
 <details>
- <summary><b>Build <i>anything</i></b> - from as basic as a static <code>index.html</code> page to as rich as a universal app that's either a <i>Multi Page Application (MPA)</i>, <i>Single Page Application (SPA)</i>, or a hybrid of these, implementing <i>Server Side Rendering (SSR)</i>, <i>Client Side Rendering (CSR)</i>, or a hybrid of these, offline and <i>PWA</i> capabilities, etc. - this time, <i>without loosing the vanilla advantage</i>!
+ <summary><b>Build <i>anything</i></b> - from as basic as a static <code>index.html</code> page to as rich as a universal app that's either a <i>Multi Page Application (MPA)</i>, <i>Single Page Application (SPA)</i>, or a hybrid of both, implementing <i>Server Side Rendering (SSR)</i>, <i>Client Side Rendering (CSR)</i>, or a hybrid of both, offline and <i>PWA</i> capabilities, etc. - this time, <i>without loosing the vanilla advantage</i>!
 </summary>
  
 Here's a glimpse of your Webflo app.
