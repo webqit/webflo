@@ -7,7 +7,7 @@
 
 <!-- /BADGES -->
 
-Webflo is a universal *web*, *mobile*, and *API backend* framework built to solve for the underrated `.html` + `.css` + `.js` stack! This has been written specifically to facilitate working and thinking in vanilla HTML, CSS and JavaScript - for building more authentic, web-native applications!
+Webflo is a universal *web*, *mobile*, and *API backend* framework built to solve for the underrated `.html` + `.css` + `.js` stack! This has been written  to facilitate working and thinking in vanilla HTML, CSS and JavaScript - for building more authentic, web-native applications!
 
 Ok, we've put all of that up for a 10min straight read!
 
