@@ -13,7 +13,7 @@ Ok, we've put all of that up for a 10min straight read!
 
 ## The Catch...
 
-The overall motivation for Webflo is to facilitate *web-native* development - to be the cool framework that draws on native web platform features, including new fascinating features we're proposing as standards! (But that's where it gets a little bit "futuristic"!) So, you have to be excited about taking a plunge to happily meet Webflo!
+The overall motivation for Webflo is to facilitate *web-native* development; to be the cool framework that draws on native web platform features - including new fascinating features we're proposing as standards! So, it gets a little bit "futuristic"! You thus have to be excited about taking a plunge to happily meet Webflo!
 
 ## The Wins...
 
