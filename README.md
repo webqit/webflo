@@ -7,40 +7,74 @@
 
 <!-- /BADGES -->
 
-Webflo is a universal *web*, *mobile*, and *API backend* framework built to solve for the underrated `.html` + `.css` + `.js` stack! This has been written specifically to draw directly on the plain old stack at the language level - to facilitate building web-native applications!
+Webflo is a universal *web*, *mobile*, and *API backend* framework built to solve for the underrated `.html` + `.css` + `.js` stack! This has been written  to facilitate working and thinking in vanilla HTML, CSS and JavaScript - for building more authentic, web-native applications!
 
-Ok, we've put all of that up for a straight read!
+Ok, we've put all of that up for a 10min straight read!
 
-> **Note**
-> <br>Depending on your current framework background, the hardest part of Webflo might be having to break ties with something that isn't conventional to the `.html` + `.css` + `.js` stack: all of that JSX, CSS-in-JS, etc.!
+## The Catch...
 
-## Documentation 
+The overall motivation for Webflo is to facilitate *web-native* development; to be the cool framework that draws on native web platform features - including new fascinating features we're proposing as standards! So, it gets a little bit "futuristic"! You thus have to be excited about taking a plunge to happily meet Webflo!
+
+## The Wins...
+
+Much of what eludes the web today...
+
++ An overarching HTML-first thinking!
++ The build-less, vanilla advantage!
++ (Futuristic) Native reactivity!
++ (Futuristic) Minimalist-JS philosophy!
++ Universal-everything!
+
+(Details just ahead!)
+
+## Documentation
+
+All of Webflo in a 10-min read!
 
 + [Overview](#overview)
 + [Installation](#installation)
 + [Concepts](#concepts)
+  + [Handler Functions and Layout](#handler-functions-and-layout)
+  + [Step Functions and Workflows](#step-functions-and-workflows)
+  + [Pages, Layout and Templating](#pages-layout-and-templating)
+  + [Client and Server-Side Rendering](#client-and-server-side-rendering)
+  + [Requests and Responses](#requests-and-responses)
 + [Webflo Applications](#webflo-applications)
+  + [Client-Side Applications](#client-side-applications)
+  + [Progressive Web Apps](#progressive-web-apps)
+  + [API Backends](#api-backends)
+  + [Static Sites](#static-sites)
 + [Webflo Config](#webflo-config)
-+ [Technology Stack](#technology-stack)
++ [Webflo Tooling](#webflo-tooling)
+  + [OOHTML](#oohtml)
+  + [OOHTML SSR](#oohtml-ssr)
+  + [OOHTML CLI](#oohtml-cli)
+  + [The Observer API](#the-observer-api)
 + [Getting Started](#getting-started)
 + [Getting Involved](#getting-involved)
 
 ## Overview
 
 <details>
- <summary><b>Build <i>anything</i></b> - from as basic as a static <code>index.html</code> page to as rich as a universal app that's either a <i>Multi Page Application (MPA)</i>, <i>Single Page Application (SPA)</i>, or a hybrid of these, implementing <i>Server Side Rendering (SSR)</i>, <i>Client Side Rendering (CSR)</i>, or a hybrid of these, offline and <i>PWA</i> capabilities, etc. - this time, <i>without loosing the vanilla advantage</i>!
+ <summary><b>Build <i>anything</i></b> - from as basic as a static <code>index.html</code> page to as rich as a universal app that's either a <i>Multi Page Application (MPA)</i>, <i>Single Page Application (SPA)</i>, or a hybrid of both, implementing <i>Server Side Rendering (SSR)</i>, <i>Client Side Rendering (CSR)</i>, or a hybrid of both, offline and <i>PWA</i> capabilities, etc. - this time, <i>without loosing the vanilla advantage</i>!
 </summary>
  
 Here's a glimpse of your Webflo app.
 
-For when your application has a Server side.
+For when your application is a static site, or has static files to serve.
 + The `public` directory for static files.
+
+  ```shell
+  my-app
+    └── public/logo.png
+  ```
+
+For when your application has a Server side.
 + The `server` directory for server-side routing. (i.e. dynamic request handling on the server - in the case of Multi Page Applications, API backends, etc.)
 
   ```shell
   my-app
-    ├── server/index.js
-    └── public/logo.png
+    └── server/index.js
   ```
   
   And a typical `index.js` route handler has the following anatomy.
@@ -100,7 +134,7 @@ For when your application has a Client side.
     └── worker/index.js
   ```
   
-  And in both cases, a typical `index.js` route handler has the following anatomy.
+  And in both cases, a typical `index.js` route handler has the following anatomy. (Same with server-side handlers.)
 
   ```js
   /**
@@ -385,7 +419,7 @@ export default function(event, context, next) {
 }
 ```
 
-This step-based workflow helps to decomplicate routing and gets us scaling horizontally as our application grows larger.
+We get a step-based workflow that helps to decomplicate routing and lets us scale horizontally as our application grows larger.
 
 <details>
 <summary>More details...</summary>
@@ -525,7 +559,7 @@ So, above, should our handler receive static file requests like `http://localhos
 
 ```shell
 my-app
-  ├── server/index.js ------------------------- http://localhost:3000, http://localhost:3000/prodcuts, http://localhost:3000/prodcuts/stickers, etc
+  ├── server/index.js ------------------------- http://localhost:3000, http://localhost:3000/products, http://localhost:3000/products/stickers, etc
   └── public/logo.png ------------------------- http://localhost:3000/logo.png
 ```
 
@@ -567,7 +601,7 @@ Now we get the following handler-to-URL mapping for our application:
 ```shell
 my-app
   ├── worker/index.js ------------------------- http://localhost:3000/about, http://localhost:3000/logo.png
-  ├── server/index.js ------------------------- http://localhost:3000, http://localhost:3000/prodcuts, http://localhost:3000/prodcuts/stickers, etc
+  ├── server/index.js ------------------------- http://localhost:3000, http://localhost:3000/products, http://localhost:3000/products/stickers, etc
   └── public/logo.png ------------------------- http://localhost:3000/logo.png
 ```
 
@@ -606,7 +640,7 @@ Our overall handler-to-URL mapping for this application now becomes:
 my-app
   ├── client/index.js ------------------------- http://localhost:3000/login
   ├── worker/index.js ------------------------- http://localhost:3000/about, http://localhost:3000/logo.png
-  ├── server/index.js ------------------------- http://localhost:3000, http://localhost:3000/prodcuts, http://localhost:3000/prodcuts/stickers, etc
+  ├── server/index.js ------------------------- http://localhost:3000, http://localhost:3000/products, http://localhost:3000/products/stickers, etc
   └── public/logo.png ------------------------- http://localhost:3000/logo.png
 ```
 
@@ -692,7 +726,7 @@ In a Multi Page Application (with an individual-page architecture), each page is
 my-app
   └── public
       ├── about/index.html ------------------------- <!DOCTYPE html>
-      ├── prodcuts/index.html ---------------------- <!DOCTYPE html>
+      ├── products/index.html ---------------------- <!DOCTYPE html>
       ├── index.html ------------------------------- <!DOCTYPE html>
       ├── header.html ------------------------------ <header></header> <!-- To appear at top of each index.html page -->
       └── footer.html ------------------------------ <footer></footer> <!-- To appear at bottom of each index.html page -->
@@ -704,7 +738,7 @@ In a Single Page Application, each page is the same `index.html` document, and i
 my-app
   └── public
       ├── about/main.html -------------------------- <main></main> <!-- To appear at main area of index.html -->
-      ├── prodcuts/main.html ----------------------- <main></main> <!-- To appear at main area of index.html -->
+      ├── products/main.html ----------------------- <main></main> <!-- To appear at main area of index.html -->
       ├── main.html -------------------------------- <main></main> <!-- To appear at main area of index.html -->
       └── index.html ------------------------------- <!DOCTYPE html>
 ```
@@ -876,7 +910,7 @@ It's all a *layout* thing, so a hybrid of the two architectures above is possibl
 my-app
   └── public
       ├── about/index.html ------------------------- <!DOCTYPE html> <!-- Document root 1 -->
-      ├── prodcuts
+      ├── products
       │     ├── free/main.html --------------------------- <main></main> <!-- To appear at main area of document root 2 -->
       │     ├── paid/main.html --------------------------- <main></main> <!-- To appear at main area of document root 2 -->
       │     ├── main.html -------------------------------- <main></main> <!-- To appear at main area of document root 2 -->
@@ -886,7 +920,7 @@ my-app
       └── footer.html ------------------------------ <footer></footer> <!-- To appear at bottom of each document root -->
 ```
 
-The above gives us three document roots: `/index.html`, `/about/index.html`, `/prodcuts/index.html`. The `/prodcuts` route doubles as a Single Page Application such that visiting the `/prodcuts` route loads the document root `/prodcuts/index.html` and lets Webflo SPA routing determine which of `/prodcuts/main.html`, `/prodcuts/free/main.html`, `/prodcuts/paid/main.html` is imported on a given URL.
+The above gives us three document roots: `/index.html`, `/about/index.html`, `/products/index.html`. The `/products` route doubles as a Single Page Application such that visiting the `/products` route loads the document root `/products/index.html` and lets Webflo SPA routing determine which of `/products/main.html`, `/products/free/main.html`, `/products/paid/main.html` is imported on a given URL.
 
 Webflo ensures that only the amount of JavaScript for a document root is actually loaded! So, above, a common JavaScript build is shared across the three document roots alongside an often tiny root-specific build.
 
@@ -1973,9 +2007,14 @@ A simple tool, like [`staticgen`](https://github.com/tj/staticgen), or the basic
 
 Webflo comes *convention-first*! But it is entirely configurable for when you need it! The easiest way to do this is to run the command `webflo config` and follow the walkthrough. To simply get an overview, use the command `webflo config help`, and all commands and their description are shown.
 
-## Technology Stack
+## Webflo Tooling
 
 Webflo applications are often built on/with the following technologies.
+
++ [OOHTML](#oohtml)
++ [OOHTML SSR](#oohtml-ssr)
++ [OOHTML CLI](#oohtml-cli)
++ [The Observer API](#the-observer-api)
 
 ### OOHTML
 
