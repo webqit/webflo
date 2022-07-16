@@ -767,7 +767,7 @@ Here, you are able to define reusable contents in a `<template>` element...
 </body>
 ```
 
-The *module* element - `<template>` - is able to load its contents from a remote `.html` file that serves as a bundle:
+The *module* element - `<template>` - is also able to load its contents from a remote `.html` file that serves as a bundle:
 
 ```html
 <!--
