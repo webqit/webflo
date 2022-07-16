@@ -112,8 +112,8 @@ export default class Runtime {
 		// Capture all form-submit
 		// and fire to this router.
 		window.addEventListener('submit', e => {
-			var form = e.target.closest('form'), submitter = e.submitter;
-			var submitParams = [ 'action', 'enctype', 'method', 'noValidate', 'target' ].reduce((params, prop) => {
+			const form = e.target.closest('form'), submitter = e.submitter;
+			const submitParams = [ 'action', 'enctype', 'method', 'noValidate', 'target' ].reduce((params, prop) => {
 				params[prop] = submitter && submitter.hasAttribute(`form${prop.toLowerCase()}`) ? submitter[`form${_toTitle(prop)}`] : form[prop];
 				return params;
 			}, {});

@@ -2,7 +2,7 @@
 /**
  * @imports
  */
-import Router from './Worker.js';
+import Router from '../Router.js';
 
 export default class WorkerClient {
 

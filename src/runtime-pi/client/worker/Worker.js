@@ -4,8 +4,8 @@
  */
 import { _any } from '@webqit/util/arr/index.js';
 import { urlPattern } from '../../util.js';
-import Workport from './Workport.js';
 import { HttpEvent, Request, Response, Observer } from '../Runtime.js';
+import Workport from './Workport.js';
 export {
 	URL,
 	FormData,
@@ -83,6 +83,14 @@ export default class Worker {
 			}) );
 		});
 
+		// ---------------
+        Observer.set(this, 'location', {});
+        Observer.set(this, 'network', {});
+        // ---------------
+		Observer.observe(this.network, es => {
+			//console.log('//////////', ...es.map(e => `${e.name}: ${e.value}`))
+		});
+
 		// -------------
 		// ONFETCH
 		self.addEventListener('fetch', event => {
@@ -126,21 +134,9 @@ export default class Worker {
 				}
 			}
 		});
-		workport.notifications.listen(async evt => {
-			let client = this.clients.get('*');
-			client.alert && await client.alert(evt);
-		});
 		workport.push.listen(async evt => {
 			let client = this.clients.get('*');
 			client.alert && await client.alert(evt);
-		});
-
-		// ---------------
-        Observer.set(this, 'location', {});
-        Observer.set(this, 'network', {});
-        // ---------------
-		Observer.observe(this.network, es => {
-			//console.log('//////////', ...es.map(e => `${e.name}: ${e.value}`))
 		});
 		
 	}
