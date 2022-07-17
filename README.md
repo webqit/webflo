@@ -859,7 +859,7 @@ public/products
 
 #### In a Single Page Layout
 
-In a Single Page layout (as seen [earlier](#layout-and-templating-overview)), page-specific contents - e.g. main sections - are typically bundled together into one `bundle.html` file that can be embedded on the document root. Nested routes end up as nested `<template>` elements that form the equivalent of the application's URL structure.
+In a Single Page layout (as seen [earlier](#layout-and-templating-overview)), page-specific contents - e.g. main sections - are typically bundled together into one `bundle.html` file that can be embedded on the document root. Notice how nested routes end up as nested `<template>` elements that form the equivalent of the application's URL structure.
 
 ```html
 <!--
@@ -1258,7 +1258,7 @@ Observer.observe(document.state, 'data', e => {
 
 #### The `document.state.url` Object
 
-This is a *live* object that reperesents the properties of the application URL at any point in time. The object exposes the same URL properties as with the [`URL`](https://developer.mozilla.org/en-US/docs/Web/API/URL) API, but as *live* properties that can be observed as navigation happens, and modified to initiate navigation - all using the [Observer API](#the-observer-api).
+This is a *live* object that reperesents the properties of the application URL at any point in time. The object exposes the same URL properties as of a standard [`URL`](https://developer.mozilla.org/en-US/docs/Web/API/URL) object, but, here, as *live* properties that can be observed as navigation happens, and modified to initiate navigation - all using the [Observer API](#the-observer-api).
 
 ```js
 console.log(document.state.url) // { hash, host, hostname, href, origin, password, pathname, port, protocol, search, searchParams, username }
