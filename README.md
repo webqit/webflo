@@ -19,13 +19,17 @@ The overall motivation for Webflo is to facilitate *web-native* development; to 
 
 Much of what eludes the web today...
 
-+ An overarching HTML-first thinking!
-+ The build-less, vanilla advantage!
-+ (Futuristic) Native reactivity!
-+ (Futuristic) Minimalist-JS philosophy!
-+ Universal-everything!
++ A much-needed paradigm shift from a JavaScript-first to a HTML-first thinking!
++ An overarching standards-based philosophy that earns you more authentic applications!
 
-(Details just ahead!)
+Plus, much of what could be the web of the future...
+
++ An all-new "syntaxless reactivity" breakthrough for the modern UI!
++ The much-demanded HTML Imports technology for reusing HTML like never before!
+
+And altogether...
+
++ The vanilla advantage - **of least engineering**!
 
 ## Documentation
 
