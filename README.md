@@ -29,8 +29,8 @@ Plus, much of what could be the web of the future...
 
 And altogether...
 
-+ The vanilla advantage!
-+ The path **of least engineering**!
++ the vanilla advantage!
++ the path **of least engineering**!
 
 ## Documentation
 
