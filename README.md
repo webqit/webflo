@@ -27,10 +27,11 @@ Much of what eludes the web today...
 + the long-missing framework design and architecture for a HTML-first thinking!
 + a focused standards-based philosophy that breeds more authentic applications!
 
-You can also expect to meet native support for much of what could be the web of the future...
+Plus native support for how you want to work...
 
 + a new approach to reactivity that's based on no syntax at all but plain old JavaScript!
 + a new "imports" feature for HTML that makes HTML more reusable!
++ and much more.
 
 ## Documentation
 
