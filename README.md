@@ -19,13 +19,13 @@ The overall motivation for Webflo is to facilitate *web-native* development; to 
 
 Much of what eludes the web today...
 
-+ A much-needed paradigm shift from today's JavaScript-first thinking to a mew HTML-first thinking!
-+ A focused standards-based philosophy that produces more authentic applications!
++ the long-missing design and architecture for a HTML-first thinking!
++ a focused standards-based philosophy that produces more authentic applications!
 
 Plus, much of what could be the web of the future...
 
-+ An all-new "syntaxless reactivity" breakthrough for the modern UI!
-+ The much-demanded HTML Imports mechanism for reusing HTML like never before!
++ an all-new "syntaxless reactivity" breakthrough that simplifies it all for the modern UI!
++ the much-demanded HTML Imports mechanism that enables a more reusable HTML!
 
 And altogether...
 
