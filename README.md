@@ -11,6 +11,11 @@ Webflo is a universal *web*, *mobile*, and *API backend* framework built to solv
 
 Ok, we've put all of that up for a 10min straight read!
 
+TL;DR: here's what's ahead...
+
++ web-native development and the vanilla advantage!
++ the path of least engineering!
+
 ## The Catch...
 
 Webflo is a framework on its own track - here, to facilitate web-native development! Instead of trying to follow certain norms, it takes a plunge to draw on native web platform features - plus some more futurisric, fascinating stuffs we're proposing as standards! This means that you also have to be excited about taking a plunge to happily meet Webflo!
@@ -26,11 +31,6 @@ Plus, native support for much of what could be the web of the future...
 
 + a new "syntaxless reactivity" breakthrough that simplifies it all for the modern UI!
 + the much-demanded HTML Imports mechanism that enables a more reusable HTML!
-
-So, here's what's ahead...
-
-+ the vanilla advantage!
-+ the path of least engineering!
 
 ## Documentation
 
