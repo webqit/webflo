@@ -20,7 +20,7 @@ Webflo is a framework on its own track - here, to facilitate web-native developm
 Much of what eludes the web today...
 
 + the long-missing framework design and architecture for a HTML-first thinking!
-+ a focused standards-based philosophy that produces more authentic applications!
++ a focused standards-based philosophy that breeds more authentic applications!
 
 Plus, native support for much of what could be the web of the future...
 
