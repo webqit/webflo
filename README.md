@@ -7,25 +7,31 @@
 
 <!-- /BADGES -->
 
-Webflo is a universal *web*, *mobile*, and *API backend* framework built to solve for the underrated `.html` + `.css` + `.js` stack! This has been written  to facilitate working and thinking in vanilla HTML, CSS and JavaScript - for building more authentic, web-native applications!
+Webflo is a universal *web*, *mobile*, and *API backend* framework that gets it all done in vanilla HTML, CSS, and JavaScript! It's a powerful little thing written to facilitate building more authentic, web-native applications!
 
-Ok, we've put all of that up for a 10min straight read!
+Here, we've put all of that up for a 10min straight read!
+
+TL;DR: here's what's ahead...
+
++ web-native development and the vanilla advantage!
++ the path of least engineering!
 
 ## The Catch...
 
-The overall motivation for Webflo is to facilitate *web-native* development; to be the cool framework that draws on native web platform features - including new fascinating features we're proposing as standards! So, it gets a little bit "futuristic"! You thus have to be excited about taking a plunge to happily meet Webflo!
+Webflo is a framework on its own track - working and thinking in vanilla HTML, CSS and JavaScript! Instead of trying to follow certain norms, it takes a plunge to draw on native web platform features - plus some more futurisric, fascinating stuffs we're proposing as standards! This means that you also have to be excited about taking a plunge to happily meet Webflo!
 
 ## The Wins...
 
 Much of what eludes the web today...
 
-+ An overarching HTML-first thinking!
-+ The build-less, vanilla advantage!
-+ (Futuristic) Native reactivity!
-+ (Futuristic) Minimalist-JS philosophy!
-+ Universal-everything!
++ the long-missing framework design and architecture for a HTML-first thinking!
++ a focused standards-based philosophy that breeds more authentic applications!
 
-(Details just ahead!)
+Plus native support for how you want to work...
+
++ a new approach to reactivity that's based on no syntax at all but plain old JavaScript!
++ a new "imports" feature for HTML that makes HTML more reusable!
++ and much more.
 
 ## Documentation
 
@@ -767,7 +773,7 @@ Here, you are able to define reusable contents in a `<template>` element...
 </body>
 ```
 
-The *module* element - `<template>` - is able to load its contents from a remote `.html` file that serves as a bundle:
+The *module* element - `<template>` - is also able to load its contents from a remote `.html` file that serves as a bundle:
 
 ```html
 <!--
@@ -859,7 +865,7 @@ public/products
 
 #### In a Single Page Layout
 
-In a Single Page layout (as seen [earlier](#layout-and-templating-overview)), page-specific contents - e.g. main sections - are typically bundled together into one `bundle.html` file that can be embedded on the document root. Nested routes end up as nested `<template>` elements that form the equivalent of the application's URL structure.
+In a Single Page layout (as seen [earlier](#layout-and-templating-overview)), page-specific contents - e.g. main sections - are typically bundled together into one `bundle.html` file that can be embedded on the document root. Notice how nested routes end up as nested `<template>` elements that form the equivalent of the application's URL structure.
 
 ```html
 <!--
@@ -1258,7 +1264,7 @@ Observer.observe(document.state, 'data', e => {
 
 #### The `document.state.url` Object
 
-This is a *live* object that reperesents the properties of the application URL at any point in time. The object exposes the same URL properties as with the [`URL`](https://developer.mozilla.org/en-US/docs/Web/API/URL) API, but as *live* properties that can be observed as navigation happens, and modified to initiate navigation - all using the [Observer API](#the-observer-api).
+This is a *live* object that reperesents the properties of the application URL at any point in time. The object exposes the same URL properties as of a standard [`URL`](https://developer.mozilla.org/en-US/docs/Web/API/URL) object, but, here, as *live* properties that can be observed as navigation happens, and modified to initiate navigation - all using the [Observer API](#the-observer-api).
 
 ```js
 console.log(document.state.url) // { hash, host, hostname, href, origin, password, pathname, port, protocol, search, searchParams, username }
