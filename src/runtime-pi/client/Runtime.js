@@ -52,7 +52,6 @@ export default class Runtime {
      * @return void
      */
 	constructor(cx, clientCallback) {
-
         // ---------------
 		this.cx = cx;
         this.clients = new Map;
@@ -97,12 +96,12 @@ export default class Runtime {
 		// Capture all link-clicks
 		// and fire to this router.
 		window.addEventListener('click', e => {
-			var anchor = e.target.closest('a');
-			if (!anchor || !anchor.href) return;
-			if (!anchor.target && !anchor.download && this.isSpaRoute(anchor, e)) {
+			var anchorEl = e.target.closest('a');
+			if (!anchorEl || !anchorEl.href) return;
+			if (!anchorEl.target && !anchorEl.download && this.isSpaRoute(anchorEl, e)) {
 				// Publish everything, including hash
-				this.go(Url.copy(anchor), {}, { src: anchor, srcType: 'link', });
-				if (!(_before(window.document.location.href, '#') === _before(anchor.href, '#') && anchor.href.includes('#'))) {
+				this.go(Url.copy(anchorEl), {}, { src: anchorEl, srcType: 'link', });
+				if (!this.isHashAction(anchorEl)) {
 					e.preventDefault();
 				}
 			}
@@ -143,7 +142,7 @@ export default class Runtime {
 					method: submitParams.method,
 					body: formData,
 				}, { ...submitParams, src: form, srcType: 'form', });
-				if (!(_before(window.document.location.href, '#') === _before(actionEl.href, '#') && actionEl.href.includes('#'))) {
+				if (!this.isHashAction(actionEl)) {
 					e.preventDefault();
 				}
 			}
@@ -188,8 +187,14 @@ export default class Runtime {
         return window.history;
     }
 
-	// Check is-route
-	isSpaRoute(url, e) {
+	// Check is-hash-action
+	isHashAction(urlObj) {
+		const isHashNav = _before(window.document.location.href, '#') === _before(urlObj.href, '#') && urlObj.href.includes('#');
+		return isHashNav && urlObj.hash.length > 1 && document.querySelector(urlObj.hash);
+	}
+
+	// Check is-spa-route
+	isSpaRoute(url, e = undefined) {
 		url = typeof url === 'string' ? new whatwag.URL(url) : url;
 		if (url.origin && url.origin !== this.location.origin) return false;
 		if (e && (e.metaKey || e.altKey || e.ctrlKey || e.shiftKey)) return false;
@@ -278,13 +283,14 @@ export default class Runtime {
 			// ------------
 			if (response.redirected) {
 				Observer.set(this.location, { href: response.url }, { detail: { redirected: true }, });
+				Observer.set(this.network, 'requesting', null);
 			} else if (![302, 301].includes(finalResponse.status)) {
-				Observer.set(this.location, url);
+				Observer.set(this.location, Url.copy(url)/* copy() is important */);
+				Observer.set(this.network, 'requesting', null);
 			}
 			// ------------
 			// States
 			// ------------
-			Observer.set(this.network, 'requesting', null);
 			if (['link', 'form'].includes(detail.srcType)) {
 				detail.src.state && (detail.src.state.active = false);
             	detail.submitter && detail.submitter.state && (detail.submitter.state.active = false);
@@ -330,10 +336,20 @@ export default class Runtime {
 		if (!(response instanceof Response)) { response = new Response(response); }
 		if (!response.redirected) {
 			let location = response.headers.get('Location');
-			if (location && response.status === this._xRedirectCode) {
-				response.attrs.status = parseInt(response.headers.get('X-Redirect-Code'));
-				Observer.set(this.network, 'redirecting', location);
-				window.location = location;
+			if (location) {
+				let xActualRedirectCode = parseInt(response.headers.get('X-Redirect-Code'));
+				if (xActualRedirectCode && response.status === this._xRedirectCode) {
+					response.attrs.status = xActualRedirectCode;
+					Observer.set(this.network, 'redirecting', location);
+					window.location = location;
+				} else if ([302,301].includes(response.status)) {
+					if (!this.isSpaRoute(location)) {
+						Observer.set(this.network, 'redirecting', location);
+						window.location = location;
+					} else {
+						this.go(location, {}, { srcType: 'rdr' });
+					}
+				}
 			}
 		}
 		return response;
