@@ -261,7 +261,7 @@ If you can't wait to say *Hello World!* 😅, you can have an HTML page say that
 
 Whether building a *server-based*, *browser-based*, or *universal* application, Webflo gives you one consistent way to handle routing and navigation: using *handler functions*!
 
-You just define an `index.js` file with a function that gets called to handle a request! No setup!
+You just define an `index.js` file with a function that gets called to handle a request!
 
 ```js
 /**
@@ -280,7 +280,7 @@ export default function(event, context, next) {
 
 Each function receives an `event` object representing details about the request - e.g. `event.request`, `event.url`, `event.session`. ([Details ahead](#workflow-api).)
 
-Functions that will respond to requests **on the server-side** go into a directory named `server`. (Typically in traditional web apps and API backends.)
+**Functions that will respond to requests on the server-side** go into a directory named `server`. (Typically in traditional web apps and API backends.)
 
 ```js
 /**
@@ -301,7 +301,7 @@ export default function(event, context, next) {
 > The above function responds on starting the server - `npm start` on your terminal - and visiting http://localhost:3000.
 </details>
 
-Funtions that will respond to requests **right from within the browser** go into a directory named `client`. (Typically in Single Page Applications.)
+**Funtions that will respond to requests from right within the browser** go into a directory named `client`. (Typically in Single Page Applications.)
 
 ```js
 /**
@@ -478,7 +478,7 @@ export default async function(event, context, next) {
 </details>
 </details>
 
-However, workflows may be designed with *wildcard* steps using a hyphen `-` as step name. At runtime, a wildcard step matches any URL segment at its level in the hierarchy! A `this.stepname` property is always available to tell which URL segment has been matched.
+For even more flexibility, workflows may be designed with *wildcard* steps using a hyphen `-` as step name. At runtime, a wildcard step matches any URL segment at its level in the hierarchy! A `this.stepname` property is always available to tell which URL segment has been matched.
 
 ```js
 /**
