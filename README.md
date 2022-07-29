@@ -57,7 +57,7 @@ All of Webflo in a 20-min read!
 ## Overview
 
 <details>
- <summary><b>Build <i>anything</i></b> - from as basic as a static <code>index.html</code> page to as rich as a universal app that's either a <i>Multi Page Application (MPA)</i>, <i>Single Page Application (SPA)</i>, or a hybrid of both, implementing <i>Server Side Rendering (SSR)</i>, <i>Client Side Rendering (CSR)</i>, or a hybrid of both, having offline and <i>PWA</i> capabilities, etc. - this time, <i>without loosing the vanilla advantage</i>!
+ <summary><b>Build <i>anything</i></b> - from as basic as a static <code>index.html</code> page to as rich as a <i>Multi Page Application (MPA)</i>, or <i>Single Page Application (SPA)</i>, or a hybrid of both, implementing <i>Server Side Rendering (SSR)</i>, <i>Client Side Rendering (CSR)</i>, or a hybrid of both, having offline and <i>PWA</i> capabilities, etc. - this time, <i>without loosing the vanilla advantage</i>!
 </summary>
  
 Here's a glimpse of your Webflo app.
