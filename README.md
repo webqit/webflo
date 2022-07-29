@@ -13,13 +13,13 @@ Here, we've put all of that up for a 20min straight read!
 
 ## The Catch...
 
-Webflo is a framework on its own track - working and thinking in vanilla HTML, CSS and JavaScript! Instead of trying to follow certain norms, it takes a plunge to draw on native web platform features - plus some more futurisric, fascinating stuffs we're proposing as standards! This means that you also have to be excited about taking a plunge to happily meet Webflo!
+Webflo is a framework on its own track - working and thinking in vanilla HTML, CSS and JavaScript! Instead of trying to follow certain patterns touted as "norms", it takes a plunge to draw on native web platform features - plus some more futurisric, fascinating stuffs we'll be proposing for the web! This means that you also have to be excited about taking some adventure to happily meet Webflo!
 
 ## The Wins...
 
 Much of what eludes the web today...
 
-+ the long-missed HTML-first thinking!
++ the long-missing HTML-first thinking!
 + a focused standards-based philosophy that makes building more authentic applications ubiquitous!
 
 Plus native support for how you would really want to work...
@@ -57,7 +57,7 @@ All of Webflo in a 20-min read!
 ## Overview
 
 <details>
- <summary><b>Build <i>anything</i></b> - from as basic as a static <code>index.html</code> page to as rich as a universal app that's either a <i>Multi Page Application (MPA)</i>, <i>Single Page Application (SPA)</i>, or a hybrid of both, implementing <i>Server Side Rendering (SSR)</i>, <i>Client Side Rendering (CSR)</i>, or a hybrid of both, offline and <i>PWA</i> capabilities, etc. - this time, <i>without loosing the vanilla advantage</i>!
+ <summary><b>Build <i>anything</i></b> - from as basic as a static <code>index.html</code> page to as rich as a universal app that's either a <i>Multi Page Application (MPA)</i>, <i>Single Page Application (SPA)</i>, or a hybrid of both, implementing <i>Server Side Rendering (SSR)</i>, <i>Client Side Rendering (CSR)</i>, or a hybrid of both, having offline and <i>PWA</i> capabilities, etc. - this time, <i>without loosing the vanilla advantage</i>!
 </summary>
  
 Here's a glimpse of your Webflo app.
@@ -67,18 +67,19 @@ For when your application is a static site, or has static files to serve:
 
   ```shell
   my-app
+    ├── public/index.html
     └── public/logo.png
   ```
 
-For when your application has a Server side - dynamic request handling on the server:
-+ The `server` directory for server-side routing. (i.e. traditional Applications, API backends, etc.)
+For when your application needs dynamic request handling on the server:
++ The `server` directory for server-side routing.
 
   ```shell
   my-app
     └── server/index.js
   ```
   
-  And a typical `index.js` route handler has the following anatomy.
+  In which case a typical `index.js` route handler has the following anatomy:
 
   ```js
   /**
@@ -93,11 +94,7 @@ For when your application has a Server side - dynamic request handling on the se
   }
   ```
  
-  > Above, you are handling requests for the root URL and allowing others to flow through to step handlers or to the `public` directory. (Details ahead.)
-  
-  Response is a JSON (API) response when handler return value is jsonfyable. (As above for the root URL.)
-  
-  Or it ends up being rendered and returned as a page response when there is an `index.html` file in the `public` directory that pairs with the route (and when the incoming request matches `text/html` in its `Accept` header).
+  In which case data is either returned as a JSON (API) response, or as a rendered page response where there is an `index.html` file in the `public` directory that pairs with the route.
 
   ```shell
   my-app
@@ -105,7 +102,7 @@ For when your application has a Server side - dynamic request handling on the se
     └── public/index.html
   ```
   
-  And a typical `index.html` page has the following anatomy.
+  In which case a typical `index.html` page has the following anatomy:
   
   ```html
   <!--
@@ -122,12 +119,10 @@ For when your application has a Server side - dynamic request handling on the se
       <body>...</body>
   </html>
   ```
- 
-  > All things HTML are regular HTML markup! And above, you're also leveraging HTML includes! (Details ahead.)
 
-For when your application has a Client side - dynamic request handling in the browser:
-+ The `client` directory for client-side routing. (i.e. Single Page Applications, etc.)
-+ The `worker` directory for, heck, Service Worker based routing! (i.e. dynamic request handling in the application Service Worker - in the case of Progressive Web Apps, etc.)
+For when your application requires dynamic request handling on the client (the browser):
++ The `client` directory for client-side routing,
++ And optionally, the `worker` directory for Service Worker based routing! (As detailed just ahead.)
 
   ```shell
   my-app
@@ -135,7 +130,7 @@ For when your application has a Client side - dynamic request handling in the br
     └── worker/index.js
   ```
   
-  And in both cases, a typical `index.js` route handler has the following anatomy. (Same as those server-side handlers.)
+  Where in both cases, a typical `index.js` route handler has the same familiar anatomy:
 
   ```js
   /**
@@ -149,10 +144,6 @@ For when your application has a Client side - dynamic request handling in the br
       return { title: 'Hello from [Browser|Worker]' };  // <--- http://localhost:3000/ (root URL)
   }
   ```
-
-  > Above, you are handling requests for the root URL and allowing others to flow through to nested handlers or to the network. (Details ahead.)
-
-  Responses for *navigation* requests are rendered back into the current running page in the browser.
  
 This and much more - ahead!
 </details>
@@ -165,23 +156,18 @@ Here's a glimpse of the standards-based stack you get of Webflo!
 For when your application involves routing:
 + [The Fetch Standard](https://fetch.spec.whatwg.org/), comprising of the [Request](https://developer.mozilla.org/en-US/docs/Web/API/Request), [Response](https://developer.mozilla.org/en-US/docs/Web/API/Response), and [Headers](https://developer.mozilla.org/en-US/docs/Web/API/Headers) interfaces, is used for all things *requests and responses* - across client, server, and Service Worker environments. ([Details ahead](#requests-and-responses))
 
-  > This paves the way to using other native APIs as-is, when handling requests and responses. For example, if you sent an instance of the native [FormData](https://developer.mozilla.org/en-US/docs/Web/API/FormData), [Blob](https://developer.mozilla.org/en-US/docs/Web/API/Blob), [File](https://developer.mozilla.org/en-US/docs/Web/API/File), or [ReadableStream](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream) object from the browser side of your application, you'd be getting the same instance on the server side!
+  > This paves the way to using other native APIs as-is, when handling requests and responses. For example, if you sent an instance of the native [FormData](https://developer.mozilla.org/en-US/docs/Web/API/FormData), [Blob](https://developer.mozilla.org/en-US/docs/Web/API/Blob), [File](https://developer.mozilla.org/en-US/docs/Web/API/File), or [ReadableStream](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream) object from the browser side of your application, you'd be getting the equivalent instance on the server side!
 
 + [WHATWG URL](https://url.spec.whatwg.org/) and [WHATWG URLPattern](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) are used for all things *URL* and *URL pattern matching*, respectively - across client, server, and Service Worker environments. ([Details ahead](#))
 
 For when your application involves pages and a UI:
-+ [The HTML Standard](https://html.spec.whatwg.org/) is held for all things *markup* - across client, server, and Service Worker environments! Webflo is all about using conventional `.html`-based pages and templates, valid HTML syntax, etc. You are able to get away with a "zero-JavaScript" proposition, or a *Progressive Enhancement* proposition that makes do with "just-enough JavaScript"!
++ [The HTML Standard](https://html.spec.whatwg.org/) is held for all things *markup* - across client, server, and Service Worker environments! Webflo is all about using conventional `.html`-based pages and templates, valid HTML syntax, etc.
 
-  > Your markup is also easily extendable with [OOHTML](#oohtml) - a set of new features for HTML that makes it fun to hand-author your UI! Within OOHTML are [HTML Modules](https://github.com/webqit/oohtml#html-modules) and [HTML Imports](https://github.com/webqit/oohtml#html-imports), [Reactive Scripts](https://github.com/webqit/oohtml#subscript) and more!
+  > A HTML-first approach lets you get away with a "zero-JavaScript" proposition, or something more of a *Progressive Enhancement* proposition that makes do with "just-enough JavaScript"!
 
-+ [WHATWG DOM](https://dom.spec.whatwg.org/) is universally available - not only on the client-side, but also on the server-side via [OOHTML-SSR](#oohtml-ssr) - for all things *dynamic pages*: rendering, manipulation, interactivity, etc.
++ [WHATWG DOM](https://dom.spec.whatwg.org/) is universally available - not only on the client-side, but also on the server-side via [OOHTML-SSR](#oohtml-ssr) - all of which lets us have *dynamic pages*.
 
-  > Your DOM is also easily enrichable with [Custom Elements](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements), plus [Subscript Elements](https://github.com/webqit/oohtml#subscript) and [The State API](https://github.com/webqit/oohtml#state-api) from OOHTML.
-
-For when your application needs to give an app-like experience:
-+ [Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API), extended with full support for routing, come into play for offline and [Progressive Web Apps (PWA)](https://web.dev/progressive-web-apps/) capabilities.
-  
-  > You are also able to easily make your web app installable by complementing this with a [Web App Manifest](https://developer.mozilla.org/en-US/docs/Web/Manifest).
+  > And you get to have [Custom Elements](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements) as powerful building blocks.
  
 This and more - ahead! For building web-native apps!
 </details>
