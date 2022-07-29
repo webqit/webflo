@@ -7,14 +7,9 @@
 
 <!-- /BADGES -->
 
-Webflo is a universal *web*, *mobile*, and *API backend* framework that gets it all done in vanilla HTML, CSS, and JavaScript! It's a powerful little thing written to facilitate building more authentic, web-native applications!
+Webflo is a universal *web*, *mobile*, and *API backend* framework based on vanilla HTML, CSS, and JavaScript! It's a powerful little thing written to facilitate building more authentic, web-native applications!
 
-Here, we've put all of that up for a 10min straight read!
-
-TL;DR: here's what's ahead...
-
-+ web-native development and the vanilla advantage!
-+ the path of least engineering!
+Here, we've put all of that up for a 20min straight read!
 
 ## The Catch...
 
@@ -24,10 +19,10 @@ Webflo is a framework on its own track - working and thinking in vanilla HTML, C
 
 Much of what eludes the web today...
 
-+ the long-missing framework design and architecture for a HTML-first thinking!
-+ a focused standards-based philosophy that breeds more authentic applications!
++ the long-missed HTML-first thinking!
++ a focused standards-based philosophy that makes building more authentic applications ubiquitous!
 
-Plus native support for how you want to work...
+Plus native support for how you would really want to work...
 
 + a new approach to reactivity that's based on no syntax at all but plain old JavaScript!
 + a new "imports" feature for HTML that makes HTML more reusable!
@@ -35,7 +30,7 @@ Plus native support for how you want to work...
 
 ## Documentation
 
-All of Webflo in a 10-min read!
+All of Webflo in a 20-min read!
 
 + [Overview](#overview)
 + [Installation](#installation)
@@ -67,7 +62,7 @@ All of Webflo in a 10-min read!
  
 Here's a glimpse of your Webflo app.
 
-For when your application is a static site, or has static files to serve.
+For when your application is a static site, or has static files to serve:
 + The `public` directory for static files.
 
   ```shell
@@ -75,8 +70,8 @@ For when your application is a static site, or has static files to serve.
     └── public/logo.png
   ```
 
-For when your application has a Server side.
-+ The `server` directory for server-side routing. (i.e. dynamic request handling on the server - in the case of Multi Page Applications, API backends, etc.)
+For when your application has a Server side - dynamic request handling on the server:
++ The `server` directory for server-side routing. (i.e. traditional Applications, API backends, etc.)
 
   ```shell
   my-app
@@ -102,7 +97,7 @@ For when your application has a Server side.
   
   Response is a JSON (API) response when handler return value is jsonfyable. (As above for the root URL.)
   
-  Or it ends up being rendered as a page response when there is an `index.html` file in the `public` directory that pairs with the route (and when the incoming request matches `text/html` in its `Accept` header).
+  Or it ends up being rendered and returned as a page response when there is an `index.html` file in the `public` directory that pairs with the route (and when the incoming request matches `text/html` in its `Accept` header).
 
   ```shell
   my-app
@@ -128,10 +123,10 @@ For when your application has a Server side.
   </html>
   ```
  
-  > These are regular HTML markup! And above, you're also leveraging HTML includes! (Details ahead.)
+  > All things HTML are regular HTML markup! And above, you're also leveraging HTML includes! (Details ahead.)
 
-For when your application has a Client side.
-+ The `client` directory for client-side routing. (i.e. dynamic request handling right in the browser - in the case of Single Page Applications, etc.)
+For when your application has a Client side - dynamic request handling in the browser:
++ The `client` directory for client-side routing. (i.e. Single Page Applications, etc.)
 + The `worker` directory for, heck, Service Worker based routing! (i.e. dynamic request handling in the application Service Worker - in the case of Progressive Web Apps, etc.)
 
   ```shell
@@ -140,7 +135,7 @@ For when your application has a Client side.
     └── worker/index.js
   ```
   
-  And in both cases, a typical `index.js` route handler has the following anatomy. (Same with server-side handlers.)
+  And in both cases, a typical `index.js` route handler has the following anatomy. (Same as those server-side handlers.)
 
   ```js
   /**
@@ -299,7 +294,7 @@ export default function(event, context, next) {
 
 Each function receives an `event` object representing details about the request - e.g. `event.request`, `event.url`, `event.session`. ([Details ahead](#workflow-api).)
 
-Functions that will respond to requests on the **server-side** go into a directory named `server`. (Often with traditional web apps and API backends.)
+Functions that will respond to requests **on the server-side** go into a directory named `server`. (Typically in traditional web apps and API backends.)
 
 ```js
 /**
@@ -320,7 +315,7 @@ export default function(event, context, next) {
 > The above function responds on starting the server - `npm start` on your terminal - and visiting http://localhost:3000.
 </details>
 
-Funtions that will respond to requests on the **browser-side** go into a directory named `client`. (Often with Single Page Apps.)
+Funtions that will respond to requests **right from within the browser** go into a directory named `client`. (Typically in Single Page Applications.)
 
 ```js
 /**
@@ -341,7 +336,7 @@ export default function(event, context, next) {
 > The above function is built as part of your application's client-side script from the `npm run generate` command. It is typically bundled to the file `./public/bundle.js`. And the `--auto-embed` flag in that command gets it automatically embedded on your `./public/index.html` page as `<script type="module" src="/bundle.js"></script>`. Then it responds from right in the browser on visiting http://localhost:3000.
 </details>
 
-For *browser-based* applications that want to employ Service-Workers (e.g Progressive Web Apps), Webflo allows us to define equivalent handlers for requests hitting the Service Worker. These **worker-based** functions go into a directory named `worker`.
+For *browser-based* applications that want to employ Service-Workers (typically, Progressive Web Apps), Webflo allows for equivalent request handlers as part of the Service Worker. These **worker-based** functions go into a directory named `worker`.
 
 ```js
 /**
@@ -388,7 +383,7 @@ public
 
 ### Step Functions and Workflows
 
-Whether routing in the `/client`, `/worker`, or `/server` directory above, nested URLs follow the concept of Step Functions! These are parent-child layout of handlers that model an URL strucuture.
+Whether routing in the `/client`, `/worker`, or `/server` directory above, nested URLs follow the concept of Step Functions! These are parent-child layout of handlers that model your application's URL structure.
 
 ```shell
 server
@@ -430,7 +425,7 @@ We get a step-based workflow that helps to decomplicate routing and lets us scal
 <details>
 <summary>More details...</summary>
 
-Each step can pass a `context` object to a child step, and can *recompose* its return value.
+Here, a parent step can pass a `context` object to a child step, and can *recompose* its return value.
 
 ```js
 /**
@@ -497,7 +492,7 @@ export default async function(event, context, next) {
 </details>
 </details>
 
-However, workflows may be designed with *wildcard* steps using a hyphen `-` as step name. At runtime, a wildcard step matches any URL segment at the given level in the layout! A `this.stepname` property could be used to see which URL segment has been matched.
+However, workflows may be designed with *wildcard* steps using a hyphen `-` as step name. At runtime, a wildcard step matches any URL segment at its level in the hierarchy! A `this.stepname` property is always available to tell which URL segment has been matched.
 
 ```js
 /**
@@ -527,7 +522,7 @@ export default function(event, context, next) {
 > + `this.dirname` - The filesystem pathname to the current step in the URL path.
 </details>
 
-Additionally, workflows may be designed with as many or as few step functions as necessary; the flow control parameters `next.stepname` and `next.pathname` can be used at any point to handle the rest of an URL that have no corresponding step functions.
+Additionally, workflows may be designed with as many or as few step functions as necessary; the flow control parameters `next.stepname` and `next.pathname` are always available at any point to show the rest of an URL that have no corresponding step functions.
 
 This means that it is even possible to handle all URLs from the root handler alone.
 
@@ -557,7 +552,7 @@ export default function(event, context, next) {
 }
 ```
 
-Webflo takes a *default action* when `next()` is called at the *edge* of the workflow - the point where there are no more step functions as there are URL segments - as in the `return next()` statement above!
+The above works because Webflo takes a *default action* when `next()` is called at the *edge* of the workflow - the point where there are no more step functions as there are URL segments - as in the `return next()` statement above!
 
 **For workflows in the `/server` directory**, the *default action* of `next()`ing at the edge is to go match and return a static file in the `public` directory.
 
@@ -574,7 +569,7 @@ my-app
 
 **For workflows in the `/worker` directory**, the *default action* of `next()`ing at the edge is to send the request through the network to the server. (But Webflo will know to attempt resolving the request from the application's caching system built into the Service Worker.)
 
-So, above, if we defined handler functions in the `/worker` directory, we could choose between handling the received requests and just `next()`ing them to the server.
+So, above, if we defined handler functions in the `/worker` directory, we could selectively handle specific requests while `next()`ing others to the server.
 
 ```js
 /**
@@ -619,7 +614,7 @@ my-app
 
 **For workflows in the `/client` directory**, the *default action*  of `next()`ing at the edge is to send the request through the network to the server. But where there is a Service Worker layer, then that becomes the next destination.
 
-So, above, if we defined handler functions in the `/client` directory, we could choose between handling navigation requests in-browser and just `next()`ing them down to the server, or first, the Service Worker layer.
+So, above, if we defined handler functions in the `/client` directory, we could selectively handle specific navigation requests in-browser while `next()`ing others down to the server, or first, the Service Worker layer.
 
 ```js
 /**
@@ -1081,7 +1076,7 @@ However, since the `document` objects in Webflo natively support [OOHTML](#oohtm
 
 Note that because these scripts are naturally reactive, we do not require any `setTimeout()` construct like we required earlier in the case of the classic `<script>` element. These expressions self-update as the values they depend on become available, removed, or updated - i.e. as `document.state` gets updated.
 
-Going forward, we can get to write more succinct code! Using the [Namespaced HTML](https://github.com/webqit/oohtml#namespaced-html) feature in OOHTML, we could do without those `querySelector()` calls up there. Also, we could go on to use any DOM manipulation library of our choice; e.g jQuery, or even better, the jQuery-like [Play UI](https://github.com/webqit/play-ui) library.
+From here, we are also able to write more succinct code! Using the [Namespaced HTML](https://github.com/webqit/oohtml#namespaced-html) feature in OOHTML, we could do without those `querySelector()` calls up there. Also, we could go on to use any DOM manipulation library of our choice; e.g jQuery, or even better, the jQuery-like [Play UI](https://github.com/webqit/play-ui) library.
 
 ```html
  <!--
@@ -1197,7 +1192,7 @@ Custom render functions must return a value, and `window` objects are accepted. 
 
 #### The Idea of State
 
-There often needs to be a central point in an application where things are stored and managed. You could think of it is having a global object initialized `window.store = {}` on which different parts of an application can store and retrieve values. This is the basic idea of state. But it also doesn't go without the idea of *observability* - something that lets the different parts of the application observe and respond to changes made on this object!
+There often needs to be a central point in an application where things are stored and managed. You could think of it as having a global object initialized `window.store = {}` on which different parts of an application can store and retrieve values. This is the basic idea of state. But it also doesn't go without the idea of *observability* - something that lets the different parts of the application observe and respond to changes made on this object!
 
 *State* and *Observability* in Webflo applications come down to the same basic form:
 
@@ -1229,7 +1224,7 @@ Observer.observe(document.state, propertyName, change => {
 ```html
 <script type="subscript">
     // Always log the value of this property in realtime
-    console.log(state.propertyName);
+    console.log(document.state.propertyName);
 </script>
 ```
 
@@ -1339,7 +1334,7 @@ JSON (API) requests - requests that expect to get a JSON response (responses wit
 
 #### Scenario 3: Page Requests and Responses
 
-HTML page requests (requests made to the server with an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header that matches `text/html`) automatically get a HTML response (responses with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) header of `text/html`). Webflo takes the extra step to render the workflow return value into an HTML response - via [Server-Side Rendering](#client-and-server-side-rendering).
+HTML page requests (requests made to the server with an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header that matches `text/html`) automatically get a HTML response (responses with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) header of `text/html`). Webflo takes that extra step to render the workflow return value into an HTML response - via [Server-Side Rendering](#client-and-server-side-rendering).
 + Routes intended to be accessed this way are expected to return a plain object (or an instance of `event.Response` containing same) from the workflow in order to be renderable.
 + Workflow responses that are an instance of `event.Response` with a `Content-Type` header already set are sent as-is, and not rendered.
 
