@@ -557,7 +557,7 @@ export default function(event, context, next) {
 }
 ```
 
-Webflo takes a *default action* when `next()` is called at the *edge* of the workflow - the point where there are no more child steps - as in the `return next()` statement above!
+Webflo takes a *default action* when `next()` is called at the *edge* of the workflow - the point where there are no more step functions as there are URL segments - as in the `return next()` statement above!
 
 **For workflows in the `/server` directory**, the *default action* of `next()`ing at the edge is to go match and return a static file in the `public` directory.
 
@@ -574,7 +574,7 @@ my-app
 
 **For workflows in the `/worker` directory**, the *default action* of `next()`ing at the edge is to send the request through the network to the server. (But Webflo will know to attempt resolving the request from the application's caching system built into the Service Worker.)
 
-So, above, if we defined handler functions in the `/worker` directory, we could decide to either handle the received requests or just `next()` them to the server.
+So, above, if we defined handler functions in the `/worker` directory, we could choose between handling the received requests and just `next()`ing them to the server.
 
 ```js
 /**
@@ -614,12 +614,12 @@ my-app
 <details>
 <summary>More details...</summary>
 
-> Handlers in the `/worker` directory are only designed to see Same-Origin requests since Cross-Origin URLs like `https://auth.example.com/oauth` do not belong in the application's layout! These external URLs, however, benefit from the application's caching system built into the Service Worker.
+> Handlers in the `/worker` directory see only Same-Origin requests, being that Cross-Origin URLs like `https://auth.example.com/oauth` do not belong in the application's layout! These external URLs, however, benefit from being resolved from the application's caching system built into the Service Worker.
 </details>
 
 **For workflows in the `/client` directory**, the *default action*  of `next()`ing at the edge is to send the request through the network to the server. But where there is a Service Worker layer, then that becomes the next destination.
 
-So, above, if we defined handler functions in the `/client` directory, we could decide to either handle the navigation requests in-browser or just `next()` them, this time, to the Service Worker layer.
+So, above, if we defined handler functions in the `/client` directory, we could choose between handling navigation requests in-browser and just `next()`ing them down to the server, or first, the Service Worker layer.
 
 ```js
 /**
@@ -640,7 +640,7 @@ export default async function(event, context, next) {
 }
 ```
 
-Our overall handler-to-URL mapping for this application now becomes:
+Our overall handler-to-URL mapping for the hypothetical application in context now becomes:
 
 ```shell
 my-app
@@ -1074,9 +1074,9 @@ However, since the `document` objects in Webflo natively support [OOHTML](#oohtm
 ```
 
 <details>
-<summary>Re-introducing logic in the actual language for logic - JavaScript...</summary>
+<summary>Re-introducing UI logic in the actual language for logic - JavaScript...</summary>
 
-> Now, this comes logical being that logic is the whole essence of the HTML `<script>` element after all! Compared to other syntax alternatives, this uniquely enables us to do all things logic in the actual language for logic - JavaScript. Then, OOHTML gives us more by extending the regular `<script>` element with the `subscript` type which gets any JavaScript code to be *reactive*!
+> So, this is simple to think about: HTML already just let's us embed `<script>` elements for UI logic, and so be it! What OOHTML does further is simply to extend the plain old `<script>` element with the `subscript` type which gets any JavaScript code to be *reactive*! Compared with other syntax alternatives, this uniquely enables us to do all things logic in the actual language for logic - JavaScript.
 </details>
 
 Note that because these scripts are naturally reactive, we do not require any `setTimeout()` construct like we required earlier in the case of the classic `<script>` element. These expressions self-update as the values they depend on become available, removed, or updated - i.e. as `document.state` gets updated.
@@ -1199,16 +1199,19 @@ Custom render functions must return a value, and `window` objects are accepted. 
 
 There often needs to be a central point in an application where things are stored and managed. You could think of it is having a global object initialized `window.store = {}` on which different parts of an application can store and retrieve values. This is the basic idea of state. But it also doesn't go without the idea of *observability* - something that lets the different parts of the application observe and respond to changes made on this object!
 
-*State* and *Observability* in Webflo applications come down to this basic form: there is an object...
+*State* and *Observability* in Webflo applications come down to the same basic form:
+
+first, an object...
 
 ```js
-state = {}
+document.state = {};
+// and for elements: element.state = {};
 ```
 
-...and there is a way to observe property changes on it...
+...and then, a way to observe property changes on it...
 
 ```js
-Observer.observe(state, changes => {
+Observer.observe(document.state, changes => {
     changes.forEach(change => {
         console.log(change.name, change.value);
     });
@@ -1216,12 +1219,12 @@ Observer.observe(state, changes => {
 ```
 
 ```js
-Observer.observe(state, propertyName, change => {
+Observer.observe(document.state, propertyName, change => {
     console.log(change.name, change.value);
 });
 ```
 
-...plus, all references to the object and its properties from within embedded Subscript code are reactive.
+...and with incredible syntax benefits - where all references to the object and its properties from within embedded Subscript code are reactive.
 
 ```html
 <script type="subscript">
@@ -1230,9 +1233,11 @@ Observer.observe(state, propertyName, change => {
 </script>
 ```
 
-This way, all the moving parts of your application remain coordinated, and can easily be rendered to reflect them on the UI!
+Look, this covers it all: state management and reactive UIs, with none of a state machine!
 
-Now, for all things application state, Webflo leverages the [State API](https://github.com/webqit/oohtml#state-api) that's natively available in OOHTML-based documents - both client-side and server-side. This API exposes an application-wide `document.state` object and a per-element `element.state` object. And these are *live* read/write objects that can be observed for property changes using the [Observer API](#the-observer-api). It comes off as the simplest approach to state and reactivity!
+Interestingly, this idea of "state" is all of OOHTML's: the [State API](https://github.com/webqit/oohtml#state-api) that's natively available in OOHTML-based documents - both client-side and server-side! Webflo simply just leverages it!
+
+This API exposes an application-wide `document.state` object and a per-element `element.state` object. And these are *live* read/write objects that can be observed for property changes using the [Observer API](#the-observer-api). It comes off as the simplest approach to state and reactivity!
 
 > **Note**
 > <br>The State API is available as long as the [OOHTML support level](#oohtml) in config is left as `full`, or set to `scripting`.
@@ -1256,7 +1261,7 @@ Observer.observe(document.state, 'data', e => {
 
 ```html
 <script type="subscript">
- let { title } = document.state.data;
+ let { data: { title } } = document.state;
  document.title = title;
 </script>
 ```
@@ -1267,47 +1272,48 @@ Observer.observe(document.state, 'data', e => {
 This is a *live* object that reperesents the properties of the application URL at any point in time. The object exposes the same URL properties as of a standard [`URL`](https://developer.mozilla.org/en-US/docs/Web/API/URL) object, but, here, as *live* properties that can be observed as navigation happens, and modified to initiate navigation - all using the [Observer API](#the-observer-api).
 
 ```js
-console.log(document.state.url) // { hash, host, hostname, href, origin, password, pathname, port, protocol, search, searchParams, username }
+let { url } = document.state;
+console.log(url) // { hash, host, hostname, href, origin, password, pathname, port, protocol, search, searchParams, username }
 ```
 
 <details>
 <summary>More examples...</summary>
 
 ```js
-Observer.observe(document.state.url, 'hash', e => {
-    console.log(document.state.url.hash === e.value); // true
+Observer.observe(url, 'hash', e => {
+    console.log(url.hash === e.value); // true
 });
 ```
 
 ```js
 // Navigates to "/login#form" as if a link was clicked
 document.addEventListener('synthetic-navigation', e => {
-    Observer.set(document.state.url, 'href', '/login#form');
+    Observer.set(url, 'href', '/login#form');
 });
 
 // Or...
 document.addEventListener('synthetic-navigation', e => {
-    Observer.set(document.state.url, { pathname: '/login', hash: '#form' });
+    Observer.set(url, { pathname: '/login', hash: '#form' });
 });
 
-console.log(document.state.url.hash); // #form
+console.log(url.hash); // #form
 ```
 
 There is also the *convenience* `query` property that offers the URL parameters as a *live* object.
 
 ```js
 // For URL: http://localhost:3000/login?as=student
-console.log(document.state.url.query.as) // student
+console.log(url.query.as) // student
 
 // Re-rewrite the URL and initiate navigation by simply modifying a query parameter
 document.addEventListener('synthetic-navigation', e => {
-    Observer.set(document.state.url.query, 'as', 'business');
+    Observer.set(url.query, 'as', 'business');
 });
 ```
 
 ```html
 <script type="subscript">
- let { query: { as: role } } = document.state.url;
+ let { query: { as: role } } = url;
  document.title = 'Login as ' + role;
 </script>
 ```
@@ -1321,19 +1327,19 @@ Routes in Webflo can be designed for different types of request/response scenari
 
 #### Scenario 1: Static File Requests and Responses
 
-Static file requests like `http://localhost:3000/logo.png` are expected to get a file response. These requests are automatically handled by Webflo when `next()`ed forward by route handlers, or where there are no route handlers.
+Static file requests like `http://localhost:3000/logo.png` are automatically responded to by Webflo when `next()`ed forward by route handlers, or where there are no route handlers.
 + On the server, Webflo serves files from the `public` directory. File contents along with the appropriate headers like [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type), [`Content-Length`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Length), etc. are returned as an instance of `event.Response`. Where a request has an [`Accept-Encoding`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Encoding) header set (e.g. `gzip`, `br`) and there exists a matching *compressed version* of the said file on the file system (e.g. `./public/logo.png.gz`, `./public/logo.png.br`), the compressed version is served and the appropriate [`Content-Encoding`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding) response header is set.
-+ On the client, Webflo serves static files from the network, or from the application cache, where available.
 
 #### Scenario 2: API Requests and Responses
 
-JSON (API) requests (requests made with an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header that matches `application/json`) are expected to get a JSON (API) response (responses with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) header of `application/json`). Webflo automatically responds by simply jsonfying workflow return values which are usually plain objects, or other jsonfyable types - `string`, `number`, `boolean`, `array`.
+JSON (API) requests - requests that expect to get a JSON response (responses with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) header of `application/json`) are automatically satisfied by Webflo, by simply jsonfying workflow return values which are usually plain objects, or other jsonfyable types - `string`, `number`, `boolean`, `array`.
++ These requests need not have an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header; but if they should, it must be the value of `application/json`.
 + Routes intended to be accessed this way are expected to return a jsonfyable value (or an instance of `event.Response` containing same) from the workflow.
 + Workflow responses that are an instance of `event.Response` with a `Content-Type` header already set are sent as-is.
 
 #### Scenario 3: Page Requests and Responses
 
-HTML page requests (requests made to the server with an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header that matches `text/html`) are expected to get a HTML response (responses with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) header of `text/html`). Webflo automatically responds by rendering the workflow return value into an HTML response - via [Server-Side Rendering](#client-and-server-side-rendering).
+HTML page requests (requests made to the server with an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header that matches `text/html`) automatically get a HTML response (responses with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) header of `text/html`). Webflo takes the extra step to render the workflow return value into an HTML response - via [Server-Side Rendering](#client-and-server-side-rendering).
 + Routes intended to be accessed this way are expected to return a plain object (or an instance of `event.Response` containing same) from the workflow in order to be renderable.
 + Workflow responses that are an instance of `event.Response` with a `Content-Type` header already set are sent as-is, and not rendered.
 
@@ -1360,10 +1366,13 @@ Workflows may return any other data type, e.g. an instance of the native [FormDa
 #### Custom Redirect Responses
 
 It is possible to hint the server on how to serve redirect responses. The response code for these redirects could be substituted with a non-rediret status code so that it can be recieved as a normal response and handled manually. The following pair of headers make this possible: `X-Redirect-Code`, `X-Redirect-Policy`.
-+ The `X-Redirect-Code` can be any valid (but preferably, 2xx) HTTP status code. This is the response code that you want Webflo to substitute the actual redirect code with.
-+ The `X-Redirect-Policy` header can be any of `manual` - treat all redirects as manual, `manual-if-cross-origin` - treat cross-origin redirects as manual, `manual-if-cross-spa` - treat cross-SPA redirects (including cross-origin redirects) as manual.
++ The `X-Redirect-Code` can be any valid HTTP status code (often preferably, in the 2xx). This is the response code that you want Webflo to substitute the actual redirect code with.
++ The `X-Redirect-Policy` header can be any of:
+  + `manual` - which means "treat all redirects as manual"
+  + `manual-if-cross-origin` - which means "treat cross-origin redirects as manual"
+  + `manual-if-cross-spa` - which means "treat cross-SPA redirects (including cross-origin redirects) as manual"
 
-Re-coded redirects have the standard `Location` header, and its own `X-Redirect-Code` response header containing the original redirect status code.
+  In each case, the substituted, original redirect code is returned back in the response in a special `X-Redirect-Code` response header, along with the standard `Location` header.
 
 #### Failure Responses
 
