@@ -19,8 +19,8 @@ Webflo is a framework on its own track - working and thinking in vanilla HTML, C
 
 Much of what eludes the web today...
 
-+ the long-missing HTML-first thinking!
-+ a focused standards-based philosophy that makes building more authentic applications ubiquitous!
++ going by an all-new HTML-first thinking: the path of least engineering!
++ following a focused standards-based philosophy: more authentic, web-native applications!
 
 Plus native support for how you would really want to work...
 
@@ -71,7 +71,7 @@ For when your application is a static site, or has static files to serve:
     └── public/logo.png
   ```
 
-For when your application needs dynamic request handling on the server:
+For when your application requires dynamic request handling on the server:
 + The `server` directory for server-side routing.
 
   ```shell
@@ -122,7 +122,7 @@ For when your application needs dynamic request handling on the server:
 
 For when your application requires dynamic request handling on the client (the browser):
 + The `client` directory for client-side routing,
-+ And optionally, the `worker` directory for Service Worker based routing! (As detailed just ahead.)
++ And, optionally, the `worker` directory for Service Worker based routing! (As detailed just ahead.)
 
   ```shell
   my-app
