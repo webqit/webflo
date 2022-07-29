@@ -299,7 +299,7 @@ export default function(event, context, next) {
 
 Each function receives an `event` object representing details about the request - e.g. `event.request`, `event.url`, `event.session`. ([Details ahead](#workflow-api).)
 
-For *server-based* applications (e.g. traditional web apps and API backends), server-side handlers go into a directory named `server`.
+Functions that will respond to requests on the **server-side** go into a directory named `server`. (Often with traditional web apps and API backends.)
 
 ```js
 /**
@@ -320,7 +320,7 @@ export default function(event, context, next) {
 > The above function responds on starting the server - `npm start` on your terminal - and visiting http://localhost:3000.
 </details>
 
-For *browser-based* applications (e.g. Single Page Apps), client-side handlers go into a directory named `client`.
+Funtions that will respond to requests on the **browser-side** go into a directory named `client`. (Often with Single Page Apps.)
 
 ```js
 /**
@@ -341,7 +341,7 @@ export default function(event, context, next) {
 > The above function is built as part of your application's client-side script from the `npm run generate` command. It is typically bundled to the file `./public/bundle.js`. And the `--auto-embed` flag in that command gets it automatically embedded on your `./public/index.html` page as `<script type="module" src="/bundle.js"></script>`. Then it responds from right in the browser on visiting http://localhost:3000.
 </details>
 
-For *browser-based* applications that want to support offline usage via Service-Workers (e.g Progressive Web Apps), Webflo allows us to define equivalent handlers for requests hitting the Service Worker. These worker-based handlers go into a directory named `worker`.
+For *browser-based* applications that want to employ Service-Workers (e.g Progressive Web Apps), Webflo allows us to define equivalent handlers for requests hitting the Service Worker. These **worker-based** functions go into a directory named `worker`.
 
 ```js
 /**
@@ -478,7 +478,7 @@ export default async function(event, context, next) {
 }
 ```
 
-The `next()` function can also run as an independent request - using [the same parameters as with the WHATWG Request constructor](https://developer.mozilla.org/en-US/docs/Web/API/Request/Request#parameters).
+The `next()` function can also run as an independent request - using [the same parameters as of the WHATWG Request constructor](https://developer.mozilla.org/en-US/docs/Web/API/Request/Request#parameters).
 
 ```js
 /**
