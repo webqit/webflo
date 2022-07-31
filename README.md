@@ -349,7 +349,7 @@ export default function(event, context, next) {
 <details>
 <summary>How it works...</summary>
 
-> The above function is built as part of your application's Service Worker script from the `npm run generate` command. It is typically bundled to the file `./public/worker.js`, and the main application bundle automatically connects to it. Then it responds from within the Service Worker on visiting http://localhost:3000. (More details [ahead](#service-workers).)
+> The above function is built as part of your application's Service Worker script from the `npm run generate` command. It is typically bundled to the file `./public/worker.js`, and the main application bundle automatically registers this as the application's Service Worker. Now, our function responds from within the Service Worker on visiting http://localhost:3000. (More details [ahead](#service-workers).)
 </details>
 
 So, depending on what's being built, an application's handler functions may take the following form (in part or in whole):
@@ -553,9 +553,9 @@ my-app
 ```
 
 > **Note**
-> <br>The root handler effectively becomes the single point of entry to the application - being that it sees even requests for static files!
+> <br>Obviously, the root handler effectively becomes the single point of entry to the application - being that it sees even requests for static files!
 
-**For workflows in the `/worker` directory**, the *default action* of `next()`ing at the edge is to send the request through the network to the server. (But Webflo will know to attempt resolving the request from the application's caching system built into the Service Worker.)
+**For workflows in the `/worker` directory**, the *default action* of `next()`ing at the edge is to send the request through the network to the server. (But Webflo will check to see whether to (and how to) resolve the request from the application cache.)
 
 So, above, if we defined handler functions in the `/worker` directory, we could selectively handle specific requests while `next()`ing others to the server.
 
@@ -597,7 +597,7 @@ my-app
 <details>
 <summary>More details...</summary>
 
-> Handlers in the `/worker` directory see only Same-Origin requests, being that Cross-Origin URLs like `https://auth.example.com/oauth` do not belong in the application's layout! These external URLs, however, benefit from being resolved from the application's caching system built into the Service Worker.
+> Handlers in the `/worker` directory see only Same-Origin requests, being that Cross-Origin URLs like `https://auth.example.com/oauth` do not belong in the application's layout! But as detailed later, these external URLs may be may configured for strategic caching by the Service Worker.
 </details>
 
 **For workflows in the `/client` directory**, the *default action*  of `next()`ing at the edge is to send the request through the network to the server. But where there is a Service Worker layer, then that becomes the next destination.
@@ -677,7 +677,7 @@ my-app
   └── public/index.html ----------------------- http://localhost:3000/index.html --------- text/html
 ```
 
-But, we can also access the route in a way that gets the data rendered into the automatically-paired `index.html` file for a dynamic page response. We'd simply set the [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header of the request to something that can match as `text/html` - e.g. `text/html`, `text/*`, `*/html`, `*/*`, and Webflo will automatically perform [Server-Side Rendering](#client-and-server-side-rendering) to give a page response. 
+But, we can also access the route in a way that gets the data rendered into the automatically-paired `index.html` file for a dynamic page response. We'd simply set the [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header of the request to a value of `text/html`, and Webflo will automatically perform [Server-Side Rendering](#client-and-server-side-rendering) to give a page response. 
 
 > **Note**
 > <br>The `Accept` header hint is already how browsers make requests on every page load. Here, it just works!
@@ -1298,20 +1298,21 @@ Static file requests like `http://localhost:3000/logo.png` are automatically res
 
 #### Scenario 2: API Requests and Responses
 
-JSON (API) requests - requests that expect to get a JSON response (responses with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) header of `application/json`) are automatically satisfied by Webflo, by simply jsonfying workflow return values which are usually plain objects, or other jsonfyable types - `string`, `number`, `boolean`, `array`.
+JSON (API) requests - requests that expect to get a JSON ([`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type): `application/json`) response - are automatically satisfied by Webflo with a valid JSON response. Here, Webflo simply jsonfies workflow return values - which are usually plain objects, or other jsonfyable types - `string`, `number`, `boolean`, `array`.
 + These requests need not have an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header; but if they should, it must be the value of `application/json`.
 + Routes intended to be accessed this way are expected to return a jsonfyable value (or an instance of `event.Response` containing same) from the workflow.
 + Workflow responses that are an instance of `event.Response` with a `Content-Type` header already set are sent as-is.
 
 #### Scenario 3: Page Requests and Responses
 
-HTML page requests (requests made to the server with an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header that matches `text/html`) automatically get a HTML response (responses with a [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type) header of `text/html`). Webflo takes that extra step to render the workflow return value into an HTML response - via [Server-Side Rendering](#client-and-server-side-rendering).
+HTML page requests - requests that expect to get an HTML ([`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type): `text/html`) response - are automatically satisfied by Webflo with a valid HTML response. Workflow return values that are objects are automatically used for [Server-Side Rendering](#client-and-server-side-rendering).
++ These requests need to have an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header of `text/html`, or something that can resolve to `text/html` - e.g. `text/*`, `*/html`, `*/*`.
 + Routes intended to be accessed this way are expected to return a plain object (or an instance of `event.Response` containing same) from the workflow in order to be renderable.
 + Workflow responses that are an instance of `event.Response` with a `Content-Type` header already set are sent as-is, and not rendered.
 
 #### Scenario 4: Single Page Navigation Requests and Responses
 
-In a Single Page Application layout, every navigation event (page-to-page navigation, history back and forward navigation, and form submissions) is expected to initiate a request/response flow without a full page reload, since the destination URLs are often based off the already loaded document. The Webflo client JS intercepts these navigation events and generates the equivalent request object with an `Accept` header of `application/json`, so that data can be obtained as a JSON object ([scenerio 2 above](#scenario-2-api-requests-and-responses)) for [Client-Side Rendering](#client-and-server-side-rendering).
+In a Single Page Application layout, every navigation event (page-to-page navigation, history back and forward navigation, and form submissions) is expected to initiate a request/response flow without a full page reload, since the destination URLs are often based off the already loaded document. The Webflo client JS intercepts these navigation events and generates the equivalent request object with an `Accept` header of `application/json`, so that data can be obtained as a JSON object ([scenerio 2 above](#scenario-2-api-requests-and-responses)) for [Client-Side Rendering](#client-and-server-side-rendering). 
 
 The generated request also [hints the server](#custom-redirect-responses) on how to return cross-SPA redirects (redirects that will point to another origin, or to another SPA root (in a [Multi SPA](#in-a-multi-spa-layout) layout)) so that it can be handled manually by the client. The following headers are set: `X-Redirect-Policy: manual-when-cross-spa`, `X-Redirect-Code: 200`.
 + Same-SPA redirects are sent as-is, and the Webflo client JS receives and renders the final data and updates the address bar with the final URL.
@@ -1593,7 +1594,7 @@ When navigation occurs [via form submissions](#scenario-4-single-page-navigation
 </form>
 ```
 
-One more thing: HTML forms can only accept two HTTP methods on their `method` attribute: `GET`, `POST`! The same constraint exists on the equivalent `formmethod` attribue in submit buttons. You are able to overcome this in Webflo by using alternative `data-` attributes: `data-method`, `data-formmethod`, respectively.
+Also, you'd remember that HTML forms can only accept two HTTP methods on their `method` attribute: `GET`, `POST`! And the same constraint exists on the equivalent `formmethod` attribue in submit buttons. You are able to overcome this in Webflo by using alternative `data-` attributes: `data-method`, `data-formmethod`, respectively.
 
 ```html
 <form data-method="patch">
@@ -1603,7 +1604,7 @@ One more thing: HTML forms can only accept two HTTP methods on their `method` at
 
 #### Progressive Web Apps
 
-Webflo client-side applications are intended to provide an app-like-first experience. So unless disabled in config, a [Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) is built as part of your application on running the `npm run generate` command. You may define [route handlers in the `/worker` directory](#handler-functions-and-layout) of your application, and these will be built into the service worker to handle Same-Origin requests of the application. Where there are no *worker* handlers, or where these forward incoming requests, requests are fetched, either from the cache, or from the network, depending on the fetching strategy built into the Service Worker.
+Webflo client-side applications are intended to provide an app-like-first experience. So unless disabled in config, a [Service Worker](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) is built as part of your application on running the `npm run generate` command. And as covered above, you may define [route handlers in the `/worker` directory](#handler-functions-and-layout) of your application, and these will be built into the service worker to handle Same-Origin requests of the application. Where there are no *worker* handlers, or where these forward incoming requests, requests are fetched, either from the cache, or from the network, depending on the fetching strategy built into the Service Worker.
 
 <details>
 <summary>Config (Default)</summary>
