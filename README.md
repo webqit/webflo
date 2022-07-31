@@ -1396,12 +1396,14 @@ console.log(event.request.headers.cookies); // { 'Cookie-1': 'cookie-val', 'Cook
 
 ### Webflo Applications
 
-In just a few concepts, Webflo comes ready for any type of application!
+Webflo comes ready for any type of application!
 
 + [Client-Side Applications](#client-side-applications)
 + [Progressive Web Apps](#progressive-web-apps)
 + [API Backends](#api-backends)
 + [Static Sites](#static-sites)
+
+*And you can go hybrid!*
 
 #### Client-Side Applications
 
