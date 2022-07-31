@@ -13,7 +13,7 @@ Here, we've put all of that up for a 20min straight read!
 
 ## The Catch...
 
-Webflo is a framework on its own track - thia time, on working and thinking in vanilla HTML, CSS and JavaScript! Instead of trying to follow certain patterns that have been touted as "norms", it takes a plunge to draw on native web platform features - plus some more futurisric, fascinating stuffs from across a few web paltforn proposals! This means that to happily meet Webflo, you also have to be excited about being one step ahead!
+Webflo is a framework on its own track - this time, for working and thinking in vanilla HTML, CSS and JavaScript! Instead of trying to follow certain patterns that have been touted as "norms", it takes a plunge to draw on native web platform features - plus some more futurisric, fascinating new stuff from across a few web paltforn proposals! This means that to happily meet Webflo, you also have to be excited about being one step ahead!
 
 ## The Wins...
 
@@ -24,7 +24,7 @@ Introducing...
 + the path of least engineering - with an all-new HTML-first thinking!
 + a focused, standards-based philosophy for building more authentic, web-native applications!
 
-With notable new possibilities...
+Natively supporting notable new possibilities...
 
 + a new approach to reactivity that's based on no syntax at all but plain old JavaScript!
 + a new "imports" feature for HTML that makes HTML more reusable!
@@ -69,8 +69,8 @@ For when your application is a static site, or has static files to serve:
 
   ```shell
   my-app
-    ├── public/index.html
-    └── public/logo.png
+    ├── public/index.html ----------------- http://localhost:3000/index.html | http://localhost:3000
+    └── public/logo.png ------------------- http://localhost:3000/logo.png
   ```
 
 For when your application requires dynamic request handling on the server:
@@ -96,7 +96,7 @@ For when your application requires dynamic request handling on the server:
   }
   ```
  
-  In which case data is either returned as a JSON (API) response, or as a rendered page response where there is an `index.html` file in the `public` directory that pairs with the route.
+  In which case data is returned either as a JSON (API) response, or as a rendered page response where there is an `index.html` file in the `public` directory that pairs with the route.
 
   ```shell
   my-app
@@ -124,7 +124,7 @@ For when your application requires dynamic request handling on the server:
 
 For when your application requires dynamic request handling on the client (the browser):
 + The `client` directory for client-side routing,
-+ And, optionally, the `worker` directory for Service Worker based routing! (As detailed just ahead.)
++ And, optionally, the `worker` directory for an all-new Service Worker based routing! (As detailed ahead.)
 
   ```shell
   my-app
@@ -277,12 +277,12 @@ export default function(event, context, next) {
 <details>
 <summary>More details...</summary>
 
-> Function name may also be specific to a [*HTTP method*](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods): `get`, `post`, `put`, `patch`, `del` (for *delete*), `options`, `head`, etc.
+> Function name may also be specific to a [*HTTP method*](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods): `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `HEAD`, etc.
 </details>
 
 Each function receives an `event` object representing details about the request - e.g. `event.request`, `event.url`, `event.session`. ([Details ahead](#workflow-api).)
 
-**Functions that will respond to requests on the server-side** go into a directory named `server`. (Typically in traditional web apps and API backends.)
+**Functions that will respond to requests on the server-side** go into a directory named `server`. (For server-side applications (e.g. API backends), or universal applications.)
 
 ```js
 /**
@@ -290,6 +290,7 @@ server
  ├── index.js
  */
 export default function(event, context, next) {
+    if (next.pathname) return next();
     return {
         title: 'Home | FluffyPets',
         source: 'server',
@@ -300,10 +301,10 @@ export default function(event, context, next) {
 <details>
 <summary>How it works...</summary>
 
-> The above function responds on starting the server - `npm start` on your terminal - and visiting http://localhost:3000.
+> The above function will respond on starting the server - `npm start` on your terminal - and visiting http://localhost:3000.
 </details>
 
-**Funtions that will respond to requests from right within the browser** go into a directory named `client`. (Typically in Single Page Applications.)
+**Funtions that will respond to requests from right within the browser** go into a directory named `client`. (For client-side applications (e.g. Single Page Applications), or universal applications.)
 
 ```js
 /**
@@ -311,6 +312,7 @@ client
  ├── index.js
  */
 export default function(event, context, next) {
+    if (next.pathname) return next();
     return {
         title: 'Home | FluffyPets',
         source: 'in-browser',
@@ -332,6 +334,7 @@ worker
  ├── index.js
  */
 export default function(event, context, next) {
+    if (next.pathname) return next();
     return {
         title: 'Home | FluffyPets',
         source: 'service-worker',
@@ -366,7 +369,7 @@ Static files, e.g. images, stylesheets, etc, have their place in a files directo
 
 ```shell
 public
-  ├── logo.png
+  └── logo.png
 ```
 
 ### Step Functions and Workflows
@@ -433,7 +436,7 @@ export default async function(event, context, next) {
 <details>
 <summary>Even more details...</summary>
 
-The `next()` function can be used to re-direct the current request to a different route - using a relative or absolute URL.
+The `next()` function can be used to re-route the current request to a different handler - using a relative or absolute URL.
 
 ```js
 /**
@@ -461,7 +464,7 @@ export default async function(event, context, next) {
 }
 ```
 
-The `next()` function can also run as an independent request - using [the same parameters as of the WHATWG Request constructor](https://developer.mozilla.org/en-US/docs/Web/API/Request/Request#parameters).
+The `next()` function can also be used as an **in-app** `fetch()` function to run full-fledged in-app requests - taking [similar parameters as the WHATWG Request constructor](https://developer.mozilla.org/en-US/docs/Web/API/Request/Request#parameters).
 
 ```js
 /**
@@ -470,7 +473,7 @@ server
  */
 export default async function(event, context, next) {
     if (next.stepname === 'products') {
-        return next( context, '/api/products?params=allowed', {
+        return next(context, '/api/products?params=allowed', {
             method: 'get', { headers: { Authorization: 'djjdd' } } 
         });
     }
@@ -540,7 +543,7 @@ export default function(event, context, next) {
 }
 ```
 
-The above works because Webflo takes a *default action* when `next()` is called at the *edge* of the workflow - the point where there are no more step functions as there are URL segments - as in the `return next()` statement above!
+The above works because Webflo takes a *default action* when `next()` is called at the *edge* of the workflow - the point where there are no more step functions as there are URL segments.
 
 **For workflows in the `/server` directory**, the *default action* of `next()`ing at the edge is to go match and return a static file in the `public` directory.
 
