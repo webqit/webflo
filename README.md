@@ -270,14 +270,16 @@ You just define an `index.js` file with a function that gets called to handle a 
 [server|client|worker]
  ├── index.js
  */
-export default function(event, context, next) {
+export default function(event, context, next, fetch) {
 }
 ```
 
 <details>
 <summary>More details...</summary>
 
-> Function name may also be specific to a [*HTTP method*](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods): `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `HEAD`, etc. (Function name is lower case for Webflo version >= `0.11.23`, in which case `delete` is `del`.)
+> Function name may also be specific to a [*HTTP method*](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods): `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `HEAD`, etc. (Function name is lower case for Webflo version <= `0.11.23`, in which case `delete` is `del`.)
+
+> The `context` and `next` parameters are discussed below. `fetch` is a [fetch](https://fetch.spec.whatwg.org/)-equivalent function passed in for *convenience* for initiating remote requests.
 </details>
 
 Each function receives an `event` object representing details about the request - e.g. `event.request`, `event.url`, `event.session`. ([Details ahead](#workflow-api).)
