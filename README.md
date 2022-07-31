@@ -286,7 +286,7 @@ export default function(event, context, next, fetch) {
 
 Each function receives an `event` object representing details about the request - e.g. `event.request`, `event.url`, `event.session`. ([Details ahead](#workflow-api).)
 
-**Functions that will respond to requests on the server-side** go into a directory named `server`. (For server-side applications (e.g. API backends), or universal applications.)
+**Functions that will respond to requests on the server-side** go into a directory named `server`.
 
 ```js
 /**
@@ -308,7 +308,7 @@ export default function(event, context, next) {
 > The above function will respond on starting the server - `npm start` on your terminal - and visiting http://localhost:3000.
 </details>
 
-**Funtions that will respond to requests from right within the browser** go into a directory named `client`. (For client-side applications (e.g. Single Page Applications), or universal applications.)
+**Funtions that will respond to requests from right within the browser** go into a directory named `client`.
 
 ```js
 /**
@@ -426,7 +426,7 @@ server
 export default async function(event, context, next) {
     if (next.stepname) {
         let childContext = { user: { id: 2 }, };
-        let childResponse = await next( childContext );
+        let childResponse = await next(childContext);
         return { ...childResponse, title: childResponse.title + ' | FluffyPets' };
     }
     return { title: 'Home | FluffyPets' };
@@ -436,7 +436,7 @@ export default async function(event, context, next) {
 <details>
 <summary>Even more details...</summary>
 
-The `next()` function can be used to re-route the current request to a different handler - using a relative or absolute URL.
+It's versatile, so the `next()` function can be used to re-route the current request to a different handler - using a relative or absolute URL.
 
 ```js
 /**
@@ -445,7 +445,7 @@ server
  */
 export default async function(event, context, next) {
     if (next.stepname === 'products') {
-        return next( context, '/api/products?params=allowed' ); // With an absolute URL
+        return next(context, '/api/products?params=allowed'); // With an absolute URL
     }
     return { title: 'Home | FluffyPets' };
 }
@@ -458,11 +458,11 @@ server
  */
 export default async function(event, context, next) {
     if (next.stepname) return next();
-    return next( context, '../api/products?params=allowed' ); // With a relative URL
+    return next(context, '../api/products?params=allowed'); // With a relative URL
 }
 ```
 
-The `next()` function can also be used as an **in-app** `fetch()` function to run full-fledged in-app requests - taking [similar parameters as the WHATWG Request constructor](https://developer.mozilla.org/en-US/docs/Web/API/Request/Request#parameters).
+And you can make that a full-fledged *in-app* request - passing in `fetch`-equivalent parameters.
 
 ```js
 /**
@@ -478,6 +478,8 @@ export default async function(event, context, next) {
     return { title: 'Home | FluffyPets' };
 }
 ```
+
+These requests are received at destination route - `/api/products` above - as regular HTTP requests!
 </details>
 </details>
 
@@ -538,7 +540,7 @@ export default function(event, context, next) {
 }
 ```
 
-The above works because Webflo takes a *default action* when `next()` is called at the *edge* of the workflow - the point where there are no more step functions as there are URL segments.
+The `next()` function still comes in above because Webflo takes a *default action* when `next()` is called at the *edge* of the workflow - this point where there are no more step functions as there are URL segments.
 
 **For workflows in the `/server` directory**, the *default action* of `next()`ing at the edge is to go match and return a static file in the `public` directory.
 
