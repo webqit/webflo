@@ -391,9 +391,7 @@ server
  ├── index.js
  */
 export default async function(event, context, next) {
-    if (next.stepname) {
-        return next();
-    }
+    if (next.stepname) return next();
     return { title: 'Home | FluffyPets' };
 }
 ```
@@ -404,9 +402,7 @@ server
  ├── products/index.js
  */
 export default function(event, context, next) {
-    if (next.stepname) {
-        return next();
-    }
+    if (next.stepname) return next();
     return { title: 'Products' };
 }
 ```
@@ -457,9 +453,7 @@ server
  ├── products/index.js
  */
 export default async function(event, context, next) {
-    if (next.stepname) {
-        return next();
-    }
+    if (next.stepname) return next();
     return next( context, '../api/products?params=allowed' ); // With a relative URL
 }
 ```
@@ -491,9 +485,7 @@ server
  ├── -/index.js
  */
 export default function(event, context, next) {
-    if (next.stepname) {
-        return next();
-    }
+    if (next.stepname) return next();
     if (this.stepname === 'products') {
         return { title: 'Products' };
     }
@@ -682,35 +674,18 @@ my-app
 
 But, we can also access the route in a way that gets the data rendered into the automatically-paired `index.html` file for a dynamic page response. We'd simply set the [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header of the request to something that can match as `text/html` - e.g. `text/html`, `text/*`, `*/html`, `*/*`, and Webflo will automatically perform [Server-Side Rendering](#client-and-server-side-rendering) to give a page response. 
 
-<details>
-<summary>How it works...</summary>
+> **Note**
+> <br>The `Accept` header hint is already how browsers make requests on every page load. Here, it just works!
 
-> The `Accept` header hint is already how browsers make requests on every page load. So, it just works!
-</details>
+This automatic pairing of an `index.html` file with a route works the same for nested routes! But top-level `index.html` files are implicitly inherited down the hierarchy.) That means that subroutes do not need to have their own `index.html` document, unless necessary.
 
-<details>
-<summary>More details...</summary>
-
-> This automatic pairing of an `index.html` file with a route works the same for nested routes! But top-level `index.html` files are implicitly inherited down the hierarchy.)
-</details>
-
-Now, for Single Page Applications, subsequent navigations, after the initial page load, just ask for the data on destination URLs and perform [Client-Side Rendering](#client-and-server-side-rendering) on the same running document. Navigation is sleek and instant!
-
-<details>
-<summary>How it works...</summary>
-
-> Unless disabled, [SPA Routing](#spa-routing) is automatically built into your application's client-side script from the `npm run generate` command. So, it just works!
-</details>
-
-With no extra work, your application can function as either a *Multi Page App (MPA)* or a *Single Page App (SPA)*!
+#### Layout and Templating Overview
 
 <details>
 <summary>Some disambiguation...</summary>
 
 > In a Single Page Application, all pages are based off a single `index.html` document. In a Multi Page Application, pages are individual `index.html`  documents - ideally. But, Server-Side Rendering makes it possible to serve the same, but dynamically-rendered, `index.html` document across page loads - essentially an SPA architecture hiding on the server. But, here, lets take Multi Page Applications for an individual-page architecture.
 </details>
-
-#### Layout and Templating Overview
 
 In a Multi Page Application (with an individual-page architecture), each page is its own `index.html` document, and it is often necessary to have certain page sections - e.g. site header, footer, and sidebar, etc. - stay consistent across pages. These sections can be defined once and *imported* on every page.
 
@@ -980,7 +955,7 @@ Template `.html` files are bundled from the filesystem into a single file using 
 }
 ```
 
-The `--recursive` flag gets the bundler to recursively bundle *subroots* in a [Multi SPA](#in-a-multi-spa-layout) layout - where subdirectories with their own `index.html` document. (Subroots are ignored by default.)
+The `--recursive` flag gets the bundler to recursively bundle *subroots* in a [Multi SPA](#in-a-multi-spa-layout) layout - where certain subdirectories have their own `index.html` document. (These subroots would be ignored otherwise.)
 
 The `--auto-embed` flag gets the bundler to automatically embed the generated `bundle.html` file on the matched `index.html` document. A value of `routes` for the flag ends up as the name of the *embed* template: `<template name="routes" src="/bundle.html"></template>`.
 
@@ -991,9 +966,9 @@ The `--auto-embed` flag gets the bundler to automatically embed the generated `b
 
 With pages in Webflo being [DOM-based](#overview) (both client-side and [server-side](#oohtml-ssr)), we are able to access and manipulate documents and elements using familiar DOM APIs - e.g. to replace or insert contents, attributes, etc. Rendering in Webflo is based on this concept!
 
-Here, Webflo simply makes sure that the data obtained from each route is available as part of the `document` object, such that it is accessible to our rendering logic as a `data` property on the [`document.state`](#the-idea-of-state) object - [`document.state.data`](#the-documentstatedata-object).
+Here, Webflo simply makes sure that the data obtained from each route is available as part of the `document` object as [`document.state.data`](#the-documentstatedata-object), making it accessible to our rendering logic.
 
-So, we could embed a script on our page and render this data on the relevant parts of the document.
+We are able embed a script on our page and render this data on the relevant parts of the document.
 
 ```html
 <!--
