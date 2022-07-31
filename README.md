@@ -18,12 +18,14 @@ Webflo is a framework on its own track - thia time, on working and thinking in v
 ## The Wins...
 
 Much of what eludes the web today!
+
 Introducing...
 
 + the path of least engineering - with an all-new HTML-first thinking!
 + a focused, standards-based philosophy for building more authentic, web-native applications!
 
 Plus native support for how you would really want to work!
+
 Introducing...
 
 + a new approach to reactivity that's based on no syntax at all but plain old JavaScript!
