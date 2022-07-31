@@ -1339,7 +1339,7 @@ It is possible to hint the server on how to serve redirect responses. The idea i
   + `manual-if-cross-origin` - which means "treat cross-origin redirects as manual"
   + `manual-if-cross-spa` - which means "treat cross-SPA redirects (including cross-origin redirects) as manual"
 
-  In each case, the substituted, original redirect code is returned back in the response in a special `X-Redirect-Code` response header, along with the standard `Location` header.
+  In each case, the substituted, original redirect code is returned back in the response in a special `X-Redirect-Code` response header, alongside the standard `Location` header.
 
 #### Failure Responses
 
