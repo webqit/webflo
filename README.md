@@ -1306,7 +1306,7 @@ JSON (API) requests - requests that expect to get a JSON response (i.e. [`Conten
 #### Scenario 3: Page Requests and Responses
 
 HTML page requests - requests that expect to get an HTML response (i.e. [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type): `text/html`) - are automatically satisfied by Webflo with a valid HTML response. Workflow return values that are objects are automatically used for [Server-Side Rendering](#client-and-server-side-rendering).
-+ These requests need to have an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header of `text/html`, or something that can resolve to `text/html` - e.g. `text/*`, `*/html`, `*/*`.
++ These requests need to have an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header of `text/html`, or something that resolves to `text/html` - e.g. `text/*`, `*/html`, `*/*`.
 + Routes intended to be accessed this way are expected to return a plain object (or an instance of `event.Response` containing same) from the workflow in order to be renderable.
 + Workflow responses that are an instance of `event.Response` with a `Content-Type` header already set are sent as-is, and not rendered.
 
