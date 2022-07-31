@@ -1332,7 +1332,7 @@ Workflows may return any other data type, e.g. an instance of the native [FormDa
 
 #### Custom Redirect Responses
 
-It is possible to hint the server on how to serve redirect responses. The response code for these redirects could be substituted with a non-rediret status code so that it can be recieved as a normal response and handled manually. The following pair of headers make this possible: `X-Redirect-Code`, `X-Redirect-Policy`.
+It is possible to hint the server on how to serve redirect responses. The idea is to substitute the standard `302`, `301` response code for these redirects with a non-rediret status code so that it can be recieved as a normal response and handled manually. The following pair of headers make this possible: `X-Redirect-Code`, `X-Redirect-Policy`.
 + The `X-Redirect-Code` can be any valid HTTP status code (often preferably, in the 2xx). This is the response code that you want Webflo to substitute the actual redirect code with.
 + The `X-Redirect-Policy` header can be any of:
   + `manual` - which means "treat all redirects as manual"
