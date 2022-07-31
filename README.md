@@ -13,16 +13,16 @@ Here, we've put all of that up for a 20min straight read!
 
 ## The Catch...
 
-Webflo is a framework on its own track - working and thinking in vanilla HTML, CSS and JavaScript! Instead of trying to follow certain patterns touted as "norms", it takes a plunge to draw on native web platform features - plus some more futurisric, fascinating stuffs we'll be proposing for the web! This means that you also have to be excited about taking some adventure to happily meet Webflo!
+Webflo is a framework on its own track - thia time, on working and thinking in vanilla HTML, CSS and JavaScript! Instead of trying to follow certain patterns that have been touted as "norms", it takes a plunge to draw on native web platform features - plus some more futurisric, fascinating stuffs from across a few web paltforn proposals! This means that to happily meet Webflo, you also have to be excited about going one step ahead!
 
 ## The Wins...
 
-Much of what eludes the web today...
+Much of what eludes the web today! Introducing...
 
-+ going by an all-new HTML-first thinking: the path of least engineering!
-+ following a focused standards-based philosophy: more authentic, web-native applications!
++ the path of least engineering - with an all-new HTML-first thinking!
++ a focused, standards-based philosophy for building more authentic, web-native applications!
 
-Plus native support for how you would really want to work...
+Plus native support for how you would really want to work! Introducing...
 
 + a new approach to reactivity that's based on no syntax at all but plain old JavaScript!
 + a new "imports" feature for HTML that makes HTML more reusable!
