@@ -1298,14 +1298,14 @@ Static file requests like `http://localhost:3000/logo.png` are automatically res
 
 #### Scenario 2: API Requests and Responses
 
-JSON (API) requests - requests that expect to get a JSON ([`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type): `application/json`) response - are automatically satisfied by Webflo with a valid JSON response. Here, Webflo simply jsonfies workflow return values - which are usually plain objects, or other jsonfyable types - `string`, `number`, `boolean`, `array`.
+JSON (API) requests - requests that expect to get a JSON response (i.e. [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type): `application/json`) - are automatically satisfied by Webflo with a valid JSON response. Here, Webflo simply jsonfies workflow return values - which are usually plain objects, or other jsonfyable types - `string`, `number`, `boolean`, `array`.
 + These requests need not have an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header; but if they should, it must be the value of `application/json`.
 + Routes intended to be accessed this way are expected to return a jsonfyable value (or an instance of `event.Response` containing same) from the workflow.
 + Workflow responses that are an instance of `event.Response` with a `Content-Type` header already set are sent as-is.
 
 #### Scenario 3: Page Requests and Responses
 
-HTML page requests - requests that expect to get an HTML ([`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type): `text/html`) response - are automatically satisfied by Webflo with a valid HTML response. Workflow return values that are objects are automatically used for [Server-Side Rendering](#client-and-server-side-rendering).
+HTML page requests - requests that expect to get an HTML response (i.e. [`Content-Type`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Type): `text/html`) - are automatically satisfied by Webflo with a valid HTML response. Workflow return values that are objects are automatically used for [Server-Side Rendering](#client-and-server-side-rendering).
 + These requests need to have an [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header of `text/html`, or something that can resolve to `text/html` - e.g. `text/*`, `*/html`, `*/*`.
 + Routes intended to be accessed this way are expected to return a plain object (or an instance of `event.Response` containing same) from the workflow in order to be renderable.
 + Workflow responses that are an instance of `event.Response` with a `Content-Type` header already set are sent as-is, and not rendered.
