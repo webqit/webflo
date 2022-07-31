@@ -9,7 +9,7 @@
 
 Webflo is a universal *web*, *mobile*, and *API backend* framework based on vanilla HTML, CSS, and JavaScript! It's a powerful little thing written to facilitate building more authentic, web-native applications!
 
-Here, we've put all of that up for a 20min straight read!
+Here, we've put all of that up for a 20mins straight read!
 
 ## Heads Up...
 
@@ -34,7 +34,7 @@ Natively supporting notable new possibilities...
 
 ## Documentation
 
-All of Webflo in a 20-min read!
+(A bit of a long read!)
 
 + [Overview](#overview)
 + [Installation](#installation)
