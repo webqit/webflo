@@ -485,7 +485,6 @@ server
  ├── -/index.js
  */
 export default function(event, context, next) {
-    if (next.stepname) return next();
     if (this.stepname === 'products') {
         return { title: 'Products' };
     }
