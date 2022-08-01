@@ -13,7 +13,7 @@ Here, we've put all of that up for a 20mins straight read!
 
 ## Heads Up...
 
-Webflo is a framework on its own track - this time, of working and thinking in vanilla HTML, CSS and JavaScript! Instead of trying to follow certain patterns that have been touted as "norms", it takes a plunge to draw on native web platform features - plus some more futurisric, fascinating new stuff from across a few web paltforn proposals! This means that to happily meet Webflo, you also have to be excited about the idea of going one step ahead!
+Webflo is a framework on its own track - of working and thinking in vanilla HTML, CSS and JavaScript! Instead of trying to follow certain patterns that have been touted as "norms", it takes a plunge to draw on native web platform features - plus some more futurisric, fascinating new stuff from across a few web paltforn proposals! This means that to happily meet Webflo, you also have to be excited about the idea of going one step ahead!
 
 **Note** that Webflo is still evolving and some things may change quickly! Careful with *production*! Or, just remember to keep tabs with progress here!
 
