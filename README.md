@@ -263,7 +263,9 @@ If you can't wait to say *Hello World!* 😅, you can have an HTML page say that
 
 ### Handler Functions and Layout
 
-Whether building a *server-based*, *browser-based*, or *universal* application, Webflo gives you one consistent way to handle routing and navigation: using *handler functions*!
+Functions come in in Webflo when you need to dynamically handle requests.
+
+Whether building a *server-based*, *browser-based*, or *universal* application, Webflo gives you one consistent way to handle requests and navigation: using *handler functions*!
 
 You just define an `index.js` file with a function that gets called to handle a request!
 
@@ -502,15 +504,15 @@ export default function(event, context, next) {
 <summary>More details...</summary>
 
 > Every handler function has the following contextual properties:
-> + `this.stepname` - The exact name of the current step in the URL path.
-> + `this.pathname` - The pathname to the current step in the URL path.
-> + `next.stepname` - The exact name of the next step in the URL path.
-> + `next.pathname` - The pathname for the rest of the steps in the URL path.
+> + `this.stepname` - The name of the current step.
+> + `this.pathname` - The URL pathname of the current step.
+> + `next.stepname` - The name of the next step.
+> + `next.pathname` - The remaining URL pathname after the current step.
 > Server-side handlers have the following in addition:
-> + `this.dirname` - The filesystem pathname to the current step in the URL path.
+> + `this.dirname` - The filesystem pathname of the current step.
 </details>
 
-Additionally, workflows may be designed with as many or as few step functions as necessary; the flow control parameters `next.stepname` and `next.pathname` are always available at any point to show the rest of an URL that have no corresponding step functions.
+Additionally, workflows may be designed with as many or as few step functions as necessary; the flow control parameters `next.stepname` and `next.pathname` are always available at any point to show the target step.
 
 This means that it is even possible to handle all URLs from the root handler alone.
 
