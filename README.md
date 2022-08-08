@@ -511,7 +511,7 @@ export default function(event, context, next) {
 > + `this.dirname` - The filesystem pathname of the current step.
 </details>
 
-Additionally, workflows may be designed with as many or as few step functions as necessary; the flow control parameters `next.stepname` and `next.pathname` are always available at any point to show the target step.
+Additionally, workflows may be designed with as many or as few step functions as necessary; the flow control parameters `next.stepname` and `next.pathname` are always available at any point to help with the remaining part of an URL.
 
 This means that it is even possible to handle all URLs from the root handler alone.
 
