@@ -309,7 +309,7 @@ export default function(event, context, next) {
 > The above function will respond on starting the server - `npm start` on your terminal - and visiting http://localhost:3000.
 </details>
 
-**Funtions that will respond to requests from right within the browser** go into a directory named `client`.
+**Funtions that will respond to requests on the client-side (from right within the browser)** go into a directory named `client`.
 
 ```js
 /**
@@ -353,7 +353,7 @@ export default function(event, context, next) {
 > The above function is built as part of your application's Service Worker script from the `npm run generate` command. It is typically bundled to the file `./public/worker.js`, and the main application bundle automatically registers this as the application's Service Worker. Now, our function responds from within the Service Worker on visiting http://localhost:3000. (More details [ahead](#service-workers).)
 </details>
 
-So, depending on what's being built, an application's handler functions may take the following form (in part or in whole):
+So, depending on where requests are best handled for your type of application, handler functions may be placed as below:
 
 ```shell
 client
