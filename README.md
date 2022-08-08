@@ -280,16 +280,20 @@ export default function(event, context, next, fetch) {
 <details>
 <summary>Functions may have a name...</summary>
 
+> The following function handles only `GET` requests:
+
 ```js
 export function GET(event, context, next, fetch) {
 }
 ```
 
-> Function names take after [*HTTP method*](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods): `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `HEAD`, etc. (Function names are lower case for Webflo version <= `0.11.23`, in which case `delete` is `del`.)
+> Function names take after [*HTTP methods*](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods): `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `HEAD`, etc. (Function names are lower case for Webflo version <= `0.11.23`, in which case `delete` is `del`.)
 </details>
 
 <details>
-<summary>Functions may may be <code>async</code>...</summary>
+<summary>Functions may also may be <code>async</code>...</summary>
+
+> The following function can simply `await` asynchronous stuff:
 
 ```js
 export async function GET(event, context, next, fetch) {
