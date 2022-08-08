@@ -166,7 +166,7 @@ For when your application involves routing:
 For when your application involves pages and a UI:
 + [The HTML Standard](https://html.spec.whatwg.org/) is held for all things *markup* - across client, server, and Service Worker environments! Webflo is all about using conventional `.html`-based pages and templates, valid HTML syntax, etc.
 
-  > A HTML-first approach lets you get away with a "zero-JavaScript" proposition, or something more of a *Progressive Enhancement* proposition that makes do with "just-enough JavaScript"!
+  > This HTML-first approach is new! And you can get away with a "zero-JavaScript" proposition, or something more of a *Progressive Enhancement* proposition that makes do with "just-enough JavaScript"!
 
 + [WHATWG DOM](https://dom.spec.whatwg.org/) is universally available - not only on the client-side, but also on the server-side via [OOHTML-SSR](#oohtml-ssr) - all of which lets us have *dynamic pages*.
 
@@ -250,9 +250,9 @@ If you can't wait to say *Hello World!* 😅, you can have an HTML page say that
   ```bash
   npm start
   ```
++ Welcome to Webflo!
 
 ## Concepts
-
 
 + [Handler Functions and Layout](#handler-functions-and-layout)
 + [Step Functions and Workflows](#step-functions-and-workflows)
@@ -278,14 +278,28 @@ export default function(event, context, next, fetch) {
 ```
 
 <details>
-<summary>More details...</summary>
+<summary>Functions may have a name...</summary>
 
-> Function name may also be specific to a [*HTTP method*](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods): `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `HEAD`, etc. (Function name is lower case for Webflo version <= `0.11.23`, in which case `delete` is `del`.)
+```js
+export function GET(event, context, next, fetch) {
+}
+```
 
-> The `context` and `next` parameters are discussed below. `fetch` is a [fetch](https://fetch.spec.whatwg.org/)-equivalent function passed in for *convenience* for initiating remote requests.
+> Function names take after [*HTTP method*](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods): `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `HEAD`, etc. (Function names are lower case for Webflo version <= `0.11.23`, in which case `delete` is `del`.)
 </details>
 
+<details>
+<summary>Functions may may be <code>async</code>...</summary>
+
+```js
+export async function GET(event, context, next, fetch) {
+    let a = await b();
+}
+```
+
 Each function receives an `event` object representing details about the request - e.g. `event.request`, `event.url`, `event.session`. ([Details ahead](#workflow-api).)
+
+While the `context` and `next` parameters are discussed below, `fetch` is a [fetch](https://fetch.spec.whatwg.org/)-equivalent function passed in for *convenience* - for initiating remote requests.
 
 **Functions that will respond to requests on the server-side** go into a directory named `server`.
 
@@ -415,7 +429,7 @@ export default function(event, context, next) {
 We get a step-based workflow that helps to decomplicate routing and lets us scale horizontally as our application grows larger.
 
 <details>
-<summary>More details...</summary>
+<summary>Each step can entirely control the next...</summary>
 
 Here, a parent step can pass a `context` object to a child step, and can *recompose* its return value.
 
@@ -435,7 +449,7 @@ export default async function(event, context, next) {
 ```
 
 <details>
-<summary>Even more details...</summary>
+<summary>But a function can just talk to any other function...</summary>
 
 It's versatile, so the `next()` function can be used to re-route the current request to a different handler - using a relative or absolute URL.
 
