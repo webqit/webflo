@@ -164,7 +164,7 @@ For when your application involves routing:
 + [WHATWG URL](https://url.spec.whatwg.org/) and [WHATWG URLPattern](https://developer.mozilla.org/en-US/docs/Web/API/URLPattern) - used for all things *URL* and *URL pattern matching*, respectively - across client, server, and Service Worker environments. ([Details ahead](#))
 
 For when your application involves pages and a UI:
-+ [The HTML Standard](https://html.spec.whatwg.org/) - held for all things *markup* - across client, server, and Service Worker environments! Webflo is all about using conventional `.html`-based pages and templates, valid HTML syntax, etc.
++ [The HTML Standard](https://html.spec.whatwg.org/) - held for all things *markup* - across client, server, and Service Worker environments! You'll absolutely ❤ love it that your pages and page components can live as plain `.html` files! The browser already does!
 
   > This HTML-first approach is new! And you can get away with a "zero-JavaScript" proposition, or something more of a *Progressive Enhancement* proposition that makes do with "just-enough JavaScript"!
 
