@@ -562,7 +562,7 @@ export default function(event, context, next) {
 }
 ```
 
-The `next()` function still comes in above because Webflo takes a *default action* when `next()` is called at the *edge* of the workflow - this point where there are no more step functions as there are URL segments.
+The `next()` function still plays an important role above because Webflo takes a *default action* when `next()` is called at the *edge* of the workflow - this point where there are no more step functions as there are URL segments.
 
 **For workflows in the `/server` directory**, the *default action* of `next()`ing at the edge is to go match and return a static file in the `public` directory.
 
