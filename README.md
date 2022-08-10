@@ -287,7 +287,9 @@ export function GET(event, context, next, fetch) {
 }
 ```
 
-> Function names take after [*HTTP methods*](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods): `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `HEAD`, etc. (Function names are lower case for Webflo version <= `0.11.23`, in which case `delete` is `del`.)
+> Function names take after [*HTTP methods*](https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods): `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `HEAD`, etc.
+
+> Function names are lower case for Webflo version <= `0.11.23`, in which case `delete` is `del`.
 </details>
 
 <details>
@@ -407,7 +409,7 @@ server
         └── stickers/index.js ------------------ http://localhost:3000/products/stickers
 ```
 
-Each step calls a `next()` function to forward the current request to the next step.
+Each step calls a `next()` function to forward the current request to the next step of the given URL.
 
 ```js
 /**
@@ -702,7 +704,7 @@ But, we can also access the route in a way that gets the data rendered into the 
 > **Note**
 > <br>The `Accept` header hint is already how browsers make requests on every page load. Here, it just works!
 
-This automatic pairing of an `index.html` file with a route works the same for nested routes! But top-level `index.html` files are implicitly inherited down the hierarchy.) That means that subroutes do not need to have their own `index.html` document, unless necessary.
+This automatic pairing of an `index.html` file with a route works the same for nested routes! But top-level `index.html` files are implicitly inherited down the hierarchy. That means that subroutes do not need to have their own `index.html` document, unless necessary.
 
 #### Layout and Templating Overview
 
