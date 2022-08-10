@@ -172,7 +172,7 @@ For when your application involves pages and a UI:
 
   > And you get to have [Custom Elements](https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_custom_elements) as powerful building blocks.
  
-Enjoy the fullstack consistency with web standards and build a web-native app!
+Same web standards everwhere you look! You come off with a web-native app!
 </details>
 
 ## Installation
