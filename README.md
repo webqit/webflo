@@ -431,7 +431,7 @@ export default function(event, context, next) {
 }
 ```
 
-We get a step-based workflow that helps to decomplicate routing and lets us scale horizontally as our application grows larger.
+We get a step-based workflow that helps to decomplicate routing and lets us build out each route horizontally!
 
 <details>
 <summary>Each step can entirely control the next...</summary>
