@@ -34,14 +34,14 @@ export default class RuntimeClient {
             // --------
             // ROUTE FOR DATA
             // --------
-            let httpMethodName = httpEvent.request.method.toLowerCase();
-            let response = await router.route([httpMethodName === 'delete' ? 'del' : httpMethodName, 'default'], httpEvent, {}, async event => {
+            let httpMethodName = httpEvent.request.method.toUpperCase();
+            let response = await router.route([httpMethodName, 'default'], httpEvent, {}, async event => {
                 return router.file(event);
             }, remoteFetch);
             if (!(response instanceof httpEvent.Response)) {
                 response = new httpEvent.Response(response);
             }
-
+            
             // --------
             // Rendering
             // --------

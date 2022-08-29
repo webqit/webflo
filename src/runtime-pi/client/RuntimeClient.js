@@ -30,8 +30,8 @@ export default class RuntimeClient {
 			// --------
 			// ROUTE FOR DATA
 			// --------
-			let httpMethodName = httpEvent.request.method.toLowerCase();
-			return router.route([httpMethodName === 'delete' ? 'del' : httpMethodName, 'default'], httpEvent, {}, async event => {
+			let httpMethodName = httpEvent.request.method.toUpperCase();
+			return router.route([httpMethodName, 'default'], httpEvent, {}, async event => {
 				return remoteFetch(event.request);
 			}, remoteFetch);
 		};

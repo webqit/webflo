@@ -430,6 +430,7 @@ function handleEmbeds(targetDocumentFile, embedList, unembedList) {
         successLevel = 1;
         let dom = new Jsdom.JSDOM(targetDocument), by = 'webflo', touched;
         let embed = (src, before) => {
+            src = src.replace(/\\/g, '/');
             let embedded = dom.window.document.querySelector(`script[src="${src}"]`);
             if (!embedded) {
                 embedded = dom.window.document.createElement('script');
@@ -447,6 +448,7 @@ function handleEmbeds(targetDocumentFile, embedList, unembedList) {
         };
         let unembed = src => {
             src = Path.join('/', src);
+            src = src.replace(/\\/g, '/');
             let embedded = dom.window.document.querySelector(`script[src="${src}"][by="${by}"]`);
             if (embedded) {
                 embedded.remove();

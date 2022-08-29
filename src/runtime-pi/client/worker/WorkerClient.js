@@ -30,8 +30,8 @@ export default class WorkerClient {
 			// --------
 			// ROUTE FOR DATA
 			// --------
-			let httpMethodName = httpEvent.request.method.toLowerCase();
-			let response = await router.route([httpMethodName === 'delete' ? 'del' : httpMethodName, 'default'], httpEvent, {}, async event => {
+			let httpMethodName = httpEvent.request.method.toUpperCase();
+			let response = await router.route([httpMethodName, 'default'], httpEvent, {}, async event => {
 				return remoteFetch(event.request);
 			}, remoteFetch);
 			if (!(response instanceof httpEvent.Response)) {
