@@ -273,8 +273,8 @@ function declareRoutesObj(gen, routesDir, targetDir, varName, routing) {
     let indexCount = 0;
     if (Fs.existsSync(_routesDir)) {
         walk(_routesDir, (file, namespace, relativePath) => {
-            //relativePath = relativePath.replace(/\\/g, '/');
-            if (file.replace(/\\/g, '/').endsWith('/index.js')) {
+            relativePath = relativePath.replace(/\\/g, '/');
+            if (relativePath.endsWith('/index.js')) {
                 // Import code
                 let routeName = 'index' + (++ indexCount);
                 // IMPORTANT: we;re taking a step back here so that the parent-child relationship for 
