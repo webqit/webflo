@@ -257,12 +257,13 @@ function declareRoutesObj(gen, routesDir, targetDir, varName, routing) {
     const walk = (dir, callback) => {
         Fs.readdirSync(dir).forEach(f => {
             let resource = Path.join(dir, f);
-            let namespace = _beforeLast('/' + Path.relative(routesDir, resource), '/index.js') || '/';
+            let _namespace = '/' + Path.relative(routesDir, resource).replace(/\\/g, '/');
+            let namespace = _beforeLast(_namespace, '/index.js') || '/';
             if (Fs.statSync(resource).isDirectory()) {
                 if (routing.subroots.includes(namespace)) return;
                 walk(resource, callback);
             } else {
-                let relativePath = Path.relative(_targetDir, resource);
+                let relativePath = Path.relative(_targetDir, resource).replace(/\\/g, '/');
                 callback(resource, namespace, relativePath);
             }
         });
@@ -273,7 +274,6 @@ function declareRoutesObj(gen, routesDir, targetDir, varName, routing) {
     let indexCount = 0;
     if (Fs.existsSync(_routesDir)) {
         walk(_routesDir, (file, namespace, relativePath) => {
-            relativePath = relativePath.replace(/\\/g, '/');
             if (relativePath.endsWith('/index.js')) {
                 // Import code
                 let routeName = 'index' + (++ indexCount);
