@@ -298,7 +298,7 @@ export default class Runtime {
 			// ------------
 			// Rendering
 			// ------------
-			if (finalResponse.ok && finalResponse.headers.contentType === 'application/json') {
+			if (finalResponse.ok && (finalResponse.headers.contentType === 'application/json' || finalResponse.headers.contentType.startsWith('multipart/form-data'))) {
 				client.render && await client.render(httpEvent, finalResponse);
 			} else if (!finalResponse.ok) {
 				if ([404, 500].includes(finalResponse.status)) {
@@ -317,8 +317,13 @@ export default class Runtime {
     }
 
 	// Initiates remote fetch and sets the status
-	remoteFetch(request, ...args) {
-		let href = typeof request === 'string' ? request : (request.url || request.href);
+	async remoteFetch(request, ...args) {
+		let href = request;
+		if (request instanceof Request) {
+			href = request.url;
+		} else if (request instanceof self.URL) {
+			href = request.href;
+		}
 		Observer.set(this.network, 'remote', href);
 		let _response = fetch(request, ...args);
 		// This catch() is NOT intended to handle failure of the fetch

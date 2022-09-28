@@ -12,17 +12,8 @@ const xHttpMessage = (whatwagHttpMessage, Headers, FormData) => {
     const HttpMessage = class extends whatwagHttpMessage {
         
         constructor(input, init, bodyAttrs) {
-            if (('headers' in init) && !(init.headers instanceof Headers)) {
-                init = { ...init };
-                init.headers = new Headers(init.headers);
-                arguments[1] = init;
-            }
-            if (_isEmpty(init)) {
-                super(input);
-            } else {
-                super(input, init);
-            }
-            this._headers = init.headers;
+            if (init.headers) { init = { ...init, headers: new Headers(init.headers) }; }
+            super(input, init);
             if (bodyAttrs.headers) {
                 this.headers.json(bodyAttrs.headers);
             }
@@ -36,10 +27,8 @@ const xHttpMessage = (whatwagHttpMessage, Headers, FormData) => {
         }
 
         get headers() {
-            if (!this._headers) {
-                this._headers = new Headers(super.headers);
-            }
-            return this._headers;
+            Headers.compat(super.headers);
+            return super.headers;
         }
 
         get attrs() {
@@ -126,10 +115,13 @@ export default xHttpMessage;
 export function encodeBody(body, FormData, Blob) {
     const detailsObj = { body, input: body };
     const encodeFormData = (detailsObj, formData) => {
-        if (!FormData.encode) return;
-        let [ body, headers ] = FormData.encode(formData);
-        detailsObj.body = body;
-        detailsObj.headers = headers;
+        if (FormData.encode) {
+            let [ body, headers ] = FormData.encode(formData);
+            detailsObj.body = body;
+            detailsObj.headers = headers;
+            return;
+        }
+        detailsObj.body = formData;
     }
     if (_isString(body) || _isNumber(body)) {
         detailsObj.inputType = 'text';

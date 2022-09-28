@@ -71,6 +71,17 @@ const xHeaders = whatwagHeaders => class extends whatwagHeaders {
         return this.get('Content-Type');
     }
 
+    static compat(headers) {
+        if (!(headers instanceof this) && !headers.json) {
+            const descs = getAllPropertyDescriptors(new this);
+            Object.keys(descs).forEach(key => {
+                if (typeof key === 'symbol' || (key in headers)) return;
+                Object.defineProperty(headers, key, descs[key]);
+            });
+        }
+        return headers;
+    }
+
 }
 
 export default xHeaders;

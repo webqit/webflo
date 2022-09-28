@@ -58,10 +58,10 @@ const xResponse = (whatwagResponse, Headers, FormData, Blob) => class extends xH
     }
 
     static compat(response) {
+        if (response instanceof this) return response;
         if (response instanceof whatwagResponse) {
             return Object.setPrototypeOf(response, new this);
         }
-        return new this(response);
     }
 
 };

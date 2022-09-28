@@ -401,7 +401,7 @@ async function bundle(gen, outfile, asModule = false) {
         }
     }
     // Remove moduleFile build
-    Fs.unlinkSync(bundlingConfig.entryPoints[0]);
+    //Fs.unlinkSync(bundlingConfig.entryPoints[0]);
     removals.forEach(file => Fs.existsSync(file) && Fs.unlinkSync(file));
     if (waiting) waiting.stop();
     // ----------------

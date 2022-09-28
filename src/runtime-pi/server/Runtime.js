@@ -164,7 +164,7 @@ export default class Runtime {
                 const requestInit = { method: request.method, headers: request.headers };
                 if (request.method !== 'GET' && request.method !== 'HEAD') {
                     requestInit.body = await new Promise((resolve, reject) => {
-                        var formidable = new Formidable.IncomingForm({ multiples: true, allowEmptyFiles: false, keepExtensions: true });
+                        var formidable = new Formidable.IncomingForm({ multiples: true, allowEmptyFiles: true, keepExtensions: true });
                         formidable.parse(request, (error, fields, files) => {
                             if (error) {
                                 reject(error);
@@ -371,7 +371,13 @@ export default class Runtime {
 
     // Initiates remote fetch and sets the status
     remoteFetch(request, ...args) {
-        Observer.set(this.network, 'remote', true);
+        let href = request;
+		if (request instanceof Request) {
+			href = request.url;
+		} else if (request instanceof self.URL) {
+			href = request.href;
+		}
+        Observer.set(this.network, 'remote', href);
         let _response = fetch(request, ...args);
         // This catch() is NOT intended to handle failure of the fetch
         _response.catch(e => Observer.set(this.network, 'error', e.message));
@@ -515,7 +521,7 @@ export default class Runtime {
         log.push(style.keyword(e.request.method));
         log.push(style.url(e.request.url));
         if (response.attrs.hint) log.push(`(${style.comment(response.attrs.hint)})`);
-        if (response.headers.contentType) log.push(`(${style.comment(response.headers.contentType)})`);
+        if (response.headers.contentType) log.push(`(${style.comment(response.headers.contentType)}--)`);
         if (response.headers.get('Content-Encoding')) log.push(`(${style.comment(response.headers.get('Content-Encoding'))})`);
         if (errorCode) log.push(style.err(`${errorCode} ${response.statusText}`));
         else log.push(style.val(`${statusCode} ${response.statusText}`));

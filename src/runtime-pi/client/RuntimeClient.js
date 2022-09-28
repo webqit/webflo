@@ -45,7 +45,7 @@ export default class RuntimeClient {
 
 	// Renderer
     async render(httpEvent, response) {
-		let data = await response.json();
+		let data = await response.jsonfy();
 		const router = new Router(this.cx, httpEvent.url.pathname);
 		return router.route('render', httpEvent, data, async (httpEvent, data) => {
 			// --------

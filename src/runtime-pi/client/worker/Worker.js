@@ -99,12 +99,7 @@ export default class Worker {
 			event.respondWith((async (req, evt) => {
 				let requestingClient = await self.clients.get(event.clientId);
 				this.workport.setCurrentClient(requestingClient);
-				const requestInit = [
-					'method', 'headers', 'mode', 'credentials', 'cache', 'redirect', 'referrer', 'integrity',
-				].reduce((init, prop) => ({ [prop]: req[prop], ...init }), {});
-				if (!['GET', 'HEAD'].includes(req.method)) {
-					requestInit.body = await req.text();
-				}
+				const [ url, requestInit ] = await Request.rip(req);
 				// Now, the following is key:
 				// The browser likes to use "force-cache" for "navigate" requests, when, e.g: re-entering your site with the back button
 				// Problem here, force-cache forces out JSON not HTML as per webflo's design.
@@ -112,7 +107,7 @@ export default class Worker {
 				if (req.cache === 'force-cache'/* && req.mode === 'navigate' - even webflo client init call also comes with that... needs investigation */) {
 					requestInit.cache = 'default';
 				}
-				return this.go(req.url, requestInit, { event: evt });
+				return this.go(url, requestInit, { event: evt });
 			})(event.request, event));
 		});
 

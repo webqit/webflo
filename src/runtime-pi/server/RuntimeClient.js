@@ -70,7 +70,7 @@ export default class RuntimeClient {
 
     // Renderer
     async render(httpEvent, router, response) {
-        let data = await response.json();
+        let data = await response.jsonfy();
         let rendering = await router.route('render', httpEvent, data, async (httpEvent, data) => {
             var renderFile, pathnameSplit = httpEvent.url.pathname.split('/');
             while ((renderFile = Path.join(this.cx.CWD, this.cx.layout.PUBLIC_DIR, './' + pathnameSplit.join('/'), 'index.html')) 

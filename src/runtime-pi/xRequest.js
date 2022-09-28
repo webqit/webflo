@@ -62,11 +62,21 @@ const xRequest = (whatwagRequest, Headers, FormData, Blob) => class extends xHtt
         return 'referrer' in this.attrs ? this.attrs.referrer : super.referrer;
     }
 
-    static compat(request, url = null) {
+    static async rip(request) {
+        const requestInit = [
+            'method', 'headers', 'mode', 'credentials', 'cache', 'redirect', 'referrer', 'integrity',
+        ].reduce((init, prop) => ({ [prop]: request[prop], ...init }), {});
+        if (!['GET', 'HEAD'].includes(request.method)) {
+            requestInit.body = await request.text();
+        }
+        return [ request.url, requestInit ];
+    }
+
+    static compat(request) {
+        if (request instanceof this) return request;
         if (request instanceof whatwagRequest) {
             return Object.setPrototypeOf(request, new this);
         }
-        return new this(url, request);
     }
 
 };
