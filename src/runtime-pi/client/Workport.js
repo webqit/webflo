@@ -9,7 +9,7 @@ import { Observer } from './Runtime.js';
 export default class Workport {
 
     constructor(file, params = {}) {
-        this.ready = navigator.serviceWorker ? navigator.serviceWorker.ready : new Promise;
+        this.ready = navigator.serviceWorker ? navigator.serviceWorker.ready : new Promise(() => {});
 
         // --------
         // Registration and lifecycle
