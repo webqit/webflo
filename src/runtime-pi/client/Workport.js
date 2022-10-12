@@ -9,12 +9,13 @@ import { Observer } from './Runtime.js';
 export default class Workport {
 
     constructor(file, params = {}) {
-        this.ready = navigator.serviceWorker.ready;
+        this.ready = navigator.serviceWorker ? navigator.serviceWorker.ready : new Promise;
 
         // --------
         // Registration and lifecycle
         // --------
         this.registration = new Promise((resolve, reject) => {
+            if (!navigator.serviceWorker) return;
             const register = () => {
                 navigator.serviceWorker.register(file, { scope: params.scope || '/' }).then(async registration => {
 
@@ -81,7 +82,9 @@ export default class Workport {
                 return this.post;
             },
             listen: callback => {
-                navigator.serviceWorker.addEventListener('message', callback);
+                if (navigator.serviceWorker) {
+                    navigator.serviceWorker.addEventListener('message', callback);
+                }
                 return this.post;
             },
             request: (message, onAvailability = 1) => {

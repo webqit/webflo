@@ -13,6 +13,9 @@ const xHeaders = whatwagHeaders => class extends whatwagHeaders {
 
     // construct
     constructor(definition = {}) {
+        const cookies = definition.cookies;
+        delete definition.cookies;
+        // -----------------        
         if (definition instanceof whatwagHeaders) {
             // It's another Headers instance
             super(definition);
@@ -20,6 +23,59 @@ const xHeaders = whatwagHeaders => class extends whatwagHeaders {
             super();
             this.json(definition);
         }
+        // -----------------        
+        this.cookies = cookies;
+    }
+
+    set(name, value) {
+        // Will sync forth to this._cookies if is cookie
+        this.catchCookies(name, value);
+        return super.set(name, value);
+    }
+    
+    append(name, value) {
+        // Will sync forth to this._cookies if is cookie
+        this.catchCookies(name, value, true);
+        return super.append(name, value);
+    }
+        
+    delete(name) {
+        // Will sync forth to this._cookies if is cookie
+        this.catchCookies(name);
+        return super.delete(name);
+    }
+
+    set cookies(cookies) {
+        if (cookies instanceof Map) {
+            this.cookies.clear();
+            for (let [ name, value ] of cookies) {
+                this.cookies.set(name, value);
+            }
+        } else if (cookies) { this.set(this.cookieHeaderName, cookies); }
+        return true;
+    }
+
+    get cookies() {
+        if (!this._cookies) {
+            this._cookies = new this.Cookies;
+            Object.defineProperty(this._cookies, 'headers', { value: this });
+        }
+        return this._cookies;
+    }
+        
+    catchCookies(name, value, append = false) {
+        if (!this.cookies || name.toLowerCase() !== this.cookieHeaderName.toLowerCase()) return;
+        this.cookies.outLock = true;
+        // -----------------
+        if (arguments.length > 1) {
+            if (!append) {  this.cookies.clear(); }
+            const cookiesObj = this.cookies.parse(value);
+            for (let name in cookiesObj) {
+                this.cookies.set(name, cookiesObj[name]);
+            }
+        } else { this.cookies.clear(); }
+        // -----------------
+        this.cookies.outLock = false;
     }
 
     json(headers = {}, replace = true) {

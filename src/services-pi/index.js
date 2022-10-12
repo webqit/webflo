@@ -2,8 +2,8 @@
 /**
  * @imports
  */
-import * as certbot from './certbot/index.js';
+import * as cert from './cert/index.js';
 
 export {
-    certbot,
+    cert,
 }

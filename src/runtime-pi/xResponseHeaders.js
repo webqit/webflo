@@ -5,48 +5,61 @@
 import { _after, _beforeLast } from "@webqit/util/str/index.js";
 import { _isString, _getType, _isObject } from "@webqit/util/js/index.js";
 import _Headers from './xHeaders.js';
+import xCookies from './Cookies.js';
+
+/**
+ * Cookies
+ */
+class Cookies extends xCookies {
+
+    parse(cookieStr) {
+        const obj = {};
+        cookieStr && cookieStr.split(',').forEach(str => {
+            let [ cookieName, definition ] = this.parseEntry(str);
+            obj[cookieName] = definition;
+        });
+        return obj;
+    }
+
+    parseEntry(str) {
+        let [ cookieDefinition, attrsStr ] = str.split(';');
+        let [ cookieName, cookieValue ] = cookieDefinition.trim().split('=');
+        let attrs = { value: cookieValue, };
+        attrsStr && (attrsStr || '').split(/\;/g).map(attrStr => attrStr.trim().split('=')).forEach(attrsArr => {
+            attrs[attrsArr[0][0].toLowerCase() + attrsArr[0].substring(1).replace('-', '')] = attrsArr.length === 1 ? true : attrsArr[1];
+        });
+        return [ cookieName, attrs ];
+    }
+
+    stringifyEntry(cookieBody) {
+        if (_isObject(cookieBody)) {
+            let attrsArr = [ cookieBody.value ];
+            for (let attrName in cookieBody) {
+                if (attrName === 'value') continue;
+                let _attrName = attrName[0].toUpperCase() + attrName.substring(1);
+                if (_attrName === 'MaxAge') { _attrName = 'Max-Age' };
+                attrsArr.push(cookieBody[attrName] === true ? _attrName : `${_attrName}=${cookieBody[attrName]}`);
+            }
+            cookieBody = attrsArr.join(';');
+        }
+        return cookieBody;
+    }
+
+}
 
 /**
  * The _Headers Mixin
  */
 const _ResponseHeaders = NativeHeaders => class extends _Headers(NativeHeaders) {
 
-    set cookies(cookieJar) {
-        if (!_isObject(cookieJar)) {
-            throw new Error(`The "cookies" response directive cannot be of type: ${_getType(cookieJar)}`);
-        }
-        for (let cookieName in cookieJar) {
-            let cookieBody = cookieJar[cookieName];
-            if (_isObject(cookieBody)) {
-                let attrsArr = [ cookieBody.value ];
-                for (let attrName in cookieBody) {
-                    if (attrName === 'value') continue;
-                    let _attrName = attrName[0].toUpperCase() + attrName.substring(1);
-                    if (_attrName === 'MaxAge') { _attrName = 'Max-Age' };
-                    attrsArr.push(cookieBody[attrName] === true ? _attrName : `${_attrName}=${cookieBody[attrName]}`);
-                }
-                cookieBody = attrsArr.join('; ');
-            } 
-            this.append('Set-Cookie', `${cookieName}=${cookieBody}`);
-        }
-        return true;
+    get cookieHeaderName() {
+        return 'Set-Cookie';
     }
 
-    get cookies() {
-        const cookiesStr = this.get('Set-Cookie');
-        return cookiesStr && cookiesStr.split(',').reduce((cookieJar, str) => {
-            let [ cookieDefinition, attrsStr ] = str.split(';');
-            let [ cookieName, cookieValue ] = cookieDefinition.trim().split('=');
-            cookieJar[cookieName] = { value: cookieValue, };
-            if (attrsStr) {
-                (attrsStr || '').split(/\;/g).map(attrStr => attrStr.trim().split('=')).forEach(attrsArr => {
-                    cookieJar[cookieName][attrsArr[0][0].toLowerCase() + attrsArr[0].substring(1).replace('-', '')] = attrsArr.length === 1 ? true : attrsArr[1];
-                });
-            }
-            return cookieJar;
-        }, {});
+    get Cookies() {
+        return Cookies;
     }
-
+    
     set contentRange(value) {
         if (Array.isArray(value)) {
             if ((value.length === 2 && !value[0].includes('-')) || value.length < 2) {
@@ -94,14 +107,6 @@ const _ResponseHeaders = NativeHeaders => class extends _Headers(NativeHeaders) 
     }
 
     set location(value) {
-        return this.set('Location', value);
-    }
-
-    get redirect() {
-        return this.get('Location');
-    }
-
-    set redirect(value) {
         return this.set('Location', value);
     }
 

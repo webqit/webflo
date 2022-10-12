@@ -4,7 +4,7 @@
  */
 import { _any } from '@webqit/util/arr/index.js';
 import { urlPattern } from '../../util.js';
-import { HttpEvent, Request, Response, Observer } from '../Runtime.js';
+import { HttpEvent, Request, Response, fetch as xfetch, Observer } from '../Runtime.js';
 import Workport from './Workport.js';
 export {
 	URL,
@@ -228,9 +228,9 @@ export default class Worker {
 	networkFetch(request, params = {}) {
 		if (!params.cacheFallback) {
 			Observer.set(this.network, 'remote', true);
-			return self.fetch(request);
+			return xfetch(request);
 		}
-		return self.fetch(request).then(response => {
+		return xfetch(request).then(response => {
 			if (params.cacheRefresh) this.refreshCache(request, response);
 			Observer.set(this.network, 'remote', true);
 			return response;

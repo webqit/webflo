@@ -31,8 +31,8 @@
   },
   "bin": {
     "webflo": "src/webflo.js",
-    "webflo-certbot-http-auth-hook": "src/services-pi/certbot/http-auth-hook.js",
-    "webflo-certbot-http-cleanup-hook": "src/services-pi/certbot/http-cleanup-hook.js"
+    "webflo-certbot-http-auth-hook": "src/services-pi/cert/http-auth-hook.js",
+    "webflo-certbot-http-cleanup-hook": "src/services-pi/cert/http-cleanup-hook.js"
   },
   "dependencies": {
     "@octokit/webhooks": "^7.15.1",

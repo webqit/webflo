@@ -340,7 +340,7 @@ export default class Runtime {
         let baseObject;
         if (!(e.detail.request && e.detail.response)) {
             baseObject = this.mockSessionStore;
-            let cookieAvailability = e.request.headers.cookies[id];     // We just want to know availability... not validity, as this is understood to be for testing purposes only
+            let cookieAvailability = e.request.headers.cookies.get(id);     // We just want to know availability... not validity, as this is understood to be for testing purposes only
             if (!(this.mockSessionStore[id] && cookieAvailability)) {
                 let cookieObj = {};
                 Object.defineProperty(this.mockSessionStore, id, {
@@ -399,7 +399,7 @@ export default class Runtime {
         // Mock-Cookies?
         if (!(e.detail.request && e.detail.response)) {
             for (let cookieName of Object.getOwnPropertyNames(this.mockSessionStore)) {
-                response.headers.set('Set-Cookie', `${cookieName}=1`);      // We just want to know availability... not validity, as this is understood to be for testing purposes only
+                response.headers.append('Set-Cookie', `${cookieName}=1`);      // We just want to know availability... not validity, as this is understood to be for testing purposes only
             }
         }
 
@@ -521,7 +521,7 @@ export default class Runtime {
         log.push(style.keyword(e.request.method));
         log.push(style.url(e.request.url));
         if (response.attrs.hint) log.push(`(${style.comment(response.attrs.hint)})`);
-        if (response.headers.contentType) log.push(`(${style.comment(response.headers.contentType)}--)`);
+        if (response.headers.contentType) log.push(`(${style.comment(response.headers.contentType)})`);
         if (response.headers.get('Content-Encoding')) log.push(`(${style.comment(response.headers.get('Content-Encoding'))})`);
         if (errorCode) log.push(style.err(`${errorCode} ${response.statusText}`));
         else log.push(style.val(`${statusCode} ${response.statusText}`));

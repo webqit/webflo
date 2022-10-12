@@ -69,14 +69,22 @@ const xHttpEvent = (Request, Response, URL) => {
             return this._sessionFactory(...args);
         }
 
-        // RDR
-        retarget(url, init = {}) {
-            var request;
+        // Redirect Response
+        redirect(url, code = 302) {
+            return new this.Response(null, { status: code, headers: { Location: url } });
+        }
+
+        // "with()"
+        with(url, init = {}, _url = null) {
+            let request;
             if (url instanceof Request) {
                 if (!_isEmpty(init)) {
                     request = new Request(url, init);
                 } else {
                     request = url;
+                }
+                if (_url) {
+                    request.attrs.url = `${this.url.origin}${_url}`;
                 }
             } else {
                 request = new Request(this._request, init);

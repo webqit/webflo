@@ -67,7 +67,7 @@ export default class Router {
                         const _next = async (..._args) => {
                             const nextTick = { ...thisTick, arg: _args[0] };
                             if (_args.length > 1) {
-                                var _url = _args[1], _request, requestInit = { ...(_args[2] || {}) };
+                                let _url = _args[1], _request, requestInit = { ...(_args[2] || {}) };
                                 if (_args[1] instanceof nextTick.event.Request) {
                                     _request = _args[1];
                                     _url = _request.url;
@@ -85,9 +85,9 @@ export default class Router {
                                     }
                                 }
                                 if (_request) {
-                                    nextTick.event = thisTick.event.retarget(_request, { ...requestInit, _proxy: { url: newDestination/** non-standard but works */ } });
+                                    nextTick.event = thisTick.event.with(newDestination, _request, requestInit);
                                 } else {
-                                    nextTick.event = thisTick.event.retarget(newDestination, requestInit);
+                                    nextTick.event = thisTick.event.with(newDestination, requestInit);
                                 }
                                 
                                 nextTick.source = thisTick.destination.join('/');

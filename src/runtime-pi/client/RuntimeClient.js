@@ -82,7 +82,7 @@ export default class RuntimeClient {
 
 	// Normalize scroll position
 	async scrollIntoView(httpEvent) {
-		if (!(httpEvent.detail.src instanceof Element)) return;
+		if (!(httpEvent.detail.srcType === 'link')) return;
 		await new Promise(res => setTimeout(res, 10));
 		let viewportTop, urlTarget;
 		if (httpEvent.url.hash && (urlTarget = document.querySelector(httpEvent.url.hash))) {

@@ -25,7 +25,7 @@ const RequestHeaders = xRequestHeaders(whatwag.Headers);
 const ResponseHeaders = xResponseHeaders(whatwag.Headers);
 const Request = xRequest(whatwag.Request, RequestHeaders, FormData, whatwag.Blob);
 const Response = xResponse(whatwag.Response, ResponseHeaders, FormData, whatwag.Blob);
-const fetch = xfetch(whatwag.fetch);
+const fetch = xfetch(whatwag.fetch, Request);
 const HttpEvent = xHttpEvent(Request, Response, URL);
 
 export {
@@ -190,7 +190,7 @@ export default class Runtime {
 	// Check is-hash-action
 	isHashAction(urlObj) {
 		const isHashNav = _before(window.document.location.href, '#') === _before(urlObj.href, '#') && urlObj.href.includes('#');
-		return isHashNav && urlObj.hash.length > 1 && document.querySelector(urlObj.hash);
+		return isHashNav// && urlObj.hash.length > 1 && document.querySelector(urlObj.hash);
 	}
 
 	// Check is-spa-route

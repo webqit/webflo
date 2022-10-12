@@ -5,13 +5,41 @@
 import { _after } from "@webqit/util/str/index.js";
 import { _from as _arrFrom } from "@webqit/util/arr/index.js";
 import { _getType, _isObject } from "@webqit/util/js/index.js";
-import { wwwFormUnserialize, wwwFormSerialize } from './util.js';
+import { wwwFormUnserialize } from './util.js';
 import xHeaders from './xHeaders.js';
+import xCookies from './Cookies.js';
+
+/**
+ * Cookies
+ */
+class Cookies extends xCookies {
+
+    parse(str) {
+        return wwwFormUnserialize(str, {}, ';');
+    }
+    
+    parseEntry(str) {
+        return str.trim().split('=');
+    }
+
+    stringifyEntry(cookieBody) {
+        return cookieBody;
+    }
+
+}
 
 /**
  * The xHeaders Mixin
  */
 const xRequestHeaders = NativeHeaders => class extends xHeaders(NativeHeaders) {
+    
+    get cookieHeaderName() {
+        return 'Cookie';
+    }
+
+    get Cookies() {
+        return Cookies;
+    }
 
     set accept(value) {
         return this.set('Accept', value);
@@ -32,22 +60,6 @@ const xRequestHeaders = NativeHeaders => class extends xHeaders(NativeHeaders) {
                 return accept;
             }
         };
-    }
-
-    set cookies(cookieJar) {
-        if (!_isObject(cookieJar)) {
-            throw new Error(`Cookies must be of type object. Received type: ${_getType(cookieJar)}.`);
-        }
-        this.set('Cookie', wwwFormSerialize(cookieJar, ';'));
-        this._cookies = null;
-        return true;
-    }
-
-    get cookies() {
-        if (!this._cookies) {
-            this._cookies = wwwFormUnserialize(this.get('cookie'), {}, ';');
-        }
-        return this._cookies;
     }
 
     set range(value) {
@@ -89,6 +101,7 @@ const xRequestHeaders = NativeHeaders => class extends xHeaders(NativeHeaders) {
     get cors() {
         return this.get('Access-Control-Allow-Origin');
     }
+
 
 }
 
