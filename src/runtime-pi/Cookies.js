@@ -22,7 +22,7 @@ export default class Cookies extends Map {
         retrn = super.set(name, valueObj);
         if (!this.outLock) {
             if (_isObject(value)) { valueStr = this.stringifyEntry(value); }
-            this.headers.append(this.headers.cookieHeaderName, `${ name }=${ valueStr }`);
+            append(this.headers, `${ name }=${ valueStr }`);
         }
         // -----------------
         this.inLock = false;
@@ -36,7 +36,7 @@ export default class Cookies extends Map {
         let retrn = super.delete(name);
         this.headers.delete(this.headers.cookieHeaderName);
         for (let [ name, definition ] of this) {
-            this.headers.append(this.headers.cookieHeaderName, `${ name }=${ this.stringifyEntry(definition) }`);
+            append(this.headers, `${ name }=${ this.stringifyEntry(definition) }`);
         }
         // -----------------
         this.inLock = false;
@@ -72,4 +72,11 @@ export default class Cookies extends Map {
         return this.headers.get(this.headers.cookieHeaderName);
     }
 
+}
+
+function append(headers, value) {
+    let values = [value];
+    let currentValue = headers.get(headers.cookieHeaderName);
+    if (currentValue) { values.unshift(currentValue); }
+    headers.set(headers.cookieHeaderName, values.join(headers.cookieHeaderSeparator));
 }

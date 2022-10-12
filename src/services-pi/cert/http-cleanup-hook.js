@@ -5,7 +5,7 @@
  */
 import Fs from 'fs';
 import Path from 'path';
-import * as _layout from '../../config/layout.js';
+import Layout from '../../config-pi/deployment/Layout.js';
 
 // ------------------------------------------
 
@@ -17,7 +17,7 @@ const domain = process.env.CERTBOT_DOMAIN,
     allDomains = process.env.CERTBOT_ALL_DOMAINS.split(',')*/
     ;
 (async function() {
-    const layout = await _layout.read({});
+    const layout = await (new Layout({ name: 'webflo', flags: {} })).read();
     const acmeFile = Path.join(layout.PUBLIC_DIR, './.well-known/acme-challenge/', token);
     Fs.unlinkSync(acmeFile);
 })();

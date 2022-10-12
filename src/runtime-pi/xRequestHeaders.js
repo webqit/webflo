@@ -36,6 +36,10 @@ const xRequestHeaders = NativeHeaders => class extends xHeaders(NativeHeaders) {
     get cookieHeaderName() {
         return 'Cookie';
     }
+        
+    get cookieHeaderSeparator() {
+        return ';';
+    }
 
     get Cookies() {
         return Cookies;

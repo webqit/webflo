@@ -55,6 +55,10 @@ const _ResponseHeaders = NativeHeaders => class extends _Headers(NativeHeaders) 
     get cookieHeaderName() {
         return 'Set-Cookie';
     }
+        
+    get cookieHeaderSeparator() {
+        return ',';
+    }
 
     get Cookies() {
         return Cookies;
