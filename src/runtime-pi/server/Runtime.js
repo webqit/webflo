@@ -23,6 +23,7 @@ import xRequest from "../xRequest.js";
 import xResponse from "../xResponse.js";
 import xfetch from '../xfetch.js';
 import xHttpEvent from '../xHttpEvent.js';
+import _Runtime from '../Runtime.js';
 
 const URL = xURL(whatwag.URL);
 const FormData = xFormData(whatwag.FormData);
@@ -47,7 +48,7 @@ export {
     Observer,
 }
 
-export default class Runtime {
+export default class Runtime extends _Runtime {
 
     /**
      * Runtime
@@ -58,202 +59,212 @@ export default class Runtime {
      * @return void
      */
     constructor(cx, clientCallback) {
+        super(cx, clientCallback);
         // ---------------
-        this.cx = cx;
-        this.clients = new Map;
-        this.mockSessionStore = {};
         this.ready = (async () => {
-
             // ---------------
-
-            const execClientCallback = (cx, hostname) => {
-                let client = clientCallback(cx, hostname);
-                if (!client || !client.handle) throw new Error(`Application instance must define a ".handle()" method.`);
-                return client;
+            const resolveContextObj = async (cx, force = false) => {
+                if (_isEmpty(cx.server) || force) { cx.server = await (new cx.config.runtime.Server(cx)).read(); }
+                if (_isEmpty(cx.layout) || force) { cx.layout = await (new cx.config.deployment.Layout(cx)).read(); }
+                if (_isEmpty(cx.env) || force) { cx.env = await (new cx.config.deployment.Env(cx)).read(); }
             };
-            const loadContextObj = async cx => {
-                const meta = {};
-                if (_isEmpty(cx.server)) { cx.server = await (new this.cx.config.runtime.Server(cx)).read(); }
-                if (_isEmpty(cx.layout)) { cx.layout = await (new this.cx.config.deployment.Layout(cx)).read(); }
-                if (_isEmpty(cx.env)) {
-                    let env = await (new this.cx.config.deployment.Env(cx)).read();
-                    cx.env = env.entries;
-                    meta.envAutoloading = env.autoload;
-                }
-                return meta;
-            };
-            let loadMeta = await loadContextObj(this.cx);
-            if (this.cx.server.shared && (this.cx.config.deployment.Virtualization || !_isEmpty(this.cx.vcontexts))) {
-                if (_isEmpty(this.cx.vcontexts)) {
-                    this.cx.vcontexts = {};
-                    const vhosts = await (new this.cx.config.deployment.Virtualization(cx)).read();
-                    await Promise.all((vhosts.entries || []).map(vhost => async () => {
-                        this.cx.vcontexts[vhost.host] = this.cx.constructor.create(this.cx, Path.join(this.cx.CWD, vhost.path));
-                        await loadContextObj(this.cx.vcontexts[vhost.host]);
-                    }));
-                }
-                _each(this.cx.vcontexts, (host, vcontext) => {
-                    this.clients.set(vhost.host, execClientCallback(vcontext, host));
-                });
-            } else {
-                this.clients.set('*', execClientCallback(this.cx, '*'));
-            }
-            // Always populate... regardless whether shared setup
-            if (loadMeta.envAutoloading !== false) {
-                Object.keys(this.cx.env).forEach(key => {
+            await resolveContextObj(this.cx);
+            if (this.cx.env.autoload !== false) {
+                Object.keys(this.cx.env.entries).forEach(key => {
                     if (!(key in process.env)) {
-                        process.env[key] = this.cx.env[key];
+                        process.env[key] = this.cx.env.entries[key];
                     }
                 });
             }
-
             // ---------------
-
-            if (!this.cx.flags['test-only'] && !this.cx.flags['https-only']) {
-                Http.createServer((request, response) => handleRequest('http', request, response)).listen(process.env.PORT || this.cx.server.port);
+            const parseDomains = domains => _arrFrom(domains).reduce((arr, str) => arr.concat(str.split(',')), []).map(str => str.trim()).filter(str => str);
+            const selectDomains = (serverDefs, matchingPort = null) => serverDefs.reduce((doms, def) => doms.length ? doms : (((!matchingPort || def.port === matchingPort) && parseDomains(def.domains || def.hostnames)) || []), []);
+            // ---------------
+            this.vhosts = new Map;
+            if (this.cx.config.deployment.Virtualization) {
+                const vhosts = await (new this.cx.config.deployment.Virtualization(this.cx)).read();
+                await Promise.all((vhosts.entries || []).map(async vhost => {
+                    let cx, hostnames = parseDomains(vhost.hostnames), port = parseInt(vhost.port);
+                    if (vhost.path) {
+                        cx = this.cx.constructor.create(this.cx, Path.join(this.cx.CWD, vhost.path));
+                        await resolveContextObj(cx, true);
+                        // From the server that's most likely to be active
+                        port || (port = parseInt(cx.server.port || cx.server.https.port));
+                        // The domain list that corresponds to the specified resolved port
+                        hostnames.length || (hostnames = selectDomains([cx.server, cx.server.https], port));
+                        // Or anyone available... hoping that the remote configs can eventually be in sync
+                        hostnames.length || (hostnames = selectDomains([cx.server, cx.server.https]));
+                    }
+                    hostnames.length || (hostnames = ['*']); 
+                    this.vhosts.set(hostnames.sort().join('|'), { cx, hostnames, port });
+                }));
             }
-
             // ---------------
-
+            this.servers = new Map;
+            // ---------------
+            if (!this.cx.flags['test-only'] && !this.cx.flags['https-only'] && this.cx.server.port) {
+                const httpServer = Http.createServer((request, response) => handleRequest('http', request, response));
+                httpServer.listen(this.cx.server.port);
+                // -------
+                let domains = parseDomains(this.cx.server.domains);
+                if (!domains.length) { domains = ['*']; }
+                this.servers.set('http', {
+                    instance: httpServer,
+                    port: this.cx.server.port,
+                    domains,
+                });
+            }
+            // ---------------
             if (!this.cx.flags['test-only'] && !this.cx.flags['http-only'] && this.cx.server.https.port) {
                 const httpsServer = Https.createServer((request, response) => handleRequest('https', request, response));
-                if (this.cx.server.shared) {
-                    _each(this.cx.vcontexts, (host, vcontext) => {
-                        if (Fs.existsSync(vcontext.server.https.keyfile)) {
-                            const cert = {
-                                key: Fs.readFileSync(vcontext.server.https.keyfile),
-                                cert: Fs.readFileSync(vcontext.server.https.certfile),
-                            };
-                            var domains = _arrFrom(vcontext.server.https.certdoms);
-                            if (!domains[0] || domains[0].trim() === '*') {
-                                httpsServer.addContext(host, cert);
-                                if (vcontext.server.force_www) {
-                                    httpsServer.addContext(host.startsWith('www.') ? host.substr(4) : 'www.' + host, cert);
-                                }
-                            } else {
-                                domains.forEach(domain => {
-                                    httpsServer.addContext(domain, cert);
-                                });
-                            }
-                        }
-                    });
-                } else {
-                    if (Fs.existsSync(this.cx.server.https.keyfile)) {
-                        var domains = _arrFrom(this.cx.server.https.certdoms);
-                        var cert = {
-                            key: Fs.readFileSync(this.cx.server.https.keyfile),
-                            cert: Fs.readFileSync(this.cx.server.https.certfile),
-                        };
-                        if (!domains[0]) {
-                            domains = ['*'];
-                        }
-                        domains.forEach(domain => {
-                            httpsServer.addContext(domain, cert);
-                        });
-                    }
+                httpsServer.listen(this.cx.server.https.port);
+                // -------
+                const addSSLContext = (serverConfig,  domains) => {
+                    if (!Fs.existsSync(serverConfig.https.keyfile)) return;
+                    const cert = {
+                        key: Fs.readFileSync(serverConfig.https.keyfile),
+                        cert: Fs.readFileSync(serverConfig.https.certfile),
+                    };
+                    domains.forEach(domain => { httpsServer.addContext(domain, cert); });
                 }
-                httpsServer.listen(process.env.PORT2 || this.cx.server.https.port);
+                // -------
+                let domains = parseDomains(this.cx.server.https.domains);
+                if (!domains.length) { domains = ['*']; }
+                this.servers.set('https', {
+                    instance: httpsServer,
+                    port: this.cx.server.https.port,
+                    domains,
+                });
+                // -------
+                addSSLContext(this.cx.server, domains);
+                for (const [ /*id*/, vhost ] of this.vhosts) {
+                    vhost.cx && addSSLContext(vhost.cx.server, vhost.hostnames);
+                }
             }
-
             // ---------------
-            
-            const handleRequest = async (protocol, request, response) => {
-                // --------
-                // Parse request
-                const fullUrl = protocol + '://' + request.headers.host + request.url;
-                const requestInit = { method: request.method, headers: request.headers };
-                if (request.method !== 'GET' && request.method !== 'HEAD') {
-                    requestInit.body = await new Promise((resolve, reject) => {
-                        var formidable = new Formidable.IncomingForm({ multiples: true, allowEmptyFiles: true, keepExtensions: true });
-                        formidable.parse(request, (error, fields, files) => {
-                            if (error) {
-                                reject(error);
-                                return;
-                            }
-                            if (request.headers['content-type'] === 'application/json') {
-                                return resolve(fields);
-                            }
-                            const formData = new FormData;
-                            Object.keys(fields).forEach(name => {
-                                if (Array.isArray(fields[name])) {
-                                    const values = Array.isArray(fields[name][0]) 
-                                        ? fields[name][0]/* bugly a nested array when there are actually more than entry */ 
-                                        : fields[name];
-                                    values.forEach(value => {
-                                        formData.append(!name.endsWith(']') ? name + '[]' : name, value);
-                                    });
-                                } else {
-                                    formData.append(name, fields[name]);
-                                }
-                            });
-                            Object.keys(files).forEach(name => {
-                                const fileCompat = file => {
-                                    // IMPORTANT
-                                    // Path up the "formidable" file in a way that "formdata-node"
-                                    // to can translate it into its own file instance
-                                    file[Symbol.toStringTag] = 'File';
-                                    file.stream = () => Fs.createReadStream(file.path);
-                                    // Done pathcing
-                                    return file;
-                                }
-                                if (Array.isArray(files[name])) {
-                                    files[name].forEach(value => {
-                                        formData.append(name, fileCompat(value));
-                                    });
-                                } else {
-                                    formData.append(name, fileCompat(files[name]));
-                                }
-                            });
-                            resolve(formData);
-                        });
-                    });
-                }
-
-                // --------
-                // Run Application
+            const handleRequest = async (proto, request, response) => {
+                const [ fullUrl, requestInit ] = await this.parseNodeRequest(proto, request);
                 let clientResponse = await this.go(fullUrl, requestInit, { request, response });
                 if (response.headersSent) return;
-
                 // --------
-                // Set headers
                 _each(clientResponse.headers.json(), (name, value) => {
                     response.setHeader(name, value);
                 });
-
                 // --------
-                // Send
                 response.statusCode = clientResponse.status;
                 response.statusMessage = clientResponse.statusText;
-                if (clientResponse.headers.redirect) {
-                    response.end();
-                } else {
-                    var body = clientResponse.body;
-                    if ((body instanceof ReadableStream)) {
-                        body.pipe(response);
-                    } else {
-                        // The default
-                        if (clientResponse.headers.contentType === 'application/json') {
-                            body += '';
-                        }
-                        response.end(body);
-                    }
+                if (clientResponse.headers.location) {
+                    return response.end();
                 }
+                if ((clientResponse.body instanceof ReadableStream)) {
+                    return clientResponse.body.pipe(response);
+                }
+                let body = clientResponse.body;
+                if (clientResponse.headers.contentType === 'application/json') {
+                    body += '';
+                }
+                return response.end(body);
             };
-
         })();
+
         // ---------------
         Observer.set(this, 'location', {});
         Observer.set(this, 'network', {});
         // ---------------
-        this.ready.then(() => {
-            if (!this.cx.logger) return;
-            if (this.cx.server.shared) {
-                this.cx.logger.info(`> Server running (shared)`);
-            } else {
-                this.cx.logger.info(`> Server running (${this.cx.app.title || ''})::${this.cx.server.port}`);
+
+		// -------------
+		// Initialize
+		(async () => {
+            await this.ready;
+            if (this.cx.logger) {
+                if (this.servers.size) {
+                    this.cx.logger.info(`> Server running! (${this.cx.app.title || ''})`);
+                    for (let [ proto, def ] of this.servers) {
+                        this.cx.logger.info(`> ${ proto.toUpperCase() } / ${ def.domains.concat('').join(`:${ def.port } / `)}`);
+                    }
+                } else {
+                    this.cx.logger.info(`> Server not running! No port specified.`);
+                }
+                if (this.vhosts.size) {
+                    this.cx.logger.info(`> Reverse proxy active.`);
+                    for (let [ id, def ] of this.vhosts) {
+                        this.cx.logger.info(`> ${ id } >>> ${ def.port }`);
+                    }
+                }
+                this.cx.logger.info(``);
             }
-        });
-     }
+			if (this.client && this.client.init) {
+                const request = this.generateRequest('/');
+                const httpEvent = new HttpEvent(request, { srcType: 'initialization' }, (id = 'session', options = { duration: 60 * 60 * 24, activeDuration: 60 * 60 * 24 }, callback = null) => {
+                    return this.getSession(this.cx, httpEvent, id, options, callback);
+                });
+                await this.client.init(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
+            }
+		})();
+        // ---------------
+
+        // ---------------
+        this.mockSessionStore = {};
+        // ---------------
+        
+    }
+
+    /**
+     * Parse Nodejs's IncomingMessage to WHATWAG request params.
+     *
+     * @param String 	            proto
+     * @param Http.IncomingMessage 	request
+     *
+     * @return Array
+     */
+    async parseNodeRequest(proto, request) {
+        const fullUrl = proto + '://' + request.headers.host + request.url;
+        const requestInit = { method: request.method, headers: request.headers };
+        if (request.method !== 'GET' && request.method !== 'HEAD') {
+            requestInit.body = await new Promise((resolve, reject) => {
+                var formidable = new Formidable.IncomingForm({ multiples: true, allowEmptyFiles: true, keepExtensions: true });
+                formidable.parse(request, (error, fields, files) => {
+                    if (error) { return reject(error); }
+                    if (request.headers['content-type'] === 'application/json') {
+                        return resolve(fields);
+                    }
+                    const formData = new FormData;
+                    Object.keys(fields).forEach(name => {
+                        if (Array.isArray(fields[name])) {
+                            const values = Array.isArray(fields[name][0]) 
+                                ? fields[name][0]/* bugly a nested array when there are actually more than entry */ 
+                                : fields[name];
+                            values.forEach(value => {
+                                formData.append(!name.endsWith(']') ? name + '[]' : name, value);
+                            });
+                        } else {
+                            formData.append(name, fields[name]);
+                        }
+                    });
+                    Object.keys(files).forEach(name => {
+                        const fileCompat = file => {
+                            // IMPORTANT
+                            // Path up the "formidable" file in a way that "formdata-node"
+                            // to can translate it into its own file instance
+                            file[Symbol.toStringTag] = 'File';
+                            file.stream = () => Fs.createReadStream(file.path);
+                            // Done pathcing
+                            return file;
+                        }
+                        if (Array.isArray(files[name])) {
+                            files[name].forEach(value => {
+                                formData.append(name, fileCompat(value));
+                            });
+                        } else {
+                            formData.append(name, fileCompat(files[name]));
+                        }
+                    });
+                    resolve(formData);
+                });
+            });
+        }
+        return [ fullUrl, requestInit ];
+    }
 
     /**
      * Performs a request.
@@ -271,28 +282,30 @@ export default class Runtime {
         url = typeof url === 'string' ? new whatwag.URL(url) : url;
         init = { referrer: this.location.href, ...init };
         // ------------
-        let _context = this.cx, rdr;
-        if (this.cx.server.shared && !(_context = this.cx.vcontexts[url.hostname])
-        && !(url.hostname.startsWith('www.') && (_context = this.cx.vcontexts[url.hostname.substr(4)]) && _context.server.force_www)
-        && !(!url.hostname.startsWith('www.') && (_context = this.cx.vcontexts['www.' + url.hostname]) && _context.server.force_www)) {
-            rdr = { status: 500, statusText: 'Unrecognized host' };
-        } else if (url.protocol === 'http:' && _context.server.https.force && !this.cx.flags['http-only'] && /** main server */this.cx.server.https.port) {
-            rdr = { status: 302, headers: { Location: ( url.protocol = 'https:', url.href ) } };
-        } else if (url.hostname.startsWith('www.') && _context.server.force_www === 'remove') {
-            rdr = { status: 302, headers: { Location: ( url.hostname = url.hostname.substr(4), url.href ) } };
-        } else if (!url.hostname.startsWith('www.') && _context.server.force_www === 'add') {
-            rdr = { status: 302, headers: { Location: ( url.hostname = `www.${url.hostname}`, url.href ) } };
-        } else if (_context.config.runtime.server.Redirects) {
-            rdr = ((await (new _context.config.runtime.server.Redirects(_context)).read()).entries || []).reduce((_rdr, entry) => {
+        const hosts = [];
+        this.servers.forEach(server => hosts.push(...server.domains));
+        // ------------
+        for (const [ /*id*/, vhost ] of this.vhosts) {
+            if (vhost.hostnames.includes(url.hostname) || (vhost.hostnames.includes('*') && !hosts.includes('*'))) {
+                return this.proxyFetch(vhost, url, init);
+            }
+        }
+        // ------------
+        let exit;
+        if (!hosts.includes(url.hostname) && !hosts.includes('*')) {
+            exit = { status: 500, statusText: 'Unrecognized host' };
+        } else if (url.protocol === 'http:' && this.cx.server.https.force) {
+            exit = { status: 302, headers: { Location: ( url.protocol = 'https:', url.href ) } };
+        } else if (url.hostname.startsWith('www.') && this.cx.server.force_www === 'remove') {
+            exit = { status: 302, headers: { Location: ( url.hostname = url.hostname.substr(4), url.href ) } };
+        } else if (!url.hostname.startsWith('www.') && this.cx.server.force_www === 'add') {
+            exit = { status: 302, headers: { Location: ( url.hostname = `www.${ url.hostname }`, url.href ) } };
+        } else if (this.cx.config.runtime.server.Redirects) {
+            exit = ((await (new this.cx.config.runtime.server.Redirects(this.cx)).read()).entries || []).reduce((_rdr, entry) => {
                 return _rdr || ((_rdr = urlPattern(entry.from, url.origin).exec(url.href)) && { status: entry.code || 302, headers: { Location: _rdr.render(entry.to) } });
             }, null);
         }
-        if (rdr) {
-            return new Response(null, rdr);
-        }
-        const autoHeaders = _context.config.runtime.server.Headers 
-            ? ((await (new _context.config.runtime.server.Headers(_context)).read()).entries || []).filter(entry => urlPattern(entry.url, url.origin).exec(url.href))
-            : [];
+        if (exit) { return new Response(null, exit); }
         // ------------
 
         // ------------
@@ -300,27 +313,29 @@ export default class Runtime {
         Observer.set(this.network, 'redirecting', null);
         // ------------
 
+        // ------------
+        // Automatically-added headers
+        const autoHeaders = this.cx.config.runtime.server.Headers 
+            ? ((await (new this.cx.config.runtime.server.Headers(this.cx)).read()).entries || []).filter(entry => urlPattern(entry.url, url.origin).exec(url.href))
+            : [];
         // The request object
-        let request = this.generateRequest(url.href, init, autoHeaders.filter(header => header.type === 'request'));
+        const request = this.generateRequest(url.href, init, autoHeaders.filter(header => header.type === 'request'));
         // The navigation event
-        let httpEvent = new HttpEvent(request, detail, (id = 'session', options = { duration: 60 * 60 * 24, activeDuration: 60 * 60 * 24 }, callback = null) => {
-            return this.getSession(_context, httpEvent, id, options, callback);
+        const httpEvent = new HttpEvent(request, detail, (id = 'session', options = { duration: 60 * 60 * 24, activeDuration: 60 * 60 * 24 }, callback = null) => {
+            return this.getSession(this.cx, httpEvent, id, options, callback);
         });
         // Response
-        let client = this.clients.get('*'), response, finalResponse;
-        if (this.cx.server.shared) {
-            client = this.clients.get(url.hostname);
-        }
+        let response, finalResponse;
         try {
-            response = await client.handle(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
-            finalResponse = await this.handleResponse(_context, httpEvent, response, autoHeaders.filter(header => header.type === 'response'));
+            response = await this.client.handle(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
+            finalResponse = await this.handleResponse(this.cx, httpEvent, response, autoHeaders.filter(header => header.type === 'response'));
         } catch(e) {
             finalResponse = new Response(null, { status: 500, statusText: e.message });
             console.error(e);
         }
         // Logging
         if (this.cx.logger) {
-            let log = this.generateLog(httpEvent, finalResponse);
+            const log = this.generateLog(httpEvent.request, finalResponse);
             this.cx.logger.log(log);
         }
         // ------------
@@ -328,9 +343,31 @@ export default class Runtime {
 		return finalResponse;
     }
 
+    // Fetch from proxied host
+    async proxyFetch(vhost, url, init) {
+        const url2 = new whatwag.URL(url);
+        url2.port = vhost.port;
+        const init2 = { ...init, compress: false };
+        if (!init2.headers) init2.headers = {};
+        init2.headers.host = url2.host;
+        let response;
+        try {
+            response = await this.remoteFetch(url2, init2);
+        } catch(e) {
+            response = new Response(null, { status: 500, statusText: e.message });
+            console.error(e);
+        }
+        if (this.cx.logger) {
+            const log = this.generateLog({ url: url2.href, ...init2 }, response);
+            this.cx.logger.log(log);
+        }
+        return response;
+
+    }
+
     // Generates request object
-    generateRequest(href, init, autoHeaders = []) {
-        let request = new Request(href, init);
+    generateRequest(href, init = {}, autoHeaders = []) {
+        const request = new Request(href, init);
         this._autoHeaders(request.headers, autoHeaders);
         return request;
     }
@@ -374,11 +411,11 @@ export default class Runtime {
         let href = request;
 		if (request instanceof Request) {
 			href = request.url;
-		} else if (request instanceof self.URL) {
+		} else if (request instanceof whatwag.URL) {
 			href = request.href;
 		}
         Observer.set(this.network, 'remote', href);
-        let _response = fetch(request, ...args);
+        const _response = fetch(request, ...args);
         // This catch() is NOT intended to handle failure of the fetch
         _response.catch(e => Observer.set(this.network, 'error', e.message));
         // Save a reference to this
@@ -410,16 +447,16 @@ export default class Runtime {
 
         // ----------------
         // Redirects
-        if (response.headers.redirect) {
-            let xRedirectPolicy = e.request.headers.get('X-Redirect-Policy');
-            let xRedirectCode = e.request.headers.get('X-Redirect-Code') || 300;
-            let destinationUrl = new whatwag.URL(response.headers.location, e.url.origin);
-            let isSameOriginRedirect = destinationUrl.origin === e.url.origin;
+        if (response.headers.location) {
+            const xRedirectPolicy = e.request.headers.get('X-Redirect-Policy');
+            const xRedirectCode = e.request.headers.get('X-Redirect-Code') || 300;
+            const destinationUrl = new whatwag.URL(response.headers.location, e.url.origin);
+            const isSameOriginRedirect = destinationUrl.origin === e.url.origin;
             let isSameSpaRedirect, sparootsFile = Path.join(cx.CWD, cx.layout.PUBLIC_DIR, 'sparoots.json');
             if (isSameOriginRedirect && xRedirectPolicy === 'manual-when-cross-spa' && Fs.existsSync(sparootsFile)) {
                 // Longest-first sorting
-                let sparoots = _arrFrom(JSON.parse(Fs.readFileSync(sparootsFile))).sort((a, b) => a.length > b.length ? -1 : 1);
-                let matchRoot = path => sparoots.reduce((prev, root) => prev || (`${path}/`.startsWith(`${root}/`) && root), null);
+                const sparoots = _arrFrom(JSON.parse(Fs.readFileSync(sparootsFile))).sort((a, b) => a.length > b.length ? -1 : 1);
+                const matchRoot = path => sparoots.reduce((prev, root) => prev || (`${path}/`.startsWith(`${root}/`) && root), null);
                 isSameSpaRedirect = matchRoot(destinationUrl.pathname) === matchRoot(e.url.pathname);
             }
             if (xRedirectPolicy === 'manual' || (!isSameOriginRedirect && xRedirectPolicy === 'manual-when-cross-origin') || (!isSameSpaRedirect && xRedirectPolicy === 'manual-when-cross-spa')) {
@@ -461,8 +498,8 @@ export default class Runtime {
         if ((rangeRequest = e.request.headers.range) && !response.headers.get('Content-Range')
         && ((body instanceof ReadableStream) || (ArrayBuffer.isView(body) && (body = ReadableStream.from(body))))) {
             // ...in partials
-            let totalLength = response.headers.contentLength || 0;
-            let ranges = await rangeRequest.reduce(async (_ranges, range) => {
+            const totalLength = response.headers.contentLength || 0;
+            const ranges = await rangeRequest.reduce(async (_ranges, range) => {
                 _ranges = await _ranges;
                 if (range[0] < 0 || (totalLength && range[0] > totalLength) 
                 || (range[1] > -1 && (range[1] <= range[0] || (totalLength && range[1] >= totalLength)))) {
@@ -475,7 +512,7 @@ export default class Runtime {
                 }
                 if (_ranges.error) return _ranges;
                 if (totalLength) { range.clamp(totalLength); }
-                let partLength = range[1] - range[0] + 1;
+                const partLength = range[1] - range[0] + 1;
                 _ranges.parts.push({
                     body: body.pipe(_streamSlice(range[0], range[1] + 1)),
                     range: range = `bytes ${range[0]}-${range[1]}/${totalLength || '*'}`,
@@ -508,24 +545,24 @@ export default class Runtime {
     }
 
     // Generates log
-    generateLog(e, response) {
+    generateLog(request, response) {
         let log = [];
         // ---------------
-        let style = this.cx.logger.style || { keyword: str => str, comment: str => str, url: str => str, val: str => str, err: str => str, };
-        let errorCode = [ 404, 500 ].includes(response.status) ? response.status : 0;
-        let xRedirectCode = response.headers.get('X-Redirect-Code');
-        let redirectCode = xRedirectCode || ((response.status + '').startsWith('3') ? response.status : 0);
-        let statusCode = xRedirectCode || response.status;
+        const style = this.cx.logger.style || { keyword: str => str, comment: str => str, url: str => str, val: str => str, err: str => str, };
+        const errorCode = [ 404, 500 ].includes(response.status) ? response.status : 0;
+        const xRedirectCode = response.headers.get('X-Redirect-Code');
+        const redirectCode = xRedirectCode || ((response.status + '').startsWith('3') ? response.status : 0);
+        const statusCode = xRedirectCode || response.status;
         // ---------------
         log.push(`[${style.comment((new Date).toUTCString())}]`);
-        log.push(style.keyword(e.request.method));
-        log.push(style.url(e.request.url));
+        log.push(style.keyword(request.method));
+        log.push(style.url(request.url));
         if (response.attrs.hint) log.push(`(${style.comment(response.attrs.hint)})`);
         if (response.headers.contentType) log.push(`(${style.comment(response.headers.contentType)})`);
         if (response.headers.get('Content-Encoding')) log.push(`(${style.comment(response.headers.get('Content-Encoding'))})`);
         if (errorCode) log.push(style.err(`${errorCode} ${response.statusText}`));
         else log.push(style.val(`${statusCode} ${response.statusText}`));
-        if (redirectCode) log.push(`- ${style.url(response.headers.redirect)}`);
+        if (redirectCode) log.push(`- ${style.url(response.headers.location)}`);
 
         return log.join(' ');
     }

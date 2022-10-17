@@ -80,6 +80,7 @@ export default class Router extends _Router {
                 ext = Path.parse(filename.substring(0, filename.length - ext.length)).ext;
             }
         }
+
         // read file from file system
         return new Promise(resolve => {
             Fs.readFile(filename, function(err, data) {

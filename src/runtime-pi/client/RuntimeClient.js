@@ -3,19 +3,16 @@
  * @imports
  */
 import Router from './Router.js';
+import _RuntimeClient from '../RuntimeClient.js';
 
-export default class RuntimeClient {
+export default class RuntimeClient extends _RuntimeClient {
 
-	/**
-     * RuntimeClient
-     * 
-     * @param Context cx
-     */
-	constructor(cx) {
-		this.cx = cx;
+	// Returns router class
+	get Router() {
+		return Router;
 	}
 
-	 /**
+	/**
      * Handles HTTP events.
      * 
      * @param HttpEvent       httpEvent
@@ -25,12 +22,12 @@ export default class RuntimeClient {
      */
 	async handle(httpEvent, remoteFetch) {
 		// The app router
-        const router = new Router(this.cx, httpEvent.url.pathname);
+        const router = new this.Router(this.cx, httpEvent.url.pathname);
         const handle = async () => {
 			// --------
 			// ROUTE FOR DATA
 			// --------
-			let httpMethodName = httpEvent.request.method.toUpperCase();
+			const httpMethodName = httpEvent.request.method.toUpperCase();
 			return router.route([httpMethodName, 'default'], httpEvent, {}, async event => {
 				return remoteFetch(event.request);
 			}, remoteFetch);
@@ -46,7 +43,7 @@ export default class RuntimeClient {
 	// Renderer
     async render(httpEvent, response) {
 		let data = await response.jsonfy();
-		const router = new Router(this.cx, httpEvent.url.pathname);
+		const router = new this.Router(this.cx, httpEvent.url.pathname);
 		return router.route('render', httpEvent, data, async (httpEvent, data) => {
 			// --------
 			// OOHTML would waiting for DOM-ready in order to be initialized
@@ -57,7 +54,7 @@ export default class RuntimeClient {
 				if (!window.document.state.env) {
 					window.document.setState({
 						env: 'client',
-						onHydration: (httpEvent.detail || {}).srcType === 'init',
+						onHydration: (httpEvent.detail || {}).srcType === 'hydration',
 						network: this.cx.runtime.network,
 						url: this.cx.runtime.location,
 					}, { update: true });

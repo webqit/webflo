@@ -22,13 +22,13 @@ export default class Router {
 	 *
 	 * @return void
 	 */
-	constructor(cx, path) {
+	constructor(cx, path = []) {
         this.cx = cx;
         this.path = _isArray(path) ? path : (path + '').split('/').filter(a => a);
     }
 
     /**
-     * Performs dynamic routing.
+     * Performs dynamic routing
      * 
      * @param array|string      method
      * @param Object            event
@@ -59,7 +59,7 @@ export default class Router {
                     // Broadcast any hints exported by handler
                     if (thisTick.exports.hints) { await event.port.post({ ...thisTick.exports.hints, $type: 'handler:hints' }); }
                     const methods = _arrFrom(thisTick.method);
-                    const handler = _isFunction(thisTick.exports) && methods.includes('default') ? thisTick.exports : methods.reduce((_handler, name) => _handler || thisTick.exports[name.toLowerCase()], null);
+                    const handler = _isFunction(thisTick.exports) && methods.includes('default') ? thisTick.exports : methods.reduce((_handler, name) => _handler || thisTick.exports[name], null);
                     if (handler) {
                         // -------------
                         // Dynamic response

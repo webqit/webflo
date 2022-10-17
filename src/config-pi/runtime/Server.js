@@ -21,16 +21,16 @@ export default class Server extends Dotfile {
     withDefaults(config) {
         return _merge(true, {
             port: process.env.port || 3000,
+            domains: [],
+            force_www: '',
             https: {
                 port: 0,
                 keyfile: '',
                 certfile: '',
-                certdoms: ['*'],
+                domains: [],
                 force: false,
             },
-            force_www: '',
             oohtml_support: 'full',
-            shared: false,
         }, config);
     }
 
@@ -61,6 +61,19 @@ export default class Server extends Dotfile {
                 validation: ['important'],
             },
             {
+                name: 'domains',
+                type: 'list',
+                message: '[domains]: Enter a list of allowed domains if necessary (comma-separated)',
+                validation: ['important'],
+            },
+            {
+                name: 'force_www',
+                type: 'select',
+                message: '[force_www]: Force add/remove "www" on hostname?',
+                choices: CHOICES.force_www,
+                initial: this.indexOfInitial(CHOICES.force_www, config.force_www),
+            },
+            {
                 name: 'https',
                 controls: {
                     name: 'https',
@@ -86,9 +99,9 @@ export default class Server extends Dotfile {
                         validation: ['important'],
                     },
                     {
-                        name: 'certdoms',
+                        name: 'domains',
                         type: 'list',
-                        message: '[certdoms]: Enter the CERT domains (comma-separated)',
+                        message: '[domains]: Enter the CERT domains (comma-separated)',
                         validation: ['important'],
                     },
                     {
@@ -101,27 +114,12 @@ export default class Server extends Dotfile {
                 ],
             },
             {
-                name: 'force_www',
-                type: 'select',
-                message: '[force_www]: Force add/remove "www" on hostname?',
-                choices: CHOICES.force_www,
-                initial: this.indexOfInitial(CHOICES.force_www, config.force_www),
-            },
-            {
                 name: 'oohtml_support',
                 type: 'select',
                 message: '[oohtml_support]: Specify OOHTML support level',
                 choices: CHOICES.oohtml_support,
                 initial: this.indexOfInitial(CHOICES.oohtml_support, config.oohtml_support),
                 validation: ['important'],
-            },
-            {
-                name: 'shared',
-                type: 'toggle',
-                message: '[shared]: Shared server?',
-                active: 'YES',
-                inactive: 'NO',
-                initial: config.shared,
             },
         ];
     }

@@ -15,7 +15,17 @@ export default class Workport {
                 if (!client) {
                     self.addEventListener('message', evt => {
                         this.client = evt.source;
-                        callback(evt);
+                        const response = callback(evt);
+                        let responsePort = evt.ports[0];
+                        if (responsePort) {
+                            if (response instanceof Promise) {
+                                response.then(data => {
+                                    responsePort.postMessage(data);
+                                });
+                            } else {
+                                responsePort.postMessage(response);
+                            }
+                        }
                     });
                     return this.post;
                 }

@@ -21,7 +21,7 @@ const cx = WebfloPI.Context.create({
     app: { title: appJson.title, version: appJson.version },
     logger: Logger,
     config: WebfloPI.config,
-    middlewares: [ WebfloPI.deployment.origins.webhook, ],
+    middlewares: [ WebfloPI.deployment.origins.webhook ],
 });
 
 /**

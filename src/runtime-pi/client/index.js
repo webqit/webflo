@@ -12,9 +12,7 @@ import Runtime from './Runtime.js';
 export async function start(clientCallback = null) {
     const cx = this || {};
     const defaultClientCallback = _cx => new RuntimeClient(_cx);
-    return new Runtime(Context.create(cx), ( ...args ) => {
-        return clientCallback ? clientCallback( ...args.concat( defaultClientCallback ) ) : defaultClientCallback( ...args );
-    });
+    return new Runtime(Context.create(cx), clientCallback || defaultClientCallback);
 }
 
 /**

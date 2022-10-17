@@ -6,8 +6,9 @@ import Fs from 'fs';
 import Path from 'path';
 import QueryString from 'querystring';
 import Router from './Router.js';
+import _RuntimeClient from '../RuntimeClient.js';
 
-export default class RuntimeClient {
+export default class RuntimeClient extends _RuntimeClient {
 
     /**
      * RuntimeClient
@@ -15,9 +16,14 @@ export default class RuntimeClient {
      * @param Context cx
      */
     constructor(cx) {
-        this.cx = cx;
+        super(cx);
         this.renderFileCache = {};
     }
+
+	// Returns router class
+	get Router() {
+		return Router;
+	}
 
     /**
      * Handles navigation events.
@@ -29,23 +35,21 @@ export default class RuntimeClient {
      */
     async handle(httpEvent, remoteFetch) {
         // The app router
-        const router = new Router(this.cx, httpEvent.url.pathname);
+        const router = new this.Router(this.cx, httpEvent.url.pathname);
         const handle = async () => {
             // --------
             // ROUTE FOR DATA
             // --------
-            let httpMethodName = httpEvent.request.method.toUpperCase();
+            const httpMethodName = httpEvent.request.method.toUpperCase();
             let response = await router.route([httpMethodName, 'default'], httpEvent, {}, async event => {
                 return router.file(event);
             }, remoteFetch);
             if (!(response instanceof httpEvent.Response)) {
                 response = new httpEvent.Response(response);
             }
-            
             // --------
             // Rendering
             // --------
-
             if (response.ok && response.bodyAttrs.inputType === 'object' && httpEvent.request.headers.accept.match('text/html')) {
                 let rendering = await this.render(httpEvent, router, response);
                 if (typeof rendering !== 'string' && !(typeof rendering === 'object' && rendering && typeof rendering.toString === 'function')) {
@@ -59,7 +63,6 @@ export default class RuntimeClient {
 
             return response;
         };
-
         // --------
         // PIPE THROUGH MIDDLEWARES
         // --------

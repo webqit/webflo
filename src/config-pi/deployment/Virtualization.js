@@ -46,15 +46,21 @@ export default class Virtualization extends Dotfile {
                 initial: config.entries,
                 questions: [
                     {
-                        name: 'host',
+                        name: 'path',
                         type: 'text',
-                        message: 'Enter Host name',
+                        message: 'Enter local pathname to target server if exists. (Leave empty to explicitly specify hostnames and port number.)',
                         validation: ['important'],
                     },
                     {
-                        name: 'path',
+                        name: 'hostnames',
                         type: 'text',
-                        message: 'Enter local path',
+                        message: 'Enter host names. (Leave empty to automatically derive hostnames from the config of the target server specified above.)',
+                        validation: ['important'],
+                    },
+                    {
+                        name: 'port',
+                        type: 'text',
+                        message: 'Enter target port. (Leave empty to automatically derive port number from the config of the target server specified above.)',
                         validation: ['important'],
                     },
                 ],

@@ -12,9 +12,7 @@ import Worker from './Worker.js';
 export async function start(clientCallback = null) {
     const cx = this || {};
     const defaultClientCallback = _cx => new WorkerClient(_cx);
-    return new Worker(Context.create(cx), ( ...args ) => {
-        return clientCallback ? clientCallback( ...args.concat( defaultClientCallback ) ) : defaultClientCallback( ...args );
-    });
+    return new Worker(Context.create(cx), clientCallback || defaultClientCallback);
 }
 
 /**

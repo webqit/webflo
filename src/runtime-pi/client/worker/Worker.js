@@ -6,6 +6,8 @@ import { _any } from '@webqit/util/arr/index.js';
 import { urlPattern } from '../../util.js';
 import { HttpEvent, Request, Response, fetch as xfetch, Observer } from '../Runtime.js';
 import Workport from './Workport.js';
+import _Worker from '../../Runtime.js';
+
 export {
 	URL,
 	FormData,
@@ -25,7 +27,7 @@ export {
  * ---------------------------
  */
 
-export default class Worker {
+export default class Worker extends _Worker {
 
 	/**
      * Runtime
@@ -36,18 +38,10 @@ export default class Worker {
      * @return void
      */
 	constructor(cx, clientCallback) {
-
+		super(cx, clientCallback);
         // ---------------
-		this.cx = cx;
-        this.clients = new Map;
         this.mockSessionStore = {};
-        // ---------------
-		this.cx.runtime = this;
-		let client = clientCallback(this.cx, '*');
-        if (!client || !client.handle) throw new Error(`Application instance must define a ".handle()" method.`);
-		this.clients.set('*', client);
-		
-		// -------------
+        // --------------		
 		// ONINSTALL
 		self.addEventListener('install', evt => {
 			if (this.cx.params.skip_waiting) { self.skipWaiting(); }
@@ -113,26 +107,17 @@ export default class Worker {
 
 		// -------------
 		// Workport
-		let workport = new Workport();
+		const workport = new Workport();
 		Observer.set(this, 'workport', workport);
-		workport.messaging.listen(async evt => {
-			let responsePort = evt.ports[0];
-			let client = this.clients.get('*');
-			let response = client.alert && await client.alert(evt);
-			if (responsePort) {
-				if (response instanceof Promise) {
-					response.then(data => {
-						responsePort.postMessage(data);
-					});
-				} else {
-					responsePort.postMessage(response);
-				}
-			}
-		});
-		workport.push.listen(async evt => {
-			let client = this.clients.get('*');
-			client.alert && await client.alert(evt);
-		});
+
+		// -------------
+		// Initialize
+		(async () => {
+			if (!this.client.init) return;
+			const request = this.generateRequest('/');
+			const httpEvent = new HttpEvent(request, { srcType: 'initialization' }, (id = null, persistent = false) => this.getSession(httpEvent, id, persistent));
+			await this.client.init(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
+		})();
 		
 	}
 
@@ -151,12 +136,12 @@ export default class Worker {
 		init = { referrer: this.location.href, ...init };
         // ------------
 		// The request object
-		let request = await this.generateRequest(url.href, init);
+		const request = await this.generateRequest(url.href, init);
 		if (detail.event) {
 			Object.defineProperty(detail.event, 'request', { value: request });
 		}
 		// The navigation event
-		let httpEvent = new HttpEvent(request, detail, (id = null, persistent = false) => this.getSession(httpEvent, id, persistent));
+		const httpEvent = new HttpEvent(request, detail, (id = null, persistent = false) => this.getSession(httpEvent, id, persistent));
 		httpEvent.port.listen(message => {
 			if (message.$type === 'handler:hints' && message.session) {
 				// TODO: Sync session data from client
@@ -166,18 +151,18 @@ export default class Worker {
 		// Response
 		let response;
 		if (httpEvent.request.url.startsWith(self.origin)/* && httpEvent.request.mode === 'navigate'*/) {
-			response = await this.clients.get('*').handle(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
+			response = await this.client.handle(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
 		} else {
 			response = await this.remoteFetch(httpEvent.request);
 		}
-		let finalResponse = this.handleResponse(httpEvent, response);
+		const finalResponse = this.handleResponse(httpEvent, response);
         // Return value
         return finalResponse;
 	}
 
     // Generates request object
-    generateRequest(href, init) {
-		let request = new Request(href, init);
+    generateRequest(href, init = {}) {
+		const request = new Request(href, init);
 		return request;
     }
 

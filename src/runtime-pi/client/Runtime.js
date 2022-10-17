@@ -17,6 +17,7 @@ import xResponse from "../xResponse.js";
 import xfetch from '../xfetch.js';
 import xHttpEvent from '../xHttpEvent.js';
 import Workport from './Workport.js';
+import _Runtime from '../Runtime.js';
 
 const URL = xURL(whatwag.URL);
 const FormData = xFormData(whatwag.FormData);
@@ -41,7 +42,7 @@ export {
 	Observer,
 }
 
-export default class Runtime {
+export default class Runtime extends _Runtime {
 
     /**
      * Runtime
@@ -52,15 +53,7 @@ export default class Runtime {
      * @return void
      */
 	constructor(cx, clientCallback) {
-        // ---------------
-		this.cx = cx;
-        this.clients = new Map;
-        // ---------------
-		this.cx.runtime = this;
-		let client = clientCallback(this.cx, '*');
-        if (!client || !client.handle) throw new Error(`Application instance must define a ".handle()" method.`);
-		this.clients.set('*', client);
-
+		super(cx, clientCallback);
 		// -----------------------
 		// Initialize location
 		Observer.set(this, 'location', new Url(window.document.location));
@@ -157,27 +150,24 @@ export default class Runtime {
 		// -----------------------
 		// Service Worker && COMM
 		if (this.cx.params.service_worker_support) {
-			let workport = new Workport(this.cx.params.worker_filename, { scope: this.cx.params.worker_scope, startMessages: true });
+			const workport = new Workport(this.cx.params.worker_filename, { scope: this.cx.params.worker_scope, startMessages: true });
 			Observer.set(this, 'workport', workport);
-			workport.messaging.listen(async evt => {
-				let responsePort = evt.ports[0];
-				let client = this.clients.get('*');
-				let response = client.alert && await client.alert(evt);
-				if (responsePort) {
-					if (response instanceof Promise) {
-						response.then(data => {
-							responsePort.postMessage(data);
-						});
-					} else {
-						responsePort.postMessage(response);
-					}
-				}
-			});
 		}
 
-        // ---------------
-        this.go(this.location, {}, { srcType: 'init' });
-        // ---------------
+		// -----------------------
+		// Initialize and Hydration
+		(async () => {
+			let shouldHydrate;
+			if (this.client.init) {
+				const request = this.generateRequest(this.location);
+				const httpEvent = new HttpEvent(request, { srcType: 'initialization' }, (id = null, persistent = false) => this.getSession(httpEvent, id, persistent));
+				shouldHydrate = await this.client.init(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
+			}
+			if (shouldHydrate !== false) {
+				this.go(this.location, {}, { srcType: 'hydration' });
+			}
+		})(); 
+
 	}
 
     /**
@@ -211,9 +201,9 @@ export default class Runtime {
 	}
 
 	// Generates request object
-	generateRequest(href, init) {
+	generateRequest(href, init = {}) {
 		return new Request(href, {
-			signal: this._abortController.signal,
+			signal: this._abortController && this._abortController.signal,
 			...init,
 			headers: {
 				'Accept': 'application/json',
@@ -245,7 +235,7 @@ export default class Runtime {
         // ------------
 		// Put his forward before instantiating a request and aborting previous
 		// Same-page hash-links clicks on chrome recurse here from histroy popstate
-        if (detail.srcType !== 'init' && (_before(url.href, '#') === _before(init.referrer, '#') && (init.method || 'GET').toUpperCase() === 'GET')) {
+        if (detail.srcType !== 'hydration' && (_before(url.href, '#') === _before(init.referrer, '#') && (init.method || 'GET').toUpperCase() === 'GET')) {
 			return new Response(null, { status: 304 }); // Not Modified
         }
 		// ------------
@@ -266,17 +256,14 @@ export default class Runtime {
         // ------------
 		// Run
 		// ------------
-		// The request object
-		let request = this.generateRequest(url.href, init);
-		// The navigation event
-		let httpEvent = new HttpEvent(request, detail, (id = null, persistent = false) => this.getSession(httpEvent, id, persistent));
-		// Response
-		let client = this.clients.get('*'), response, finalResponse;
+		const request = this.generateRequest(url.href, init);
+		const httpEvent = new HttpEvent(request, detail, (id = null, persistent = false) => this.getSession(httpEvent, id, persistent));
+		let response, finalResponse;
 		try {
 			// ------------
 			// Response
 			// ------------
-			response = await client.handle(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
+			response = await this.client.handle(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
 			finalResponse = this.handleResponse(httpEvent, response);
 			// ------------
 			// Address bar
@@ -299,12 +286,14 @@ export default class Runtime {
 			// Rendering
 			// ------------
 			if (finalResponse.ok && (finalResponse.headers.contentType === 'application/json' || finalResponse.headers.contentType.startsWith('multipart/form-data'))) {
-				client.render && await client.render(httpEvent, finalResponse);
+				this.client.render && await this.client.render(httpEvent, finalResponse);
 			} else if (!finalResponse.ok) {
 				if ([404, 500].includes(finalResponse.status)) {
 					Observer.set(this.network, 'error', new Error(finalResponse.statusText, { cause: finalResponse.status }));
 				}
-				client.unrender && await client.unrender(httpEvent);
+				if (!finalResponse.headers.get('Location')) {
+					this.client.unrender && await this.client.unrender(httpEvent);
+				}
 			}
 		} catch(e) {
 			console.error(e);
@@ -321,7 +310,7 @@ export default class Runtime {
 		let href = request;
 		if (request instanceof Request) {
 			href = request.url;
-		} else if (request instanceof self.URL) {
+		} else if (request instanceof whatwag.URL) {
 			href = request.href;
 		}
 		Observer.set(this.network, 'remote', href);

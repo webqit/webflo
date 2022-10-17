@@ -3,19 +3,16 @@
  * @imports
  */
 import Router from '../Router.js';
+import _WorkerClient from '../../RuntimeClient.js';
 
-export default class WorkerClient {
+export default class RuntimeClient extends _WorkerClient {
 
-	/**
-     * WorkerClient
-     * 
-     * @param Context cx
-     */
-	constructor(cx) {
-		this.cx = cx;
+	// Returns router class
+	get Router() {
+		return Router;
 	}
 
-	 /**
+	/**
      * Handles HTTP events.
      * 
      * @param HttpEvent       httpEvent
@@ -25,12 +22,12 @@ export default class WorkerClient {
      */
 	async handle(httpEvent, remoteFetch) {
 		// The app router
-        const router = new Router(this.cx, httpEvent.url.pathname);
+        const router = new this.Router(this.cx, httpEvent.url.pathname);
         const handle = async () => {
 			// --------
 			// ROUTE FOR DATA
 			// --------
-			let httpMethodName = httpEvent.request.method.toUpperCase();
+			const httpMethodName = httpEvent.request.method.toUpperCase();
 			let response = await router.route([httpMethodName, 'default'], httpEvent, {}, async event => {
 				return remoteFetch(event.request);
 			}, remoteFetch);
