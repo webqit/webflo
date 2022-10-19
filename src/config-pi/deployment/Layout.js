@@ -2,7 +2,6 @@
 /**
  * imports
  */
-import { _merge } from '@webqit/util/obj/index.js';
 import { Dotfile } from '@webqit/backpack';
 
 export default class Layout extends Dotfile {
@@ -19,13 +18,13 @@ export default class Layout extends Dotfile {
 
     // Defaults merger
     withDefaults(config) {
-        return _merge({
+        return this.merge({
             ROOT: process.cwd(),
             PUBLIC_DIR: './public',
             SERVER_DIR: './server',
             CLIENT_DIR: './client',
             WORKER_DIR: './worker',
-        }, config);
+        }, config, 'patch');
     }
 
     // Questions generator

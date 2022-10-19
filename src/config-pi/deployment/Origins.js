@@ -3,9 +3,8 @@
  * imports
  */
 import Url from 'url';
-import { _merge } from '@webqit/util/obj/index.js';
 import { _before } from '@webqit/util/str/index.js';
-import { _isObject, _isTypeObject } from '@webqit/util/js/index.js';
+import { _isTypeObject } from '@webqit/util/js/index.js';
 import { Dotfile } from '@webqit/backpack';
 
 export default class Origins extends Dotfile {
@@ -29,7 +28,7 @@ export default class Origins extends Dotfile {
             origin = _before(inferredRepo.pathname, '.');
         }
         // Params
-        return _merge({
+        return this.merge({
             entries: [{
                 host: hostname,
                 repo: origin,
@@ -41,7 +40,7 @@ export default class Origins extends Dotfile {
                 ondeploy: 'npm install',
                 ondeploy_autoexit: true,
             }],
-        }, config);
+        }, config, 'patch');
     }
 
     // Match
@@ -52,12 +51,12 @@ export default class Origins extends Dotfile {
     // Questions generator
     getSchema(config, choices = {}) {
         // Choices
-        const CHOICES = _merge({
+        const CHOICES = this.merge({
             host: [
                 {value: 'github',},
                 {value: 'bitbucket',},
             ],
-        }, choices);
+        }, choices, 'patch');
         // Questions
         return [
             {

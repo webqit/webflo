@@ -4,9 +4,7 @@
  */
 import Path from 'path';
 import { _all } from '@webqit/util/arr/index.js';
-import { _merge } from '@webqit/util/obj/index.js';
 import { _isNumeric } from '@webqit/util/js/index.js';
-import { _before, _after } from '@webqit/util/str/index.js';
 import { initialGetIndex } from '@webqit/backpack/src/cli/Promptx.js';
 import { Dotfile } from '@webqit/backpack';
 
@@ -30,7 +28,7 @@ export default class Manifest extends Dotfile {
     // Defaults merger
     withDefaults(config) {
         const pkg = this.cx.PKG || {};
-        return _merge(true, {
+        return this.merge({
             // -----------------
             name: pkg.value,
             short_name: pkg.value,
@@ -50,13 +48,13 @@ export default class Manifest extends Dotfile {
             dir: 'ltr',
             related_applications: '',
             prefer_related_applications: false,
-        }, config);
+        }, config, 'patch');
     }
 
     // Questions generator
     getSchema(config, choices = {}) {
         // Choices hash...
-        const CHOICES = _merge({
+        const CHOICES = this.merge({
             display: [
                 {value: 'browser',},
                 {value: 'fullscreen',},
@@ -75,7 +73,7 @@ export default class Manifest extends Dotfile {
                 {value: 'portrait-primary',},
                 {value: 'portrait-secondary',},
             ],
-        }, choices);
+        }, choices, 'patch');
 
         // Gets index...
         const getSize = src => Path.basename(src).split(/[_\.\-]/g).reduce((size, chunk) => size || (_all(chunk.split('x'), c => _isNumeric(c)) ? chunk : ''), null);

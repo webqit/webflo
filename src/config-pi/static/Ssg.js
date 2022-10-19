@@ -2,8 +2,6 @@
 /**
  * imports
  */
-import { _merge } from '@webqit/util/obj/index.js';
-import { _isObject } from '@webqit/util/js/index.js';
 import { Dotfile } from '@webqit/backpack';
 
 export default class Ssg extends Dotfile {
@@ -20,9 +18,9 @@ export default class Ssg extends Dotfile {
 
     // Defaults merger
     withDefaults(config) {
-        return _merge(true, {
+        return this.merge({
             entries: [],
-        }, config);
+        }, config, 'patch');
     }
 
     // Questions generator

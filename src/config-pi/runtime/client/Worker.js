@@ -2,7 +2,6 @@
 /**
  * imports
  */
-import { _merge } from '@webqit/util/obj/index.js';
 import { _isNumeric } from '@webqit/util/js/index.js';
 import { _before, _after } from '@webqit/util/str/index.js';
 import { Dotfile } from '@webqit/backpack';
@@ -21,7 +20,7 @@ export default class Worker extends Dotfile {
 
     // Defaults merger
     withDefaults(config) {
-        return _merge(true, {
+        return this.merge({
             cache_name: 'cache_v0',
             default_fetching_strategy: 'network-first',
             network_first_urls: [],
@@ -34,7 +33,7 @@ export default class Worker extends Dotfile {
             push_registration_url: '',
             push_deregistration_url: '',
             push_public_key: '',
-        }, config);
+        }, config, 'patch');
     }
 
     // Questions generator
@@ -44,14 +43,14 @@ export default class Worker extends Dotfile {
             config.cache_name = _before(config.cache_name, '_v') + '_v' + (parseInt(_after(config.cache_name, '_v')) + 1);
         }
         // Choices
-        const CHOICES = _merge({
+        const CHOICES = this.merge({
             default_fetching_strategy: [
                 {value: 'network-first', title: 'Network-first (Webflo default)'},
                 {value: 'cache-first', title: 'Cache-first'},
                 {value: 'network-only', title: 'Network-only'},
                 {value: 'cache-only', title: 'Cache-only'},
             ],
-        }, choices);
+        }, choices, 'patch');
         // Questions
         return [
             {

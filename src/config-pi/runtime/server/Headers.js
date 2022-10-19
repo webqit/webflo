@@ -2,9 +2,6 @@
 /**
  * imports
  */
-import Url from 'url';
-import { _merge } from '@webqit/util/obj/index.js';
-import { _isObject } from '@webqit/util/js/index.js';
 import { Dotfile } from '@webqit/backpack';
 
 export default class Headers extends Dotfile {
@@ -21,19 +18,19 @@ export default class Headers extends Dotfile {
 
     // Defaults merger
     withDefaults(config) {
-        return _merge(true, {
+        return this.merge({
             entries: [],
-        }, config);
+        }, config, 'patch');
     }
 
     // Questions generator
     getSchema(config, choices = {}) {
-        const CHOICES = _merge({
+        const CHOICES = this.merge({
             type: [
                 {value: 'request', title: 'Request Header'},
                 {value: 'response', title: 'Response Header'},
             ]
-        }, choices);
+        }, choices, 'patch');
         // Questions
         return [
             {

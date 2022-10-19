@@ -2,7 +2,6 @@
 /**
  * imports
  */
-import { _merge } from '@webqit/util/obj/index.js';
 import { Dotfile } from '@webqit/backpack';
 
 export default class Server extends Dotfile {
@@ -19,7 +18,7 @@ export default class Server extends Dotfile {
 
     // Defaults merger
     withDefaults(config) {
-        return _merge(true, {
+        return this.merge({
             port: process.env.port || 3000,
             domains: [],
             force_www: '',
@@ -31,13 +30,13 @@ export default class Server extends Dotfile {
                 force: false,
             },
             oohtml_support: 'full',
-        }, config);
+        }, config, 'patch');
     }
 
     // Questions generator
     getSchema(config, choices = {}) {
         // Choices
-        const CHOICES = _merge({
+        const CHOICES = this.merge({
             force_www: [
                 {value: '', title: 'do nothing'},
                 {value: 'add',},
@@ -50,7 +49,7 @@ export default class Server extends Dotfile {
                 {value: 'templating', title: 'templating'},
                 {value: 'none', title: 'none'},
             ],
-        }, choices);
+        }, choices, 'patch');
         // Questions
         return [
             {

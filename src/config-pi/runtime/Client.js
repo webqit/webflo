@@ -2,9 +2,6 @@
 /**
  * imports
  */
-import { _merge } from '@webqit/util/obj/index.js';
-import { _isNumeric } from '@webqit/util/js/index.js';
-import { _before, _after } from '@webqit/util/str/index.js';
 import { Dotfile } from '@webqit/backpack';
 
 export default class Client extends Dotfile {
@@ -21,7 +18,7 @@ export default class Client extends Dotfile {
 
     // Defaults merger
     withDefaults(config) {
-        return _merge(true, {
+        return this.merge({
             bundle_filename: 'bundle.js',
             public_base_url: '/',
             spa_routing: true,
@@ -29,13 +26,13 @@ export default class Client extends Dotfile {
             service_worker_support: true,
             worker_scope: '/',
             worker_filename: 'worker.js',
-        }, config);
+        }, config, 'patch');
     }
 
     // Questions generator
     getSchema(config, choices = {}) {
         // Choices
-        const CHOICES = _merge({
+        const CHOICES = this.merge({
             oohtml_support: [
                 {value: 'full', title: 'Full'},
                 {value: 'namespacing', title: 'namespacing'},
@@ -43,7 +40,7 @@ export default class Client extends Dotfile {
                 {value: 'templating', title: 'templating'},
                 {value: 'none', title: 'none'},
             ],
-        }, choices);
+        }, choices, 'patch');
         // Questions
         return [
             {

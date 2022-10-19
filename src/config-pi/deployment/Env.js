@@ -2,7 +2,6 @@
 /**
  * imports
  */
-import { _merge } from '@webqit/util/obj/index.js';
 import { Dotfile } from '@webqit/backpack';
 
 export default class Env extends Dotfile {
@@ -24,9 +23,9 @@ export default class Env extends Dotfile {
 
     // Defaults merger
     withDefaults(config) {
-        return _merge({
+        return this.merge({
             autoload: true,
-        }, config);
+        }, config, 'patch');
     }
 
     // Questions generator

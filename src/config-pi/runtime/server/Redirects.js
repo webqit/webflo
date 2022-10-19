@@ -2,10 +2,6 @@
 /**
  * imports
  */
-import Url from 'url';
-import { _merge } from '@webqit/util/obj/index.js';
-import { _after } from '@webqit/util/str/index.js';
-import { _isObject, _isNumeric } from '@webqit/util/js/index.js';
 import { Dotfile } from '@webqit/backpack';
 
 export default class Redirects extends Dotfile {
@@ -22,20 +18,20 @@ export default class Redirects extends Dotfile {
 
     // Defaults merger
     withDefaults(config) {
-        return _merge(true, {
+        return this.merge({
             entries: [],
-        }, config);
+        }, config, 'patch');
     }
 
     // Questions generator
     getSchema(config, choices = {}) {
         // Choices
-        const CHOICES = _merge({
+        const CHOICES = this.merge({
             code: [
                 {value: 302,},
                 {value: 301,},
             ],
-        }, choices);
+        }, choices, 'patch');
         // Questions
         return [
             {
