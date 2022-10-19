@@ -29,7 +29,7 @@ export default class Layout extends Dotfile {
     }
 
     // Questions generator
-    questions(config, choices = {}) {
+    getSchema(config, choices = {}) {
         // Questions
         return [
             {

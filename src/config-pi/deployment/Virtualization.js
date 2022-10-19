@@ -25,16 +25,16 @@ export default class Virtualization extends Dotfile {
         }, config);
     }
 
-    // Match
-    async match(hostname) {
-        if (_isObject(hostname)) {
-            hostname = hostname.hostname;
-        }
-        return ((await this.read()).entries || []).filter(vh => vh.host === hostname);
-    }
-
     // Questions generator
-    questions(config, choices = {}) {
+    getSchema(config, choices = {}) {
+        // Choices
+        const CHOICES = _merge({
+            proto: [
+                {value: '', title: '(Auto)'},
+                {value: 'http', title: 'HTTP'},
+                {value: 'https', title: 'HTTPS'},
+            ],
+        }, choices);
         // Questions
         return [
             {
@@ -44,23 +44,28 @@ export default class Virtualization extends Dotfile {
                     name: 'vhost',
                 },
                 initial: config.entries,
-                questions: [
+                schema: [
                     {
                         name: 'path',
                         type: 'text',
-                        message: 'Enter local pathname to target server if exists. (Leave empty to explicitly specify hostnames and port number.)',
-                        validation: ['important'],
+                        message: '[path]: Enter local pathname to target server if exists.' + "\r\n" + '(Leave empty to explicitly specify hostnames and port number.)' + "\r\n",
                     },
                     {
                         name: 'hostnames',
-                        type: 'text',
-                        message: 'Enter host names. (Leave empty to automatically derive hostnames from the config of the target server specified above.)',
-                        validation: ['important'],
+                        type: 'list',
+                        message: '[hostnames]: Enter host names.' + "\r\n" + '(Leave empty to automatically derive hostnames from the config of the target server specified above.)' + "\r\n",
                     },
                     {
                         name: 'port',
-                        type: 'text',
-                        message: 'Enter target port. (Leave empty to automatically derive port number from the config of the target server specified above.)',
+                        type: 'number',
+                        message: '[port]: Enter the target port number.' + "\r\n" + '(Leave empty to automatically derive target port number from the config of the target server specified above.)' + "\r\n",
+                    },
+                    {
+                        name: 'proto',
+                        type: 'select',
+                        message: '[protocol]: Enter the target protocol: https/http.' + "\r\n" + '(Leave empty to automatically derive target protocol from the config of the target server specified above.)' + "\r\n",
+                        choices: CHOICES.proto,
+                        initial: this.indexOfInitial(CHOICES.proto, config.proto),
                         validation: ['important'],
                     },
                 ],

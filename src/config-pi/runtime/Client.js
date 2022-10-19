@@ -33,7 +33,7 @@ export default class Client extends Dotfile {
     }
 
     // Questions generator
-    questions(config, choices = {}) {
+    getSchema(config, choices = {}) {
         // Choices
         const CHOICES = _merge({
             oohtml_support: [

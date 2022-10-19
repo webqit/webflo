@@ -54,7 +54,7 @@ export default class Manifest extends Dotfile {
     }
 
     // Questions generator
-    questions(config, choices = {}) {
+    getSchema(config, choices = {}) {
         // Choices hash...
         const CHOICES = _merge({
             display: [
@@ -136,7 +136,7 @@ export default class Manifest extends Dotfile {
                 controls: {
                     name: 'icon',
                 },
-                questions: [
+                schema: [
                     {
                         name: 'src',
                         type: 'text',
@@ -191,7 +191,7 @@ export default class Manifest extends Dotfile {
                 controls: {
                     name: 'screenshot',
                 },
-                questions: [
+                schema: [
                     {
                         name: 'src',
                         type: 'text',
@@ -221,7 +221,7 @@ export default class Manifest extends Dotfile {
                 controls: {
                     name: 'shortcut',
                 },
-                questions: [
+                schema: [
                     {
                         name: 'name',
                         type: 'text',
@@ -252,7 +252,7 @@ export default class Manifest extends Dotfile {
                         controls: {
                             name: 'shortcut icon',
                         },
-                        questions: [
+                        schema: [
                             {
                                 name: 'src',
                                 type: 'text',

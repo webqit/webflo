@@ -28,7 +28,7 @@ export default class Redirects extends Dotfile {
     }
 
     // Questions generator
-    questions(config, choices = {}) {
+    getSchema(config, choices = {}) {
         // Choices
         const CHOICES = _merge({
             code: [
@@ -45,7 +45,7 @@ export default class Redirects extends Dotfile {
                     name: 'redirect',
                 },
                 initial: config.entries,
-                questions: [
+                schema: [
                     {
                         name: 'from',
                         type: 'text',

@@ -84,19 +84,21 @@ export default class Runtime extends _Runtime {
             if (this.cx.config.deployment.Virtualization) {
                 const vhosts = await (new this.cx.config.deployment.Virtualization(this.cx)).read();
                 await Promise.all((vhosts.entries || []).map(async vhost => {
-                    let cx, hostnames = parseDomains(vhost.hostnames), port = parseInt(vhost.port);
+                    let cx, hostnames = parseDomains(vhost.hostnames), port = vhost.port, proto = vhost.proto;
                     if (vhost.path) {
                         cx = this.cx.constructor.create(this.cx, Path.join(this.cx.CWD, vhost.path));
                         await resolveContextObj(cx, true);
                         // From the server that's most likely to be active
-                        port || (port = parseInt(cx.server.port || cx.server.https.port));
+                        port || (port = cx.server.https.port || cx.server.port);
                         // The domain list that corresponds to the specified resolved port
-                        hostnames.length || (hostnames = selectDomains([cx.server, cx.server.https], port));
+                        hostnames.length || (hostnames = selectDomains([cx.server.https, cx.server], port));
                         // Or anyone available... hoping that the remote configs can eventually be in sync
-                        hostnames.length || (hostnames = selectDomains([cx.server, cx.server.https]));
+                        hostnames.length || (hostnames = selectDomains([cx.server.https, cx.server]));
+                        // The corresponding proto
+                        proto || (proto = port === cx.server.https.port ? 'https' : 'http');
                     }
-                    hostnames.length || (hostnames = ['*']); 
-                    this.vhosts.set(hostnames.sort().join('|'), { cx, hostnames, port });
+                    hostnames.length || (hostnames = ['*']);
+                    this.vhosts.set(hostnames.sort().join('|'), { cx, hostnames, port, proto });
                 }));
             }
             // ---------------
@@ -287,7 +289,7 @@ export default class Runtime extends _Runtime {
         // ------------
         for (const [ /*id*/, vhost ] of this.vhosts) {
             if (vhost.hostnames.includes(url.hostname) || (vhost.hostnames.includes('*') && !hosts.includes('*'))) {
-                return this.proxyFetch(vhost, url, init);
+                return this.proxyGo(vhost, url, init);
             }
         }
         // ------------
@@ -344,12 +346,16 @@ export default class Runtime extends _Runtime {
     }
 
     // Fetch from proxied host
-    async proxyFetch(vhost, url, init) {
+    async proxyGo(vhost, url, init) {
+        // ---------
         const url2 = new whatwag.URL(url);
         url2.port = vhost.port;
+        if (vhost.proto) { url2.protocol = vhost.proto; }
+        // ---------
         const init2 = { ...init, compress: false };
         if (!init2.headers) init2.headers = {};
         init2.headers.host = url2.host;
+        // ---------
         let response;
         try {
             response = await this.remoteFetch(url2, init2);

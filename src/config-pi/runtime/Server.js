@@ -35,7 +35,7 @@ export default class Server extends Dotfile {
     }
 
     // Questions generator
-    questions(config, choices = {}) {
+    getSchema(config, choices = {}) {
         // Choices
         const CHOICES = _merge({
             force_www: [
@@ -79,7 +79,7 @@ export default class Server extends Dotfile {
                     name: 'https',
                 },
                 initial: config.https,
-                questions: [
+                schema: [
                     {
                         name: 'port',
                         type: 'number',

@@ -26,7 +26,7 @@ export default class Ssg extends Dotfile {
     }
 
     // Questions generator
-    questions(config, choices = {}) {
+    getSchema(config, choices = {}) {
         // Questions
         return [
             {
@@ -36,7 +36,7 @@ export default class Ssg extends Dotfile {
                     name: 'page',
                 },
                 initial: config.entries,
-                questions: [
+                schema: [
                     {
                         name: 'url',
                         type: 'text',

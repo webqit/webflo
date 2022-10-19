@@ -30,7 +30,7 @@ export default class Env extends Dotfile {
     }
 
     // Questions generator
-    questions(config, choices = {}) {
+    getSchema(config, choices = {}) {
         // Questions
         return [
             {
@@ -41,7 +41,7 @@ export default class Env extends Dotfile {
                     combomode: true,
                 },
                 initial: config.entries,
-                questions: [
+                schema: [
                     {
                         name: 'name',
                         type: 'text',

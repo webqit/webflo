@@ -27,7 +27,7 @@ export default class Headers extends Dotfile {
     }
 
     // Questions generator
-    questions(config, choices = {}) {
+    getSchema(config, choices = {}) {
         const CHOICES = _merge({
             type: [
                 {value: 'request', title: 'Request Header'},
@@ -43,7 +43,7 @@ export default class Headers extends Dotfile {
                     name: 'header',
                 },
                 initial: config.entries,
-                questions: [
+                schema: [
                     {
                         name: 'type',
                         type: 'text',
