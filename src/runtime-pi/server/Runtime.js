@@ -32,7 +32,7 @@ const RequestHeaders = xRequestHeaders(whatwag.Headers);
 const ResponseHeaders = xResponseHeaders(whatwag.Headers);
 const Request = xRequest(whatwag.Request, RequestHeaders, FormData, whatwag.Blob);
 const Response = xResponse(whatwag.Response, ResponseHeaders, FormData, whatwag.Blob);
-const fetch = xfetch(whatwag.fetch, Request);
+const fetch = xfetch(whatwag.fetch);
 const HttpEvent = xHttpEvent(Request, Response, URL);
 
 export {
@@ -220,7 +220,12 @@ export default class Runtime extends _Runtime {
      * @return Array
      */
     async parseNodeRequest(proto, request) {
-        const fullUrl = proto + '://' + request.headers.host + request.url;
+        let url = request.url;
+        // Detected when using manual proxy setting in a browser
+        if (url.startsWith(`http://${ request.headers.host }`) || url.startsWith(`https://${ request.headers.host }`)) {
+            url = url.split(request.headers.host)[1];
+        }
+        const fullUrl = proto + '://' + request.headers.host + url;
         const requestInit = { method: request.method, headers: request.headers };
         if (request.method !== 'GET' && request.method !== 'HEAD') {
             requestInit.body = await new Promise((resolve, reject) => {

@@ -43,7 +43,7 @@
     "esbuild": "^0.14.38",
     "form-data-encoder": "^1.6.0",
     "formdata-node": "^4.3.0",
-    "formidable": "^2.0.0-dev.20200131.2",
+    "formidable": "^2.0.1",
     "mime-types": "^2.1.33",
     "node-fetch": "^2.6.1",
     "simple-git": "^2.20.1",
