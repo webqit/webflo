@@ -32,7 +32,7 @@ const RequestHeaders = xRequestHeaders(whatwag.Headers);
 const ResponseHeaders = xResponseHeaders(whatwag.Headers);
 const Request = xRequest(whatwag.Request, RequestHeaders, FormData, whatwag.Blob);
 const Response = xResponse(whatwag.Response, ResponseHeaders, FormData, whatwag.Blob);
-const fetch = xfetch(whatwag.fetch);
+const fetch = xfetch(whatwag.fetch, Request);
 const HttpEvent = xHttpEvent(Request, Response, URL);
 
 export {

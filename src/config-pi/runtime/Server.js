@@ -21,14 +21,14 @@ export default class Server extends Dotfile {
         return this.merge({
             port: process.env.port || 3000,
             domains: [],
-            force_www: '',
             https: {
                 port: 0,
-                keyfile: '',
-                certfile: '',
                 domains: [],
+                keyfile: '/etc/letsencrypt/live/[domain]/privkey.pem',
+                certfile: '/etc/letsencrypt/live/[domain]/fullchain.pem',
                 force: false,
             },
+            force_www: '',
             oohtml_support: 'full',
         }, config, 'patch');
     }
