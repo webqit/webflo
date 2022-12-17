@@ -6,44 +6,22 @@ import Fs from 'fs';
 import Path from 'path';
 import Http from 'http';
 import Https from 'https';
-import Formidable from 'formidable';
 import Sessions from 'client-sessions';
 import { Observer } from '@webqit/oohtml-ssr/apis.js';
 import { _each } from '@webqit/util/obj/index.js';
 import { _isEmpty } from '@webqit/util/js/index.js';
 import { _from as _arrFrom, _any } from '@webqit/util/arr/index.js';
 import { slice as _streamSlice } from 'stream-slice';
-import { urlPattern } from '../util.js';
-import * as whatwag from './whatwag.js';
-import xURL from '../xURL.js';
-import xFormData from "../xFormData.js";
-import xRequestHeaders from "../xRequestHeaders.js";
-import xResponseHeaders from "../xResponseHeaders.js";
+import { Readable as _ReadableStream } from 'stream';
+import { pattern } from '../util-url.js';
 import xRequest from "../xRequest.js";
 import xResponse from "../xResponse.js";
 import xfetch from '../xfetch.js';
-import xHttpEvent from '../xHttpEvent.js';
+import HttpEvent from '../HttpEvent.js';
 import _Runtime from '../Runtime.js';
 
-const URL = xURL(whatwag.URL);
-const FormData = xFormData(whatwag.FormData);
-const ReadableStream = whatwag.ReadableStream;
-const RequestHeaders = xRequestHeaders(whatwag.Headers);
-const ResponseHeaders = xResponseHeaders(whatwag.Headers);
-const Request = xRequest(whatwag.Request, RequestHeaders, FormData, whatwag.Blob);
-const Response = xResponse(whatwag.Response, ResponseHeaders, FormData, whatwag.Blob);
-const fetch = xfetch(whatwag.fetch);
-const HttpEvent = xHttpEvent(Request, Response, URL);
-
 export {
-    URL,
-    FormData,
-    ReadableStream,
-    RequestHeaders,
-    ResponseHeaders,
-    Request,
-    Response,
-    fetch,
+    //fetch,
     HttpEvent,
     Observer,
 }
@@ -54,18 +32,18 @@ export default class Runtime extends _Runtime {
      * Runtime
      * 
      * @param Object        cx
-     * @param Function      clientCallback
+     * @param Function      applicationInstance
      * 
      * @return void
      */
-    constructor(cx, clientCallback) {
-        super(cx, clientCallback);
+    constructor(cx, applicationInstance) {
+        super(cx, applicationInstance);
         // ---------------
         this.ready = (async () => {
             // ---------------
             const resolveContextObj = async (cx, force = false) => {
-                if (_isEmpty(cx.server) || force) { cx.server = await (new cx.config.runtime.Server(cx)).read(); }
                 if (_isEmpty(cx.layout) || force) { cx.layout = await (new cx.config.deployment.Layout(cx)).read(); }
+                if (_isEmpty(cx.server) || force) { cx.server = await (new cx.config.runtime.Server(cx)).read(); }
                 if (_isEmpty(cx.env) || force) { cx.env = await (new cx.config.deployment.Env(cx)).read(); }
             };
             await resolveContextObj(this.cx);
@@ -88,6 +66,7 @@ export default class Runtime extends _Runtime {
                     if (vhost.path) {
                         cx = this.cx.constructor.create(this.cx, Path.join(this.cx.CWD, vhost.path));
                         await resolveContextObj(cx, true);
+                        cx.dict.key = true;
                         // From the server that's most likely to be active
                         port || (port = cx.server.https.port || cx.server.port);
                         // The domain list that corresponds to the specified resolved port
@@ -145,6 +124,7 @@ export default class Runtime extends _Runtime {
             }
             // ---------------
             const handleRequest = async (proto, request, response) => {
+                request[Symbol.toStringTag] = 'ReadableStream';
                 const [ fullUrl, requestInit ] = await this.parseNodeRequest(proto, request);
                 let clientResponse = await this.go(fullUrl, requestInit, { request, response });
                 if (response.headersSent) return;
@@ -158,8 +138,11 @@ export default class Runtime extends _Runtime {
                 if (clientResponse.headers.location) {
                     return response.end();
                 }
-                if ((clientResponse.body instanceof ReadableStream)) {
+                if ((clientResponse.body instanceof _ReadableStream)) {
                     return clientResponse.body.pipe(response);
+                }
+                if ((clientResponse.body instanceof ReadableStream)) {
+                    return _ReadableStream.from(clientResponse.body).pipe(response);
                 }
                 let body = clientResponse.body;
                 if (clientResponse.headers.contentType === 'application/json') {
@@ -195,12 +178,12 @@ export default class Runtime extends _Runtime {
                 }
                 this.cx.logger.info(``);
             }
-			if (this.client && this.client.init) {
-                const request = this.generateRequest('/');
+			if (this.app && this.app.init) {
+                const request = this.generateRequest('http://localhost/');
                 const httpEvent = new HttpEvent(request, { srcType: 'initialization' }, (id = 'session', options = { duration: 60 * 60 * 24, activeDuration: 60 * 60 * 24 }, callback = null) => {
                     return this.getSession(this.cx, httpEvent, id, options, callback);
                 });
-                await this.client.init(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
+                await this.app.init(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
             }
 		})();
         // ---------------
@@ -220,55 +203,14 @@ export default class Runtime extends _Runtime {
      * @return Array
      */
     async parseNodeRequest(proto, request) {
-        let url = request.url;
         // Detected when using manual proxy setting in a browser
-        if (url.startsWith(`http://${ request.headers.host }`) || url.startsWith(`https://${ request.headers.host }`)) {
-            url = url.split(request.headers.host)[1];
+        if (request.url.startsWith(`http://${ request.headers.host }`) || request.url.startsWith(`https://${ request.headers.host }`)) {
+            request.url = request.url.split(request.headers.host)[1];
         }
-        const fullUrl = proto + '://' + request.headers.host + url;
+        const fullUrl = proto + '://' + request.headers.host + request.url;
         const requestInit = { method: request.method, headers: request.headers };
-        if (request.method !== 'GET' && request.method !== 'HEAD') {
-            requestInit.body = await new Promise((resolve, reject) => {
-                var formidable = new Formidable.IncomingForm({ multiples: true, allowEmptyFiles: true, keepExtensions: true });
-                formidable.parse(request, (error, fields, files) => {
-                    if (error) { return reject(error); }
-                    if (request.headers['content-type'] === 'application/json') {
-                        return resolve(fields);
-                    }
-                    const formData = new FormData;
-                    Object.keys(fields).forEach(name => {
-                        if (Array.isArray(fields[name])) {
-                            const values = Array.isArray(fields[name][0]) 
-                                ? fields[name][0]/* bugly a nested array when there are actually more than entry */ 
-                                : fields[name];
-                            values.forEach(value => {
-                                formData.append(!name.endsWith(']') ? name + '[]' : name, value);
-                            });
-                        } else {
-                            formData.append(name, fields[name]);
-                        }
-                    });
-                    Object.keys(files).forEach(name => {
-                        const fileCompat = file => {
-                            // IMPORTANT
-                            // Path up the "formidable" file in a way that "formdata-node"
-                            // to can translate it into its own file instance
-                            file[Symbol.toStringTag] = 'File';
-                            file.stream = () => Fs.createReadStream(file.path);
-                            // Done pathcing
-                            return file;
-                        }
-                        if (Array.isArray(files[name])) {
-                            files[name].forEach(value => {
-                                formData.append(name, fileCompat(value));
-                            });
-                        } else {
-                            formData.append(name, fileCompat(files[name]));
-                        }
-                    });
-                    resolve(formData);
-                });
-            });
+        if (!['GET', 'HEAD'].includes(request.method)) {
+            requestInit.body = request;
         }
         return [ fullUrl, requestInit ];
     }
@@ -286,7 +228,7 @@ export default class Runtime extends _Runtime {
         await this.ready;
 
         // ------------
-        url = typeof url === 'string' ? new whatwag.URL(url) : url;
+        url = typeof url === 'string' ? new URL(url) : url;
         init = { referrer: this.location.href, ...init };
         // ------------
         const hosts = [];
@@ -309,10 +251,10 @@ export default class Runtime extends _Runtime {
             exit = { status: 302, headers: { Location: ( url.hostname = `www.${ url.hostname }`, url.href ) } };
         } else if (this.cx.config.runtime.server.Redirects) {
             exit = ((await (new this.cx.config.runtime.server.Redirects(this.cx)).read()).entries || []).reduce((_rdr, entry) => {
-                return _rdr || ((_rdr = urlPattern(entry.from, url.origin).exec(url.href)) && { status: entry.code || 302, headers: { Location: _rdr.render(entry.to) } });
+                return _rdr || ((_rdr = pattern(entry.from, url.origin).exec(url.href)) && { status: entry.code || 302, headers: { Location: _rdr.render(entry.to) } });
             }, null);
         }
-        if (exit) { return new Response(null, exit); }
+        if (exit) { return new xResponse(null, exit); }
         // ------------
 
         // ------------
@@ -323,7 +265,7 @@ export default class Runtime extends _Runtime {
         // ------------
         // Automatically-added headers
         const autoHeaders = this.cx.config.runtime.server.Headers 
-            ? ((await (new this.cx.config.runtime.server.Headers(this.cx)).read()).entries || []).filter(entry => urlPattern(entry.url, url.origin).exec(url.href))
+            ? ((await (new this.cx.config.runtime.server.Headers(this.cx)).read()).entries || []).filter(entry => pattern(entry.url, url.origin).exec(url.href))
             : [];
         // The request object
         const request = this.generateRequest(url.href, init, autoHeaders.filter(header => header.type === 'request'));
@@ -334,10 +276,10 @@ export default class Runtime extends _Runtime {
         // Response
         let response, finalResponse;
         try {
-            response = await this.client.handle(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
+            response = await this.app.handle(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
             finalResponse = await this.handleResponse(this.cx, httpEvent, response, autoHeaders.filter(header => header.type === 'response'));
         } catch(e) {
-            finalResponse = new Response(null, { status: 500, statusText: e.message });
+            finalResponse = new xResponse(null, { status: 500, statusText: e.message });
             console.error(e);
         }
         // Logging
@@ -353,19 +295,20 @@ export default class Runtime extends _Runtime {
     // Fetch from proxied host
     async proxyGo(vhost, url, init) {
         // ---------
-        const url2 = new whatwag.URL(url);
+        const url2 = new URL(url);
         url2.port = vhost.port;
         if (vhost.proto) { url2.protocol = vhost.proto; }
         // ---------
-        const init2 = { ...init, compress: false };
+        const init2 = { ...init, decompress: false/* honoured in xfetch() */ };
         if (!init2.headers) init2.headers = {};
         init2.headers.host = url2.host;
+        delete init2.headers.connection;
         // ---------
         let response;
         try {
             response = await this.remoteFetch(url2, init2);
         } catch(e) {
-            response = new Response(null, { status: 500, statusText: e.message });
+            response = new xResponse(null, { status: 500, statusText: e.message });
             console.error(e);
         }
         if (this.cx.logger) {
@@ -378,7 +321,7 @@ export default class Runtime extends _Runtime {
 
     // Generates request object
     generateRequest(href, init = {}, autoHeaders = []) {
-        const request = new Request(href, init);
+        const request = new xRequest(href, init);
         this._autoHeaders(request.headers, autoHeaders);
         return request;
     }
@@ -422,24 +365,24 @@ export default class Runtime extends _Runtime {
         let href = request;
 		if (request instanceof Request) {
 			href = request.url;
-		} else if (request instanceof whatwag.URL) {
+		} else if (request instanceof URL) {
 			href = request.href;
 		}
         Observer.set(this.network, 'remote', href);
-        const _response = fetch(request, ...args);
+        const _response = xfetch(request, ...args);
         // This catch() is NOT intended to handle failure of the fetch
         _response.catch(e => Observer.set(this.network, 'error', e.message));
         // Save a reference to this
         return _response.then(async response => {
             // Stop loading status
             Observer.set(this.network, 'remote', false);
-            return new Response(response);
+            return new xResponse(response);
         });
     }
 
     // Handles response object
     async handleResponse(cx, e, response, autoHeaders = []) {
-        if (!(response instanceof Response)) { response = new Response(response); }
+        if (!(response instanceof xResponse)) { response = new xResponse(response); }
         Observer.set(this.network, 'remote', false);
         Observer.set(this.network, 'error', null);
 
@@ -461,7 +404,7 @@ export default class Runtime extends _Runtime {
         if (response.headers.location) {
             const xRedirectPolicy = e.request.headers.get('X-Redirect-Policy');
             const xRedirectCode = e.request.headers.get('X-Redirect-Code') || 300;
-            const destinationUrl = new whatwag.URL(response.headers.location, e.url.origin);
+            const destinationUrl = new URL(response.headers.location, e.url.origin);
             const isSameOriginRedirect = destinationUrl.origin === e.url.origin;
             let isSameSpaRedirect, sparootsFile = Path.join(cx.CWD, cx.layout.PUBLIC_DIR, 'sparoots.json');
             if (isSameOriginRedirect && xRedirectPolicy === 'manual-when-cross-spa' && Fs.existsSync(sparootsFile)) {
@@ -483,7 +426,7 @@ export default class Runtime extends _Runtime {
 
         // ----------------
         // 404
-        if (response.bodyAttrs.input === undefined || response.bodyAttrs.input === null) {
+        if (response.meta.body === undefined || response.meta.body === null) {
             response.attrs.status = response.status !== 200 ? response.status : 404;
             response.attrs.statusText  = `${e.request.url} not found!`;
             return response;
@@ -507,7 +450,7 @@ export default class Runtime extends _Runtime {
         // Body
         let rangeRequest, body = response.body;
         if ((rangeRequest = e.request.headers.range) && !response.headers.get('Content-Range')
-        && ((body instanceof ReadableStream) || (ArrayBuffer.isView(body) && (body = ReadableStream.from(body))))) {
+        && ((body instanceof ReadableStream) || (ArrayBuffer.isView(body) && (body = _ReadableStream.from(body))))) {
             // ...in partials
             const totalLength = response.headers.contentLength || 0;
             const ranges = await rangeRequest.reduce(async (_ranges, range) => {
@@ -540,7 +483,7 @@ export default class Runtime extends _Runtime {
                 });
             } else {
                 // TODO: of ranges.parts is more than one, return multipart/byteranges
-                response = new Response(ranges.parts[0].body, {
+                response = new xResponse(ranges.parts[0].body, {
                     status: 206,
                     statusText: response.statusText,
                     headers: response.headers,

@@ -2,7 +2,7 @@
 /**
  * @imports
  */
-import { path as Path } from '../util.js';
+import { path as Path } from '../util-url.js';
 import _Router from '../Router.js';
 
 /**
@@ -14,6 +14,7 @@ import _Router from '../Router.js';
 export default class Router extends _Router {
 
     async readTick(thisTick) {
+        thisTick = { ...thisTick };
         var routeTree = this.cx.layout;
         var routePaths = Object.keys(this.cx.layout);
         if (thisTick.trail) {
@@ -25,8 +26,8 @@ export default class Router extends _Router {
                     routePaths.filter(p => p.startsWith(`${_currentPath}/`)).length ? { seg: _seg, dirExists: true } : _segmentOnFile
                 );
             }, { seg: null });
-            thisTick.trail.push(thisTick.currentSegment);
-            thisTick.trailOnFile.push(thisTick.currentSegmentOnFile.seg);
+            thisTick.trail = thisTick.trail.concat(thisTick.currentSegment);
+            thisTick.trailOnFile = thisTick.trailOnFile.concat(thisTick.currentSegmentOnFile.seg);
             thisTick.exports = routeTree[thisTick.currentSegmentOnFile.index];
         } else {
             thisTick.trail = [];

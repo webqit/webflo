@@ -2,31 +2,37 @@
 /**
  * @imports
  */
-import xHttpMessage, { encodeBody } from './xHttpMessage.js';
+import { formatMessage } from './util-http.js';
+import mxHttpMessage from './xxHttpMessage.js';
+import xResponseHeaders from './xResponseHeaders.js';
 
 /**
  * The xResponse Mixin
  */
-const xResponse = (whatwagResponse, Headers, FormData, Blob) => class extends xHttpMessage(whatwagResponse, Headers, FormData) {
+export default class xResponse extends mxHttpMessage(Response, xResponseHeaders) {
 
     // construct
-    constructor(body = null, init = {}) {
-        let bodyAttrs = {}, isResponseInput;
+    constructor(body = undefined, init = {}) {
+        let meta = {}, isResponseInput;
         if (arguments.length) {
-            if (body instanceof whatwagResponse) {
+            if (body instanceof Response) {
                 isResponseInput = body;
                 // Inherit init
                 init = { status: body.status, statusText: body.statusText, headers: body.headers, ...init };
                 if (body.status === 0) delete init.status;
-                // Inherit bodyAttrs and body
-                bodyAttrs = body.bodyAttrs || {};
+                // Inherit meta and body
+                meta = body.meta || {};
                 body = body.body;
-            } else {
-                bodyAttrs = encodeBody(body, FormData, Blob);
-                body = bodyAttrs.body;
+            } else if (!(init.headers instanceof Headers)) {
+                let headers, type, _body = body;
+                [ body, headers, type ] = formatMessage(body);
+                meta = { type, body: _body };
+                init = { ...init, headers: { ...headers, ...(init.headers || {}), } };
             }
         }
-        super(body, init, bodyAttrs);
+        // ---------------
+        super(body, init, meta);
+        // ---------------
         if (isResponseInput) {
             // Through the backdoor
             this.attrs.url = isResponseInput.url;
@@ -59,11 +65,9 @@ const xResponse = (whatwagResponse, Headers, FormData, Blob) => class extends xH
 
     static compat(response) {
         if (response instanceof this) return response;
-        if (response instanceof whatwagResponse) {
+        if (response instanceof Response) {
             return Object.setPrototypeOf(response, new this);
         }
     }
 
-};
-
-export default xResponse;
+}

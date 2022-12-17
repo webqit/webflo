@@ -3,9 +3,9 @@
  * @imports
  */
 import Router from './Router.js';
-import _RuntimeClient from '../RuntimeClient.js';
+import _Application from '../Application.js';
 
-export default class RuntimeClient extends _RuntimeClient {
+export default class Application extends _Application {
 
 	// Returns router class
 	get Router() {
@@ -27,8 +27,16 @@ export default class RuntimeClient extends _RuntimeClient {
 			// --------
 			// ROUTE FOR DATA
 			// --------
-			const httpMethodName = httpEvent.request.method.toUpperCase();
-			return router.route([httpMethodName, 'default'], httpEvent, {}, async event => {
+			return router.route([httpEvent.request.method, 'default'], httpEvent, { ...( document.state?.data || {} ) }, async event => {
+				if (event !== httpEvent) {
+					// This was nexted()
+					if (!event.request.headers.has('Accept')) {
+						event.request.headers.set('Accept', 'application/json');
+					}
+					if (event.request.body && !event.request.headers.has('Content-Type')) {
+						event.request.headers.set('Content-Type', 'application/json');
+					}
+				}
 				return remoteFetch(event.request);
 			}, remoteFetch);
 		};

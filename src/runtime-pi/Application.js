@@ -1,11 +1,11 @@
 
 /**
  * ---------------------------
- * The base RuntimeClient class
+ * The base Application class
  * ---------------------------
  */
             
-export default class RuntimeClient {
+export default class Application {
 
     constructor(cx) {
         this.cx = cx;

@@ -4,34 +4,14 @@
  */
 import { _after } from "@webqit/util/str/index.js";
 import { _from as _arrFrom } from "@webqit/util/arr/index.js";
-import { _getType, _isObject } from "@webqit/util/js/index.js";
-import { wwwFormUnserialize } from './util.js';
+import { params } from './util-url.js';
 import xHeaders from './xHeaders.js';
 import xCookies from './Cookies.js';
 
 /**
- * Cookies
- */
-class Cookies extends xCookies {
-
-    parse(str) {
-        return wwwFormUnserialize(str, {}, ';');
-    }
-    
-    parseEntry(str) {
-        return str.trim().split('=');
-    }
-
-    stringifyEntry(cookieBody) {
-        return cookieBody;
-    }
-
-}
-
-/**
  * The xHeaders Mixin
  */
-const xRequestHeaders = NativeHeaders => class extends xHeaders(NativeHeaders) {
+export default class xRequestHeaders extends xHeaders {
     
     get cookieHeaderName() {
         return 'Cookie';
@@ -109,4 +89,21 @@ const xRequestHeaders = NativeHeaders => class extends xHeaders(NativeHeaders) {
 
 }
 
-export default xRequestHeaders;
+/**
+ * Cookies
+ */
+class Cookies extends xCookies {
+
+    parse(str) {
+        return params.parse(str, ';');
+    }
+    
+    parseEntry(str) {
+        return str.trim().split('=');
+    }
+
+    stringifyEntry(cookieBody) {
+        return cookieBody;
+    }
+
+}

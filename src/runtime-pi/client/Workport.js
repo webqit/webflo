@@ -45,7 +45,7 @@ export default class Workport {
                     resolve(registration);
                 }).catch(e => reject(e));
             };
-            if (params.onWondowLoad) {
+            if (params.onWindowLoad) {
                 window.addEventListener('load', register);
             } else {
                 register();

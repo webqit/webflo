@@ -2,94 +2,89 @@
 /**
  * @imports
  */
-import _isArray from '@webqit/util/js/isArray.js';
-import _isObject from '@webqit/util/js/isObject.js';
-import { wwwFormUnserialize, wwwFormSerialize } from './util.js';
+import { _isObject, _isArray } from '@webqit/util/js/index.js';
+import { params } from './util-url.js';
 
 /**
  * ---------------------------
  * The xURL Mixin
  * ---------------------------
  */
-const xURL = whatwagURL => {
-	const URL = class extends whatwagURL {
-		
-		// constructor
-		constructor(...args) {
-			super(...args);
-			var query = wwwFormUnserialize(this.search);
-			const updateSearch = query => {
-				// "query" was updated. So we update "search"
-				var search = wwwFormSerialize(query);
-				search = search ? '?' + search : '';
-				if (search !== this.search) {
-					this.search = search;
-				}
-			};
-			this.__query = {
-				value: query,
-				proxy: new Proxy(query, {
-					set(t, n, v) {
-						t[n] = v;
-						updateSearch(t);
-						return true;
-					},
-					deleteProperty(t, n) {
-						delete t[n];
-						updateSearch(t);
-						return true;
-					}
-				})
-			};
-		}
-
-		// Set search
-		set search(value) {
-			super.search = value;
-			// "search" was updated. So we update "query"
-			var query = wwwFormUnserialize(value);
-			if (!_strictEven(query, this.query)) {
-				this.query = query;
+export default class xURL extends URL {
+	
+	// constructor
+	constructor(...args) {
+		super(...args);
+		var query = params.parse(this.search);
+		const updateSearch = query => {
+			// "query" was updated. So we update "search"
+			var search = params.stringify(query);
+			search = search ? '?' + search : '';
+			if (search !== this.search) {
+				this.search = search;
 			}
-		}
+		};
+		this.__query = {
+			value: query,
+			proxy: new Proxy(query, {
+				set(t, n, v) {
+					t[n] = v;
+					updateSearch(t);
+					return true;
+				},
+				deleteProperty(t, n) {
+					delete t[n];
+					updateSearch(t);
+					return true;
+				}
+			})
+		};
+	}
 
-		// Get search
-		get search() {
-			return super.search;
+	// Set search
+	set search(value) {
+		super.search = value;
+		// "search" was updated. So we update "query"
+		var query = params.parse(value);
+		if (!_strictEven(query, this.query)) {
+			this.query = query;
 		}
+	}
 
-		// Get query
-		get query() {
-			return this.__query.proxy;
-		}
+	// Get search
+	get search() {
+		return super.search;
+	}
 
-	};
-	// ----------
-    URL.Observable = class extends URL {
-	
-		constructor() {
-			super(...arguments);
-			const { Observer } = WebQit;
-			Observer.accessorize(this, [
-				'protocol', 
-				'username',
-				'password',
-				'host',
-				'hostname',
-				'port',
-				'origin',
-				'pathname',
-				'search',
-				'query',
-				'hash',
-				'href',
-			]);
-		}
-	
-	};
-    // ----------
-	return URL;
-}
+	// Get query
+	get query() {
+		return this.__query.proxy;
+	}
+
+};
+// ----------
+xURL.Observable = class extends xURL {
+
+	constructor() {
+		super(...arguments);
+		const { Observer } = WebQit;
+		Observer.accessorize(this, [
+			'protocol', 
+			'username',
+			'password',
+			'host',
+			'hostname',
+			'port',
+			'origin',
+			'pathname',
+			'search',
+			'query',
+			'hash',
+			'href',
+		]);
+	}
+
+};
 
 /**
  * ---------------------------
@@ -108,4 +103,3 @@ var _strictEven = (a, b) => {
 	return a === b;
 };
 
-export default xURL;

@@ -58,7 +58,7 @@ export default class Router {
                 if (thisTick.exports) {
                     // Broadcast any hints exported by handler
                     if (thisTick.exports.hints) { await event.port.post({ ...thisTick.exports.hints, $type: 'handler:hints' }); }
-                    const methods = _arrFrom(thisTick.method);
+                    const methods = _arrFrom(thisTick.method).map(m => m === 'default' ? m : m.toUpperCase());
                     const handler = _isFunction(thisTick.exports) && methods.includes('default') ? thisTick.exports : methods.reduce((_handler, name) => _handler || thisTick.exports[name], null);
                     if (handler) {
                         // -------------
@@ -74,7 +74,7 @@ export default class Router {
                                 } else if (!_isString(_url)) {
                                     throw new Error('Router redirect url must be a string!');
                                 }
-                                var newDestination = _url.startsWith('/') ? _url : $this.pathJoin(`/${thisTick.trail.join('/')}`, _url);
+                                let newDestination = _url.startsWith('/') ? _url : $this.pathJoin(`/${thisTick.trail.join('/')}`, _url);
                                 if (newDestination.startsWith('../')) {
                                     throw new Error('Router redirect cannot traverse beyond the routing directory! (' + _url + ' >> ' + newDestination + ')');
                                 }
@@ -89,7 +89,6 @@ export default class Router {
                                 } else {
                                     nextTick.event = thisTick.event.with(newDestination, requestInit);
                                 }
-                                
                                 nextTick.source = thisTick.destination.join('/');
                                 nextTick.destination = newDestination.split('?').shift().split('/').map(a => a.trim()).filter(a => a);
                                 nextTick.trail = _args[1].startsWith('/') ? [] : thisTick.trail.reduce((_commonRoot, _seg, i) => _commonRoot.length === i && _seg === nextTick.destination[i] ? _commonRoot.concat(_seg) : _commonRoot, []);

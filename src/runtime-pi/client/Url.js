@@ -4,8 +4,8 @@
  */
 import { _with } from '@webqit/util/obj/index.js';
 import { _isArray, _isObject, _isTypeObject, _isString, _isEmpty } from '@webqit/util/js/index.js';
-import { wwwFormUnserialize, wwwFormSerialize } from '../util.js';
 import { Observer } from './Runtime.js';
+import { params } from '../util-url.js';
 
 /**
  * ---------------------------
@@ -169,7 +169,7 @@ export default class Url {
 	 * @return object
 	 */
 	static toQuery(search) {
-		return wwwFormUnserialize(search);
+		return params.parse(search);
 	}
 
 	/**
@@ -180,7 +180,7 @@ export default class Url {
 	 * @return string
 	 */
 	static toSearch(query) {
-		var search = wwwFormSerialize(query);
+		var search = params.stringify(query);
 		return search ? '?' + search : '';
 	}}
 

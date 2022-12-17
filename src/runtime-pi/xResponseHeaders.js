@@ -4,53 +4,13 @@
  */
 import { _after, _beforeLast } from "@webqit/util/str/index.js";
 import { _isString, _getType, _isObject } from "@webqit/util/js/index.js";
-import _Headers from './xHeaders.js';
+import xHeaders from './xHeaders.js';
 import xCookies from './Cookies.js';
-
-/**
- * Cookies
- */
-class Cookies extends xCookies {
-
-    parse(cookieStr) {
-        const obj = {};
-        cookieStr && cookieStr.split(',').forEach(str => {
-            let [ cookieName, definition ] = this.parseEntry(str);
-            obj[cookieName] = definition;
-        });
-        return obj;
-    }
-
-    parseEntry(str) {
-        let [ cookieDefinition, attrsStr ] = str.split(';');
-        let [ cookieName, cookieValue ] = cookieDefinition.trim().split('=');
-        let attrs = { value: cookieValue, };
-        attrsStr && (attrsStr || '').split(/\;/g).map(attrStr => attrStr.trim().split('=')).forEach(attrsArr => {
-            attrs[attrsArr[0][0].toLowerCase() + attrsArr[0].substring(1).replace('-', '')] = attrsArr.length === 1 ? true : attrsArr[1];
-        });
-        return [ cookieName, attrs ];
-    }
-
-    stringifyEntry(cookieBody) {
-        if (_isObject(cookieBody)) {
-            let attrsArr = [ cookieBody.value ];
-            for (let attrName in cookieBody) {
-                if (attrName === 'value') continue;
-                let _attrName = attrName[0].toUpperCase() + attrName.substring(1);
-                if (_attrName === 'MaxAge') { _attrName = 'Max-Age' };
-                attrsArr.push(cookieBody[attrName] === true ? _attrName : `${_attrName}=${cookieBody[attrName]}`);
-            }
-            cookieBody = attrsArr.join(';');
-        }
-        return cookieBody;
-    }
-
-}
 
 /**
  * The _Headers Mixin
  */
-const _ResponseHeaders = NativeHeaders => class extends _Headers(NativeHeaders) {
+export default class xResponseHeaders extends xHeaders {
 
     get cookieHeaderName() {
         return 'Set-Cookie';
@@ -116,4 +76,42 @@ const _ResponseHeaders = NativeHeaders => class extends _Headers(NativeHeaders) 
 
 }
 
-export default _ResponseHeaders;
+/**
+ * Cookies
+ */
+class Cookies extends xCookies {
+
+    parse(cookieStr) {
+        const obj = {};
+        cookieStr && cookieStr.split(',').forEach(str => {
+            let [ cookieName, definition ] = this.parseEntry(str);
+            obj[cookieName] = definition;
+        });
+        return obj;
+    }
+
+    parseEntry(str) {
+        let [ cookieDefinition, attrsStr ] = str.split(';');
+        let [ cookieName, cookieValue ] = cookieDefinition.trim().split('=');
+        let attrs = { value: cookieValue, };
+        attrsStr && (attrsStr || '').split(/\;/g).map(attrStr => attrStr.trim().split('=')).forEach(attrsArr => {
+            attrs[attrsArr[0][0].toLowerCase() + attrsArr[0].substring(1).replace('-', '')] = attrsArr.length === 1 ? true : attrsArr[1];
+        });
+        return [ cookieName, attrs ];
+    }
+
+    stringifyEntry(cookieBody) {
+        if (_isObject(cookieBody)) {
+            let attrsArr = [ cookieBody.value ];
+            for (let attrName in cookieBody) {
+                if (attrName === 'value') continue;
+                let _attrName = attrName[0].toUpperCase() + attrName.substring(1);
+                if (_attrName === 'MaxAge') { _attrName = 'Max-Age' };
+                attrsArr.push(cookieBody[attrName] === true ? _attrName : `${_attrName}=${cookieBody[attrName]}`);
+            }
+            cookieBody = attrsArr.join(';');
+        }
+        return cookieBody;
+    }
+
+}

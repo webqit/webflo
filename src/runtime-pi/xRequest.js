@@ -2,46 +2,47 @@
 /**
  * @imports
  */
-import xHttpMessage, { encodeBody } from './xHttpMessage.js';
+import { formatMessage } from './util-http.js';
+import mxHttpMessage from './xxHttpMessage.js';
+import xRequestHeaders from './xRequestHeaders.js';
 
 /**
  * The xRequest Mixin
  */
-const xRequest = (whatwagRequest, Headers, FormData, Blob) => class extends xHttpMessage(whatwagRequest, Headers, FormData) {
+export default class xRequest extends mxHttpMessage(Request, xRequestHeaders) {
         
     constructor(input, init = {}) {
-        init = { ...init };
-        let bodyAttrs = {};
-        if ((input instanceof whatwagRequest)) {
+        let meta = {};
+        if ((input instanceof Request)) {
             // On method change...
             if (init.method && input.method !== init.method.toUpperCase() && [ 'GET', 'HEAD' ].includes(init.method.toUpperCase())) {
                 // Body must not be inherited.
                 input = input.url;
+                init = { ...init };
                 // We should now simply copy attributes
                 [ 'headers', 'mode', 'credentials', 'cache', 'redirect', 'referrer', 'integrity' ].forEach(attr => {
-                    if (!(attr in init)) {
-                        init[attr] = input[attr];
-                    }
+                    if (!(attr in init)) { init[attr] = input[attr]; }
                 });
-            } else {
-                // Inherit bodyAttrs
-                bodyAttrs = input.bodyAttrs || {};
             }
         }
-        // Init can contain "already-parsed request content"
-        if (('body' in init)) {
-            bodyAttrs = encodeBody(init.body, FormData, Blob);
-            init.body = bodyAttrs.body;
-        }
         let isNavigateMode;
-        if (init.mode === 'navigate') {
-            isNavigateMode = true;
-            init = { ...init };
-            delete init.mode;
+        if (!(init instanceof Request)) {
+            // Init can contain "already-parsed request content"
+            if (('body' in init) && !(init.headers instanceof Headers)) {
+                const [ body, headers, type ] = formatMessage(init.body);
+                meta = { type, body: init.body };
+                init = { ...init, body, headers: { ...headers, ...(init.headers || {}), } };
+            }
+            if (init.mode === 'navigate') {
+                isNavigateMode = true;
+                init = { ...init };
+                delete init.mode;
+            }
         }
-        super(input, init, bodyAttrs);
+        // ---------------
+        super(input, init, meta);
+        // ---------------
         if (isNavigateMode) {
-            // Through the backdoor
             this.attrs.mode = 'navigate';
         }
     }
@@ -50,16 +51,11 @@ const xRequest = (whatwagRequest, Headers, FormData, Blob) => class extends xHtt
         return 'mode' in this.attrs ? this.attrs.mode : super.mode;
     }
 
-    get cache() {
-        return 'cache' in this.attrs ? this.attrs.cache : super.cache;
-    }
-
-    get destination() {
-        return 'destination' in this.attrs ? this.attrs.destination : super.destination;
-    }
-
-    get referrer() {
-        return 'referrer' in this.attrs ? this.attrs.referrer : super.referrer;
+    static compat(request) {
+        if (request instanceof this) return request;
+        if (request instanceof Request) {
+            return Object.setPrototypeOf(request, new this);
+        }
     }
 
     static async rip(request) {
@@ -72,13 +68,4 @@ const xRequest = (whatwagRequest, Headers, FormData, Blob) => class extends xHtt
         return [ request.url, requestInit ];
     }
 
-    static compat(request) {
-        if (request instanceof this) return request;
-        if (request instanceof whatwagRequest) {
-            return Object.setPrototypeOf(request, new this);
-        }
-    }
-
-};
-
-export default xRequest;
+}

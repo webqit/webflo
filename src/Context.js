@@ -56,7 +56,7 @@ export default class Context {
     }
 
     set flags(value) {
-        this.dict.flags = value;
+        Object.defineProperty(this.dict, 'flags', { value } );
     }
 
     // layout
@@ -65,7 +65,7 @@ export default class Context {
     }
 
     set layout(value) {
-        this.dict.layout = value;
+        Object.defineProperty(this.dict, 'layout', { value } );
     }
 
     // logger
@@ -74,7 +74,7 @@ export default class Context {
     }
 
     set logger(value) {
-        this.dict.logger = value;
+        Object.defineProperty(this.dict, 'logger', { value } );
     }
 
 }

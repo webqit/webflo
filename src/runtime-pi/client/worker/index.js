@@ -3,19 +3,19 @@
  * @imports
  */
 import Context from './Context.js';
-import WorkerClient from './WorkerClient.js';
-import Worker from './Worker.js';
+import Application from './Application.js';
+import Runtime from './Runtime.js';
 
 /**
  * @start
  */
-export async function start(clientCallback = null) {
+export async function start(applicationInstance = null) {
     const cx = this || {};
-    const defaultClientCallback = _cx => new WorkerClient(_cx);
-    return new Worker(Context.create(cx), clientCallback || defaultClientCallback);
+    const defaultApplicationInstance = _cx => new Application(_cx);
+    return new Runtime(Context.create(cx), applicationInstance || defaultApplicationInstance);
 }
 
 /**
  * @APIS
  */
-export * as APIS from './Worker.js';
+export * as APIS from './Runtime.js';

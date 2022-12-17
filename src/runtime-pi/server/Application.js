@@ -6,12 +6,12 @@ import Fs from 'fs';
 import Path from 'path';
 import QueryString from 'querystring';
 import Router from './Router.js';
-import _RuntimeClient from '../RuntimeClient.js';
+import _Application from '../Application.js';
 
-export default class RuntimeClient extends _RuntimeClient {
+export default class Application extends _Application {
 
     /**
-     * RuntimeClient
+     * Application
      * 
      * @param Context cx
      */
@@ -40,8 +40,7 @@ export default class RuntimeClient extends _RuntimeClient {
             // --------
             // ROUTE FOR DATA
             // --------
-            const httpMethodName = httpEvent.request.method.toUpperCase();
-            let response = await router.route([httpMethodName, 'default'], httpEvent, {}, async event => {
+            let response = await router.route([httpEvent.request.method, 'default'], httpEvent, {}, async event => {
                 return router.file(event);
             }, remoteFetch);
             if (!(response instanceof httpEvent.Response)) {
@@ -50,14 +49,15 @@ export default class RuntimeClient extends _RuntimeClient {
             // --------
             // Rendering
             // --------
-            if (response.ok && response.bodyAttrs.inputType === 'object' && httpEvent.request.headers.accept.match('text/html')) {
+            if (response.ok && response.meta.type === 'json' && typeof response.meta.body === 'object' && response.meta.body && httpEvent.request.headers.accept.match('text/html')) {
                 let rendering = await this.render(httpEvent, router, response);
                 if (typeof rendering !== 'string' && !(typeof rendering === 'object' && rendering && typeof rendering.toString === 'function')) {
                     throw new Error('render() must return a string response or an object that implements toString()..');
                 }
-                response = new httpEvent.Response(rendering.toString(), {
+                rendering = rendering.toString();
+                response = new httpEvent.Response(rendering, {
+                    headers: { ...response.headers.json(), contentType: 'text/html', contentLength: (new Blob([rendering]).size) },
                     status: response.status,
-                    headers: { ...response.headers.json(), contentType: 'text/html' },
                 });
             }
 

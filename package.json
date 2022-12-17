@@ -37,7 +37,7 @@
   "dependencies": {
     "@octokit/webhooks": "^7.15.1",
     "@webqit/backpack": "^0.1.6",
-    "@webqit/oohtml-ssr": "^1.1.0",
+    "@webqit/oohtml-ssr": "^1.1.5",
     "@webqit/util": "^0.8.9",
     "client-sessions": "^0.8.0",
     "esbuild": "^0.14.38",
@@ -45,7 +45,6 @@
     "formdata-node": "^4.3.0",
     "formidable": "^2.0.1",
     "mime-types": "^2.1.33",
-    "node-fetch": "^2.6.1",
     "simple-git": "^2.20.1",
     "stream-slice": "^0.1.2",
     "urlpattern-polyfill": "^4.0.3"

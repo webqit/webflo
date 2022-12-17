@@ -1,22 +1,15 @@
 
 /**
- * @imports
- */
-import { _after, _beforeLast } from "@webqit/util/str/index.js";
-import { _isString, _getType, _isObject, _isFunction } from "@webqit/util/js/index.js";
-import { _isTypeObject } from '@webqit/util/js/index.js';
-
-/**
  * The xHeaders Mixin
  */
-const xHeaders = whatwagHeaders => class extends whatwagHeaders {
+export default class xHeaders extends Headers {
 
     // construct
     constructor(definition = {}) {
         const cookies = definition.cookies;
         delete definition.cookies;
         // -----------------        
-        if (definition instanceof whatwagHeaders) {
+        if (definition instanceof Headers) {
             // It's another Headers instance
             super(definition);
         } else {
@@ -139,8 +132,6 @@ const xHeaders = whatwagHeaders => class extends whatwagHeaders {
     }
 
 }
-
-export default xHeaders;
 
 function getAllPropertyDescriptors(obj) {
     if (!obj) {

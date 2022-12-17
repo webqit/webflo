@@ -1,14 +1,23 @@
 
 /**
+ * @imports
+ */
+import { formatMessage } from './util-http.js';
+
+/**
  * The xfetch Mixin
  */
-const xfetch = (whatwagFetch, xRequest = null) => {
-    return (url, init = {}) => {
-        if (init.body && (typeof init.body === 'object') && xRequest) {
-            return whatwagFetch(new xRequest(url, init));
-        }
-        return whatwagFetch(url, init);
+const xfetch = async (url, init = {}) => {
+    if (init.body) {
+        const [ body, headers ] = formatMessage(init.body);
+        init = { ...init, body, headers: { ...headers, ...(init.headers || {}), } };
     }
+    let response = await fetch(url, init), encoding;
+    if (init.decompress === false && (encoding = response.headers.get('Content-Encoding'))) {
+        let recompressedBody = response.body.pipeThrough(new CompressionStream(encoding));
+        response = new Response(recompressedBody, response);
+    }
+    return response;
 };
 
 export default xfetch;

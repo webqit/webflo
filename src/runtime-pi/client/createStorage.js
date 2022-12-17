@@ -29,7 +29,7 @@ export default function(namespace = null, persistent = false) {
             return true;
         }
         if (event.type === 'has') {
-            for(var i = 0; i < window[storeType].length; i ++){
+            for(let i = 0; i < window[storeType].length; i ++){
                 if (window[storeType].key(i) === key) {
                     return true;
                 }
@@ -37,8 +37,8 @@ export default function(namespace = null, persistent = false) {
             return false;
         }
         if (event.type === 'ownKeys') {
-            var keys = [];
-            for(var i = 0; i < window[storeType].length; i ++){
+            const keys = [];
+            for(let i = 0; i < window[storeType].length; i ++){
                 keys.push(window[storeType].key(i));
             };
             return keys;

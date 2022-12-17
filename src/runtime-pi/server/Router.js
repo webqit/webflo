@@ -17,6 +17,7 @@ import _Router from '../Router.js';
 export default class Router extends _Router {
 
     async readTick(thisTick) {
+        thisTick = { ...thisTick };
         if (thisTick.trail) {
             thisTick.currentSegment = thisTick.destination[thisTick.trail.length];
             thisTick.currentSegmentOnFile = [ thisTick.currentSegment, '-' ].reduce((_segmentOnFile, _seg) => {
@@ -27,8 +28,8 @@ export default class Router extends _Router {
                     Fs.existsSync(Path.join(this.cx.CWD, this.cx.layout.SERVER_DIR, _currentPath)) ? { seg: _seg, dirExists: true } : _segmentOnFile
                 );
             }, { seg: null });
-            thisTick.trail.push(thisTick.currentSegment);
-            thisTick.trailOnFile.push(thisTick.currentSegmentOnFile.seg);
+            thisTick.trail = thisTick.trail.concat(thisTick.currentSegment);
+            thisTick.trailOnFile = thisTick.trailOnFile.concat(thisTick.currentSegmentOnFile.seg);
             thisTick.exports = thisTick.currentSegmentOnFile.index ? await import(Url.pathToFileURL(thisTick.currentSegmentOnFile.index)) : undefined;
         } else {
             thisTick.trail = [];

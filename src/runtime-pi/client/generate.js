@@ -11,7 +11,7 @@ import { _afterLast, _beforeLast } from '@webqit/util/str/index.js';
 import { _isObject, _isArray } from '@webqit/util/js/index.js';
 import { jsFile } from '@webqit/backpack/src/dotfile/index.js';
 import { gzipSync, brotliCompressSync } from 'zlib';
-import { urlPattern } from '../util.js';
+import { pattern } from '../util-url.js';
 
 /**
  * @generate
@@ -152,12 +152,14 @@ export async function generate() {
         // >> Modules import
         gen.imports[`${dirSelf}/worker/index.js`] = `{ start }`;
         gen.code.push(``);
+        gen.code.push(`self.WebQit = {}`);
+        gen.code.push(``);
         // ------------------
         // Bundle
         if (workerConfig.cache_only_urls.length) {
             // Separate URLs from patterns
             let [ urls, patterns ] = workerConfig.cache_only_urls.reduce(([ urls, patterns ], url) => {
-                let patternInstance = urlPattern(url, 'http://localhost'),
+                let patternInstance = pattern(url, 'http://localhost'),
                     isPattern = patternInstance.isPattern();
                 if (isPattern && (patternInstance.pattern.pattern.hostname !== 'localhost' || patternInstance.pattern.pattern.port)) {
                     throw new Error(`Pattern URLs must have no origin part. Recieved "${url}".`);
@@ -233,7 +235,7 @@ function declareStart(gen, routesDir, targetDir, paramsObj, routing) {
     // ------------------
     // >> Startup
     gen.code.push(`// >> Startup`);
-    gen.code.push(`start.call({ layout, params })`);
+    gen.code.push(`WebQit.app = await start.call({ layout, params })`);
 }
 
 /**

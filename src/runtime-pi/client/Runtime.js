@@ -4,40 +4,17 @@
  */
 import { _before, _toTitle } from '@webqit/util/str/index.js';
 import { Observer } from '@webqit/oohtml-ssr/apis.js';
-import Storage from './Storage.js';
+import createStorage from './createStorage.js';
 import Url from './Url.js';
-import { wwwFormUnserialize, wwwFormSet, wwwFormSerialize } from '../util.js';
-import * as whatwag from './whatwag.js';
-import xURL from '../xURL.js';
-import xFormData from "../xFormData.js";
-import xRequestHeaders from "../xRequestHeaders.js";
-import xResponseHeaders from "../xResponseHeaders.js";
+import Workport from './Workport.js';
 import xRequest from "../xRequest.js";
 import xResponse from "../xResponse.js";
 import xfetch from '../xfetch.js';
-import xHttpEvent from '../xHttpEvent.js';
-import Workport from './Workport.js';
+import HttpEvent from '../HttpEvent.js';
 import _Runtime from '../Runtime.js';
-
-const URL = xURL(whatwag.URL);
-const FormData = xFormData(whatwag.FormData);
-const ReadableStream = whatwag.ReadableStream;
-const RequestHeaders = xRequestHeaders(whatwag.Headers);
-const ResponseHeaders = xResponseHeaders(whatwag.Headers);
-const Request = xRequest(whatwag.Request, RequestHeaders, FormData, whatwag.Blob);
-const Response = xResponse(whatwag.Response, ResponseHeaders, FormData, whatwag.Blob);
-const fetch = xfetch(whatwag.fetch, Request);
-const HttpEvent = xHttpEvent(Request, Response, URL);
+import { params } from '../util-url.js';
 
 export {
-	URL,
-	FormData,
-	ReadableStream,
-	RequestHeaders,
-	ResponseHeaders,
-	Request,
-	Response,
-	fetch,
 	HttpEvent,
 	Observer,
 }
@@ -48,12 +25,12 @@ export default class Runtime extends _Runtime {
      * Runtime
      * 
      * @param Object        cx
-     * @param Function      clientCallback
+     * @param Function      applicationInstance
      * 
      * @return void
      */
-	constructor(cx, clientCallback) {
-		super(cx, clientCallback);
+	constructor(cx, applicationInstance) {
+		super(cx, applicationInstance);
 		// -----------------------
 		// Initialize location
 		Observer.set(this, 'location', new Url(window.document.location));
@@ -124,11 +101,11 @@ export default class Runtime extends _Runtime {
 					formData.set(submitter.name, submitter.value);
 				}
 				if (submitParams.method.toUpperCase() === 'GET') {
-					var query = wwwFormUnserialize(actionEl.search);
+					var query = params.parse(actionEl.search);
 					Array.from(formData.entries()).forEach(_entry => {
-						wwwFormSet(query, _entry[0], _entry[1], false);
+						params.set(query, _entry[0], _entry[1]);
 					});
-					actionEl.search = wwwFormSerialize(query);
+					actionEl.search = params.stringify(query);
 					formData = null;
 				}
 				this.go(Url.copy(actionEl), {
@@ -150,7 +127,8 @@ export default class Runtime extends _Runtime {
 		// -----------------------
 		// Service Worker && COMM
 		if (this.cx.params.service_worker_support) {
-			const workport = new Workport(this.cx.params.worker_filename, { scope: this.cx.params.worker_scope, startMessages: true });
+			const { public_base_url: base, worker_filename: filename, worker_scope: scope } = this.cx.params;
+			const workport = new Workport(base + filename, { scope, startMessages: true });
 			Observer.set(this, 'workport', workport);
 		}
 
@@ -158,10 +136,10 @@ export default class Runtime extends _Runtime {
 		// Initialize and Hydration
 		(async () => {
 			let shouldHydrate;
-			if (this.client.init) {
+			if (this.app.init) {
 				const request = this.generateRequest(this.location);
 				const httpEvent = new HttpEvent(request, { srcType: 'initialization' }, (id = null, persistent = false) => this.getSession(httpEvent, id, persistent));
-				shouldHydrate = await this.client.init(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
+				shouldHydrate = await this.app.init(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
 			}
 			if (shouldHydrate !== false) {
 				this.go(this.location, {}, { srcType: 'hydration' });
@@ -185,7 +163,7 @@ export default class Runtime extends _Runtime {
 
 	// Check is-spa-route
 	isSpaRoute(url, e = undefined) {
-		url = typeof url === 'string' ? new whatwag.URL(url) : url;
+		url = typeof url === 'string' ? new URL(url, this.location.origin) : url;
 		if (url.origin && url.origin !== this.location.origin) return false;
 		if (e && (e.metaKey || e.altKey || e.ctrlKey || e.shiftKey)) return false;
 		if (!this.cx.params.routing) return true;
@@ -202,7 +180,7 @@ export default class Runtime extends _Runtime {
 
 	// Generates request object
 	generateRequest(href, init = {}) {
-		return new Request(href, {
+		return new xRequest(href, {
 			signal: this._abortController && this._abortController.signal,
 			...init,
 			headers: {
@@ -216,8 +194,8 @@ export default class Runtime extends _Runtime {
 	}
 
 	// Generates session object
-    getSession(e, id = null, persistent = false) {
-		return Storage(id, persistent);
+    createStorage(e, id = null, persistent = false) {
+		return createStorage(id, persistent);
 	}
 
     /**
@@ -230,13 +208,13 @@ export default class Runtime extends _Runtime {
      * @return Response
      */
     async go(url, init = {}, detail = {}) {
-        url = typeof url === 'string' ? new whatwag.URL(url) : url;
+        url = typeof url === 'string' ? new URL(url, this.location.origin) : url;
         init = { referrer: this.location.href, ...init };
         // ------------
 		// Put his forward before instantiating a request and aborting previous
 		// Same-page hash-links clicks on chrome recurse here from histroy popstate
-        if (detail.srcType !== 'hydration' && (_before(url.href, '#') === _before(init.referrer, '#') && (init.method || 'GET').toUpperCase() === 'GET')) {
-			return new Response(null, { status: 304 }); // Not Modified
+        if (![ 'hydration', 'rdr' ].includes(detail.srcType) && (_before(url.href, '#') === _before(init.referrer, '#') && (init.method || 'GET').toUpperCase() === 'GET')) {
+			return new xResponse(null, { status: 304 }); // Not Modified
         }
 		// ------------
         if (this._abortController) {
@@ -257,23 +235,21 @@ export default class Runtime extends _Runtime {
 		// Run
 		// ------------
 		const request = this.generateRequest(url.href, init);
-		const httpEvent = new HttpEvent(request, detail, (id = null, persistent = false) => this.getSession(httpEvent, id, persistent));
+		const httpEvent = new HttpEvent(request, detail, (id = null, persistent = false) => this.createStorage(httpEvent, id, persistent));
 		let response, finalResponse;
 		try {
 			// ------------
 			// Response
 			// ------------
-			response = await this.client.handle(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
+			response = await this.app.handle(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
 			finalResponse = this.handleResponse(httpEvent, response);
 			// ------------
 			// Address bar
 			// ------------
-			if (response.redirected) {
-				Observer.set(this.location, { href: response.url }, { detail: { redirected: true }, });
-				Observer.set(this.network, 'requesting', null);
+			if (response && response.redirected) {
+				Observer.set(this.location, { href: response.url }, { detail: { redirected: true, ...detail }, });
 			} else if (![302, 301].includes(finalResponse.status)) {
-				Observer.set(this.location, Url.copy(url)/* copy() is important */);
-				Observer.set(this.network, 'requesting', null);
+				Observer.set(this.location, Url.copy(url)/* copy() is important */, { detail });
 			}
 			// ------------
 			// States
@@ -286,19 +262,19 @@ export default class Runtime extends _Runtime {
 			// Rendering
 			// ------------
 			if (finalResponse.ok && (finalResponse.headers.contentType === 'application/json' || finalResponse.headers.contentType.startsWith('multipart/form-data'))) {
-				this.client.render && await this.client.render(httpEvent, finalResponse);
+				this.app.render && await this.app.render(httpEvent, finalResponse);
 			} else if (!finalResponse.ok) {
 				if ([404, 500].includes(finalResponse.status)) {
 					Observer.set(this.network, 'error', new Error(finalResponse.statusText, { cause: finalResponse.status }));
 				}
 				if (!finalResponse.headers.get('Location')) {
-					this.client.unrender && await this.client.unrender(httpEvent);
+					this.app.unrender && await this.app.unrender(httpEvent);
 				}
 			}
 		} catch(e) {
 			console.error(e);
 			Observer.set(this.network, 'error', { ...e, retry: () => this.go(url, init = {}, detail) });
-			finalResponse = new Response(null, { status: 500, statusText: e.message });
+			finalResponse = new xResponse(null, { status: 500, statusText: e.message });
 		}
 		// ------------
         // Return value
@@ -310,35 +286,37 @@ export default class Runtime extends _Runtime {
 		let href = request;
 		if (request instanceof Request) {
 			href = request.url;
-		} else if (request instanceof whatwag.URL) {
+		} else if (request instanceof URL) {
 			href = request.href;
 		}
 		Observer.set(this.network, 'remote', href);
-		let _response = fetch(request, ...args);
+		let _response = xfetch(request, ...args);
 		// This catch() is NOT intended to handle failure of the fetch
 		_response.catch(e => Observer.set(this.network, 'error', e));
 		// Return xResponse
 		return _response.then(async response => {
 			// Stop loading status
 			Observer.set(this.network, 'remote', null);
-			return new Response(response);
+			return new xResponse(response);
 		});
 	}
 
 	// Handles response object
 	handleResponse(e, response) {
-		if (!(response instanceof Response)) { response = new Response(response); }
+		if (typeof response === 'undefined') { response = new xResponse(undefined, { status: 404 }); }
+		else if (!(response instanceof xResponse)) { response = new xResponse(response); }
+		Observer.set(this.network, 'requesting', null);
+		Observer.set(this.network, 'redirecting', null);
 		if (!response.redirected) {
 			let location = response.headers.get('Location');
 			if (location) {
 				let xActualRedirectCode = parseInt(response.headers.get('X-Redirect-Code'));
+				Observer.set(this.network, 'redirecting', location);
 				if (xActualRedirectCode && response.status === this._xRedirectCode) {
 					response.attrs.status = xActualRedirectCode;
-					Observer.set(this.network, 'redirecting', location);
 					window.location = location;
 				} else if ([302,301].includes(response.status)) {
 					if (!this.isSpaRoute(location)) {
-						Observer.set(this.network, 'redirecting', location);
 						window.location = location;
 					} else {
 						this.go(location, {}, { srcType: 'rdr' });

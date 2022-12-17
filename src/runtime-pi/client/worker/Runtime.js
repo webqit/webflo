@@ -3,42 +3,38 @@
  * @imports
  */
 import { _any } from '@webqit/util/arr/index.js';
-import { urlPattern } from '../../util.js';
-import { HttpEvent, Request, Response, fetch as xfetch, Observer } from '../Runtime.js';
+import { Observer } from '@webqit/oohtml-ssr/apis.js';
+import { pattern } from '../../util-url.js';
 import Workport from './Workport.js';
-import _Worker from '../../Runtime.js';
+import _Runtime from '../../Runtime.js';
+import xRequest from "../../xRequest.js";
+import xResponse from "../../xResponse.js";
+import xfetch from '../../xfetch.js';
+import HttpEvent from '../../HttpEvent.js';
 
 export {
-	URL,
-	FormData,
-	ReadableStream,
-	RequestHeaders,
-	ResponseHeaders,
-	Request,
-	Response,
-	fetch,
 	HttpEvent,
 	Observer,
-} from '../Runtime.js';
+}
 
 /**
  * ---------------------------
- * The Worker Initializer
+ * The Runtime Initializer
  * ---------------------------
  */
 
-export default class Worker extends _Worker {
+export default class Runtime extends _Runtime {
 
 	/**
      * Runtime
      * 
      * @param Object        cx
-     * @param Function      clientCallback
+     * @param Function      applicationInstance
      * 
      * @return void
      */
-	constructor(cx, clientCallback) {
-		super(cx, clientCallback);
+	constructor(cx, applicationInstance) {
+		super(cx, applicationInstance);
         // ---------------
         this.mockSessionStore = {};
         // --------------		
@@ -50,7 +46,7 @@ export default class Worker extends _Worker {
 				// Add files to cache
 				evt.waitUntil( self.caches.open(this.cx.params.cache_name).then(cache => {
 					if (this.cx.logger) { this.cx.logger.log('[ServiceWorker] Pre-caching resources.'); }
-					const cache_only_urls = (this.cx.params.cache_only_urls || []).map(c => c.trim()).filter(c => c && !urlPattern(c, self.origin).isPattern());
+					const cache_only_urls = (this.cx.params.cache_only_urls || []).map(c => c.trim()).filter(c => c && !pattern(c, self.origin).isPattern());
 					return cache.addAll(cache_only_urls);
 				}) );
 			}
@@ -93,7 +89,7 @@ export default class Worker extends _Worker {
 			event.respondWith((async (req, evt) => {
 				let requestingClient = await self.clients.get(event.clientId);
 				this.workport.setCurrentClient(requestingClient);
-				const [ url, requestInit ] = await Request.rip(req);
+				const [ url, requestInit ] = await xRequest.rip(req);
 				// Now, the following is key:
 				// The browser likes to use "force-cache" for "navigate" requests, when, e.g: re-entering your site with the back button
 				// Problem here, force-cache forces out JSON not HTML as per webflo's design.
@@ -113,10 +109,10 @@ export default class Worker extends _Worker {
 		// -------------
 		// Initialize
 		(async () => {
-			if (!this.client.init) return;
+			if (!this.app.init) return;
 			const request = this.generateRequest('/');
 			const httpEvent = new HttpEvent(request, { srcType: 'initialization' }, (id = null, persistent = false) => this.getSession(httpEvent, id, persistent));
-			await this.client.init(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
+			await this.app.init(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
 		})();
 		
 	}
@@ -132,11 +128,12 @@ export default class Worker extends _Worker {
      */
 	async go(url, init = {}, detail = {}) {
 		// ------------
-        url = typeof url === 'string' ? new URL(url) : url;
+        url = typeof url === 'string' ? new URL(url, self.location.origin) : url;
 		init = { referrer: this.location.href, ...init };
         // ------------
 		// The request object
 		const request = await this.generateRequest(url.href, init);
+
 		if (detail.event) {
 			Object.defineProperty(detail.event, 'request', { value: request });
 		}
@@ -151,7 +148,7 @@ export default class Worker extends _Worker {
 		// Response
 		let response;
 		if (httpEvent.request.url.startsWith(self.origin)/* && httpEvent.request.mode === 'navigate'*/) {
-			response = await this.client.handle(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
+			response = await this.app.handle(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
 		} else {
 			response = await this.remoteFetch(httpEvent.request);
 		}
@@ -162,7 +159,7 @@ export default class Worker extends _Worker {
 
     // Generates request object
     generateRequest(href, init = {}) {
-		const request = new Request(href, init);
+		const request = new xRequest(href, init);
 		return request;
     }
 
@@ -179,7 +176,7 @@ export default class Worker extends _Worker {
 		if (arguments.length > 1) {
 			request = this.generateRequest(request, ...args);
 		}
-		const matchUrl = (patterns, url) => _any((patterns || []).map(p => p.trim()).filter(p => p), p => urlPattern(p, self.origin).test(url));
+		const matchUrl = (patterns, url) => _any((patterns || []).map(p => p.trim()).filter(p => p), p => pattern(p, self.origin).test(url));
 		const execFetch = () => {
 			// network_first_urls
 			if (!this.cx.params.default_fetching_strategy || this.cx.params.default_fetching_strategy === 'network-first' || matchUrl(this.cx.params.network_first_urls, request.url)) {
@@ -206,7 +203,7 @@ export default class Worker extends _Worker {
 		// This catch() is NOT intended to handle failure of the fetch
 		response.catch(e => Observer.set(this.network, 'error', e.message));
 		// Return xResponse
-		return response.then(_response => Response.compat(_response));
+		return response.then(_response => xResponse.compat(_response));
 	}
 
 	// Caching strategy: network_first
@@ -265,7 +262,8 @@ export default class Worker extends _Worker {
 
 	// Handles response object
 	handleResponse(e, response) {
-		if (!(response instanceof Response)) { response = Response.compat(response); }
+		if (typeof response === 'undefined') { response = new xResponse(undefined, { status: 404 }); }
+		else if (!(response instanceof xResponse)) { response = xResponse.compat(response); }
 		return response;
 	}
 
