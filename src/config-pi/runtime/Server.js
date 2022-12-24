@@ -19,10 +19,10 @@ export default class Server extends Dotfile {
     // Defaults merger
     withDefaults(config) {
         return this.merge({
-            port: process.env.port || 3000,
+            port: process.env.PORT || 3000,
             domains: [],
             https: {
-                port: 0,
+                port: process.env.SSL_PORT || 0,
                 domains: [],
                 keyfile: '/etc/letsencrypt/live/[domain]/privkey.pem',
                 certfile: '/etc/letsencrypt/live/[domain]/fullchain.pem',

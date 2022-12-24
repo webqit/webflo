@@ -186,7 +186,7 @@ cd my-app
 
 With [npm available on your terminal](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm), run the following command to install Webflo to your project:
 
-> System Requirements: Node.js 14.0 or later
+> System Requirements: Node.js 18.0 (having stable Fetch API support) or later
 
 ```shell
 npm i @webqit/webflo

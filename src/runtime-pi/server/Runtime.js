@@ -58,10 +58,10 @@ export default class Runtime extends _Runtime {
             const parseDomains = domains => _arrFrom(domains).reduce((arr, str) => arr.concat(str.split(',')), []).map(str => str.trim()).filter(str => str);
             const selectDomains = (serverDefs, matchingPort = null) => serverDefs.reduce((doms, def) => doms.length ? doms : (((!matchingPort || def.port === matchingPort) && parseDomains(def.domains || def.hostnames)) || []), []);
             // ---------------
-            this.vhosts = new Map;
-            if (this.cx.config.deployment.Virtualization) {
-                const vhosts = await (new this.cx.config.deployment.Virtualization(this.cx)).read();
-                await Promise.all((vhosts.entries || []).map(async vhost => {
+            this.proxied = new Map;
+            if (this.cx.config.deployment.Proxy) {
+                const proxied = await (new this.cx.config.deployment.Proxy(this.cx)).read();
+                await Promise.all((proxied.entries || []).map(async vhost => {
                     let cx, hostnames = parseDomains(vhost.hostnames), port = vhost.port, proto = vhost.proto;
                     if (vhost.path) {
                         cx = this.cx.constructor.create(this.cx, Path.join(this.cx.CWD, vhost.path));
@@ -77,7 +77,7 @@ export default class Runtime extends _Runtime {
                         proto || (proto = port === cx.server.https.port ? 'https' : 'http');
                     }
                     hostnames.length || (hostnames = ['*']);
-                    this.vhosts.set(hostnames.sort().join('|'), { cx, hostnames, port, proto });
+                    this.proxied.set(hostnames.sort().join('|'), { cx, hostnames, port, proto });
                 }));
             }
             // ---------------
@@ -118,7 +118,7 @@ export default class Runtime extends _Runtime {
                 });
                 // -------
                 addSSLContext(this.cx.server, domains);
-                for (const [ /*id*/, vhost ] of this.vhosts) {
+                for (const [ /*id*/, vhost ] of this.proxied) {
                     vhost.cx && addSSLContext(vhost.cx.server, vhost.hostnames);
                 }
             }
@@ -170,9 +170,9 @@ export default class Runtime extends _Runtime {
                 } else {
                     this.cx.logger.info(`> Server not running! No port specified.`);
                 }
-                if (this.vhosts.size) {
+                if (this.proxied.size) {
                     this.cx.logger.info(`> Reverse proxy active.`);
-                    for (let [ id, def ] of this.vhosts) {
+                    for (let [ id, def ] of this.proxied) {
                         this.cx.logger.info(`> ${ id } >>> ${ def.port }`);
                     }
                 }
@@ -234,7 +234,7 @@ export default class Runtime extends _Runtime {
         const hosts = [];
         this.servers.forEach(server => hosts.push(...server.domains));
         // ------------
-        for (const [ /*id*/, vhost ] of this.vhosts) {
+        for (const [ /*id*/, vhost ] of this.proxied) {
             if (vhost.hostnames.includes(url.hostname) || (vhost.hostnames.includes('*') && !hosts.includes('*'))) {
                 return this.proxyGo(vhost, url, init);
             }

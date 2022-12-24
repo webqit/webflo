@@ -4,16 +4,16 @@
  */
 import { Dotfile } from '@webqit/backpack';
 
-export default class Virtualization extends Dotfile {
+export default class Proxy extends Dotfile {
 
     // Base name
     get name() {
-        return 'virtualization';
+        return 'proxy';
     }
 
     // @desc
     static get ['@desc']() {
-        return 'Layout virtualization config.';
+        return 'Layout proxy config.';
     }
 
     // Defaults merger

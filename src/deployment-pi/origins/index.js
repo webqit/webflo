@@ -55,6 +55,7 @@ export async function deploy(origin) {
         }
     }
     // ---------------
+    const accessToken = origin.access_token;
     const isDeployPathSet = origin.deploy_path;
     origin.deploy_path = Path.join(cx.CWD || '', origin.deploy_path || '.');
     // ---------------
@@ -72,8 +73,8 @@ export async function deploy(origin) {
     await git.init();
 
     const hosts = {
-        github: 'https://github.com',
-        bitbucket: 'https://bitbucket.org',
+        github: `https://${ accessToken ? accessToken + '@' : '' }github.com`,
+        bitbucket: `https://${ accessToken ? accessToken + '@' : '' }bitbucket.org`,
     };
     const url = origin.url || hosts[origin.host] + '/' + origin.repo + '.git';
 

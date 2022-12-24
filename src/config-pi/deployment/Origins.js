@@ -31,6 +31,7 @@ export default class Origins extends Dotfile {
         return this.merge({
             entries: [{
                 host: hostname,
+                access_token: '',
                 repo: origin,
                 branch: 'master',
                 tag: 'root',
@@ -72,6 +73,12 @@ export default class Origins extends Dotfile {
                         type: 'select',
                         message: 'Host name',
                         choices: CHOICES.host,
+                        validation: ['input', 'important'],
+                    },
+                    {
+                        name: 'access_token',
+                        type: 'text',
+                        message: 'Enter your Personal Acess Token at host (if exists)',
                         validation: ['input', 'important'],
                     },
                     {
