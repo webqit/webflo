@@ -205,7 +205,6 @@ export async function webhook(httpEvent, router, next) {
                     new httpEvent.Response(null, { status: exitCode === 0 ? 200 : 500 })
                 );
             });
-            
             webhookEventHandler.receive({
                 id: httpEvent.request.headers.get('x-github-delivery'),
                 name: httpEvent.request.headers.get('x-github-event'),
