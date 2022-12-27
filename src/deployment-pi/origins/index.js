@@ -8,7 +8,7 @@ import SimpleGit from 'simple-git';
 import { spawn } from 'child_process';
 import { _any } from '@webqit/util/arr/index.js';
 import { _beforeLast } from '@webqit/util/str/index.js';
-import { _isObject } from '@webqit/util/js/index.js';
+import { _isObject, _isNumeric } from '@webqit/util/js/index.js';
 import Webhooks from '@octokit/webhooks';
 
 /**
@@ -190,19 +190,24 @@ export async function webhook(httpEvent, router, next) {
                     cx.logger.log('');
                     cx.logger.log('---------------------------');
                 }
-                if (exitCode === 0) {
+                if (deployParams.ondeploy_autoexit) {
                     if (cx.logger) {
                         cx.logger.log('');
                         var _date = (new Date).toUTCString();
-                        cx.logger.success(cx.logger.f`[${cx.logger.style.comment(_date)}][AUTODEPLOY] Auto-exit: ${true}; exiting...`);
+                        cx.logger.success(cx.logger.f`[${cx.logger.style.comment(_date)}][AUTODEPLOY] Exiting (${exitCode})...`);
                         cx.logger.log('');
                     }
-                    if (deployParams.ondeploy_autoexit) {
-                        process.exit();
+                    if (_isNumeric(deployParams.ondeploy_autoexit)) {
+                        setTimeout(() => {
+                            process.exit(exitCode);
+                        }, parseInt(deployParams.ondeploy_autoexit));
+
+                    } else {
+                        process.exit(exitCode);
                     }
                 }
                 resolve(
-                    new httpEvent.Response(null, { status: exitCode === 0 ? 200 : 500 })
+                    new httpEvent.Response(undefined, { status: exitCode === 0 ? 200 : 500 })
                 );
             });
             webhookEventHandler.receive({
