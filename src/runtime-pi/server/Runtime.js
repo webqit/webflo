@@ -240,9 +240,9 @@ export default class Runtime extends _Runtime {
             }
         }
         // ------------
-        let exit;
+        let exit, exitMessage;
         if (!hosts.includes(url.hostname) && !hosts.includes('*')) {
-            exit = { status: 500, statusText: 'Unrecognized host' };
+            exit = { status: 500 }, exitMessage = 'Unrecognized host';
         } else if (url.protocol === 'http:' && this.cx.server.https.force) {
             exit = { status: 302, headers: { Location: ( url.protocol = 'https:', url.href ) } };
         } else if (url.hostname.startsWith('www.') && this.cx.server.force_www === 'remove') {
@@ -254,7 +254,7 @@ export default class Runtime extends _Runtime {
                 return _rdr || ((_rdr = pattern(entry.from, url.origin).exec(url.href)) && { status: entry.code || 302, headers: { Location: _rdr.render(entry.to) } });
             }, null);
         }
-        if (exit) { return new xResponse(null, exit); }
+        if (exit) { return new xResponse(exitMessage, exit); }
         // ------------
 
         // ------------
@@ -279,7 +279,7 @@ export default class Runtime extends _Runtime {
             response = await this.app.handle(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
             finalResponse = await this.handleResponse(this.cx, httpEvent, response, autoHeaders.filter(header => header.type === 'response'));
         } catch(e) {
-            finalResponse = new xResponse(null, { status: 500, statusText: e.message });
+            finalResponse = new xResponse(e.message, { status: 500 });
             console.error(e);
         }
         // Logging
@@ -308,7 +308,7 @@ export default class Runtime extends _Runtime {
         try {
             response = await this.remoteFetch(url2, init2);
         } catch(e) {
-            response = new xResponse(null, { status: 500, statusText: e.message });
+            response = new xResponse(e.message, { status: 500 });
             console.error(e);
         }
         if (this.cx.logger) {
@@ -426,9 +426,10 @@ export default class Runtime extends _Runtime {
 
         // ----------------
         // 404
-        if (response.meta.body === undefined || response.meta.body === null) {
-            response.attrs.status = response.status !== 200 ? response.status : 404;
-            response.attrs.statusText  = `${e.request.url} not found!`;
+        if (response.meta.body === undefined) {
+            if (response.status === 200 || response.status === 0) {
+                response.attrs.status = 404;
+            }
             return response;
         }
 
