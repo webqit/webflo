@@ -187,10 +187,6 @@ export async function webhook(httpEvent, router, next) {
                 var exitCode = await router.route('deploy', httpEvent, payload, _payload => {
                     return deploy.call(cx, deployParams);
                 });
-                if (cx.logger) {
-                    cx.logger.log('');
-                    cx.logger.log('---------------------------');
-                }
                 if (deployParams.ondeploy_autoexit) {
                     if (cx.logger) {
                         cx.logger.log('');
@@ -203,8 +199,12 @@ export async function webhook(httpEvent, router, next) {
                     }, _isNumeric(deployParams.ondeploy_autoexit) ? parseInt(deployParams.ondeploy_autoexit) : 5);
                 }
                 resolve(
-                    new httpEvent.Response(undefined, { status: exitCode === 0 ? 200 : 500 })
+                    new httpEvent.Response(`Deployment ${  exitCode === 0 ? 'success' : 'error: ' + exitCode }!`, { status: exitCode === 0 ? 200 : 500 })
                 );
+                if (cx.logger) {
+                    cx.logger.log('');
+                    cx.logger.log('---------------------------');
+                }
             });
             webhookEventHandler.receive({
                 id: httpEvent.request.headers.get('x-github-delivery'),
