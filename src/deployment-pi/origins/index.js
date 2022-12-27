@@ -97,7 +97,7 @@ export async function deploy(origin) {
                     cx.logger.success(cx.logger.f`[${cx.logger.style.comment(_date)}][AUTODEPLOY] On-deploy script: ${origin.ondeploy}!`);
                     cx.logger.log('');
                 }
-                if (origin.ondeploy) {
+                if ((origin.ondeploy || '').trim()) {
                     const run = cmd => new Promise((resolve, reject) => {
                         cmd = cmd.split(' ').map(a => a.trim()).filter(a => a);
                         const child = spawn(cmd.shift(), cmd, {
