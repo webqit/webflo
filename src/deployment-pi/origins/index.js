@@ -205,9 +205,12 @@ export async function webhook(httpEvent, router, next) {
                     new navigationEvent.Response(null, { status: exitCode === 0 ? 200 : 500 })
                 );
             });
+            console.log(httpEvent.request.headers.get('x-github-delivery'));
+            console.log(httpEvent.request.headers.get('x-github-event'));
+            console.log(payload);
             webhookEventHandler.receive({
                 id: httpEvent.request.headers.get('x-github-delivery'),
-                name: httpEvent.request.headers.get('x-github-httpEvent'),
+                name: httpEvent.request.headers.get('x-github-event'),
                 payload: payload /* JSON object */,
             });
         });
