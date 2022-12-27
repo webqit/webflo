@@ -95,7 +95,6 @@ export async function deploy(origin) {
                     var _date = (new Date).toUTCString();
                     cx.logger.success(cx.logger.f`[${cx.logger.style.comment(_date)}][AUTODEPLOY] Successfully deployed: ${origin.tag + '@' + origin.branch} - ${url} to ${origin.deploy_path}!`);
                     cx.logger.success(cx.logger.f`[${cx.logger.style.comment(_date)}][AUTODEPLOY] On-deploy script: ${origin.ondeploy}!`);
-                    cx.logger.log('');
                 }
                 if ((origin.ondeploy || '').trim()) {
                     const run = cmd => new Promise((resolve, reject) => {
@@ -191,12 +190,12 @@ export async function webhook(httpEvent, router, next) {
                     if (cx.logger) {
                         cx.logger.log('');
                         var _date = (new Date).toUTCString();
-                        cx.logger.success(cx.logger.f`[${cx.logger.style.comment(_date)}][AUTODEPLOY] Exiting (${exitCode})...`);
+                        cx.logger.success(cx.logger.f`[${cx.logger.style.comment(_date)}][AUTODEPLOY] Exiting(${exitCode})...`);
                         cx.logger.log('');
                     }
                     setTimeout(() => {
                         process.exit(exitCode);
-                    }, _isNumeric(deployParams.ondeploy_autoexit) ? parseInt(deployParams.ondeploy_autoexit) : 5);
+                    }, _isNumeric(deployParams.ondeploy_autoexit) ? parseInt(deployParams.ondeploy_autoexit) : 0);
                 }
                 resolve(
                     new httpEvent.Response(`Deployment ${  exitCode === 0 ? 'success' : 'error: ' + exitCode }!`, { status: exitCode === 0 ? 200 : 500 })
