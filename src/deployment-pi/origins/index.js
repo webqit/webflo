@@ -119,6 +119,7 @@ export async function deploy(origin) {
                         async (prev, cmd) => (await prev) === 0 ? run(cmd) : prev
                     , 0);
                 }
+                return 0;
             }).catch(err => {
                 if (cx.logger) {
                     waiting.stop();
@@ -197,14 +198,9 @@ export async function webhook(httpEvent, router, next) {
                         cx.logger.success(cx.logger.f`[${cx.logger.style.comment(_date)}][AUTODEPLOY] Exiting (${exitCode})...`);
                         cx.logger.log('');
                     }
-                    if (_isNumeric(deployParams.ondeploy_autoexit)) {
-                        setTimeout(() => {
-                            process.exit(exitCode);
-                        }, parseInt(deployParams.ondeploy_autoexit));
-
-                    } else {
+                    setTimeout(() => {
                         process.exit(exitCode);
-                    }
+                    }, _isNumeric(deployParams.ondeploy_autoexit) ? parseInt(deployParams.ondeploy_autoexit) : 5);
                 }
                 resolve(
                     new httpEvent.Response(undefined, { status: exitCode === 0 ? 200 : 500 })
