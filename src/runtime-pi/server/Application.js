@@ -44,7 +44,7 @@ export default class Application extends _Application {
                 return router.file(event);
             }, remoteFetch);
             if (!(response instanceof httpEvent.Response)) {
-                response = new httpEvent.Response(response);
+                response = httpEvent.Response.compat(response);
             }
             // --------
             // Rendering

@@ -260,7 +260,7 @@ export default class Runtime extends _Runtime {
 
 	// Handles response object
 	handleResponse(e, response) {
-		if (typeof response === 'undefined') { response = new xResponse(undefined, { status: 404 }); }
+		if (!response && response !== 0) { response = new xResponse(null, { status: 404 }); }
 		else if (!(response instanceof xResponse)) { response = xResponse.compat(response); }
 		return response;
 	}

@@ -131,7 +131,7 @@ export default class Runtime extends _Runtime {
                 // --------
                 _each(clientResponse.headers.json(), (name, value) => {
                     response.setHeader(name, value);
-                });
+                }); 
                 // --------
                 response.statusCode = clientResponse.status;
                 response.statusMessage = clientResponse.statusText;
@@ -316,16 +316,17 @@ export default class Runtime extends _Runtime {
         try {
             response = await this.remoteFetch(url2, init2);
         } catch(e) {
-            response = new xResponse(e.message, { status: 500 });
+            response = new xResponse(`Reverse Proxy Error: ${e.message}`, { status: 500 });
             console.error(e);
         }
         if (this.cx.logger) {
-            const log = this.generateLog({ url: url2.href, ...init2 }, response);
+            const log = this.generateLog({ url: url2.href, ...init2 }, response, true);
             this.cx.logger.log(log);
         }
         return response;
 
     }
+
 
     // Generates request object
     generateRequest(href, init = {}, autoHeaders = []) {
@@ -384,13 +385,13 @@ export default class Runtime extends _Runtime {
         return _response.then(async response => {
             // Stop loading status
             Observer.set(this.network, 'remote', false);
-            return new xResponse(response);
+            return xResponse.compat(response);
         });
     }
 
     // Handles response object
     async handleResponse(cx, e, response, autoHeaders = []) {
-        if (!(response instanceof xResponse)) { response = new xResponse(response); }
+        if (!(response instanceof xResponse)) { response = xResponse.compat(response); }
         Observer.set(this.network, 'remote', false);
         Observer.set(this.network, 'error', null);
 
@@ -434,9 +435,9 @@ export default class Runtime extends _Runtime {
 
         // ----------------
         // 404
-        if (response.meta.body === undefined) {
+        if (!response.meta.body && response.meta.body !== 0) {
             if (response.status === 200 || response.status === 0) {
-                response.attrs.status = 404;
+                response = new xResponse(response.body, { status: 404, headers: response.headers });
             }
             return response;
         }
@@ -444,7 +445,7 @@ export default class Runtime extends _Runtime {
         // ----------------
         // Not acceptable
         if (e.request.headers.get('Accept') && !e.request.headers.accept.match(response.headers.contentType)) {
-            response.attrs.status = 406;
+            response = new xResponse(response.body, { status: 406, headers: response.headers });
             return response;
         }
 
@@ -508,7 +509,7 @@ export default class Runtime extends _Runtime {
     }
 
     // Generates log
-    generateLog(request, response) {
+    generateLog(request, response, isproxy = false) {
         let log = [];
         // ---------------
         const style = this.cx.logger.style || { keyword: str => str, comment: str => str, url: str => str, val: str => str, err: str => str, };
@@ -519,9 +520,11 @@ export default class Runtime extends _Runtime {
         // ---------------
         log.push(`[${style.comment((new Date).toUTCString())}]`);
         log.push(style.keyword(request.method));
+        if (isproxy) log.push(style.keyword('>>'));
         log.push(style.url(request.url));
         if (response.attrs.hint) log.push(`(${style.comment(response.attrs.hint)})`);
-        if (response.headers.contentType) log.push(`(${style.comment(response.headers.contentType)})`);
+        const contentInfo = [response.headers.contentType, response.headers.contentLength].filter(x => x);
+        if (contentInfo.length) log.push(`(${style.comment(contentInfo.join('; '))})`);
         if (response.headers.get('Content-Encoding')) log.push(`(${style.comment(response.headers.get('Content-Encoding'))})`);
         if (errorCode) log.push(style.err(`${errorCode} ${response.statusText}`));
         else log.push(style.val(`${statusCode} ${response.statusText}`));

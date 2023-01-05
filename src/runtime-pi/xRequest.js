@@ -25,6 +25,7 @@ export default class xRequest extends mxHttpMessage(Request, xRequestHeaders) {
         if (request instanceof Request) {
             return Object.setPrototypeOf(request, new this);
         }
+        return new this(request);
     }
 
 }

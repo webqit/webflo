@@ -276,7 +276,7 @@ export default class Runtime extends _Runtime {
 		} catch(e) {
 			console.error(e);
 			Observer.set(this.network, 'error', { ...e, retry: () => this.go(url, init = {}, detail) });
-			finalResponse = new xResponse(null, { status: 500, statusText: e.message });
+			finalResponse = new xResponse(e.message, { status: 500 });
 		}
 		// ------------
         // Return value
@@ -299,14 +299,14 @@ export default class Runtime extends _Runtime {
 		return _response.then(async response => {
 			// Stop loading status
 			Observer.set(this.network, 'remote', null);
-			return new xResponse(response);
+			return xResponse.compat(response);
 		});
 	}
 
 	// Handles response object
 	handleResponse(e, response) {
-		if (typeof response === 'undefined') { response = new xResponse(undefined, { status: 404 }); }
-		else if (!(response instanceof xResponse)) { response = new xResponse(response); }
+		if (!response && response !== 0) { response = new xResponse(null, { status: 404 }); }
+		else if (!(response instanceof xResponse)) { response = xResponse.compat(response); }
 		Observer.set(this.network, 'requesting', null);
 		Observer.set(this.network, 'redirecting', null);
 		if (!response.redirected) {

@@ -27,6 +27,7 @@ export default class xResponse extends mxHttpMessage(Response, xResponseHeaders)
         if (response instanceof Response) {
             return Object.setPrototypeOf(response, new this);
         }
+        return new this(response);
     }
 
 }

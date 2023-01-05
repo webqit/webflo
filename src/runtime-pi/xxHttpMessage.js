@@ -18,6 +18,10 @@ const xxHttpMessage = (whatwagHttpMessage, xHeaders) => {
             if (meta.headers) { this.headers.json(meta.headers); }
             // ------------
             let attrs = {};
+            
+            if (meta.body instanceof Response) {
+                throw new Error('0000000000000000');
+            }
             Object.defineProperty(this, '_attrs', { get: () => attrs });
             Object.defineProperty(this, 'meta', { get: () => meta });
         }
@@ -45,7 +49,7 @@ const xxHttpMessage = (whatwagHttpMessage, xHeaders) => {
         }
 
         async blob() {
-            if (this.meta.type === 'Blob') { return this.meta.body; }
+            if (['Blob', 'File'].includes(this.meta.type)) { return this.meta.body; }
             return super.blob();
         }
 
@@ -54,7 +58,7 @@ const xxHttpMessage = (whatwagHttpMessage, xHeaders) => {
             if (this.meta.type === 'FormData' && this.meta.body instanceof FormData) {
                 formData = this.meta.body;
             } else { formData = await super.formData(); }
-            if (formData) { xFormData.compat(formData); }
+            if (formData) { formData = xFormData.compat(formData); }
             return formData;
         }
 
