@@ -58,12 +58,12 @@ export default class xRequest extends mxHttpMessage(Request, xRequestHeaders) {
         }
     }
 
-    static async rip(request) {
+    static rip(request) {
         const requestInit = [
             'method', 'headers', 'mode', 'credentials', 'cache', 'redirect', 'referrer', 'integrity',
         ].reduce((init, prop) => ({ [prop]: request[prop], ...init }), {});
         if (!['GET', 'HEAD'].includes(request.method)) {
-            requestInit.body = await request.text();
+            requestInit.body = request.body;
         }
         return [ request.url, requestInit ];
     }
