@@ -33,9 +33,6 @@ export default class Application extends _Application {
 					if (!event.request.headers.has('Accept')) {
 						event.request.headers.set('Accept', 'application/json');
 					}
-					if (event.request.body && !event.request.headers.has('Content-Type')) {
-						event.request.headers.set('Content-Type', 'application/json');
-					}
 				}
 				return remoteFetch(event.request);
 			}, remoteFetch);
