@@ -11,7 +11,6 @@ const xfetch = async (url, init = {}) => {
     if (init.body) {
         const [ body, headers ] = formatMessage(init);
         init = { ...init, body, headers, };
-        console.log('----------headers------------', headers);
     }
     let response = await fetch(url, init), encoding;
     if (init.decompress === false && (encoding = response.headers.get('Content-Encoding'))) {
