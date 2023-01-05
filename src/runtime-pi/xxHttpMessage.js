@@ -18,10 +18,6 @@ const xxHttpMessage = (whatwagHttpMessage, xHeaders) => {
             if (meta.headers) { this.headers.json(meta.headers); }
             // ------------
             let attrs = {};
-            
-            if (meta.body instanceof Response) {
-                throw new Error('0000000000000000');
-            }
             Object.defineProperty(this, '_attrs', { get: () => attrs });
             Object.defineProperty(this, 'meta', { get: () => meta });
         }
