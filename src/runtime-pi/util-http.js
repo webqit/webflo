@@ -59,7 +59,7 @@ export async function jsonfyFormData(formData, jsonfy = true) {
     for (let [ name, value ] of formData.entries()) {
         if (!json) { json = _isNumeric(_before(name, '[')) ? [] : {}; }
         let type = dataType(value);
-        if (jsonfy && type === 'Blob' && value.type === 'application/json' && [4, 5].includes(value.size)) {
+        if (jsonfy && ['Blob', 'File'].includes(type) && value.type === 'application/json' && [4, 5].includes(value.size)) {
             let _value = await value.text();
             if (['true', 'false', 'null'].includes(_value)) {
                 type = 'json';
