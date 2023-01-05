@@ -77,7 +77,7 @@ const xxHttpMessage = (whatwagHttpMessage, xHeaders) => {
                     try {
                         if (contentType === 'application/x-www-form-urlencoded' || contentType.startsWith('multipart/form-data')) {
                             const formData = await this.formData();
-                            jsonfied = formData?.json();
+                            jsonfied = await formData?.json();
                         } else if (contentType === 'application/json') {
                             jsonfied = await this.json();
                         } else if (contentType === 'text/plain') {

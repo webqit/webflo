@@ -12,7 +12,6 @@ import { formatMessage } from './util-http.js';
 export default class xRequest extends mxHttpMessage(Request, xRequestHeaders) {
         
     constructor(input, init = {}, meta = {}) {
-        console.log('--------------------');
         if (!(init instanceof Request) && 'body' in init) {
             const [ body, headers, type ] = formatMessage(init);
             meta = { ...meta, type, body: init.body };

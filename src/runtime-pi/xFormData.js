@@ -9,8 +9,8 @@ import { jsonfyFormData } from './util-http.js';
   */
 export default class xFormData extends FormData {
 
-    json(data = {}) {
-        const result = jsonfyFormData(this, ...arguments);
+    async json(data = {}) {
+        const result = await jsonfyFormData(this, ...arguments);
         return result[0];
     }
 
