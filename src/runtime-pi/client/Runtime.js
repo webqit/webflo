@@ -202,14 +202,16 @@ export default class Runtime extends _Runtime {
      * Performs a request.
      *
      * @param object|string 	href
-     * @param object 			init
+     * @param object|Request 	init
      * @param object 			src
      *
      * @return Response
      */
     async go(url, init = {}, detail = {}) {
         url = typeof url === 'string' ? new URL(url, this.location.origin) : url;
-        init = { referrer: this.location.href, ...init };
+		if (!(init instanceof Request) && !init.referrer) {
+			init = { referrer: this.location.href, ...init };
+		}
         // ------------
 		// Put his forward before instantiating a request and aborting previous
 		// Same-page hash-links clicks on chrome recurse here from histroy popstate
@@ -226,7 +228,7 @@ export default class Runtime extends _Runtime {
 		// States
 		// ------------
         Observer.set(this.network, 'error', null);
-        Observer.set(this.network, 'requesting', { ...init, ...detail });
+        Observer.set(this.network, 'requesting', { init, ...detail });
         if (['link', 'form'].includes(detail.srcType)) {
             detail.src.state && (detail.src.state.active = true);
             detail.submitter && detail.submitter.state && (detail.submitter.state.active = true);

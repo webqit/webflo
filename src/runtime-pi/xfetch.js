@@ -9,8 +9,8 @@ import { formatMessage } from './util-http.js';
  */
 const xfetch = async (url, init = {}) => {
     if (init.body) {
-        const [ body, headers ] = formatMessage(init.body);
-        init = { ...init, body, headers: { ...headers, ...(init.headers || {}), } };
+        const [ body, headers ] = formatMessage(init);
+        init = { ...init, body, headers, };
     }
     let response = await fetch(url, init), encoding;
     if (init.decompress === false && (encoding = response.headers.get('Content-Encoding'))) {

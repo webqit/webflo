@@ -89,15 +89,14 @@ export default class Runtime extends _Runtime {
 			event.respondWith((async (req, evt) => {
 				let requestingClient = await self.clients.get(event.clientId);
 				this.workport.setCurrentClient(requestingClient);
-				const [ url, requestInit ] = await xRequest.rip(req);
 				// Now, the following is key:
 				// The browser likes to use "force-cache" for "navigate" requests, when, e.g: re-entering your site with the back button
 				// Problem here, force-cache forces out JSON not HTML as per webflo's design.
 				// So, we detect this scenerio and avoid it.
 				if (req.cache === 'force-cache'/* && req.mode === 'navigate' - even webflo client init call also comes with that... needs investigation */) {
-					requestInit.cache = 'default';
+					req = new Request(req, {cache: 'default'});
 				}
-				return this.go(url, requestInit, { event: evt });
+				return this.go(req.url, req, { event: evt });
 			})(event.request, event));
 		});
 
@@ -121,7 +120,7 @@ export default class Runtime extends _Runtime {
      * Performs a request.
      *
      * @param object|string 	url
-     * @param object 			init
+     * @param object|Request	init
      * @param object 			detail
      *
      * @return Response
@@ -129,11 +128,12 @@ export default class Runtime extends _Runtime {
 	async go(url, init = {}, detail = {}) {
 		// ------------
         url = typeof url === 'string' ? new URL(url, self.location.origin) : url;
-		init = { referrer: this.location.href, ...init };
+		if (!(init instanceof Request) && !init.referrer) {
+			init = { referrer: this.location.href, ...init };
+		}
         // ------------
 		// The request object
-		const request = await this.generateRequest(url.href, init);
-
+		const request = this.generateRequest(url.href, init);
 		if (detail.event) {
 			Object.defineProperty(detail.event, 'request', { value: request });
 		}
@@ -152,7 +152,7 @@ export default class Runtime extends _Runtime {
 		} else {
 			response = await this.remoteFetch(httpEvent.request);
 		}
-		const finalResponse = this.handleResponse(httpEvent, response);
+		const finalResponse = await this.handleResponse(httpEvent, response);
         // Return value
         return finalResponse;
 	}

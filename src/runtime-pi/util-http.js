@@ -2,62 +2,78 @@
 /**
  * @imports
  */
-import { _isString, _isNumeric, _isObject, _isPlainObject, _isArray, _isPlainArray, _isTypeObject, _isNumber } from '@webqit/util/js/index.js';
+import { _isString, _isNumeric, _isObject, _isPlainObject, _isArray, _isPlainArray, _isTypeObject, _isNumber, _isBoolean } from '@webqit/util/js/index.js';
 import { _before } from '@webqit/util/str/index.js';
 import { params } from './util-url.js';
 
-export function formatMessage(body) {
-    let type = dataType(body);
-    let headers = {};
+export function formatMessage(message) {
+    const headers = (message.headers instanceof Headers) ? [...message.headers.keys()].reduce((_headers, name) => {
+        return { ..._headers, [name/* lower-cased */]: message.headers.get(name) };
+    }, {}) : Object.keys(message.headers || {}).reduce((_headers, name) => {
+        return { ..._headers, [name.toLowerCase()]: message.headers[name] };
+    }, {});
+    let body = message.body, type = dataType(message.body);
     if ([ 'Blob', 'File' ].includes(type)) {
-        headers = { 'Content-Type': body.type,  'Content-Length': body.size, };
+        !headers['content-type'] && (headers['content-type'] = body.type);
+        !headers['content-length'] && (headers['content-length'] = body.size);
     } else if ([ 'Uint8Array', 'Uint16Array', 'Uint32Array', 'ArrayBuffer' ].includes(type)) {
-        headers = {  'Content-Length': body.byteLength, };
+        !headers['content-length'] && (headers['content-length'] = body.byteLength);
     } else if (type === 'json' && _isTypeObject(body)) {
-        const [ _body, isJsonfiable ] = formData(body);
-        if (isJsonfiable) {
-            body = JSON.stringify(body, (k, v) => v instanceof Error ? { ...v, message: v.message } : v);
-            headers = { 'Content-Type': 'application/json', 'Content-Length': (new Blob([ body ])).size, };
-        } else {
-            body = _body;
-            type = 'FormData';
+        if (!headers['content-type']) {
+            const [ _body, isJsonfiable ] = formDatarizeJson(body);
+            if (isJsonfiable) {
+                body = JSON.stringify(body, (k, v) => v instanceof Error ? { ...v, message: v.message } : v);
+                headers['content-type'] = 'application/json';
+                headers['content-length'] = (new Blob([ body ])).size;
+            } else {
+                body = _body;
+                type = 'FormData';
+            }
         }
     } else if (type === 'json') {
-        headers = { 'Content-Length': (body + '').length, };
+        !headers['content-length'] && (headers['content-length'] = (body + '').length);
     }
     return [ body, headers, type ];
 }
 
-export function formData(data = {}) {
-    const formData = this instanceof FormData ? this : new FormData;
+export function formDatarizeJson(data = {}, jsonfy = true) {
+    const formData = new FormData;
     let isJsonfiable = true;
-    if (arguments.length) {
-        params.reduceValue(data, '', (value, contextPath, suggestedKeys = undefined) => {
-            if (suggestedKeys) {
-                const isJson = dataType(value) === 'json';
-                isJsonfiable = isJsonfiable && isJson;
-                return isJson && suggestedKeys;
-            }
-            formData.append(contextPath, value);
-        });
-        return [ formData, isJsonfiable ];
-    }
+    params.reduceValue(data, '', (value, contextPath, suggestedKeys = undefined) => {
+        if (suggestedKeys) {
+            const isJson = dataType(value) === 'json';
+            isJsonfiable = isJsonfiable && isJson;
+            return isJson && suggestedKeys;
+        }
+        if (jsonfy && [true, false, null].includes(value)) {
+            value = new Blob([value], { type: 'application/json' });
+        }
+        formData.append(contextPath, value);
+    });
+    return [ formData, isJsonfiable ];
+}
+
+export async function jsonfyFormData(formData, jsonfy = true) {
+    let isJsonfiable = true;
     let json;
     for (let [ name, value ] of formData.entries()) {
         if (!json) { json = _isNumeric(_before(name, '[')) ? [] : {}; }
-        const isJson = dataType(value) === 'json';
-        isJsonfiable = isJsonfiable && isJson;
-        if (value === 'false') { value = false; }
-        if (value === 'true') { value = true; }
-        if (value === 'null') { value = null; }
-        if (value === 'undefined') { value = undefined; }
+        let type = dataType(value);
+        if (jsonfy && type === 'Blob' && value.type === 'application/json' && [4, 5].includes(value.size)) {
+            let _value = await value.text();
+            if (['true', 'false', 'null'].includes(_value)) {
+                type = 'json';
+                value = JSON.parse(_value);
+            }
+        }
+        isJsonfiable = isJsonfiable && type === 'json';
         params.set(json, name, value);
     }
     return [ json, isJsonfiable ];
 }
 
 export function dataType(value) {
-    if (_isString(value) || _isNumber(value) || value === null) return 'json';
+    if (_isString(value) || _isNumber(value) || _isBoolean(value)) return 'json';
     if (!_isTypeObject(value)) return;
     const toStringTag = value[Symbol.toStringTag];
     const type = [

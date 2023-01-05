@@ -2,7 +2,7 @@
 /**
  * @imports
  */
-import { formData } from './util-http.js';
+import { jsonfyFormData } from './util-http.js';
 
  /**
   * The _Headers Mixin
@@ -10,7 +10,7 @@ import { formData } from './util-http.js';
 export default class xFormData extends FormData {
 
     json(data = {}) {
-        const result = formData.call(this, ...arguments);
+        const result = jsonfyFormData(this, ...arguments);
         return result[0];
     }
 

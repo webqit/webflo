@@ -219,7 +219,7 @@ export default class Runtime extends _Runtime {
      * Performs a request.
      *
      * @param object|string 	url
-     * @param object 			init
+     * @param object|Request 	init
      * @param object 			detail
      *
      * @return Response
@@ -229,7 +229,9 @@ export default class Runtime extends _Runtime {
 
         // ------------
         url = typeof url === 'string' ? new URL(url) : url;
-        init = { referrer: this.location.href, ...init };
+        if (!(init instanceof Request) && !init.referrer) {
+			init = { referrer: this.location.href, ...init };
+		}
         // ------------
         const hosts = [];
         this.servers.forEach(server => hosts.push(...server.domains));
@@ -258,7 +260,7 @@ export default class Runtime extends _Runtime {
         // ------------
 
         // ------------
-        Observer.set(this.location, url, { detail: { ...init, ...detail, } });
+        Observer.set(this.location, url, { detail: { init, ...detail, } });
         Observer.set(this.network, 'redirecting', null);
         // ------------
 
@@ -299,10 +301,16 @@ export default class Runtime extends _Runtime {
         url2.port = vhost.port;
         if (vhost.proto) { url2.protocol = vhost.proto; }
         // ---------
-        const init2 = { ...init, decompress: false/* honoured in xfetch() */ };
-        if (!init2.headers) init2.headers = {};
-        init2.headers.host = url2.host;
-        delete init2.headers.connection;
+        let init2;
+        if (init instanceof Request) {
+            init2 = init.clone();
+            init.headers.set('Host', url2.host);
+        } else {
+            init2 = { ...init, decompress: false/* honoured in xfetch() */ };
+            if (!init2.headers) init2.headers = {};
+            init2.headers.host = url2.host;
+            delete init2.headers.connection;
+        }
         // ---------
         let response;
         try {
