@@ -27,7 +27,7 @@ export default class Worker extends Dotfile {
             cache_first_urls: [],
             network_only_urls: [],
             cache_only_urls: [],
-            skip_waiting: false,
+            skip_waiting: true,
             // -----------------
             support_push: false,
             push_registration_url: '',

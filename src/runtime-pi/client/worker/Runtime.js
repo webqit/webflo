@@ -84,6 +84,7 @@ export default class Runtime extends _Runtime {
 		// -------------
 		// ONFETCH
 		self.addEventListener('fetch', event => {
+			console.log('[SERVICE_WORKER]: ' + event.request.url);
 			// URL schemes that might arrive here but not supported; e.g.: chrome-extension://
 			if (!event.request.url.startsWith('http')) return;
 			event.respondWith((async evt => {
@@ -135,6 +136,7 @@ export default class Runtime extends _Runtime {
         // ------------
 		// The request object
 		const request = this.generateRequest(url.href, init);
+		console.log('[SERVICE_WORKER]: ' + request.url, request.method);
 		// The navigation event
 		const httpEvent = new HttpEvent(request, detail, (id = null, persistent = false) => this.getSession(httpEvent, id, persistent));
 		httpEvent.port.listen(message => {
