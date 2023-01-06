@@ -84,21 +84,20 @@ export default class Runtime extends _Runtime {
 		// -------------
 		// ONFETCH
 		self.addEventListener('fetch', event => {
-			console.log('[SERVICE_WORKER]: ' + event.request.url);
 			// URL schemes that might arrive here but not supported; e.g.: chrome-extension://
 			if (!event.request.url.startsWith('http')) return;
 			event.respondWith((async evt => {
 				let requestingClient = await self.clients.get(evt.clientId);
 				this.workport.setCurrentClient(requestingClient);
+				const [ url, requestInit ] = await xRequest.rip(evt.request);
 				// Now, the following is key:
 				// The browser likes to use "force-cache" for "navigate" requests, when, e.g: re-entering your site with the back button
 				// Problem here, force-cache forces out JSON not HTML as per webflo's design.
 				// So, we detect this scenerio and avoid it.
-				if (evt.request.cache === 'force-cache'/* && evt.request.mode === 'navigate' - even webflo client init call also comes with that... needs investigation */) {
-					const req = new Request(evt.request, { cache: 'default' });
-					Object.defineProperty(evt, 'request', { value: req });
+				if (requestInit.cache === 'force-cache'/* && evt.request.mode === 'navigate' - even webflo client init call also comes with that... needs investigation */) {
+					requestInit.cache = 'default';
 				}
-				return this.go(evt.request.url, evt.request, { event: evt });
+				return this.go(url, requestInit, { event: evt });
 			})(event));
 		});
 
@@ -136,7 +135,7 @@ export default class Runtime extends _Runtime {
         // ------------
 		// The request object
 		const request = this.generateRequest(url.href, init);
-		console.log('[SERVICE_WORKER]: ' + request.url, request.method);
+		if (detail.event) { Object.defineProperty(detail.event, 'request', { value: request }); }
 		// The navigation event
 		const httpEvent = new HttpEvent(request, detail, (id = null, persistent = false) => this.getSession(httpEvent, id, persistent));
 		httpEvent.port.listen(message => {

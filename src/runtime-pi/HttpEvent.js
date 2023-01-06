@@ -91,14 +91,15 @@ export default class HttpEvent {
     }
 
     // "with()"
-    with(url, init = {}) {
+    async with(url, init = {}) {
         let request;
         if (url instanceof Request) {
+            if (init instanceof Request) { [ /*url*/, init ] = await xRequest.rip(init); }
             request = !_isEmpty(init) ? new xRequest(url, init) : url;
         } else {
             url = new this.URL(url, this.url.origin);
-            request = new xRequest(url, this._request);
-            request = new xRequest(request, { ...init, referrer: this.request.url });
+            [ /*url*/, init ] = await xRequest.rip(this._request);
+            request = new xRequest(url, { ...init, referrer: this.request.url });
         }            
         return new HttpEvent(request, this.detail, this._sessionFactory, this.storageFactory);
     }

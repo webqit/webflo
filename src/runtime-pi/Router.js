@@ -85,9 +85,9 @@ export default class Router {
                                     }
                                 }
                                 if (_request) {
-                                    nextTick.event = thisTick.event.with(newDestination, _request, requestInit);
+                                    nextTick.event = await thisTick.event.with(newDestination, _request, requestInit);
                                 } else {
-                                    nextTick.event = thisTick.event.with(newDestination, requestInit);
+                                    nextTick.event = await thisTick.event.with(newDestination, requestInit);
                                 }
                                 nextTick.source = thisTick.destination.join('/');
                                 nextTick.destination = newDestination.split('?').shift().split('/').map(a => a.trim()).filter(a => a);
