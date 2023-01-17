@@ -35,7 +35,7 @@ export default class xRequest extends mxHttpMessage(Request, xRequestHeaders) {
             'method', 'headers', 'mode', 'credentials', 'cache', 'redirect', 'referrer', 'integrity',
         ].reduce((init, prop) => ({ [prop]: request[prop], ...init }), {});
         if (!['GET', 'HEAD'].includes(request.method)) {
-            requestInit.body = await request.arrayBuffer();
+            requestInit.body = await request.clone().arrayBuffer();
         }
         if (requestInit.mode === 'navigate') {
             requestInit.mode = 'cors';
