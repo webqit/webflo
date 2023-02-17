@@ -107,7 +107,7 @@ export default class Application extends _Application {
             if (window.document.templates) {
                 window.document.body.setAttribute('template', 'routes/' + httpEvent.url.pathname.split('/').filter(a => a).map(a => a + '+-').join('/'));
             }
-            await new Promise(res => setTimeout(res, 10));
+            await new Promise(res => setTimeout(res, 60));
             return window;
         });
         return rendering + '';

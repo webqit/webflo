@@ -12,24 +12,20 @@ export default class Workport {
                 return this.post;
             },
             listen: (callback, client = this.client) => {
-                if (!client) {
-                    self.addEventListener('message', evt => {
-                        this.client = evt.source;
-                        const response = callback(evt);
-                        let responsePort = evt.ports[0];
-                        if (responsePort) {
-                            if (response instanceof Promise) {
-                                response.then(data => {
-                                    responsePort.postMessage(data);
-                                });
-                            } else {
-                                responsePort.postMessage(response);
-                            }
+                (client || self).addEventListener('message', evt => {
+                    this.client = evt.source;
+                    const response = callback(evt);
+                    let responsePort = evt.ports[0];
+                    if (responsePort) {
+                        if (response instanceof Promise) {
+                            response.then(data => {
+                                responsePort.postMessage(data);
+                            });
+                        } else {
+                            responsePort.postMessage(response);
                         }
-                    });
-                    return this.post;
-                }
-                client.addEventListener('message', callback);
+                    }
+                });
                 return this.post;
             },
             request: (message, client = this.client) => {
