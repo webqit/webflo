@@ -88,26 +88,24 @@ export default class Application extends _Application {
                 oohtml_level: this.cx.server.oohtml_support,
             });
             const { window } = await import('@webqit/oohtml-ssr/instance.js?' + instanceParams);
-            // --------
-            // OOHTML would waiting for DOM-ready in order to be initialized
-            if (window.WebQit.DOM) {
-                await new Promise(res => window.WebQit.DOM.ready(res));
-            }
-            if (window.document.templates) {
-                await new Promise(res => (window.document.templatesReadyState === 'complete' && res(), window.document.addEventListener('templatesreadystatechange', res)));
-            }
-            if (window.document.state) {
-                if (!window.document.state.env) {
-                    window.document.setState({
-                        env: 'server',
-                    }, { update: true });
-                }
-                window.document.setState({ data, url: httpEvent.url }, { update: 'merge' });
-            }
-            if (window.document.templates) {
-                window.document.body.setAttribute('template', 'routes/' + httpEvent.url.pathname.split('/').filter(a => a).map(a => a + '+-').join('/'));
-            }
-            await new Promise(res => setTimeout(res, 60));
+            await new Promise(res => {
+                if (window.document.readyState === 'complete') return res();
+                window.document.addEventListener('load', res);
+            });
+			if (window.webqit && window.webqit.oohtml) {
+				const {
+					BINDINGS_API: { api: bindingsConfig },
+					HTML_MODULES: { api: modulesConfig },
+				} = window.webqit.oohtml.configs;
+				window.document[ bindingsConfig.bind ]({
+					env: 'client',
+					state: this.cx.runtime,
+					...data
+				}, { diff: true });
+				const routingContext = window.document.body.querySelector(`[${ window.CSS.escape( modulesConfig.context.attr.contextname ) }="routes"]`) || window.document.body;
+				routingContext.setAttribute( modulesConfig.context.attr.importscontext, '/' + `routes/${ httpEvent.url.pathname }`.split('/').map(a => a.trim()).filter(a => a).join('/'));
+			}
+            await new Promise(res => setTimeout(res, 0));
             return window;
         });
         return rendering + '';

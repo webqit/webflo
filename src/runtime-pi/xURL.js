@@ -67,7 +67,7 @@ xURL.Observable = class extends xURL {
 
 	constructor() {
 		super(...arguments);
-		const { Observer } = WebQit;
+		const { Observer } = webqit;
 		Observer.accessorize(this, [
 			'protocol', 
 			'username',

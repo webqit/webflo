@@ -22,7 +22,7 @@ export default class Client extends Dotfile {
             bundle_filename: 'bundle.js',
             public_base_url: '/',
             spa_routing: true,
-            oohtml_support: 'full',
+            webqit_dependencies: '',
             service_worker_support: true,
             worker_scope: '/',
             worker_filename: 'worker.js',
@@ -33,12 +33,9 @@ export default class Client extends Dotfile {
     getSchema(config, choices = {}) {
         // Choices
         const CHOICES = this.merge({
-            oohtml_support: [
-                {value: 'full', title: 'Full'},
-                {value: 'namespacing', title: 'namespacing'},
-                {value: 'scripting', title: 'scripting'},
-                {value: 'templating', title: 'templating'},
-                {value: 'none', title: 'none'},
+            webqit_dependencies: [
+                {value: 'externalize', title: 'Externalize'},
+                {value: 'internalize', title: 'Internalize'},
             ],
         }, choices, 'patch');
         // Questions
@@ -66,11 +63,11 @@ export default class Client extends Dotfile {
                 validation: ['important'],
             },
             {
-                name: 'oohtml_support',
+                name: 'webqit_dependencies',
                 type: 'select',
-                message: '[oohtml_support]: (Adds OOHTML to your app\'s bundle.) Specify OOHTML support level',
-                choices: CHOICES.oohtml_support,
-                initial: this.indexOfInitial(CHOICES.oohtml_support, config.oohtml_support),
+                message: '[webqit_dependencies]: (Adds OOHTML to your app\'s bundle.) Specify OOHTML support level',
+                choices: CHOICES.webqit_dependencies,
+                initial: this.indexOfInitial(CHOICES.webqit_dependencies, config.webqit_dependencies),
                 validation: ['important'],
             },
             {

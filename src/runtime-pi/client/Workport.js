@@ -64,14 +64,11 @@ export default class Workport {
                 callback(this.active, message);
             } else if (onAvailability) {
                 // Availability Handling
-                const availabilityHandler = entry => {
+                const availabilityHandler = Observer.observe(this, 'active', entry => {
                     if (_isFunction(message)) message = message();
                     callback(entry.value, message);
-                    if (onAvailability !== 2) {
-                        Observer.unobserve(this, 'active', availabilityHandler);
-                    }
-                };
-                Observer.observe(this, 'active', availabilityHandler);
+                    if (onAvailability !== 2) { availabilityHandler.abort(); }
+                });
             }
         };
         this.messaging = {

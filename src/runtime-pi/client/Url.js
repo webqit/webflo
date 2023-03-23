@@ -39,10 +39,10 @@ export default class Url {
 			return a === b;
 		};
 		Observer.intercept(this, 'set', (e, prev, next) => {
-			if (e.name === 'hash' && e.value && !e.value.startsWith('#')) {
+			if (e.key === 'hash' && e.value && !e.value.startsWith('#')) {
 				return next('#' + e.value);
 			}
-			if (e.name === 'search' && e.value && !e.value.startsWith('?')) {
+			if (e.key === 'search' && e.value && !e.value.startsWith('?')) {
 				return next('?' + e.value);
 			}
 			return next();
@@ -55,21 +55,21 @@ export default class Url {
 			var onlyHrefChanged;
 			for (var e of changes) {
 				// ----------
-				if (e.name === 'href' && e.related.length === 1) {
+				if (e.key === 'href' && e.related.length === 1) {
 					var urlObj = Self.parseUrl(e.value);
 					delete urlObj.query;
 					delete urlObj.href;
 					onlyHrefChanged = true;
 				}
 				// ----------
-				if (e.name === 'query' && (e.path.length > 1 || !e.related.includes('search'))) {
+				if (e.key === 'query' && (e.path.length > 1 || !e.related.includes('search'))) {
 					// "query" was updated. So we update "search"
 					var search = Self.toSearch(this.query); // Not e.value, as that might be a subtree value
 					if (search !== this.search) {
 						urlObj.search = search;
 					}
 				}
-				if (e.name === 'search') {
+				if (e.key === 'search') {
 					// "search" was updated. So we update "query"
 					var query = Self.toQuery(urlObj.search || this.search); // Not e.value, as that might be a href value
 					if (!_strictEven(query, this.query)) {

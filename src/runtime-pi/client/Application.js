@@ -51,48 +51,41 @@ export default class Application extends _Application {
 		const router = new this.Router(this.cx, httpEvent.url.pathname);
 		return router.route('render', httpEvent, data, async (httpEvent, data) => {
 			// --------
-			// OOHTML would waiting for DOM-ready in order to be initialized
-			if (window.WebQit.DOM) {
-				await new Promise(res => window.WebQit.DOM.ready(res));
+			if (window.webqit.dom) { await new Promise(res => window.webqit.dom.ready(res)); }
+			if (window.webqit && window.webqit.oohtml) {
+				const {
+					BINDINGS_API: { api: bindingsConfig },
+					HTML_MODULES: { api: modulesConfig },
+				} = window.webqit.oohtml.configs;
+				window.document[ bindingsConfig.bind ]({
+					env: 'client',
+					state: this.cx.runtime,
+					...data
+				}, { diff: true });
+				const routingContext = window.document.body.querySelector(`[${ window.CSS.escape( modulesConfig.context.attr.contextname ) }="routes"]`) || window.document.body;
+				routingContext.setAttribute( modulesConfig.context.attr.importscontext, '/' + `routes/${ httpEvent.url.pathname }`.split('/').map(a => a.trim()).filter(a => a).join('/'));
+				await this.scrollIntoView(httpEvent, routingContext);
+			} else {
+				await this.scrollIntoView(httpEvent);
 			}
-			if (window.document.state) {
-				if (!window.document.state.env) {
-					window.document.setState({
-						env: 'client',
-						onHydration: (httpEvent.detail || {}).srcType === 'hydration',
-						network: this.cx.runtime.network,
-						url: this.cx.runtime.location,
-					}, { update: true });
-				}
-				window.document.setState({ data }, { update: 'merge' });
-			}
-			if (window.document.templates) {
-				window.document.body.setAttribute('template', 'routes/' + httpEvent.url.pathname.split('/').filter(a => a).map(a => a + '+-').join('/'));
-				await new Promise(res => (window.document.templatesReadyState === 'complete' && res(), window.document.addEventListener('templatesreadystatechange', res)));
-			}
-			await this.scrollIntoView(httpEvent);
 			return window;
 		});
 	}
 
 	// Unrender
 	async unrender(httpEvent) {
-		if (window.document.state) {
-			window.document.setState({ data: {} }, { update: 'merge' });
-		}
+		window.document.bind({ state: this.cx.runtime }, { diff: true });
 	}
 
 	// Normalize scroll position
-	async scrollIntoView(httpEvent) {
+	async scrollIntoView(httpEvent, routingContext) {
 		if (!(httpEvent.detail.srcType === 'link')) return;
 		await new Promise(res => setTimeout(res, 10));
-		let viewportTop, urlTarget;
+		let urlTarget;
 		if (httpEvent.url.hash && (urlTarget = document.querySelector(httpEvent.url.hash))) {
 			urlTarget.scrollIntoView();
-		} else if (viewportTop = Array.from(document.querySelectorAll('[data-viewport-top]')).pop()) {
-			viewportTop.focus();
-		} else {
-			document.body.scrollIntoView();
+		} else if (routingContext || (routingContext = document.body)) {
+			routingContext.scrollIntoView();
 		}
 	}
 

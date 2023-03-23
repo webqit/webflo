@@ -2,6 +2,6 @@
 /**
  * @imports
  */
-import _Contex from '../Context.js';
+import _Context from '../Context.js';
 
-export default class Context extends _Contex {}
+export default class Context extends _Context {}

@@ -7,7 +7,7 @@ import Path from 'path';
 import Http from 'http';
 import Https from 'https';
 import Sessions from 'client-sessions';
-import { Observer } from '@webqit/oohtml-ssr/apis.js';
+import Observer from '@webqit/observer';
 import { _each } from '@webqit/util/obj/index.js';
 import { _isEmpty } from '@webqit/util/js/index.js';
 import { _from as _arrFrom, _any } from '@webqit/util/arr/index.js';

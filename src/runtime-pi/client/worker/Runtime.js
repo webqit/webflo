@@ -2,8 +2,8 @@
 /**
  * @imports
  */
+import Observer from '@webqit/observer';
 import { _any } from '@webqit/util/arr/index.js';
-import { Observer } from '@webqit/oohtml-ssr/apis.js';
 import { pattern } from '../../util-url.js';
 import Workport from './Workport.js';
 import _Runtime from '../../Runtime.js';
@@ -78,7 +78,7 @@ export default class Runtime extends _Runtime {
         Observer.set(this, 'network', {});
         // ---------------
 		Observer.observe(this.network, es => {
-			//console.log('//////////', ...es.map(e => `${e.name}: ${e.value}`))
+			//console.log('//////////', ...es.map(e => `${e.key}: ${e.value}`))
 		});
 
 		// -------------

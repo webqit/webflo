@@ -3,7 +3,6 @@
  * @imports
  */
 import { _before, _toTitle } from '@webqit/util/str/index.js';
-import { Observer } from '@webqit/oohtml-ssr/apis.js';
 import createStorage from './createStorage.js';
 import Url from './Url.js';
 import Workport from './Workport.js';
@@ -13,6 +12,8 @@ import xfetch from '../xfetch.js';
 import HttpEvent from '../HttpEvent.js';
 import _Runtime from '../Runtime.js';
 import { params } from '../util-url.js';
+
+const { Observer } = webqit;
 
 export {
 	HttpEvent,
@@ -36,7 +37,7 @@ export default class Runtime extends _Runtime {
 		Observer.set(this, 'location', new Url(window.document.location));
 		// -----------------------
 		// Syndicate changes to the browser;s location bar
-		Observer.observe(this.location, [[ 'href' ]], ([e]) => {
+		Observer.observe(this.location, 'href', e => {
 			if (e.value === 'http:' || (e.detail || {}).src === window.document.location) {
 				// Already from a "popstate" event as above, so don't push again
 				return;

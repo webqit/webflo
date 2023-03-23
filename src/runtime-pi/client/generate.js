@@ -69,21 +69,13 @@ export async function generate() {
         let gen = { imports: {}, code: [], };
         // ------------------
         const initWebflo = gen => {
-            if (clientConfig.oohtml_support === 'namespacing') {
-                gen.imports[`${dirSelf}/oohtml/namespacing.js`] = null;
-            } else if (clientConfig.oohtml_support === 'scripting') {
-                gen.imports[`${dirSelf}/oohtml/scripting.js`] = null;
-            } else if (clientConfig.oohtml_support === 'templating') {
-                gen.imports[`${dirSelf}/oohtml/templating.js`] = null;
-            } else if (clientConfig.oohtml_support !== 'none') {
-                gen.imports[`${dirSelf}/oohtml/full.js`] = null;
+            if (clientConfig.webqit_dependencies === 'internalize') {
+                gen.imports[`https://unpkg.com/@webqit/observer/dist/main.js`] = null;
             }
             gen.imports[`${dirSelf}/index.js`] = `* as Webflo`;
             gen.code.push(``);
-            gen.code.push(`if (!globalThis.WebQit) {`);
-            gen.code.push(`    globalThis.WebQit = {}`);
-            gen.code.push(`}`);
-            gen.code.push(`WebQit.Webflo = Webflo`);
+            gen.code.push(`if (!self.webqit) {self.webqit = {};}`);
+            gen.code.push(`webqit.Webflo = Webflo`);
             return gen;
         };
         // ------------------
@@ -104,7 +96,7 @@ export async function generate() {
             cx.logger.log(`Client Build ` + cx.logger.style.comment(`(sparoot:${sparoot}; is-split:${codeSplitting})`));
             cx.logger.log(cx.logger.style.keyword(`-----------------`));
         }
-        gen.code.push(`const { start } = WebQit.Webflo`);
+        gen.code.push(`const { start } = webqit.Webflo`);
         // ------------------
         // Bundle
         declareStart.call(cx, gen, dirClient, dirPublic, clientConfig, spaRouting);
@@ -152,7 +144,7 @@ export async function generate() {
         // >> Modules import
         gen.imports[`${dirSelf}/worker/index.js`] = `{ start }`;
         gen.code.push(``);
-        gen.code.push(`self.WebQit = {}`);
+        gen.code.push(`self.webqit = {}`);
         gen.code.push(``);
         // ------------------
         // Bundle
@@ -235,7 +227,7 @@ function declareStart(gen, routesDir, targetDir, paramsObj, routing) {
     // ------------------
     // >> Startup
     gen.code.push(`// >> Startup`);
-    gen.code.push(`WebQit.app = await start.call({ layout, params })`);
+    gen.code.push(`webqit.app = await start.call({ layout, params })`);
 }
 
 /**
