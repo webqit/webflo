@@ -252,6 +252,9 @@ If you can't wait to say *Hello World!* 😅, you can have an HTML page say that
   ```
 + Welcome to Webflo!
 
+
+> **Note**<br>This is documentation for Webflo@0.11.x which is compatible with OOHTML@1.x. Webflo@next which is compatible with OOHTML@2.x is coming soon!
+
 ## Concepts
 
 + [Handler Functions and Layout](#handler-functions-and-layout)
