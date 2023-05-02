@@ -62,7 +62,7 @@ export default class Url {
 					onlyHrefChanged = true;
 				}
 				// ----------
-				if (e.key === 'query' && (e.path.length > 1 || !e.related.includes('search'))) {
+				if (e.key === 'query' && (e.path?.length > 1 || !e.related.includes('search'))) {
 					// "query" was updated. So we update "search"
 					var search = Self.toSearch(this.query); // Not e.value, as that might be a subtree value
 					if (search !== this.search) {

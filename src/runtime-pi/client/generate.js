@@ -423,7 +423,7 @@ function handleEmbeds(targetDocumentFile, embedList, unembedList) {
     if (Fs.existsSync(targetDocumentFile) && (targetDocument = Fs.readFileSync(targetDocumentFile).toString()) && targetDocument.trim().startsWith('<!DOCTYPE html')) {
         successLevel = 1;
         let dom = new Jsdom.JSDOM(targetDocument), by = 'webflo', touched;
-        let embed = (src, before) => {
+        let embed = (src, after) => {
             src = src.replace(/\\/g, '/');
             let embedded = dom.window.document.querySelector(`script[src="${src}"]`);
             if (!embedded) {
@@ -431,8 +431,8 @@ function handleEmbeds(targetDocumentFile, embedList, unembedList) {
                 embedded.setAttribute('type', 'module');
                 embedded.setAttribute('src', src);
                 embedded.setAttribute('by', by);
-                if (before) {
-                    before.before(embedded, `\n\t\t`);
+                if (after) {
+                    after.after(embedded, `\n\t\t`);
                 } else {
                     dom.window.document.head.appendChild(embedded);
                 }
@@ -449,9 +449,9 @@ function handleEmbeds(targetDocumentFile, embedList, unembedList) {
                 touched = true;
             }
         };
-        embedList.reverse().reduce((prev, src) => {
+        embedList.reduce((prev, src) => {
             return embed(src, prev);
-        }, dom.window.document.querySelector(`script[src]`) || dom.window.document.querySelector(`script`));
+        }, [ ...dom.window.document.head.querySelectorAll(`script[src]`) ].pop() || dom.window.document.querySelector(`script`));
         unembedList.forEach(src => {
             unembed(src);
         });

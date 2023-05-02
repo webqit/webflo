@@ -54,16 +54,21 @@ export default class Application extends _Application {
 			if (window.webqit.dom) { await new Promise(res => window.webqit.dom.ready(res)); }
 			if (window.webqit && window.webqit.oohtml) {
 				const {
-					BINDINGS_API: { api: bindingsConfig },
-					HTML_MODULES: { api: modulesConfig },
+					BINDINGS_API: { api: bindingsConfig } = {},
+					HTML_MODULES: { context: { attr: modulesContextAttrs } = {} } = {},
 				} = window.webqit.oohtml.configs;
-				window.document[ bindingsConfig.bind ]({
-					env: 'client',
-					state: this.cx.runtime,
-					...data
-				}, { diff: true });
-				const routingContext = window.document.body.querySelector(`[${ window.CSS.escape( modulesConfig.context.attr.contextname ) }="routes"]`) || window.document.body;
-				routingContext.setAttribute( modulesConfig.context.attr.importscontext, '/' + `routes/${ httpEvent.url.pathname }`.split('/').map(a => a.trim()).filter(a => a).join('/'));
+				if ( bindingsConfig ) {
+					window.document[ bindingsConfig.bind ]({
+						env: 'client',
+						state: this.cx.runtime,
+						...data
+					}, { diff: true });
+				}
+				let routingContext;
+				if ( modulesContextAttrs ) {
+					routingContext = window.document.body.querySelector(`[${ window.CSS.escape( modulesContextAttrs.contextname ) }="routes"]`) || window.document.body;
+					routingContext.setAttribute( modulesContextAttrs.importscontext, '/' + `routes/${ httpEvent.url.pathname }`.split('/').map(a => a.trim()).filter(a => a).join('/'));
+				}
 				await this.scrollIntoView(httpEvent, routingContext);
 			} else {
 				await this.scrollIntoView(httpEvent);

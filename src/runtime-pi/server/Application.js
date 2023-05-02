@@ -3,6 +3,7 @@
  * imports
  */
 import Fs from 'fs';
+import Url from 'url';
 import Path from 'path';
 import QueryString from 'querystring';
 import Router from './Router.js';
@@ -75,35 +76,39 @@ export default class Application extends _Application {
     async render(httpEvent, router, response) {
         let data = await response.jsonfy();
         let rendering = await router.route('render', httpEvent, data, async (httpEvent, data) => {
-            var renderFile, pathnameSplit = httpEvent.url.pathname.split('/');
+            let renderFile, pathnameSplit = httpEvent.url.pathname.split('/');
             while ((renderFile = Path.join(this.cx.CWD, this.cx.layout.PUBLIC_DIR, './' + pathnameSplit.join('/'), 'index.html')) 
             && (this.renderFileCache[renderFile] === false/* false on previous runs */ || !Fs.existsSync(renderFile))) {
                 this.renderFileCache[renderFile] = false;
                 pathnameSplit.pop();
             }
+            const dirPublic = Url.pathToFileURL( Path.resolve( Path.join(this.cx.CWD, this.cx.layout.PUBLIC_DIR) ) );
             const instanceParams = QueryString.stringify({
                 file: renderFile,
-                url: httpEvent.url.href,
+                url: dirPublic.href,// httpEvent.url.href,
                 root: this.cx.CWD,
-                oohtml_level: this.cx.server.oohtml_support,
             });
-            const { window } = await import('@webqit/oohtml-ssr/instance.js?' + instanceParams);
+            const { window, document } = await import('@webqit/oohtml-ssr/src/instance.js?' + instanceParams);
             await new Promise(res => {
-                if (window.document.readyState === 'complete') return res();
-                window.document.addEventListener('load', res);
+                if (document.readyState === 'complete') return res();
+                document.addEventListener('load', res);
             });
-			if (window.webqit && window.webqit.oohtml) {
+			if (window.webqit && window.webqit.oohtml.configs) {
 				const {
-					BINDINGS_API: { api: bindingsConfig },
-					HTML_MODULES: { api: modulesConfig },
+					BINDINGS_API: { api: bindingsConfig } = {},
+					HTML_MODULES: { context: { attr: modulesContextAttrs } = {} } = {},
 				} = window.webqit.oohtml.configs;
-				window.document[ bindingsConfig.bind ]({
-					env: 'client',
-					state: this.cx.runtime,
-					...data
-				}, { diff: true });
-				const routingContext = window.document.body.querySelector(`[${ window.CSS.escape( modulesConfig.context.attr.contextname ) }="routes"]`) || window.document.body;
-				routingContext.setAttribute( modulesConfig.context.attr.importscontext, '/' + `routes/${ httpEvent.url.pathname }`.split('/').map(a => a.trim()).filter(a => a).join('/'));
+                if ( bindingsConfig ) {
+                    document[ bindingsConfig.bind ]({
+                        env: 'client',
+                        state: this.cx.runtime,
+                        ...data
+                    }, { diff: true });
+                }
+                if ( modulesContextAttrs ) {
+                    const routingContext = document.body.querySelector(`[${ window.CSS.escape( modulesContextAttrs.contextname ) }="routes"]`) || document.body;
+                    routingContext.setAttribute( modulesContextAttrs.importscontext, '/' + `routes/${ httpEvent.url.pathname }`.split('/').map(a => a.trim()).filter(a => a).join('/'));
+                }
 			}
             await new Promise(res => setTimeout(res, 0));
             return window;
