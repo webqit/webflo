@@ -38,44 +38,20 @@ export default class Application extends _Application {
         // The app router
         const router = new this.Router(this.cx, httpEvent.url.pathname);
         const handle = async () => {
-            // --------
-            // ROUTE FOR DATA
-            // --------
-            let response = await router.route([httpEvent.request.method, 'default'], httpEvent, {}, async event => {
+            return await router.route([httpEvent.request.method, 'default'], httpEvent, {}, async event => {
                 return router.file(event);
             }, remoteFetch);
-            if (!(response instanceof httpEvent.Response)) {
-                response = httpEvent.Response.compat(response);
-            }
-            // --------
-            // Rendering
-            // --------
-            if (response.ok && response.meta.type === 'json' && typeof response.meta.body === 'object' && response.meta.body && httpEvent.request.headers.accept.match('text/html')) {
-                let rendering = await this.render(httpEvent, router, response);
-                if (typeof rendering !== 'string' && !(typeof rendering === 'object' && rendering && typeof rendering.toString === 'function')) {
-                    throw new Error('render() must return a string response or an object that implements toString()..');
-                }
-                rendering = rendering.toString();
-                response = new httpEvent.Response(rendering, {
-                    headers: { ...response.headers.json(), contentType: 'text/html', contentLength: (new Blob([rendering]).size) },
-                    status: response.status,
-                });
-            }
-
-            return response;
         };
-        // --------
-        // PIPE THROUGH MIDDLEWARES
-        // --------
         return (this.cx.middlewares || []).concat(handle).reverse().reduce((next, fn) => {
             return () => fn.call(this.cx, httpEvent, router, next);
         }, null)();
     }
 
     // Renderer
-    async render(httpEvent, router, response) {
+    async render(httpEvent, response) {
         let data = await response.jsonfy();
-        let rendering = await router.route('render', httpEvent, data, async (httpEvent, data) => {
+		const router = new this.Router(this.cx, httpEvent.url.pathname);
+        return router.route('render', httpEvent, data, async (httpEvent, data) => {
             let renderFile, pathnameSplit = httpEvent.url.pathname.split('/');
             while ((renderFile = Path.join(this.cx.CWD, this.cx.layout.PUBLIC_DIR, './' + pathnameSplit.join('/'), 'index.html')) 
             && (this.renderFileCache[renderFile] === false/* false on previous runs */ || !Fs.existsSync(renderFile))) {
@@ -96,24 +72,29 @@ export default class Application extends _Application {
 			if (window.webqit && window.webqit.oohtml.configs) {
 				const {
 					BINDINGS_API: { api: bindingsConfig } = {},
-					HTML_MODULES: { context: { attr: modulesContextAttrs } = {} } = {},
+					HTML_IMPORTS: { context: { attr: modulesContextAttrs } = {} } = {},
 				} = window.webqit.oohtml.configs;
                 if ( bindingsConfig ) {
                     document[ bindingsConfig.bind ]({
-                        env: 'client',
+                        env: 'server',
                         state: this.cx.runtime,
                         ...data
                     }, { diff: true });
                 }
                 if ( modulesContextAttrs ) {
-                    const routingContext = document.body.querySelector(`[${ window.CSS.escape( modulesContextAttrs.contextname ) }="routes"]`) || document.body;
+                    const routingContext = document.body.querySelector(`[${ window.CSS.escape( modulesContextAttrs.contextname ) }="route"]`) || document.body;
                     routingContext.setAttribute( modulesContextAttrs.importscontext, '/' + `routes/${ httpEvent.url.pathname }`.split('/').map(a => a.trim()).filter(a => a).join('/'));
                 }
 			}
+            if (window.webqit.ReflexCompilerImport) {
+                await new Promise(res => {
+                    window.webqit.ReflexCompilerImport.then(res);
+                    setTimeout(res, 1000);
+                });
+            }
             await new Promise(res => setTimeout(res, 0));
             return window;
         });
-        return rendering + '';
     }
 
 }

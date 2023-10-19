@@ -24,9 +24,6 @@ export default class Application extends _Application {
 		// The app router
         const router = new this.Router(this.cx, httpEvent.url.pathname);
         const handle = async () => {
-			// --------
-			// ROUTE FOR DATA
-			// --------
 			return router.route([httpEvent.request.method, 'default'], httpEvent, { ...( document.state?.data || {} ) }, async event => {
 				if (event !== httpEvent) {
 					// This was nexted()
@@ -37,9 +34,6 @@ export default class Application extends _Application {
 				return remoteFetch(event.request);
 			}, remoteFetch);
 		};
-		// --------
-        // PIPE THROUGH MIDDLEWARES
-        // --------
 		return await (this.cx.middlewares || []).concat(handle).reverse().reduce((next, fn) => {
 			return () => fn.call(this.cx, httpEvent, router, next);
 		}, null)();
@@ -50,23 +44,20 @@ export default class Application extends _Application {
 		let data = await response.jsonfy();
 		const router = new this.Router(this.cx, httpEvent.url.pathname);
 		return router.route('render', httpEvent, data, async (httpEvent, data) => {
-			// --------
 			if (window.webqit.dom) { await new Promise(res => window.webqit.dom.ready(res)); }
 			if (window.webqit && window.webqit.oohtml) {
 				const {
 					BINDINGS_API: { api: bindingsConfig } = {},
-					HTML_MODULES: { context: { attr: modulesContextAttrs } = {} } = {},
+					HTML_IMPORTS: { context: { attr: modulesContextAttrs } = {} } = {},
 				} = window.webqit.oohtml.configs;
 				if ( bindingsConfig ) {
 					window.document[ bindingsConfig.bind ]({
-						env: 'client',
-						state: this.cx.runtime,
-						...data
+						env: 'client', state: this.cx.runtime, ...(data || {})
 					}, { diff: true });
 				}
 				let routingContext;
 				if ( modulesContextAttrs ) {
-					routingContext = window.document.body.querySelector(`[${ window.CSS.escape( modulesContextAttrs.contextname ) }="routes"]`) || window.document.body;
+					routingContext = window.document.body.querySelector(`[${ window.CSS.escape( modulesContextAttrs.contextname ) }="route"]`) || window.document.body;
 					routingContext.setAttribute( modulesContextAttrs.importscontext, '/' + `routes/${ httpEvent.url.pathname }`.split('/').map(a => a.trim()).filter(a => a).join('/'));
 				}
 				await this.scrollIntoView(httpEvent, routingContext);
@@ -75,11 +66,6 @@ export default class Application extends _Application {
 			}
 			return window;
 		});
-	}
-
-	// Unrender
-	async unrender(httpEvent) {
-		window.document.bind({ state: this.cx.runtime }, { diff: true });
 	}
 
 	// Normalize scroll position

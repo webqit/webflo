@@ -92,7 +92,7 @@ export const path = {
         }
         // Interpret the path commands to get the new resolved path.
         let newParts = [];
-        for ( i = 0, l = parts.length; i < l; i++ ) {
+        for ( let i = 0, l = parts.length; i < l; i++ ) {
             let part = parts[ i ];
             // Remove leading and trailing slashes
             // Also remove "." segments

@@ -228,7 +228,7 @@ export default class Runtime extends _Runtime {
         // ------------
 		// States
 		// ------------
-        Observer.set(this.network, 'error', null);
+        Observer.set(this.network, 'error', null, {diff: true});
         Observer.set(this.network, 'requesting', { init, ...detail });
         if (['link', 'form'].includes(detail.srcType)) {
             detail.src.state && (detail.src.state.active = true);
@@ -239,49 +239,40 @@ export default class Runtime extends _Runtime {
 		// ------------
 		const request = this.generateRequest(url.href, init);
 		const httpEvent = new HttpEvent(request, detail, (id = null, persistent = false) => this.createStorage(httpEvent, id, persistent));
-		let response, finalResponse;
+		let response;
 		try {
-			// ------------
-			// Response
-			// ------------
 			response = await this.app.handle(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
-			finalResponse = this.handleResponse(httpEvent, response);
-			// ------------
-			// Address bar
-			// ------------
-			if (response && response.redirected) {
-				Observer.set(this.location, { href: response.url }, { detail: { redirected: true, ...detail }, });
-			} else if (![302, 301].includes(finalResponse.status)) {
-				Observer.set(this.location, Url.copy(url)/* copy() is important */, { detail });
-			}
-			// ------------
-			// States
-			// ------------
-			if (['link', 'form'].includes(detail.srcType)) {
-				detail.src.state && (detail.src.state.active = false);
-            	detail.submitter && detail.submitter.state && (detail.submitter.state.active = false);
-			}
-			// ------------
-			// Rendering
-			// ------------
-			if (finalResponse.ok && (finalResponse.headers.contentType === 'application/json' || finalResponse.headers.contentType.startsWith('multipart/form-data'))) {
-				this.app.render && await this.app.render(httpEvent, finalResponse);
-			} else if (!finalResponse.ok) {
-				if ([404, 500].includes(finalResponse.status)) {
-					Observer.set(this.network, 'error', new Error(finalResponse.statusText, { cause: finalResponse.status }));
+			if (!response && response !== 0) { response = new xResponse(null, { status: 404 }); }
+			else if (!(response instanceof xResponse)) { response = xResponse.compat(response); }
+			response = await this.decodeRedirect(httpEvent, response, async () => {
+				Observer.set(this.network, 'requesting', null, {diff: true});
+				Observer.set(this.network, 'redirecting', null, {diff: true});
+				if (['link', 'form'].includes(detail.srcType)) {
+					detail.src.state && (detail.src.state.active = false);
+					detail.submitter && detail.submitter.state && (detail.submitter.state.active = false);
 				}
-				if (!finalResponse.headers.get('Location')) {
-					this.app.unrender && await this.app.unrender(httpEvent);
+				if (this.app.render) {
+					let rendering;
+					if (response.ok && (response.headers.contentType === 'application/json' || response.headers.contentType.startsWith('multipart/form-data'))) {
+						rendering = await this.app.render(httpEvent, response);
+					} else if (!response.ok) {
+						if ([404, 500].includes(response.status)) {
+							Observer.set(this.network, 'error', new Error(response.statusText, { cause: response.status }));
+						}
+						rendering = await this.app.render(httpEvent, response);
+					}
+					response = rendering;
 				}
-			}
+				return response;
+			});
 		} catch(e) {
 			console.error(e);
 			Observer.set(this.network, 'error', { ...e, retry: () => this.go(url, init = {}, detail) });
-			finalResponse = new xResponse(e.message, { status: 500 });
+			response = new xResponse(e.message, { status: 500 });
 		}
 		// ------------
         // Return value
-		return finalResponse;
+		return response;
     }
 
 	// Initiates remote fetch and sets the status
@@ -292,42 +283,41 @@ export default class Runtime extends _Runtime {
 		} else if (request instanceof URL) {
 			href = request.href;
 		}
-		Observer.set(this.network, 'remote', href);
+		Observer.set(this.network, 'remote', href, {diff: true});
 		let _response = xfetch(request, ...args);
-		// This catch() is NOT intended to handle failure of the fetch
-		_response.catch(e => Observer.set(this.network, 'error', e));
 		// Return xResponse
 		return _response.then(async response => {
 			// Stop loading status
-			Observer.set(this.network, 'remote', null);
+			Observer.set(this.network, 'remote', null, {diff: true});
 			return xResponse.compat(response);
 		});
 	}
 
-	// Handles response object
-	handleResponse(e, response) {
-		if (!response && response !== 0) { response = new xResponse(null, { status: 404 }); }
-		else if (!(response instanceof xResponse)) { response = xResponse.compat(response); }
-		Observer.set(this.network, 'requesting', null);
-		Observer.set(this.network, 'redirecting', null);
-		if (!response.redirected) {
-			let location = response.headers.get('Location');
-			if (location) {
-				let xActualRedirectCode = parseInt(response.headers.get('X-Redirect-Code'));
-				Observer.set(this.network, 'redirecting', location);
-				if (xActualRedirectCode && response.status === this._xRedirectCode) {
-					response.attrs.status = xActualRedirectCode;
+	decodeRedirect(httpEvent, response, callback) {
+		// Manual redirection?
+		const location = response.headers.get('Location');
+		if (location) {
+			const xActualRedirectCode = parseInt(response.headers.get('X-Redirect-Code'));
+			if (xActualRedirectCode && response.status === this._xRedirectCode) {
+				response.attrs.status = xActualRedirectCode; // @NOTE 1
+			}
+			if ([302,301].includes(response.status)) {
+				Observer.set(this.network, 'redirecting', location, {diff: true});
+				if (this.isSpaRoute(location)) {
+					this.go(location, {}, { srcType: 'rdr' });
+				} else {
 					window.location = location;
-				} else if ([302,301].includes(response.status)) {
-					if (!this.isSpaRoute(location)) {
-						window.location = location;
-					} else {
-						this.go(location, {}, { srcType: 'rdr' });
-					}
 				}
+				return;
 			}
 		}
-		return response;
+		// Standard redirection?
+		if (response.redirected) {
+			Observer.set(this.location, { href: response.url }, { detail: { redirected: true, ...httpEvent.detail }, });
+		} else {
+			Observer.set(this.location, Url.copy(httpEvent.url)/* copy() is important */, { detail: httpEvent.detail });
+		}
+		return callback();
 	}
 
 }
