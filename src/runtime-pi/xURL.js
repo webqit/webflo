@@ -26,15 +26,15 @@ export default class xURL extends URL {
 		};
 		this.__query = {
 			value: query,
-			proxy: new Proxy(query, {
+			proxy: new Proxy(this, {
 				set(t, n, v) {
-					t[n] = v;
-					updateSearch(t);
+					t.__query.value[n] = v;
+					updateSearch(t.__query.value);
 					return true;
 				},
 				deleteProperty(t, n) {
-					delete t[n];
-					updateSearch(t);
+					delete t.__query.value[n];
+					updateSearch(t.__query.value);
 					return true;
 				}
 			})
@@ -47,7 +47,7 @@ export default class xURL extends URL {
 		// "search" was updated. So we update "query"
 		var query = params.parse(value);
 		if (!_strictEven(query, this.query)) {
-			this.query = query;
+			this.__query.value = query;
 		}
 	}
 

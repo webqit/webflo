@@ -35,20 +35,133 @@ export default class Runtime extends _Runtime {
 		// -----------------------
 		// Initialize location
 		Observer.set(this, 'location', new Url(window.document.location));
+		Observer.set(this, 'network', {});
+		window.addEventListener('online', () => Observer.set(this.network, 'connectivity', 'online'));
+		window.addEventListener('offline', () => Observer.set(this.network, 'connectivity', 'offline'));
+		this.useNavigationAPI = window.navigation;
 		// -----------------------
-		// Syndicate changes to the browser;s location bar
-		Observer.observe(this.location, 'href', e => {
-			if (e.value === 'http:' || (e.detail || {}).src === window.document.location) {
-				// Already from a "popstate" event as above, so don't push again
+		// Initialise API
+		if (this.useNavigationAPI) {
+			this.home = window.navigation.currentEntry;
+			this._initNavigationAPI();
+		} else { this._initLegacyAPI(); }
+		// -----------------------
+		// Service Worker && COMM
+		if (this.cx.params.service_worker?.filename) {
+			const { public_base_url: base, service_worker: { filename, ...serviceWorkerParams }, env } = this.cx.params;
+			const workport = new Workport(base + filename, { ...serviceWorkerParams, startMessages: true }, env);
+			Observer.set(this, 'workport', workport);
+		}
+		// -----------------------
+		// Initialize and Hydration
+		(async () => {
+			let shouldHydrate;
+			if (this.app.init) {
+				const request = this.generateRequest(this.location);
+				const httpEvent = new HttpEvent(request, { navigationType: 'init' }, (id = null, persistent = false) => this.getSession(httpEvent, id, persistent));
+				shouldHydrate = await this.app.init(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
+			}
+			if (shouldHydrate !== false) {
+				this.go(this.location, {}, { navigationType: 'startup', navigationOrigins: [], });
+			}
+		})(); 
+	}
+
+	_initLegacyAPI() {
+		const updateLocation = (navigationOrigins, newHref) => {
+			const scrollContainer = this._getScrollContainer();
+			try { window.history.replaceState({
+				...(this.currentEntry().getState() || {}),
+				navigationOrigins: this._serializeOrigins(navigationOrigins),
+				scrollPosition: scrollContainer === window ? [] : [ scrollContainer.scrollLeft, scrollContainer.scrollTop, ],
+			}, '', window.location.href); } catch(e) {}
+			try { window.history.pushState({}, '', newHref); } catch(e) {}
+		};
+		// -----------------------
+		// Capture all link-clicks
+		// and fire to this router.
+		window.addEventListener('click', e => {
+			if (!this._canIntercept(e)) return;
+			var anchorEl = e.target.closest('a');
+			if (!anchorEl || !anchorEl.href || anchorEl.target || anchorEl.download || !this.isSpaRoute(anchorEl)) return;
+			if (this.isHashChange(anchorEl)) {
+				Observer.set(this.location, 'href', anchorEl.href);
 				return;
 			}
-			if (e.value === window.document.location.href || e.value + '/' === window.document.location.href) {
-				window.history.replaceState(window.history.state, '', this.location.href);
-			} else {
-				try { window.history.pushState(window.history.state, '', this.location.href); } catch(e) {}
+			// ---------------
+			// Handle now
+			e.preventDefault();
+			this._abortController?.abort();
+			this._abortController = new AbortController();	
+			// Note the order of calls below
+			const detail = {
+				navigationType: 'push',
+				navigationOrigins: [ anchorEl ],
+				destination: this._asEntry(null),
+				source: this.currentEntry(), // this
+				userInitiated: true,
+			};
+			updateLocation([ anchorEl ], anchorEl.href); // this
+			this.go( 
+				Url.copy(anchorEl),
+				{ signal: this._abortController.signal, },
+				detail,
+			); // this
+		});
+		// -----------------------
+		// Capture all form-submit
+		// and fire to this router.
+		window.addEventListener('submit', e => {
+			if (!this._canIntercept(e)) return;
+			// ---------------
+			// Declare form submission modifyers
+			const form = e.target.closest('form'), submitter = e.submitter;
+			const submitParams = [ 'action', 'enctype', 'method', 'noValidate', 'target' ].reduce((params, prop) => {
+				params[prop] = submitter && submitter.hasAttribute(`form${prop.toLowerCase()}`) ? submitter[`form${_toTitle(prop)}`] : form[prop];
+				return params;
+			}, {});
+			submitParams.method = (submitter && submitter.dataset.formmethod) || form.dataset.method || submitParams.method;
+			if (submitParams.target || !this.isSpaRoute(submitParams.action)) return;
+			var actionEl = window.document.createElement('a');
+			actionEl.href = submitParams.action;
+			if (this.isHashChange(anchorEl)) {
+				Observer.set(this.location, 'href', anchorEl.href);
+				return;
 			}
-		}, { diff: true });
-
+			// ---------------
+			// Handle now
+			var formData = new FormData(form);
+			if ((submitter || {}).name) { formData.set(submitter.name, submitter.value); }
+			if (submitParams.method.toUpperCase() === 'GET') {
+				var query = {};
+				Array.from(formData.entries()).forEach(_entry => {
+					params.set(query, _entry[0], _entry[1]);
+				});
+				actionEl.search = params.stringify(query);
+				formData = null;
+			}
+			e.preventDefault();
+			this._abortController?.abort();
+			this._abortController = new AbortController();		
+			// Note the order of calls below
+			const detail = {
+				navigationType: 'push',
+				navigationOrigins: [ submitter, form ],
+				destination: this._asEntry(null),
+				source: this.currentEntry(), // this
+				userInitiated: true,
+			};
+			updateLocation([ submitter, form ], actionEl.href); // this
+			this.go(
+				Url.copy(actionEl),
+				{
+					method: submitParams.method,
+					body: formData,
+					signal: this._abortController.signal,
+				},
+				detail,
+			); // this
+		});
 		// -----------------------
 		// This event is triggered by
 		// either the browser back button,
@@ -56,117 +169,131 @@ export default class Runtime extends _Runtime {
 		// the window.history.forward(),
 		// or the window.history.go() action.
 		window.addEventListener('popstate', e => {
-			// Needed to allow window.document.location
-			// to update to window.location
-			window.setTimeout(() => {
-				this.go(Url.copy(window.document.location), {}, { src: window.document.location, srcType: 'history', });
-			}, 0);
+			if (this.isHashChange(location)) {
+				Observer.set(this.location, 'href', location.href);
+				return;
+			}
+			// Navigation details
+			const detail = {
+				navigationType: 'traverse',
+				navigationOrigins: [],
+				destination: this._asEntry(e.state),
+				source: this.currentEntry(),
+				userInitiated: true,
+			};
+			// Traversal?
+			// Push
+			const url = location.href;
+			this.go(url, {}, detail);
 		});
-
-		// -----------------------
-		// Capture all link-clicks
-		// and fire to this router.
-		window.addEventListener('click', e => {
-			var anchorEl = e.target.closest('a');
-			if (!anchorEl || !anchorEl.href) return;
-			if (!anchorEl.target && !anchorEl.download && this.isSpaRoute(anchorEl, e)) {
-				// Publish everything, including hash
-				this.go(Url.copy(anchorEl), {}, { src: anchorEl, srcType: 'link', });
-				if (!this.isHashAction(anchorEl)) {
-					e.preventDefault();
-				}
-			}
-		});
-
-		// -----------------------
-		// Capture all form-submit
-		// and fire to this router.
-		window.addEventListener('submit', e => {
-			const form = e.target.closest('form'), submitter = e.submitter;
-			const submitParams = [ 'action', 'enctype', 'method', 'noValidate', 'target' ].reduce((params, prop) => {
-				params[prop] = submitter && submitter.hasAttribute(`form${prop.toLowerCase()}`) ? submitter[`form${_toTitle(prop)}`] : form[prop];
-				return params;
-			}, {});
-			// We support method hacking
-			submitParams.method = (submitter && submitter.dataset.formmethod) || form.dataset.method || submitParams.method;
-			submitParams.submitter = submitter;
-			// ---------------
-			var actionEl = window.document.createElement('a');
-			actionEl.href = submitParams.action;
-			// ---------------
-			// If not targeted and same origin...
-			if (!submitParams.target && this.isSpaRoute(actionEl, e)) {
-				// Build data
-				var formData = new FormData(form);
-				if ((submitter || {}).name) {
-					formData.set(submitter.name, submitter.value);
-				}
-				if (submitParams.method.toUpperCase() === 'GET') {
-					var query = params.parse(actionEl.search);
-					Array.from(formData.entries()).forEach(_entry => {
-						params.set(query, _entry[0], _entry[1]);
-					});
-					actionEl.search = params.stringify(query);
-					formData = null;
-				}
-				this.go(Url.copy(actionEl), {
-					method: submitParams.method,
-					body: formData,
-				}, { ...submitParams, src: form, srcType: 'form', });
-				if (!this.isHashAction(actionEl)) {
-					e.preventDefault();
-				}
-			}
-		});
-
-		// -----------------------
-		// Initialize network
-		Observer.set(this, 'network', {});
-		window.addEventListener('online', () => Observer.set(this.network, 'connectivity', 'online'));
-		window.addEventListener('offline', () => Observer.set(this.network, 'connectivity', 'offline'));
-
-		// -----------------------
-		// Service Worker && COMM
-		if (this.cx.params.service_worker_support) {
-			const { public_base_url: base, worker_filename: filename, worker_scope: scope } = this.cx.params;
-			const workport = new Workport(base + filename, { scope, startMessages: true });
-			Observer.set(this, 'workport', workport);
-		}
-
-		// -----------------------
-		// Initialize and Hydration
-		(async () => {
-			let shouldHydrate;
-			if (this.app.init) {
-				const request = this.generateRequest(this.location);
-				const httpEvent = new HttpEvent(request, { srcType: 'initialization' }, (id = null, persistent = false) => this.getSession(httpEvent, id, persistent));
-				shouldHydrate = await this.app.init(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
-			}
-			if (shouldHydrate !== false) {
-				this.go(this.location, {}, { srcType: 'hydration' });
-			}
-		})(); 
-
 	}
 
-    /**
-     * History object
-     */
-    get history() {
-        return window.history;
-    }
+	_initNavigationAPI() {
+		// -----------------------
+		// Detect source elements
+		let navigationOrigins = [];
+		window.addEventListener('click', e => {
+			if (!this._canIntercept(e)) return;
+			let anchorEl = e.target.closest('a');
+			if (!anchorEl || !anchorEl.href || anchorEl.target) return;
+			navigationOrigins = [ anchorEl ];
+		});
+		window.addEventListener('submit', e => {
+			if (!this._canIntercept(e)) return;
+			navigationOrigins = [ e.submitter, e.target.closest('form') ];
+		});
+		// -----------------------
+		// Handle navigation event which happens after the above
+		window.navigation.addEventListener('navigate', e => {
+			if (!e.canIntercept || e.downloadRequest !== null) return;
+			if (e.hashChange) {
+				Observer.set(this.location, 'href', e.destination.url);
+				return;
+			}
+			const { navigationType, destination, signal, formData, info, userInitiated } = e;
+			if (formData && navigationOrigins[1]?.hasAttribute('webflo-no-intercept')) return;
+			// Navigation details
+			const detail = {
+				navigationType,
+				navigationOrigins,
+				destination,
+				source: this.currentEntry(),
+				userInitiated,
+				info,
+			};
+			const scrollContainer = this._getScrollContainer();
+			this.updateCurrentEntry({ state: {
+				...(this.currentEntry().getState() || {}),
+				navigationOrigins: this._serializeOrigins(navigationOrigins),
+				scrollPosition: scrollContainer === window ? [] : [ scrollContainer.scrollLeft, scrollContainer.scrollTop, ],
+			} });
+			navigationOrigins = [];
+			// Traversal?
+			// Push
+			const url = destination.url;
+			const init = {
+				method: formData && 'POST' || 'GET',
+				body: formData,
+				signal,
+			};
+			const nav = this;
+			e.intercept({
+				scroll: (scrollContainer !== window) && 'manual' || 'after-transition',
+				focusReset: (scrollContainer !== window) && 'manual' || 'after-transition',
+				async handler() { await nav.go(url, init, detail); },
+			});
+		});
+	}
+
+	_asEntry(state) { return { getState() { return state; } }; }
+	_canIntercept(e) { return !(e.metaKey || e.altKey || e.ctrlKey || e.shiftKey); }
+	_uniqueId() { return ( 0 | Math.random() * 9e6 ).toString( 36 ); }
+
+	_serializeOrigins(origins) {
+		return origins.map(node => {
+			let originId = node.getAttribute(this._webfloOriginIdAttr);
+			if (!originId) {
+				originId = this._uniqueId() + ':auto';
+				node.setAttribute(this._webfloOriginIdAttr, originId);
+			}
+			return originId;
+		});
+	}
+
+	_deserializeOrigins(origins) {
+		return origins.map(originId => {
+			const node = document.querySelector(`[${ this._webfloOriginIdAttr }="${ originId }"]`);
+			if (node && originId.endsWith(':auto')) { node.toggleAttribute(this._webfloOriginIdAttr, false); }
+			return node;
+		});
+	}
+
+	_transitOrigins(origins, state, autoRevert = 0) {
+		if (!window.webqit?.oohtml?.configs) return;
+		const { BINDINGS_API: { api: bindingsConfig } = {}, } = window.webqit.oohtml.configs;
+		origins.forEach(node => { node && (node[bindingsConfig.bindings].active = state); });
+		if (!autoRevert) return;
+		setTimeout(() => {
+			origins.forEach(node => { node && (node[bindingsConfig.bindings].active = !state); });
+		}, autoRevert);
+	}
+
+	_getScrollContainer() {
+		if (!window.webqit?.oohtml?.configs) return;
+		const { CONTEXT_API: { attr: contextConfig } = {}, } = window.webqit.oohtml.configs;
+		return window.document.body.querySelector(`[${ window.CSS.escape( contextConfig.contextname ) }="app"]`) || window;
+	}
+
+	_webfloOriginIdAttr = 'webflo-navigation-origin-id';
+	_xRedirectCode = 200;
 
 	// Check is-hash-action
-	isHashAction(urlObj) {
-		const isHashNav = _before(window.document.location.href, '#') === _before(urlObj.href, '#') && urlObj.href.includes('#');
-		return isHashNav// && urlObj.hash.length > 1 && document.querySelector(urlObj.hash);
-	}
+	isHashChange(urlObj) { return _before(this.location.href, '#') === _before(urlObj.href, '#') && (this.location.href.includes('#') || urlObj.href.includes('#')); }
 
 	// Check is-spa-route
-	isSpaRoute(url, e = undefined) {
+	isSpaRoute(url) {
 		url = typeof url === 'string' ? new URL(url, this.location.origin) : url;
 		if (url.origin && url.origin !== this.location.origin) return false;
-		if (e && (e.metaKey || e.altKey || e.ctrlKey || e.shiftKey)) return false;
 		if (!this.cx.params.routing) return true;
 		if (this.cx.params.routing.targets === false/** explicit false means disabled */) return false;
 		let b = url.pathname.split('/').filter(s => s);
@@ -179,10 +306,27 @@ export default class Runtime extends _Runtime {
 		}, true);
 	}
 
+	// Initiates remote fetch and sets the status
+	async remoteFetch(request, ...args) {
+		let href = request;
+		if (request instanceof Request) {
+			href = request.url;
+		} else if (request instanceof URL) {
+			href = request.href;
+		}
+		Observer.set(this.network, 'remote', href, { diff: true });
+		let _response = xfetch(request, ...args);
+		// Return xResponse
+		return _response.then(async response => {
+			// Stop loading status
+			Observer.set(this.network, 'remote', null, { diff: true });
+			return xResponse.compat(response);
+		});
+	}
+
 	// Generates request object
 	generateRequest(href, init = {}) {
 		return new xRequest(href, {
-			signal: this._abortController && this._abortController.signal,
 			...init,
 			headers: {
 				'Accept': 'application/json',
@@ -199,6 +343,81 @@ export default class Runtime extends _Runtime {
 		return createStorage(id, persistent);
 	}
 
+	// -----------------------------------------------
+
+    /**
+     * reload()
+     */
+    reload(params) {
+		if (this.useNavigationAPI) { return window.navigation.reload(params); }
+		return window.history.reload();
+	}
+
+    /**
+     * back()
+     */
+    back() {
+		if (this.useNavigationAPI) { return window.navigation.canGoBack && window.navigation.back(); }
+		return window.history.back();
+	}
+
+    /**
+     * forward()
+     */
+    forward() {
+		if (this.useNavigationAPI) { return window.navigation.canGoForward && window.navigation.forward(); }
+		return window.history.forward();
+	}
+
+    /**
+     * go()
+     */
+    traverseTo(...args) {
+		if (this.useNavigationAPI) { return window.navigation.traverseTo(...args); }
+		return window.history.go(...args);
+	}
+
+    /**
+     * entries()
+     */
+    entries() {
+		if (this.useNavigationAPI) { return window.navigation.entries(); }
+		return history;
+	}
+
+	/**
+     * currentEntry()
+     */
+	currentEntry() {
+		if (window.navigation) return window.navigation.currentEntry;
+		return this._asEntry(history.state);
+	}
+
+    /**
+     * updateCurrentEntry()
+     */
+    async updateCurrentEntry(params, url = null) {
+		if (this.useNavigationAPI) {
+			if (!url || url === window.navigation.currentEntry.url) {
+				window.navigation.updateCurrentEntry(params);
+			} else { await window.navigation.navigate(url, { ...params, history: 'replace' }).committed; }
+			return;
+		}
+		window.history.replaceState(params.state, '', url);
+	}
+
+    /**
+     * push()
+     */
+    async push(url, state = {}) {
+		if (typeof url === 'string' && url.startsWith('&')) { url = this.location.href.split('#')[0] + (this.location.href.includes('?') ? url : url.replace('&', '?')); }
+		url = new URL(url, this.location.href);
+		if (this.useNavigationAPI) {
+			await window.navigation.navigate(url.href, state).committed;
+		} else { window.history.pushState(state, '', url.href); }
+		Observer.set(this.location, 'href', url.href);
+	}
+
     /**
      * Performs a request.
      *
@@ -209,115 +428,98 @@ export default class Runtime extends _Runtime {
      * @return Response
      */
     async go(url, init = {}, detail = {}) {
+		// ------------
+		// Resolve inputs
+		// ------------
         url = typeof url === 'string' ? new URL(url, this.location.origin) : url;
-		if (!(init instanceof Request) && !init.referrer) {
-			init = { referrer: this.location.href, ...init };
-		}
+		if (!(init instanceof Request) && !init.referrer) { init = { referrer: this.location.href, ...init }; }
+        if (![ 'startup', 'rdr' ].includes(detail.navigationType) && (_before(url.href, '#') === _before(init.referrer, '#') && (init.method || 'GET').toUpperCase() === 'GET')) return;
+		
         // ------------
-		// Put his forward before instantiating a request and aborting previous
-		// Same-page hash-links clicks on chrome recurse here from histroy popstate
-        if (![ 'hydration', 'rdr' ].includes(detail.srcType) && (_before(url.href, '#') === _before(init.referrer, '#') && (init.method || 'GET').toUpperCase() === 'GET')) {
-			return new xResponse(null, { status: 304 }); // Not Modified
-        }
+		// Pre-request states
 		// ------------
-        if (this._abortController) {
-            this._abortController.abort();
-        }
-        this._abortController = new AbortController();
-        this._xRedirectCode = 200;
+        Observer.set(this.network, 'error', null, { diff: true });
+        Observer.set(this.network, 'requesting', { init, detail });
+		if (detail.navigationType !== 'traverse') { this._transitOrigins(detail.navigationOrigins, true); }
+
         // ------------
-		// States
-		// ------------
-        Observer.set(this.network, 'error', null, {diff: true});
-        Observer.set(this.network, 'requesting', { init, ...detail });
-        if (['link', 'form'].includes(detail.srcType)) {
-            detail.src.state && (detail.src.state.active = true);
-            detail.submitter && detail.submitter.state && (detail.submitter.state.active = true);
-        }
-        // ------------
-		// Run
+		// Request
 		// ------------
 		const request = this.generateRequest(url.href, init);
 		const httpEvent = new HttpEvent(request, detail, (id = null, persistent = false) => this.createStorage(httpEvent, id, persistent));
 		let response;
 		try {
+			// Fire request and obtain response
 			response = await this.app.handle(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
-			if (!response && response !== 0) { response = new xResponse(null, { status: 404 }); }
+			if (typeof response === 'undefined') { response = new xResponse(null, { status: 404 }); }
 			else if (!(response instanceof xResponse)) { response = xResponse.compat(response); }
-			response = await this.decodeRedirect(httpEvent, response, async () => {
-				Observer.set(this.network, 'requesting', null, {diff: true});
-				Observer.set(this.network, 'redirecting', null, {diff: true});
-				if (['link', 'form'].includes(detail.srcType)) {
-					detail.src.state && (detail.src.state.active = false);
-					detail.submitter && detail.submitter.state && (detail.submitter.state.active = false);
-				}
-				if (this.app.render) {
-					let rendering;
-					if (response.ok && (response.headers.contentType === 'application/json' || response.headers.contentType.startsWith('multipart/form-data'))) {
-						rendering = await this.app.render(httpEvent, response);
-					} else if (!response.ok) {
-						if ([404, 500].includes(response.status)) {
-							Observer.set(this.network, 'error', new Error(response.statusText, { cause: response.status }));
-						}
-						rendering = await this.app.render(httpEvent, response);
-					}
-					response = rendering;
-				}
-				return response;
-			});
 		} catch(e) {
 			console.error(e);
-			Observer.set(this.network, 'error', { ...e, retry: () => this.go(url, init = {}, detail) });
+			Observer.set(this.network, 'error', { ...e, retry: () => this.go(url, init, detail) });
 			response = new xResponse(e.message, { status: 500 });
 		}
-		// ------------
-        // Return value
-		return response;
-    }
-
-	// Initiates remote fetch and sets the status
-	async remoteFetch(request, ...args) {
-		let href = request;
-		if (request instanceof Request) {
-			href = request.url;
-		} else if (request instanceof URL) {
-			href = request.href;
-		}
-		Observer.set(this.network, 'remote', href, {diff: true});
-		let _response = xfetch(request, ...args);
-		// Return xResponse
-		return _response.then(async response => {
-			// Stop loading status
-			Observer.set(this.network, 'remote', null, {diff: true});
-			return xResponse.compat(response);
-		});
-	}
-
-	decodeRedirect(httpEvent, response, callback) {
-		// Manual redirection?
+		// Handle redirection
 		const location = response.headers.get('Location');
 		if (location) {
 			const xActualRedirectCode = parseInt(response.headers.get('X-Redirect-Code'));
 			if (xActualRedirectCode && response.status === this._xRedirectCode) {
 				response.attrs.status = xActualRedirectCode; // @NOTE 1
 			}
-			if ([302,301].includes(response.status)) {
-				Observer.set(this.network, 'redirecting', location, {diff: true});
+			if ([ 302,301 ].includes(response.status)) {
+				Observer.set(this.network, 'redirecting', location, { diff: true });
 				if (this.isSpaRoute(location)) {
-					this.go(location, {}, { srcType: 'rdr' });
-				} else {
-					window.location = location;
-				}
+					this.go(location, {}, { navigationType: 'rdr', navigationOrigins: [] });
+				} else { window.location = location; }
 				return;
 			}
 		}
-		// Standard redirection?
-		if (response.redirected) {
-			Observer.set(this.location, { href: response.url }, { detail: { redirected: true, ...httpEvent.detail }, });
-		} else {
-			Observer.set(this.location, Url.copy(httpEvent.url)/* copy() is important */, { detail: httpEvent.detail });
+
+		// ------------
+		// // Post-request states
+		// ------------
+		const update = async () => {
+			//Observer.set(this.location, newLocation);
+			// Reset states
+			Observer.set(this.network, 'requesting', null, { diff: true });
+			Observer.set(this.network, 'redirecting', null, { diff: true });
+			if ([ 404, 500 ].includes(response.status)) {
+				Observer.set(this.network, 'error', new Error(response.statusText, { code: response.status }));
+			}
+			// Update location and render
+			const finalUrl = response.url || request.url;
+			Observer.set(this.location, 'href', finalUrl);
+			const extraDetail = (await this.app.render?.(httpEvent, response), {});
+			// Transit origins
+			const scrollContainer = this._getScrollContainer();
+			if (detail.navigationType === 'traverse') {
+				const destinationState = detail.destination?.getState() || {};
+				this._transitOrigins(this._deserializeOrigins(destinationState.navigationOrigins || []), true, 110);
+				// Manual scrolling?
+				if (scrollContainer !== window && destinationState.scrollPosition?.length) {
+					scrollContainer.scroll(...destinationState.scrollPosition);
+					(document.querySelector('[autofocus]') || document.body).focus();
+				}
+			} else {
+				this._transitOrigins(detail.navigationOrigins, false);
+				const stateData = { ...(this.currentEntry().getState() || {}), ...extraDetail, redirected: response.redirected, };
+				await this.updateCurrentEntry({ state: stateData }, finalUrl);
+				// Manual scrolling?
+				if (scrollContainer !== window && httpEvent.url.hash) {
+					document.querySelector(httpEvent.url.hash)?.scrollIntoView({ behavior: 'smooth' });
+					(document.querySelector('[autofocus]') || document.body).focus();
+				}
+			}
+			await new Promise(res => setTimeout(res, 100));
+		};
+		if (document.startViewTransition && detail.navigationType !== 'startup') {
+			const synthesizeWhile = window.webqit?.realdom?.synthesizeWhile || ( callback => callback() );
+			return synthesizeWhile(async () => {
+				document.documentElement.classList.toggle('transiting', true);
+				try { await document.startViewTransition( update ).ready; } catch(e) { console.log(e); }
+				document.documentElement.classList.toggle('transiting', false);
+			});
 		}
-		return callback();
-	}
+		return await update();
+    }
 
 }

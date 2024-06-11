@@ -9,7 +9,7 @@ export default class Workport {
             post: (message, client = this.client) => {
                 if (!client) throw new Error(`No client for this operation.`);
                 client.postMessage(message);
-                return this.post;
+                return this;
             },
             listen: (callback, client = this.client) => {
                 (client || self).addEventListener('message', evt => {
@@ -26,7 +26,7 @@ export default class Workport {
                         }
                     }
                 });
-                return this.post;
+                return this;
             },
             request: (message, client = this.client) => {
                 if (!client) throw new Error(`No client for this operation.`);
@@ -51,20 +51,12 @@ export default class Workport {
         // Notifications
         // --------
         this.notifications = {
-            fire: (title, params = {}) => {
-                return new Promise((res, rej) => {
-                    if (!(self.Notification && self.Notification.permission === 'granted')) {
-                        return rej(self.Notification && self.Notification.permission);
-                    }
-                    notification.addEventListener('error', rej);
-                    let notification = new self.Notification(title, params);
-                    notification.addEventListener('click', res);
-                    notification.addEventListener('close', res);
-                });
-            },
             handle: callback => {
-                self.addEventListener('notificationclick', callback);
-                return this.notifications;
+                self.addEventListener('notificationclick', e => e.waitUntil(callback(e)));
+                return this;
+            },
+            fire: (title, params = {}) => {
+                return self.registration.showNotification(title, params);
             },
         };
 
@@ -73,8 +65,8 @@ export default class Workport {
         // --------
         this.push = {
             listen: callback => {
-                self.addEventListener('push', callback);
-                return this.post;
+                self.addEventListener('push', e => e.waitUntil(callback(e)));
+                return this;
             },
         };
     }

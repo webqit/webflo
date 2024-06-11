@@ -44,10 +44,12 @@ export default class Runtime extends _Runtime {
 			// Manage CACHE
 			if (this.cx.params.cache_name && (this.cx.params.cache_only_urls || []).length) {
 				// Add files to cache
-				evt.waitUntil( self.caches.open(this.cx.params.cache_name).then(cache => {
+				evt.waitUntil( self.caches.open(this.cx.params.cache_name).then(async cache => {
 					if (this.cx.logger) { this.cx.logger.log('[ServiceWorker] Pre-caching resources.'); }
-					const cache_only_urls = (this.cx.params.cache_only_urls || []).map(c => c.trim()).filter(c => c && !pattern(c, self.origin).isPattern());
-					return cache.addAll(cache_only_urls);
+					for (const urls of [ 'cache_first_urls', 'cache_only_urls' ]) {
+						const _urls = (this.cx.params[urls] || []).map(c => c.trim()).filter(c => c && !pattern(c, self.origin).isPattern());
+						await cache.addAll(_urls);
+					}
 				}) );
 			}
 		});
@@ -76,10 +78,6 @@ export default class Runtime extends _Runtime {
 		// ---------------
         Observer.set(this, 'location', {});
         Observer.set(this, 'network', {});
-        // ---------------
-		Observer.observe(this.network, es => {
-			//console.log('//////////', ...es.map(e => `${e.key}: ${e.value}`))
-		});
 
 		// -------------
 		// ONFETCH
@@ -111,7 +109,7 @@ export default class Runtime extends _Runtime {
 		(async () => {
 			if (!this.app.init) return;
 			const request = this.generateRequest('/');
-			const httpEvent = new HttpEvent(request, { srcType: 'initialization' }, (id = null, persistent = false) => this.getSession(httpEvent, id, persistent));
+			const httpEvent = new HttpEvent(request, { navigationType: 'init' }, (id = null, persistent = false) => this.getSession(httpEvent, id, persistent));
 			await this.app.init(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
 		})();
 		
@@ -177,25 +175,33 @@ export default class Runtime extends _Runtime {
 		}
 		const matchUrl = (patterns, url) => _any((patterns || []).map(p => p.trim()).filter(p => p), p => pattern(p, self.origin).test(url));
 		const execFetch = () => {
-			// network_first_urls
-			if (!this.cx.params.default_fetching_strategy || this.cx.params.default_fetching_strategy === 'network-first' || matchUrl(this.cx.params.network_first_urls, request.url)) {
-				Observer.set(this.network, 'strategy', 'network-first');
-				return this.networkFetch(request, { cacheFallback: true, cacheRefresh: true });
-			}
-			// cache_first_urls
-			if (this.cx.params.default_fetching_strategy === 'cache-first' || matchUrl(this.cx.params.cache_first_urls, request.url)) {
-				Observer.set(this.network, 'strategy', 'cache-first');
-				return this.cacheFetch(request, { networkFallback: true, cacheRefresh: true });
+			// cache_only_urls
+			if (matchUrl(this.cx.params.cache_only_urls, request.url)) {
+				Observer.set(this.network, 'strategy', 'cache-only');
+				return this.cacheFetch(request, { networkFallback: false, cacheRefresh: false });
 			}
 			// network_only_urls
-			if (this.cx.params.default_fetching_strategy === 'network-only' || matchUrl(this.cx.params.network_only_urls, request.url)) {
+			if (matchUrl(this.cx.params.network_only_urls, request.url)) {
 				Observer.set(this.network, 'strategy', 'network-only');
 				return this.networkFetch(request, { cacheFallback: false, cacheRefresh: false });
 			}
-			// cache_only_urls
-			if (this.cx.params.default_fetching_strategy === 'cache-only' || matchUrl(this.cx.params.cache_only_urls, request.url)) {
-				Observer.set(this.network, 'strategy', 'cache-only');
-				return this.cacheFetch(request, { networkFallback: false, cacheRefresh: false });
+			// cache_first_urls
+			if (matchUrl(this.cx.params.cache_first_urls, request.url)) {
+				Observer.set(this.network, 'strategy', 'cache-first');
+				return this.cacheFetch(request, { networkFallback: true, cacheRefresh: true });
+			}
+			// network_first_urls
+			if (matchUrl(this.cx.params.network_first_urls, request.url) || !this.cx.params.default_fetching_strategy) {
+				Observer.set(this.network, 'strategy', 'network-first');
+				return this.networkFetch(request, { cacheFallback: true, cacheRefresh: true });
+			}
+			// Default strategy
+			Observer.set(this.network, 'strategy', this.cx.params.default_fetching_strategy);
+			switch (this.cx.params.default_fetching_strategy) {
+				case 'cache-only': return this.cacheFetch(request, { networkFallback: false, cacheRefresh: false });
+				case 'network-only': return this.networkFetch(request, { cacheFallback: false, cacheRefresh: false });
+				case 'cache-first': return this.cacheFetch(request, { networkFallback: true, cacheRefresh: true });
+				case 'network-first': return this.networkFetch(request, { cacheFallback: true, cacheRefresh: true });
 			}
 		};
 		let response = execFetch(request);

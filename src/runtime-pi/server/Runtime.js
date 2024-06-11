@@ -211,6 +211,7 @@ export default class Runtime extends _Runtime {
         const requestInit = { method: request.method, headers: request.headers };
         if (!['GET', 'HEAD'].includes(request.method)) {
             requestInit.body = request;
+            requestInit.duplex = 'half'; // See https://github.com/nodejs/node/issues/46221
         }
         return [ fullUrl, requestInit ];
     }

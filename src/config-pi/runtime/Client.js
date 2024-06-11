@@ -22,10 +22,14 @@ export default class Client extends Dotfile {
             bundle_filename: 'bundle.js',
             public_base_url: '/',
             spa_routing: true,
-            webqit_dependencies: '',
-            service_worker_support: true,
-            worker_scope: '/',
-            worker_filename: 'worker.js',
+            service_worker: {
+                filename: 'worker.js',
+                scope: '/',
+                support_push: false,
+                vapid_key_env: 'VAPID_PUBLIC_KEY',
+                push_registration_url_env: 'PUSH_REGISTRATION_PUBLIC_URL',
+            },
+            bundle_public_env: false,
         }, config, 'patch');
     }
 
@@ -50,11 +54,11 @@ export default class Client extends Dotfile {
                 name: 'public_base_url',
                 type: 'text',
                 message: '[public_base_url]: Enter the base-URL for public resource URLs',
-                initial: DATA.public_base_url,
+                initial: config.public_base_url,
                 validation: ['important'],
             },
             {
-                name: 'spa_routing',
+                name: 'bundle_public_env',
                 type: 'toggle',
                 message: '[spa_routing]: Enable Single Page Routing Mode',
                 active: 'YES',
@@ -63,32 +67,49 @@ export default class Client extends Dotfile {
                 validation: ['important'],
             },
             {
-                name: 'webqit_dependencies',
-                type: 'select',
-                message: '[webqit_dependencies]: (Adds OOHTML to your app\'s bundle.) Specify OOHTML support level',
-                choices: CHOICES.webqit_dependencies,
-                initial: this.indexOfInitial(CHOICES.webqit_dependencies, config.webqit_dependencies),
-                validation: ['important'],
+                name: 'service_worker',
+                controls: {
+                    name: 'service_worker',
+                },
+                initial: config.service_worker,
+                schema: [
+                    {
+                        name: 'filename',
+                        type: 'text',
+                        message: 'Specify the Service Worker filename',
+                    },
+                    {
+                        name: 'scope',
+                        type: 'text',
+                        message: 'Specify the Service Worker scope',
+                    },
+                    {
+                        name: 'support_push',
+                        type: 'toggle',
+                        message: 'Support push-notifications?',
+                        active: 'YES',
+                        inactive: 'NO',
+                    },
+                    {
+                        name: 'vapid_key_env',
+                        type: (prev, answers) => answers.support_push ? 'text' : null,
+                        message: 'Enter the VAPID KEY env id for push notification subscription',
+                    },
+                    {
+                        name: 'push_registration_url_env',
+                        type: (prev, answers) => answers.support_push ? 'text' : null,
+                        message: 'Enter the URL for push notification subscription',
+                    },
+                ],
             },
             {
-                name: 'service_worker_support',
+                name: 'bundle_public_env',
                 type: 'toggle',
-                message: 'Support Service Worker?',
+                message: '[bundle_public_env]: Bundle public ENV variables?',
                 active: 'YES',
                 inactive: 'NO',
-                initial: config.service_worker_support,
-            },
-            {
-                name: 'worker_scope',
-                type: (prev, answers) => answers.service_worker_support ? 'text' : null,
-                message: 'Specify the Service Worker scope',
-                initial: config.worker_scope,
-            },
-            {
-                name: 'worker_filename',
-                type: (prev, answers) => answers.service_worker_support ? 'text' : null,
-                message: 'Specify the Service Worker filename',
-                initial: config.worker_filename,
+                initial: config.bundle_public_env,
+                validation: ['important'],
             },
         ];
     }

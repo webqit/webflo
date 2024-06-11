@@ -26,7 +26,7 @@ export async function generate() {
         throw new Error(`The Client configurator "config.deployment.Layout" is required in context.`);
     }
     const clientConfig = await (new cx.config.runtime.Client(cx)).read();
-    if (clientConfig.support_service_worker && !cx.config.runtime.client?.Worker) {
+    if (clientConfig.service_worker?.filename && !cx.config.runtime.client?.Worker) {
         throw new Error(`The Service Worker configurator "config.runtime.client.Worker" is required in context.`);
     }
     const workerConfig = await (new cx.config.runtime.client.Worker(cx)).read();
@@ -40,6 +40,23 @@ export async function generate() {
     const dirClient = Path.resolve(cx.CWD || '', layoutConfig.CLIENT_DIR);
     const dirWorker = Path.resolve(cx.CWD || '', layoutConfig.WORKER_DIR);
     const dirSelf = Path.dirname(Url.fileURLToPath(import.meta.url)).replace(/\\/g, '/');
+    if (clientConfig.bundle_public_env || workerConfig.bundle_public_env) {
+        if (!cx.config.deployment?.Env) {
+            throw new Error(`The Layout configurator "config.deployment.Env" is required in context to bundle public env.`);
+        }
+        const envConfig = await (new cx.config.deployment.Env(cx)).read();
+        for (const key in envConfig.entries) {
+            if (!key.includes('PUBLIC_')) continue;
+            if (clientConfig.bundle_public_env) {
+                if (!clientConfig.env) { clientConfig.env = {}; }
+                clientConfig.env[key] = envConfig.entries[key];
+            }
+            if (workerConfig.bundle_public_env) {
+                if (!workerConfig.env) { workerConfig.env = {}; }
+                workerConfig.env[key] = envConfig.entries[key];
+            }
+        }
+    }
     // -----------
     // Scan Subdocuments
     const scanSubroots = (sparoot, rootFileName) => {
@@ -69,9 +86,6 @@ export async function generate() {
         let gen = { imports: {}, code: [], };
         // ------------------
         const initWebflo = gen => {
-            if (clientConfig.webqit_dependencies === 'internalize') {
-                gen.imports[`https://unpkg.com/@webqit/observer/dist/main.js`] = null;
-            }
             gen.imports[`${dirSelf}/index.js`] = `* as Webflo`;
             gen.code.push(``);
             gen.code.push(`if (!self.webqit) {self.webqit = {};}`);
@@ -130,7 +144,7 @@ export async function generate() {
     };
     // -----------
     // Generate worker build
-    const generateWorker = async function(workerroot, workerGraphCallbak = null) {
+    const generateWorker = async function(workerroot, workerGraphCallback = null) {
         let [ subworkerroots, targets ] = workerroot && scanSubroots(workerroot, 'workerroot') || [ [], false ];
         if (!workerroot) workerroot = '/';
         let workerRouting = { root: workerroot, subroots: subworkerroots, targets };
@@ -148,37 +162,40 @@ export async function generate() {
         gen.code.push(``);
         // ------------------
         // Bundle
-        if (workerConfig.cache_only_urls.length) {
-            // Separate URLs from patterns
-            let [ urls, patterns ] = workerConfig.cache_only_urls.reduce(([ urls, patterns ], url) => {
-                let patternInstance = pattern(url, 'http://localhost'),
-                    isPattern = patternInstance.isPattern();
-                if (isPattern && (patternInstance.pattern.pattern.hostname !== 'localhost' || patternInstance.pattern.pattern.port)) {
-                    throw new Error(`Pattern URLs must have no origin part. Recieved "${url}".`);
+        for (const strategy of [ 'cache_first_urls', 'cache_only_urls' ]) {
+            if (workerConfig[strategy].length) {
+                // Separate URLs from patterns
+                let [ urls, patterns ] = workerConfig[strategy].reduce(([ urls, patterns ], url) => {
+                    let patternInstance = pattern(url, 'http://localhost'),
+                        isPattern = patternInstance.isPattern();
+                    if (isPattern && (patternInstance.pattern.pattern.hostname !== 'localhost' || patternInstance.pattern.pattern.port)) {
+                        throw new Error(`Pattern URLs must have no origin part. Recieved "${url}".`);
+                    }
+                    return isPattern ? [ urls, patterns.concat(patternInstance) ] : [ urls.concat(url), patterns ];
+                }, [ [], [] ]);
+                // Resolve patterns
+                if (patterns.length) {
+                    // List all files
+                    let scan = dir => Fs.readdirSync(dir).reduce((result, f) => {
+                        let resource = Path.join(dir, f);
+                        if (f.startsWith('.')) return result;
+                        return result.concat(Fs.statSync(resource).isDirectory() ? scan(resource) : '/' + Path.relative(dirPublic, resource));
+                    }, []);
+                    let files = scan(dirPublic);
+                    // Resolve patterns from files
+                    workerConfig[strategy] = patterns.reduce((all, pattern) => {
+                        let matchedFiles = files.filter(file => pattern.test(file, 'http://localhost'));
+                        if (matchedFiles.length) return all.concat(matchedFiles);
+                        throw new Error(`The pattern "${pattern.pattern.pattern.pathname}" didn't match any files.`);
+                    }, urls);
                 }
-                return isPattern ? [ urls, patterns.concat(patternInstance) ] : [ urls.concat(url), patterns ];
-            }, [ [], [] ]);
-            // Resolve patterns
-            if (patterns.length) {
-                // List all files
-                let scan = dir => Fs.readdirSync(dir).reduce((result, f) => {
-                    let resource = Path.join(dir, f);
-                    return result.concat(Fs.statSync(resource).isDirectory() ? scan(resource) : '/' + Path.relative(dirPublic, resource));
-                }, []);
-                let files = scan(dirPublic);
-                // Resolve patterns from files
-                workerConfig.cache_only_urls = patterns.reduce((all, pattern) => {
-                    let matchedFiles = files.filter(file => pattern.test(file, 'http://localhost'));
-                    if (matchedFiles.length) return all.concat(matchedFiles);
-                    throw new Error(`The pattern "${pattern.pattern.pattern.pathname}" didn't match any files.`);
-                }, urls);
             }
         }
         declareStart.call(cx, gen, dirWorker, dirPublic, workerConfig, workerRouting);
-        await bundle.call(cx, gen, Path.join(dirPublic, workerroot, clientConfig.worker_filename));
+        await bundle.call(cx, gen, Path.join(dirPublic, workerroot, clientConfig.service_worker.filename));
         // ------------------
         // Recurse
-        workerGraphCallbak && workerGraphCallbak(workerroot, subworkerroots);
+        workerGraphCallback && workerGraphCallback(workerroot, subworkerroots);
         if (cx.flags.recursive) {
             while (subworkerroots.length) {
                 await generateWorker(subworkerroots.shift());
@@ -196,7 +213,7 @@ export async function generate() {
         await generateClient();
         Fs.existsSync(sparootsFile) && Fs.unlinkSync(sparootsFile);
     }
-    if (clientConfig.service_worker_support) {
+    if (clientConfig.service_worker.filename) {
         await generateWorker('/');
     }
 }

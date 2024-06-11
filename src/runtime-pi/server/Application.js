@@ -69,10 +69,11 @@ export default class Application extends _Application {
                 if (document.readyState === 'complete') return res();
                 document.addEventListener('load', res);
             });
-			if (window.webqit && window.webqit.oohtml.configs) {
+			if (window.webqit?.oohtml?.configs) {
 				const {
+				    CONTEXT_API: { attr: contextConfig } = {},
 					BINDINGS_API: { api: bindingsConfig } = {},
-					HTML_IMPORTS: { context: { attr: modulesContextAttrs } = {} } = {},
+					HTML_IMPORTS: { attr: modulesContextAttrs } = {},
 				} = window.webqit.oohtml.configs;
                 if ( bindingsConfig ) {
                     document[ bindingsConfig.bind ]({
@@ -82,13 +83,13 @@ export default class Application extends _Application {
                     }, { diff: true });
                 }
                 if ( modulesContextAttrs ) {
-                    const routingContext = document.body.querySelector(`[${ window.CSS.escape( modulesContextAttrs.contextname ) }="route"]`) || document.body;
+                    const routingContext = document.body.querySelector(`[${ window.CSS.escape( contextConfig.contextname ) }="route"]`) || document.body;
                     routingContext.setAttribute( modulesContextAttrs.importscontext, '/' + `routes/${ httpEvent.url.pathname }`.split('/').map(a => a.trim()).filter(a => a).join('/'));
                 }
 			}
-            if (window.webqit.ReflexCompilerImport) {
+            if (window.webqit.$fCompilerImport) {
                 await new Promise(res => {
-                    window.webqit.ReflexCompilerImport.then(res);
+                    window.webqit.$fCompilerImport.then(res);
                     setTimeout(res, 1000);
                 });
             }

@@ -24,7 +24,9 @@ export default class Application extends _Application {
 		// The app router
         const router = new this.Router(this.cx, httpEvent.url.pathname);
         const handle = async () => {
-			return router.route([httpEvent.request.method, 'default'], httpEvent, { ...( document.state?.data || {} ) }, async event => {
+			let bindingsConfig;
+			if (window.webqit?.oohtml?.configs) { ( { BINDINGS_API: { api: bindingsConfig } = {}, } = window.webqit.oohtml.configs ); }
+			return router.route([httpEvent.request.method, 'default'], httpEvent, { ...( ( bindingsConfig && document[bindingsConfig.bindings] ) || {} ) }, async event => {
 				if (event !== httpEvent) {
 					// This was nexted()
 					if (!event.request.headers.has('Accept')) {
@@ -43,12 +45,13 @@ export default class Application extends _Application {
     async render(httpEvent, response) {
 		let data = await response.jsonfy();
 		const router = new this.Router(this.cx, httpEvent.url.pathname);
-		return router.route('render', httpEvent, data, async (httpEvent, data) => {
-			if (window.webqit.dom) { await new Promise(res => window.webqit.dom.ready(res)); }
-			if (window.webqit && window.webqit.oohtml) {
+		return await router.route('render', httpEvent, data, async (httpEvent, data) => {
+			if (window.webqit?.dom) { await new Promise(res => window.webqit.dom.ready(res)); }
+			if (window.webqit?.oohtml?.configs) {
 				const {
+					CONTEXT_API: { attr: contextConfig } = {},
 					BINDINGS_API: { api: bindingsConfig } = {},
-					HTML_IMPORTS: { context: { attr: modulesContextAttrs } = {} } = {},
+					HTML_IMPORTS: { attr: modulesContextAttrs } = {},
 				} = window.webqit.oohtml.configs;
 				if ( bindingsConfig ) {
 					window.document[ bindingsConfig.bind ]({
@@ -57,28 +60,17 @@ export default class Application extends _Application {
 				}
 				let routingContext;
 				if ( modulesContextAttrs ) {
-					routingContext = window.document.body.querySelector(`[${ window.CSS.escape( modulesContextAttrs.contextname ) }="route"]`) || window.document.body;
-					routingContext.setAttribute( modulesContextAttrs.importscontext, '/' + `routes/${ httpEvent.url.pathname }`.split('/').map(a => a.trim()).filter(a => a).join('/'));
+					routingContext = window.document.body.querySelector(`[${ window.CSS.escape( contextConfig.contextname ) }="app"]`) || window.document.body;
+					const prevRoute = routingContext.getAttribute( modulesContextAttrs.importscontext );
+					const newRoute = '/' + `routes/${ httpEvent.url.pathname }`.split('/').map(a => a.trim()).filter(a => a).join('/');
+					const rel = prevRoute === newRoute ? 'same' : ( `${ prevRoute }/`.startsWith( `${ newRoute }/` ) ? 'parent' : ( `${ newRoute }/`.startsWith( `${ prevRoute }/` ) ? 'child' : 'unrelated' ) );
+					routingContext.setAttribute( modulesContextAttrs.importscontext, newRoute);
+					routingContext.setAttribute( `prev-${ modulesContextAttrs.importscontext }`, prevRoute );
+					routingContext.setAttribute( 'importscontext-transition-type', rel );
 				}
-				await this.scrollIntoView(httpEvent, routingContext);
-			} else {
-				await this.scrollIntoView(httpEvent);
 			}
 			return window;
 		});
 	}
-
-	// Normalize scroll position
-	async scrollIntoView(httpEvent, routingContext) {
-		if (!(httpEvent.detail.srcType === 'link')) return;
-		await new Promise(res => setTimeout(res, 10));
-		let urlTarget;
-		if (httpEvent.url.hash && (urlTarget = document.querySelector(httpEvent.url.hash))) {
-			urlTarget.scrollIntoView();
-		} else if (routingContext || (routingContext = document.body)) {
-			routingContext.scrollIntoView();
-		}
-	}
-
 }
 

@@ -28,11 +28,7 @@ export default class Worker extends Dotfile {
             network_only_urls: [],
             cache_only_urls: [],
             skip_waiting: true,
-            // -----------------
-            support_push: false,
-            push_registration_url: '',
-            push_deregistration_url: '',
-            push_public_key: '',
+            bundle_public_env: false,
         }, config, 'patch');
     }
 
@@ -99,34 +95,13 @@ export default class Worker extends Dotfile {
                 inactive: 'NO',
                 initial: config.skip_waiting,
             },
-            // ------------- notification --------------
             {
-                name: 'support_push',
+                name: 'bundle_public_env',
                 type: 'toggle',
-                message: 'Support push-notifications?',
+                message: '[bundle_public_env]: Bundle public ENV variables?',
                 active: 'YES',
                 inactive: 'NO',
-                initial: config.support_push,
-            },
-            {
-                name: 'push_registration_url',
-                type: (prev, answers) => answers.support_push ? 'text' : null,
-                message: 'Enter the URL for push notification subscription',
-                initial: config.push_registration_url,
-                validation: ['important'],
-            },
-            {
-                name: 'push_deregistration_url',
-                type: (prev, answers) => answers.support_push ? 'text' : null,
-                message: 'Enter the URL for push notification unsubscription',
-                initial: config.push_deregistration_url,
-                validation: ['important'],
-            },
-            {
-                name: 'push_key',
-                type: (prev, answers) => answers.support_push ? 'text' : null,
-                message: 'Enter the Public Key for push notification subscription',
-                initial: config.push_key,
+                initial: config.bundle_public_env,
                 validation: ['important'],
             },
         ];

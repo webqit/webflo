@@ -40,10 +40,9 @@ export default class Url {
 		};
 		Observer.intercept(this, 'set', (e, prev, next) => {
 			if (e.key === 'hash' && e.value && !e.value.startsWith('#')) {
-				return next('#' + e.value);
-			}
-			if (e.key === 'search' && e.value && !e.value.startsWith('?')) {
-				return next('?' + e.value);
+				e.value = '#' + e.value;
+			} else if (e.key === 'search' && e.value && !e.value.startsWith('?')) {
+				e.value = '?' + e.value;
 			}
 			return next();
 		});
@@ -62,7 +61,7 @@ export default class Url {
 					onlyHrefChanged = true;
 				}
 				// ----------
-				if (e.key === 'query' && (e.path?.length > 1 || !e.related.includes('search'))) {
+				if (e.key === 'query' && !e.related.includes('search')) {
 					// "query" was updated. So we update "search"
 					var search = Self.toSearch(this.query); // Not e.value, as that might be a subtree value
 					if (search !== this.search) {
@@ -83,7 +82,7 @@ export default class Url {
 				if (usernamePassword.length === 2) {
 					fullOrigin = `${this.protocol}//${usernamePassword.join(':')}@${this.hostname}${(this.port ? `:${this.port}` : '')}`;
 				}
-				var href = [ fullOrigin, urlObj.pathname || this.pathname, urlObj.search || this.search, this.hash ].join('');
+				var href = [ fullOrigin, urlObj.pathname || this.pathname, urlObj.search || this.search || (this.href.includes('?') ? '?' : ''), this.hash || (this.href.includes('#') ? '#' : '') ].join('');
 				if (href !== this.href) {
 					urlObj.href = href;
 				}
@@ -91,7 +90,7 @@ export default class Url {
 			if (!_isEmpty(urlObj)) {
 				return Observer.set(this, urlObj);
 			}
-		}, { subtree:true/*for pathmap/pathsplit/query updates*/, diff: true });
+		}, { diff: true });
 		// -----------------------
 		// Validate e.detail
 		Observer.observe(this, changes => {
@@ -105,7 +104,7 @@ export default class Url {
 					}
 				}
 			});
-		}, {diff: true});
+		}, { diff: true });
 		// -----------------------
 		// Startup properties
         Observer.set(this, _isString(input) ? Self.parseUrl(input) : Url.copy(input));

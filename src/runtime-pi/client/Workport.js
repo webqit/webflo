@@ -8,7 +8,7 @@ import { Observer } from './Runtime.js';
 
 export default class Workport {
 
-    constructor(file, params = {}) {
+    constructor(file, params = {}, env = {}) {
         this.ready = navigator.serviceWorker ? navigator.serviceWorker.ready : new Promise(() => {});
 
         // --------
@@ -76,7 +76,7 @@ export default class Workport {
                 postSendCallback(message, (active, message) => {
                     active.postMessage(message);
                 }, onAvailability);
-                return this.post;
+                return this;
             },
             listen: callback => {
                 if (navigator.serviceWorker) {
@@ -94,7 +94,7 @@ export default class Workport {
                         }
                     });
                 }
-                return this.post;
+                return this;
             },
             request: (message, onAvailability = 1) => {
                 return new Promise(res => {
@@ -120,16 +120,15 @@ export default class Workport {
         // Notifications
         // --------
         this.notifications = {
-            fire: (title, params = {}) => {
-                return new Promise((res, rej) => {
-                    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
-                        return rej(typeof Notification !== 'undefined' && Notification && Notification.permission);
-                    }
-                    notification.addEventListener('error', rej);
-                    let notification = new Notification(title, params);
-                    notification.addEventListener('click', res);
-                    notification.addEventListener('close', res);
+            requestPermission: () => {
+                return new Promise(async (resolve, reject) => {
+                    const permissionResult = Notification.requestPermission(resolve);
+                    if (permissionResult) { permissionResult.then(resolve, reject); }
                 });
+            },
+            fire: async (title, params = {}) => {
+                await this.ready;
+                return (await this.registration).showNotification(title, params);
             },
         };
 
@@ -137,21 +136,37 @@ export default class Workport {
         // Push notifications
         // --------
         this.push = {
-            getSubscription: async () => {
-                return (await this.registration).pushManager.getSubscription();
-            },
-            subscribe: async (publicKey, params = {}) => {
-                var subscription = await this.push.getSubscription();
-                return subscription ? subscription : (await this.registration).pushManager.subscribe(
-                    _isObject(publicKey) ? publicKey : {
-                        applicationServerKey: urlBase64ToUint8Array(publicKey),
-                        ...params,
+            getSubscription: async (autoPrompt = true) => {
+                await this.ready;
+                let subscription = await (await this.registration).pushManager.getSubscription();
+                let VAPID_PUBLIC_KEY, PUSH_REGISTRATION_PUBLIC_URL;
+                if (!subscription && autoPrompt && (VAPID_PUBLIC_KEY = env[params.vapid_key_env])) {
+                    subscription = await (await this.registration).pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+                    });
+                    if (PUSH_REGISTRATION_PUBLIC_URL = env[params.push_registration_url_env]) {
+                        await fetch(PUSH_REGISTRATION_PUBLIC_URL, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', },
+                            body: JSON.stringify(subscription),
+                        });
                     }
-                );
+                }
+                return subscription;
             },
             unsubscribe: async () => {
-                var subscription = await this.push.getSubscription();
-                return !subscription ? null : subscription.unsubscribe();
+                await this.ready;
+                const subscription = await (await this.registration).pushManager.getSubscription();
+                subscription?.unsubscribe();
+                let PUSH_REGISTRATION_PUBLIC_URL;
+                if (subscription && (PUSH_REGISTRATION_PUBLIC_URL = env[params.push_registration_url_env])) {
+                    await fetch(PUSH_REGISTRATION_PUBLIC_URL, {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json', },
+                        body: JSON.stringify(subscription),
+                    });
+                }
             },
         };
     }
