@@ -87,13 +87,13 @@ export default class Application extends _Application {
                     routingContext.setAttribute( modulesContextAttrs.importscontext, '/' + `routes/${ httpEvent.url.pathname }`.split('/').map(a => a.trim()).filter(a => a).join('/'));
                 }
 			}
-            if (window.webqit.$fCompilerImport) {
+            if (window.webqit.$qCompilerImport) {
                 await new Promise(res => {
-                    window.webqit.$fCompilerImport.then(res);
-                    setTimeout(res, 1000);
+                    window.webqit.$qCompilerImport.then(res);
+                    setTimeout(res, 300);
                 });
             }
-            await new Promise(res => setTimeout(res, 0));
+            await new Promise(res => setTimeout(res, 50));
             return window;
         });
     }
