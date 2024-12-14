@@ -56,6 +56,9 @@ export default class Url {
 				// ----------
 				if (e.key === 'href' && e.related.length === 1) {
 					var urlObj = Self.parseUrl(e.value);
+					if (urlObj.pathname) {
+						urlObj.pathname = '/' + urlObj.pathname.split('/').filter(s => s.trim()).join('/');
+					}
 					delete urlObj.query;
 					delete urlObj.href;
 					onlyHrefChanged = true;
@@ -68,11 +71,25 @@ export default class Url {
 						urlObj.search = search;
 					}
 				}
-				if (e.key === 'search') {
+				if (e.key === 'search' && !e.related.includes('query')) {
 					// "search" was updated. So we update "query"
 					var query = Self.toQuery(urlObj.search || this.search); // Not e.value, as that might be a href value
 					if (!_strictEven(query, this.query)) {
 						urlObj.query = query;
+					}
+				}
+				if (e.key === 'pathname' && !e.related.includes('ancestorPathname')) {
+					// "pathname" was updated. So we update "ancestorPathname"
+					var ancestorPathname = (urlObj.pathname || this.pathname).replace(new RegExp('/[^/]+(?:/)?$'), '');
+					if (ancestorPathname !== this.ancestorPathname) {
+						urlObj.ancestorPathname = ancestorPathname;
+					}
+				}
+				if (e.key === 'ancestorPathname' && !e.related.includes('pathname')) {
+					// "ancestorPathname" was updated. So we update "pathname"
+					var pathname = '/' + (urlObj.ancestorPathname || this.ancestorPathname).split('/').filter(s => s).concat((urlObj.pathname || this.pathname).split('/').filter(s => s).pop()).join('/');
+					if (pathname !== this.pathname) {
+						urlObj.pathname = pathname;
 					}
 				}
 			}

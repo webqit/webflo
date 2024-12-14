@@ -15,40 +15,43 @@ export default class xURL extends URL {
 	// constructor
 	constructor(...args) {
 		super(...args);
-		var query = params.parse(this.search);
-		const updateSearch = query => {
+		const query = params.parse(this.search);
+		const updateSearch = () => {
 			// "query" was updated. So we update "search"
-			var search = params.stringify(query);
+			let search = params.stringify(query);
 			search = search ? '?' + search : '';
 			if (search !== this.search) {
 				this.search = search;
 			}
 		};
-		this.__query = {
-			value: query,
-			proxy: new Proxy(this, {
-				set(t, n, v) {
-					t.__query.value[n] = v;
-					updateSearch(t.__query.value);
-					return true;
-				},
-				deleteProperty(t, n) {
-					delete t.__query.value[n];
-					updateSearch(t.__query.value);
-					return true;
-				}
-			})
-		};
+		const $this = this;
+		this._query = new Proxy(query, {
+			set(t, k, v) {
+				t[k] = v;
+				if (!$this._updatingSearch) updateSearch();
+				return true;
+			},
+			deleteProperty(t, k) {
+				delete t[k];
+				if (!$this._updatingSearch) updateSearch();
+				return true;
+			}
+		});
 	}
 
 	// Set search
 	set search(value) {
 		super.search = value;
 		// "search" was updated. So we update "query"
-		var query = params.parse(value);
-		if (!_strictEven(query, this.query)) {
-			this.__query.value = query;
+		this._updatingSearch = true;
+		const query = params.parse(value);
+		const keys_a = Object.keys(query);
+		const keys_b = Object.keys(this._query);
+		for (const k of new Set([...keys_a,...keys_b])) {
+			if (!keys_a.includes(k)) delete this.query[k];
+			if (!keys_b.includes(k)) this.query[k] = query[k];
 		}
+		this._updatingSearch = false;
 	}
 
 	// Get search
@@ -58,7 +61,7 @@ export default class xURL extends URL {
 
 	// Get query
 	get query() {
-		return this.__query.proxy;
+		return this._query;
 	}
 
 };

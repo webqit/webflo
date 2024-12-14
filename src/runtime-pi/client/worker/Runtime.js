@@ -1,42 +1,23 @@
-
-/**
- * @imports
- */
+import '../../util-http.js';
 import Observer from '@webqit/observer';
 import { _any } from '@webqit/util/arr/index.js';
 import { pattern } from '../../util-url.js';
 import Workport from './Workport.js';
 import _Runtime from '../../Runtime.js';
-import xRequest from "../../xRequest.js";
-import xResponse from "../../xResponse.js";
 import xfetch from '../../xfetch.js';
 import HttpEvent from '../../HttpEvent.js';
+import CookieStorage from './CookieStorage.js';
+import WebStorage from './WebStorage.js';
 
 export {
 	HttpEvent,
 	Observer,
 }
 
-/**
- * ---------------------------
- * The Runtime Initializer
- * ---------------------------
- */
-
 export default class Runtime extends _Runtime {
 
-	/**
-     * Runtime
-     * 
-     * @param Object        cx
-     * @param Function      applicationInstance
-     * 
-     * @return void
-     */
 	constructor(cx, applicationInstance) {
 		super(cx, applicationInstance);
-        // ---------------
-        this.mockSessionStore = {};
         // --------------		
 		// ONINSTALL
 		self.addEventListener('install', evt => {
@@ -87,7 +68,7 @@ export default class Runtime extends _Runtime {
 			event.respondWith((async evt => {
 				let requestingClient = await self.clients.get(evt.clientId);
 				this.workport.setCurrentClient(requestingClient);
-				const [ url, requestInit ] = await xRequest.rip(evt.request);
+				const { url, ...requestInit } = await Request.copy(evt.request);
 				// Now, the following is key:
 				// The browser likes to use "force-cache" for "navigate" requests, when, e.g: re-entering your site with the back button
 				// Problem here, force-cache forces out JSON not HTML as per webflo's design.
@@ -108,22 +89,18 @@ export default class Runtime extends _Runtime {
 		// Initialize
 		(async () => {
 			if (!this.app.init) return;
-			const request = this.generateRequest('/');
-			const httpEvent = new HttpEvent(request, { navigationType: 'init' }, (id = null, persistent = false) => this.getSession(httpEvent, id, persistent));
+			const request = this.createRequest('/');
+			const httpEvent = new HttpEvent(request, { navigationType: 'init' });
 			await this.app.init(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
 		})();
 		
 	}
 
-	/**
-     * Performs a request.
-     *
-     * @param object|string 	url
-     * @param object|Request	init
-     * @param object 			detail
-     *
-     * @return Response
-     */
+    createRequest(href, init = {}) {
+		const request = new Request(href, init);
+		return request;
+    }
+
 	async go(url, init = {}, detail = {}) {
 		// ------------
         url = typeof url === 'string' ? new URL(url, self.location.origin) : url;
@@ -132,46 +109,41 @@ export default class Runtime extends _Runtime {
 		}
         // ------------
 		// The request object
-		const request = this.generateRequest(url.href, init);
+		const request = this.createRequest(url.href, init);
 		if (detail.event) { Object.defineProperty(detail.event, 'request', { value: request }); }
 		// The navigation event
-		const httpEvent = new HttpEvent(request, detail, (id = null, persistent = false) => this.getSession(httpEvent, id, persistent));
+		const cookieStorage = CookieStorage.create(request);
+		const sessionStorage = await WebStorage.create('sessionStorage');
+		const localStorage = await WebStorage.create('localStorage');
+		const httpEvent = new HttpEvent(request, detail, cookieStorage, sessionStorage, localStorage);
+		/* @obsolete
 		httpEvent.port.listen(message => {
 			if (message.$type === 'handler:hints' && message.session) {
 				// TODO: Sync session data from client
 				return Promise.resolve();
 			}
 		});
+		*/
 		// Response
 		let response;
 		if (httpEvent.request.url.startsWith(self.origin)/* && httpEvent.request.mode === 'navigate'*/) {
 			response = await this.app.handle(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
+			if (typeof response === 'undefined') { response = new Response(null, { status: 404 }); }
+            else if (!(response instanceof Response)) response = Response.create(response);
+			for (const storage of [cookieStorage, sessionStorage, localStorage]) {
+				await storage.commit(response);
+			}
 		} else {
 			response = await this.remoteFetch(httpEvent.request);
 		}
 		const finalResponse = await this.handleResponse(httpEvent, response);
-        // Return value
         return finalResponse;
-	}
-
-    // Generates request object
-    generateRequest(href, init = {}) {
-		const request = new xRequest(href, init);
-		return request;
-    }
-
-    // Generates session object
-    getSession(e, id = null, persistent = false) {
-		return {
-			get: () => this.mockSessionStore,
-			set: value => { this.mockSessionStore = value },
-		};
 	}
 
 	// Initiates remote fetch and sets the status
 	remoteFetch(request, ...args) {
 		if (arguments.length > 1) {
-			request = this.generateRequest(request, ...args);
+			request = this.createRequest(request, ...args);
 		}
 		const matchUrl = (patterns, url) => _any((patterns || []).map(p => p.trim()).filter(p => p), p => pattern(p, self.origin).test(url));
 		const execFetch = () => {
@@ -207,8 +179,7 @@ export default class Runtime extends _Runtime {
 		let response = execFetch(request);
 		// This catch() is NOT intended to handle failure of the fetch
 		response.catch(e => Observer.set(this.network, 'error', e.message));
-		// Return xResponse
-		return response.then(_response => xResponse.compat(_response));
+		return response;
 	}
 
 	// Caching strategy: network_first
@@ -267,8 +238,7 @@ export default class Runtime extends _Runtime {
 
 	// Handles response object
 	handleResponse(e, response) {
-		if (!response && response !== 0) { response = new xResponse(null, { status: 404 }); }
-		else if (!(response instanceof xResponse)) { response = xResponse.compat(response); }
+		if (!response && response !== 0) { response = new Response(null, { status: 404 }); }
 		return response;
 	}
 

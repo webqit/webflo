@@ -1,16 +1,5 @@
-
-/**
- * @imports
- */
-
 import { _isFunction } from "@webqit/util/js/index.js";
 
-/**
- * ---------------------------
- * The base Runtime class
- * ---------------------------
- */
-            
 export default class Runtime {
     constructor(cx, applicationInstance) {
         this.cx = cx;

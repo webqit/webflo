@@ -1,22 +1,18 @@
-
-/**
- * @imports
- */
 import Fs from 'fs';
 import Path from 'path';
 import Http from 'http';
 import Https from 'https';
-import Sessions from 'client-sessions';
-import Observer from '@webqit/observer';
-import { _each } from '@webqit/util/obj/index.js';
-import { _isEmpty } from '@webqit/util/js/index.js';
 import { _from as _arrFrom, _any } from '@webqit/util/arr/index.js';
+import { _isEmpty } from '@webqit/util/js/index.js';
+import { _each } from '@webqit/util/obj/index.js';
 import { slice as _streamSlice } from 'stream-slice';
 import { Readable as _ReadableStream } from 'stream';
 import { pattern } from '../util-url.js';
-import xRequest from "../xRequest.js";
-import xResponse from "../xResponse.js";
+import '../util-http.js';
 import xfetch from '../xfetch.js';
+import Observer from '@webqit/observer';
+import CookieStorage from './CookieStorage.js';
+import SessionStorage from './SessionStorage.js';
 import HttpEvent from '../HttpEvent.js';
 import _Runtime from '../Runtime.js';
 
@@ -100,7 +96,7 @@ export default class Runtime extends _Runtime {
                 const httpsServer = Https.createServer((request, response) => handleRequest('https', request, response));
                 httpsServer.listen(this.cx.server.https.port);
                 // -------
-                const addSSLContext = (serverConfig,  domains) => {
+                const addSSLContext = (serverConfig, domains) => {
                     if (!Fs.existsSync(serverConfig.https.keyfile)) return;
                     const cert = {
                         key: Fs.readFileSync(serverConfig.https.keyfile),
@@ -118,24 +114,26 @@ export default class Runtime extends _Runtime {
                 });
                 // -------
                 addSSLContext(this.cx.server, domains);
-                for (const [ /*id*/, vhost ] of this.proxied) {
+                for (const [ /*id*/, vhost] of this.proxied) {
                     vhost.cx && addSSLContext(vhost.cx.server, vhost.hostnames);
                 }
             }
             // ---------------
             const handleRequest = async (proto, request, response) => {
                 request[Symbol.toStringTag] = 'ReadableStream';
-                const [ fullUrl, requestInit ] = await this.parseNodeRequest(proto, request);
-                let clientResponse = await this.go(fullUrl, requestInit, { request, response });
+                const [fullUrl, requestInit] = await this.parseNodeRequest(proto, request);
+                const clientResponse = await this.go(fullUrl, requestInit, { request, response });
                 if (response.headersSent) return;
                 // --------
-                _each(clientResponse.headers.json(), (name, value) => {
-                    response.setHeader(name, value);
-                }); 
+                for (const [name, value] of clientResponse.headers) {
+                    const existing = response.getHeader(name);
+                    if (existing) response.setHeader(name, [].concat(existing).concat(value));
+                    else response.setHeader(name, value);
+                }
                 // --------
                 response.statusCode = clientResponse.status;
                 response.statusMessage = clientResponse.statusText;
-                if (clientResponse.headers.location) {
+                if (clientResponse.headers.has('Location')) {
                     return response.end();
                 }
                 if ((clientResponse.body instanceof _ReadableStream)) {
@@ -145,7 +143,7 @@ export default class Runtime extends _Runtime {
                     return _ReadableStream.from(clientResponse.body).pipe(response);
                 }
                 let body = clientResponse.body;
-                if (clientResponse.headers.contentType === 'application/json') {
+                if (clientResponse.headers.get('Content-Type') === 'application/json') {
                     body += '';
                 }
                 return response.end(body);
@@ -154,57 +152,48 @@ export default class Runtime extends _Runtime {
 
         // ---------------
         Observer.set(this, 'location', {});
+        Observer.set(this, 'referrer', {});
         Observer.set(this, 'network', {});
         // ---------------
 
-		// -------------
-		// Initialize
-		(async () => {
+        // -------------
+        // Initialize
+        (async () => {
             await this.ready;
             if (this.cx.logger) {
                 if (this.servers.size) {
                     this.cx.logger.info(`> Server running! (${this.cx.app.title || ''})`);
-                    for (let [ proto, def ] of this.servers) {
-                        this.cx.logger.info(`> ${ proto.toUpperCase() } / ${ def.domains.concat('').join(`:${ def.port } / `)}`);
+                    for (let [proto, def] of this.servers) {
+                        this.cx.logger.info(`> ${proto.toUpperCase()} / ${def.domains.concat('').join(`:${def.port} / `)}`);
                     }
                 } else {
                     this.cx.logger.info(`> Server not running! No port specified.`);
                 }
                 if (this.proxied.size) {
                     this.cx.logger.info(`> Reverse proxy active.`);
-                    for (let [ id, def ] of this.proxied) {
-                        this.cx.logger.info(`> ${ id } >>> ${ def.port }`);
+                    for (let [id, def] of this.proxied) {
+                        this.cx.logger.info(`> ${id} >>> ${def.port}`);
                     }
                 }
                 this.cx.logger.info(``);
             }
-			if (this.app && this.app.init) {
-                const request = this.generateRequest('http://localhost/');
-                const httpEvent = new HttpEvent(request, { srcType: 'initialization' }, (id = 'session', options = { duration: 60 * 60 * 24, activeDuration: 60 * 60 * 24 }, callback = null) => {
-                    return this.getSession(httpEvent, id, options, callback);
-                });
-                await this.app.init(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
+            if (this.app && this.app.init) {
+                const request = this.createRequest('http://localhost/');
+                const httpEvent = new HttpEvent(request, { srcType: 'initialization' });
+                await this.app.init(httpEvent, (...args) => this.remoteFetch(...args));
             }
-		})();
+        })();
         // ---------------
 
         // ---------------
         this.mockSessionStore = {};
         // ---------------
-        
+
     }
 
-    /**
-     * Parse Nodejs's IncomingMessage to WHATWAG request params.
-     *
-     * @param String 	            proto
-     * @param Http.IncomingMessage 	request
-     *
-     * @return Array
-     */
     async parseNodeRequest(proto, request) {
         // Detected when using manual proxy setting in a browser
-        if (request.url.startsWith(`http://${ request.headers.host }`) || request.url.startsWith(`https://${ request.headers.host }`)) {
+        if (request.url.startsWith(`http://${request.headers.host}`) || request.url.startsWith(`https://${request.headers.host}`)) {
             request.url = request.url.split(request.headers.host)[1];
         }
         const fullUrl = proto + '://' + request.headers.host + request.url;
@@ -213,31 +202,28 @@ export default class Runtime extends _Runtime {
             requestInit.body = request;
             requestInit.duplex = 'half'; // See https://github.com/nodejs/node/issues/46221
         }
-        return [ fullUrl, requestInit ];
+        return [fullUrl, requestInit];
     }
 
-    /**
-     * Performs a request.
-     *
-     * @param object|string 	url
-     * @param object|Request 	init
-     * @param object 			detail
-     *
-     * @return Response
-     */
+    createRequest(href, init = {}, autoHeaders = []) {
+        const request = new Request(href, init);
+        this._autoHeaders(request.headers, autoHeaders);
+        return request;
+    }
+
     async go(url, init = {}, detail = {}) {
         await this.ready;
 
         // ------------
         url = typeof url === 'string' ? new URL(url) : url;
         if (!(init instanceof Request) && !init.referrer) {
-			init = { referrer: this.location.href, ...init };
-		}
+            init = { referrer: this.location.href, ...init };
+        }
         // ------------
         const hosts = [];
         this.servers.forEach(server => hosts.push(...server.domains));
         // ------------
-        for (const [ /*id*/, vhost ] of this.proxied) {
+        for (const [ /*id*/, vhost] of this.proxied) {
             if (vhost.hostnames.includes(url.hostname) || (vhost.hostnames.includes('*') && !hosts.includes('*'))) {
                 return this.proxyGo(vhost, url, init);
             }
@@ -247,17 +233,17 @@ export default class Runtime extends _Runtime {
         if (!hosts.includes(url.hostname) && !hosts.includes('*')) {
             exit = { status: 500 }, exitMessage = 'Unrecognized host';
         } else if (url.protocol === 'http:' && this.cx.server.https.force) {
-            exit = { status: 302, headers: { Location: ( url.protocol = 'https:', url.href ) } };
+            exit = { status: 302, headers: { Location: (url.protocol = 'https:', url.href) } };
         } else if (url.hostname.startsWith('www.') && this.cx.server.force_www === 'remove') {
-            exit = { status: 302, headers: { Location: ( url.hostname = url.hostname.substr(4), url.href ) } };
+            exit = { status: 302, headers: { Location: (url.hostname = url.hostname.substr(4), url.href) } };
         } else if (!url.hostname.startsWith('www.') && this.cx.server.force_www === 'add') {
-            exit = { status: 302, headers: { Location: ( url.hostname = `www.${ url.hostname }`, url.href ) } };
+            exit = { status: 302, headers: { Location: (url.hostname = `www.${url.hostname}`, url.href) } };
         } else if (this.cx.config.runtime.server.Redirects) {
             exit = ((await (new this.cx.config.runtime.server.Redirects(this.cx)).read()).entries || []).reduce((_rdr, entry) => {
                 return _rdr || ((_rdr = pattern(entry.from, url.origin).exec(url.href)) && { status: entry.code || 302, headers: { Location: _rdr.render(entry.to) } });
             }, null);
         }
-        if (exit) { return new xResponse(exitMessage, exit); }
+        if (exit) { return new Response(exitMessage, exit); }
         // ------------
 
         // ------------
@@ -266,31 +252,26 @@ export default class Runtime extends _Runtime {
         // ------------
 
         // ------------
-        // Automatically-added headers
-        const autoHeaders = this.cx.config.runtime.server.Headers 
+        const autoHeaders = this.cx.config.runtime.server.Headers
             ? ((await (new this.cx.config.runtime.server.Headers(this.cx)).read()).entries || []).filter(entry => pattern(entry.url, url.origin).exec(url.href))
             : [];
-        // The request object
-        const request = this.generateRequest(url.href, init, autoHeaders.filter(header => header.type === 'request'));
-        // The navigation event
-        const httpEvent = new HttpEvent(request, detail, (id = 'session', options = { duration: 60 * 60 * 24, activeDuration: 60 * 60 * 24 }, callback = null) => {
-            return this.getSession(httpEvent, id, options, callback);
-        });
+        const request = this.createRequest(url.href, init, autoHeaders.filter((header) => header.type === 'request'));
+        const cookieStorage = CookieStorage.create(request, detail);
+        const sessionStorage = SessionStorage.create(request, detail, { secret: this.cx.env.entries.SESSION_KEY });
+        const httpEvent = new HttpEvent(request, detail, cookieStorage, sessionStorage);
         // Response
         let response;
         try {
-            response = await this.app.handle(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
-            if (!response && response !== 0) { response = new xResponse(null, { status: 404 }); }
-			else if (!(response instanceof xResponse)) { response = xResponse.compat(response); }
-            if (!(httpEvent.detail.request && httpEvent.detail.response)) {
-                for (let cookieName of Object.getOwnPropertyNames(this.mockSessionStore)) {
-                    response.headers.append('Set-Cookie', `${cookieName}=1`);      // We just want to know availability... not validity, as this is understood to be for testing purposes only
-                }
+            response = await this.app.handle(httpEvent, (...args) => this.remoteFetch(...args));
+            if (typeof response === 'undefined') { response = new Response(null, { status: 404 }); }
+            else if (!(response instanceof Response)) response = Response.create(response);
+            for (const storage of [cookieStorage, sessionStorage]) {
+                storage.commit(response, detail);
             }
             response = await this.encodeRedirect(httpEvent, response, async () => {
-                if (httpEvent.request.headers.accept.match('text/html') && this.app.render && !response.attrs.static) {
+                if (httpEvent.request.headers.get('Accept', true).match('text/html') && this.app.render && !response.meta.static) {
                     let rendering;
-                    if (response.ok && response.meta.type === 'json' && typeof response.meta.body === 'object' && response.meta.body) {
+                    if (response.ok && (!response.meta.type || (response.meta.type === 'json' && typeof response.meta.body === 'object' && response.meta.body))) {
                         rendering = await this.app.render(httpEvent, response);
                     } else if (!response.ok) {
                         if ([404, 500].includes(response.status)) {
@@ -302,15 +283,17 @@ export default class Runtime extends _Runtime {
                         throw new Error('render() must return a string response or an object that implements toString()..');
                     }
                     rendering = rendering.toString();
-                    response = new httpEvent.Response(rendering, {
-                        headers: { ...response.headers.json(), contentType: 'text/html', contentLength: (new Blob([rendering]).size) },
+                    response = new Response(rendering, {
+                        headers: response.headers,
                         status: response.status,
                     });
+                    response.headers.set('Content-Type', 'text/html');
+                    response.headers.set('Content-Length', (new Blob([rendering])).size);
                 }
                 return this.handleResponse2(httpEvent, autoHeaders.filter(header => header.type === 'response'), response);
-			});
-        } catch(e) {
-            response = new xResponse(e.message, { status: 500 });
+            });
+        } catch (e) {
+            response = new Response(e.message, { status: 500 });
             console.error(e);
         }
         // Logging
@@ -320,10 +303,9 @@ export default class Runtime extends _Runtime {
         }
         // ------------
         // Return value
-		return response;
+        return response;
     }
 
-    // Fetch from proxied host
     async proxyGo(vhost, url, init) {
         // ---------
         const url2 = new URL(url);
@@ -344,8 +326,8 @@ export default class Runtime extends _Runtime {
         let response;
         try {
             response = await this.remoteFetch(url2, init2);
-        } catch(e) {
-            response = new xResponse(`Reverse Proxy Error: ${e.message}`, { status: 500 });
+        } catch (e) {
+            response = new Response(`Reverse Proxy Error: ${e.message}`, { status: 500 });
             console.error(e);
         }
         if (this.cx.logger) {
@@ -353,76 +335,31 @@ export default class Runtime extends _Runtime {
             this.cx.logger.log(log);
         }
         return response;
-
     }
 
-
-    // Generates request object
-    generateRequest(href, init = {}, autoHeaders = []) {
-        const request = new xRequest(href, init);
-        this._autoHeaders(request.headers, autoHeaders);
-        return request;
-    }
-
-    // Generates session object
-    getSession(e, id, options = {}, callback = null) {
-        let baseObject;
-        if (!(e.detail.request && e.detail.response)) {
-            baseObject = this.mockSessionStore;
-            let cookieAvailability = e.request.headers.cookies.get(id);     // We just want to know availability... not validity, as this is understood to be for testing purposes only
-            if (!(this.mockSessionStore[id] && cookieAvailability)) {
-                let cookieObj = {};
-                Object.defineProperty(this.mockSessionStore, id, {
-                    get: () => cookieObj,
-                    set: value => (cookieObj = value),
-                });
-            }
-        } else {
-            Sessions({
-                duration: 0,                                            // how long the session will stay valid in ms
-                activeDuration: 0,                                      // if expiresIn < activeDuration, the session will be extended by activeDuration milliseconds
-                ...options,
-                cookieName: id,                                         // cookie name dictates the key name added to the request object
-                secret: this.cx.env.SESSION_KEY,                             // should be a large unguessable string
-            })(e.detail.request, e.detail.response, e => {
-                if (e) {
-                    if (!callback) throw e;
-                    callback(e);
-                }
-            });
-            baseObject = e.detail.request;
-        }
-        // Where theres no error, instance is available
-        let instance = Object.getOwnPropertyDescriptor(baseObject, id);
-        if (!callback) return instance;
-        if (instance) callback(null, instance);
-    }
-
-    // Initiates remote fetch and sets the status
     remoteFetch(request, ...args) {
         let href = request;
-		if (request instanceof Request) {
-			href = request.url;
-		} else if (request instanceof URL) {
-			href = request.href;
-		}
-        Observer.set(this.network, 'remote', href, {diff: true});
+        if (request instanceof Request) {
+            href = request.url;
+        } else if (request instanceof URL) {
+            href = request.href;
+        }
+        Observer.set(this.network, 'remote', href, { diff: true });
         const _response = xfetch(request, ...args);
         // Save a reference to this
         return _response.then(async response => {
             // Stop loading status
-            Observer.set(this.network, 'remote', false, {diff: true});
-            return xResponse.compat(response);
+            Observer.set(this.network, 'remote', false, { diff: true });
+            return response;
         });
     }
 
-    // Handles response object
     encodeRedirect(httpEvent, response, callback) {
         // Redirects
-        if (response.headers.location) {
+        if (response.headers.get('Location')) {
             const xRedirectPolicy = httpEvent.request.headers.get('X-Redirect-Policy');
             const xRedirectCode = httpEvent.request.headers.get('X-Redirect-Code') || 300;
-            const destinationUrl = new URL(response.headers.location, httpEvent.url.origin);
+            const destinationUrl = new URL(response.headers.get('Location'), httpEvent.url.origin);
             const isSameOriginRedirect = destinationUrl.origin === httpEvent.url.origin;
             let isSameSpaRedirect, sparootsFile = Path.join(this.cx.CWD, this.cx.layout.PUBLIC_DIR, 'sparoots.json');
             if (isSameOriginRedirect && xRedirectPolicy === 'manual-when-cross-spa' && Fs.existsSync(sparootsFile)) {
@@ -432,23 +369,20 @@ export default class Runtime extends _Runtime {
                 isSameSpaRedirect = matchRoot(destinationUrl.pathname) === matchRoot(httpEvent.url.pathname);
             }
             if (xRedirectPolicy === 'manual' || (!isSameOriginRedirect && xRedirectPolicy === 'manual-when-cross-origin') || (!isSameSpaRedirect && xRedirectPolicy === 'manual-when-cross-spa')) {
-                response.headers.json({
-                    'X-Redirect-Code': response.status,
-                    'Access-Control-Allow-Origin': '*',
-                    'Cache-Control': 'no-store',
-                });
-                response.attrs.status = xRedirectCode;
+                response.headers.set('X-Redirect-Code', response.status);
+                response.headers.set('Access-Control-Allow-Origin', '*');
+                response.headers.set('Cache-Control', 'no-store');
+                response.meta.status = xRedirectCode;
             }
             return response;
         }
         return callback();
     }
 
-    // Handles response object
     async handleResponse2(httpEvent, autoHeaders, response) {
-       // Not acceptable
-        if (response.headers.contentType && httpEvent.request.headers.get('Accept') && !httpEvent.request.headers.accept.match(response.headers.contentType)) {
-            return new xResponse(response.body, { status: 406, headers: response.headers });
+        // Not acceptable
+        if (response.headers.get('Content-Type') && httpEvent.request.headers.get('Accept') && !httpEvent.request.headers.get('Accept', true).match(response.headers.get('Content-Type'))) {
+            return new Response(response.body, { status: 406, headers: response.headers });
         }
         // Auto-Headers
         this._autoHeaders(response.headers, autoHeaders);
@@ -457,17 +391,17 @@ export default class Runtime extends _Runtime {
         if (httpEvent.request.method !== 'GET' && !response.headers.get('Cache-Control')) {
             response.headers.set('Cache-Control', 'no-store');
         }
-         // Body
+        // Body
         response.headers.set('Accept-Ranges', 'bytes');
         let rangeRequest, body = response.body;
-        if ((rangeRequest = httpEvent.request.headers.range) && !response.headers.get('Content-Range')
-        && ((body instanceof ReadableStream) || (ArrayBuffer.isView(body) && (body = _ReadableStream.from(body))))) {
+        if ((rangeRequest = httpEvent.request.headers.get('Range', true)) && !response.headers.get('Content-Range', true)
+            && ((body instanceof ReadableStream) || (ArrayBuffer.isView(body) && (body = _ReadableStream.from(body))))) {
             // ...in partials
-            const totalLength = response.headers.contentLength || 0;
+            const totalLength = parseInt(response.headers.get('Content-Length') || 0);
             const ranges = await rangeRequest.reduce(async (_ranges, range) => {
                 _ranges = await _ranges;
-                if (range[0] < 0 || (totalLength && range[0] > totalLength) 
-                || (range[1] > -1 && (range[1] <= range[0] || (totalLength && range[1] >= totalLength)))) {
+                if (range[0] < 0 || (totalLength && range[0] > totalLength)
+                    || (range[1] > -1 && (range[1] <= range[0] || (totalLength && range[1] >= totalLength)))) {
                     // The range is beyond upper/lower limits
                     _ranges.error = true;
                 }
@@ -487,34 +421,29 @@ export default class Runtime extends _Runtime {
                 return _ranges;
             }, { parts: [], totalLength: 0 });
             if (ranges.error) {
-                response.attrs.status = 416;
-                response.headers.json({
-                    'Content-Range': `bytes */${totalLength || '*'}`,
-                    'Content-Length': 0,
-                });
+                response.meta.status = 416;
+                response.headers.set('Content-Range', `bytes */${totalLength || '*'}`);
+                response.headers.set('Content-Length', 0);
             } else {
                 // TODO: of ranges.parts is more than one, return multipart/byteranges
-                response = new xResponse(ranges.parts[0].body, {
+                response = new Response(ranges.parts[0].body, {
                     status: 206,
                     statusText: response.statusText,
                     headers: response.headers,
                 });
-                response.headers.json({
-                    'Content-Range': ranges.parts[0].range,
-                    'Content-Length': ranges.totalLength,
-                });
-            }                
+                response.headers.set('Content-Range', ranges.parts[0].range);
+                response.headers.set('Content-Length', ranges.totalLength);
+            }
         }
 
         return response;
     }
 
-    // Generates log
     generateLog(request, response, isproxy = false) {
         let log = [];
         // ---------------
         const style = this.cx.logger.style || { keyword: str => str, comment: str => str, url: str => str, val: str => str, err: str => str, };
-        const errorCode = [ 404, 500 ].includes(response.status) ? response.status : 0;
+        const errorCode = [404, 500].includes(response.status) ? response.status : 0;
         const xRedirectCode = response.headers.get('X-Redirect-Code');
         const redirectCode = xRedirectCode || ((response.status + '').startsWith('3') ? response.status : 0);
         const statusCode = xRedirectCode || response.status;
@@ -523,18 +452,17 @@ export default class Runtime extends _Runtime {
         log.push(style.keyword(request.method));
         if (isproxy) log.push(style.keyword('>>'));
         log.push(style.url(request.url));
-        if (response.attrs.hint) log.push(`(${style.comment(response.attrs.hint)})`);
-        const contentInfo = [response.headers.contentType, response.headers.contentLength].filter(x => x);
+        if (response.meta.hint) log.push(`(${style.comment(response.meta.hint)})`);
+        const contentInfo = [response.headers.get('Content-Type'), response.headers.get('Content-Length')].filter(x => x);
         if (contentInfo.length) log.push(`(${style.comment(contentInfo.join('; '))})`);
         if (response.headers.get('Content-Encoding')) log.push(`(${style.comment(response.headers.get('Content-Encoding'))})`);
         if (errorCode) log.push(style.err(`${errorCode} ${response.statusText}`));
         else log.push(style.val(`${statusCode} ${response.statusText}`));
-        if (redirectCode) log.push(`- ${style.url(response.headers.location)}`);
+        if (redirectCode) log.push(`- ${style.url(response.headers.get('Location'))}`);
 
         return log.join(' ');
     }
 
-    // Applies auto headers
     _autoHeaders(headers, autoHeaders) {
         autoHeaders.forEach(header => {
             var headerName = header.name.toLowerCase(),
@@ -542,8 +470,8 @@ export default class Runtime extends _Runtime {
                 isAppend = headerName.startsWith('+') ? (headerName = headerName.substr(1), true) : false,
                 isPrepend = headerName.endsWith('+') ? (headerName = headerName.substr(0, headerName.length - 1), true) : false;
             if (isAppend || isPrepend) {
-                headerValue = [ headers.get(headerName) || '' , headerValue].filter(v => v);
-                headerValue = isPrepend ? headerValue.reverse().join(',') : headerValue.join(','); 
+                headerValue = [headers.get(headerName) || '', headerValue].filter(v => v);
+                headerValue = isPrepend ? headerValue.reverse().join(',') : headerValue.join(',');
             }
             headers.set(headerName, headerValue);
         });

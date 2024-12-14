@@ -87,21 +87,21 @@ export default class Router extends _Router {
             Fs.readFile(filename, function(err, data) {
                 let response;
                 if (err) {
-                    response = new httpEvent.Response(null, { status: 500, statusText: `Error reading static file: ${filename}` } );
+                    response = new Response(null, { status: 500, statusText: `Error reading static file: ${filename}` } );
                 } else {
                     // if the file is found, set Content-type and send data
                     let mime = Mime.lookup(ext);
-                    response = new httpEvent.Response(data, { headers: {
-                        contentType: mime === 'application/javascript' ? 'text/javascript' : mime,
-                        contentLength: Buffer.byteLength(data),
+                    response = new Response(data, { headers: {
+                        'Content-Type': mime === 'application/javascript' ? 'text/javascript' : mime,
+                        'Content-Length': Buffer.byteLength(data),
                     } });
                     if (enc) {
                         response.headers.set('Content-Encoding', enc);
                     }
                 }
-                response.attrs.filename = filename;
-                response.attrs.static = true;
-                response.attrs.index = index;
+                response.meta.filename = filename;
+                response.meta.static = true;
+                response.meta.index = index;
                 resolve(response);
             });
         });

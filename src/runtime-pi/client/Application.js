@@ -20,13 +20,13 @@ export default class Application extends _Application {
      * 
      * @return Response
      */
-	async handle(httpEvent, remoteFetch) {
+	async handle(httpEvent, remoteFetch, navigationContext = null) {
 		// The app router
         const router = new this.Router(this.cx, httpEvent.url.pathname);
         const handle = async () => {
 			let bindingsConfig;
 			if (window.webqit?.oohtml?.configs) { ( { BINDINGS_API: { api: bindingsConfig } = {}, } = window.webqit.oohtml.configs ); }
-			return router.route([httpEvent.request.method, 'default'], httpEvent, { ...( ( bindingsConfig && document[bindingsConfig.bindings] ) || {} ) }, async event => {
+			return router.route([httpEvent.request.method, 'default'], httpEvent, { ...( ( bindingsConfig && (navigationContext || document)[bindingsConfig.bindings] ) || {} ) }, async event => {
 				if (event !== httpEvent) {
 					// This was nexted()
 					if (!event.request.headers.has('Accept')) {
@@ -42,10 +42,11 @@ export default class Application extends _Application {
 	}
 
 	// Renderer
-    async render(httpEvent, response) {
-		let data = await response.jsonfy();
-		const router = new this.Router(this.cx, httpEvent.url.pathname);
-		return await router.route('render', httpEvent, data, async (httpEvent, data) => {
+    async render(httpEvent, response, navigationContext = null) {
+		const data = await response.parse();
+		// Notice that we're using this.cx.runtime.location not httpEvent.url as the former is what will pick up response.url
+		const { location, referrer, network } = this.cx.runtime;
+		const execRender = async (httpEvent, data) => {
 			if (window.webqit?.dom) { await new Promise(res => window.webqit.dom.ready(res)); }
 			if (window.webqit?.oohtml?.configs) {
 				const {
@@ -54,23 +55,23 @@ export default class Application extends _Application {
 					HTML_IMPORTS: { attr: modulesContextAttrs } = {},
 				} = window.webqit.oohtml.configs;
 				if ( bindingsConfig ) {
-					window.document[ bindingsConfig.bind ]({
-						env: 'client', state: this.cx.runtime, ...(data || {})
+					(navigationContext || window.document)[ bindingsConfig.bind ]({
+						env: 'client',
+						location,
+						referrer,
+						network, // request, redirect, error, status, remote
+						data,
 					}, { diff: true });
 				}
-				let routingContext;
 				if ( modulesContextAttrs ) {
-					routingContext = window.document.body.querySelector(`[${ window.CSS.escape( contextConfig.contextname ) }="app"]`) || window.document.body;
-					const prevRoute = routingContext.getAttribute( modulesContextAttrs.importscontext );
-					const newRoute = '/' + `routes/${ httpEvent.url.pathname }`.split('/').map(a => a.trim()).filter(a => a).join('/');
-					const rel = prevRoute === newRoute ? 'same' : ( `${ prevRoute }/`.startsWith( `${ newRoute }/` ) ? 'parent' : ( `${ newRoute }/`.startsWith( `${ prevRoute }/` ) ? 'child' : 'unrelated' ) );
-					routingContext.setAttribute( modulesContextAttrs.importscontext, newRoute);
-					routingContext.setAttribute( `prev-${ modulesContextAttrs.importscontext }`, prevRoute );
-					routingContext.setAttribute( 'importscontext-transition-type', rel );
+					const newRoute = '/' + `routes/${ location.pathname }`.split('/').map(a => (a => a.startsWith('$') ? '-' : a)(a.trim())).filter(a => a).join('/');
+					(navigationContext || window.document.body).setAttribute( modulesContextAttrs.importscontext, newRoute );
 				}
 			}
-			return window;
-		});
+			return {};
+		};
+		const router = new this.Router(this.cx, location.pathname);
+		return await router.route('render', httpEvent, data, execRender);
 	}
 }
 

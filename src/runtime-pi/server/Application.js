@@ -49,7 +49,7 @@ export default class Application extends _Application {
 
     // Renderer
     async render(httpEvent, response) {
-        let data = await response.jsonfy();
+        let data = await response.parse();
 		const router = new this.Router(this.cx, httpEvent.url.pathname);
         return router.route('render', httpEvent, data, async (httpEvent, data) => {
             let renderFile, pathnameSplit = httpEvent.url.pathname.split('/');
@@ -78,13 +78,15 @@ export default class Application extends _Application {
                 if ( bindingsConfig ) {
                     document[ bindingsConfig.bind ]({
                         env: 'server',
-                        state: this.cx.runtime,
-                        ...data
+						location: this.cx.runtime.location,
+						network: this.cx.runtime.network, // request, error, remote
+						data,
                     }, { diff: true });
                 }
                 if ( modulesContextAttrs ) {
                     const routingContext = document.body.querySelector(`[${ window.CSS.escape( contextConfig.contextname ) }="route"]`) || document.body;
-                    routingContext.setAttribute( modulesContextAttrs.importscontext, '/' + `routes/${ httpEvent.url.pathname }`.split('/').map(a => a.trim()).filter(a => a).join('/'));
+					const newRoute = '/' + `routes/${ httpEvent.url.pathname }`.split('/').map(a => (a => a.startsWith('$') ? '-' : a)(a.trim())).filter(a => a).join('/');
+                    routingContext.setAttribute( modulesContextAttrs.importscontext, newRoute );
                 }
 			}
             if (window.webqit.$qCompilerImport) {

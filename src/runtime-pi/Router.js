@@ -1,43 +1,13 @@
-
-/**
- * @imports
- */
 import { _isString, _isFunction, _isArray } from '@webqit/util/js/index.js';
 import { _from as _arrFrom } from '@webqit/util/arr/index.js';
 
-/**
- * ---------------------------
- * The Router class
- * ---------------------------
- */
-			
 export default class Router {
 
-	/**
-	 * Constructs a new Router instance
-     * over route definitions.
-	 *
-	 * @param Context	        cx
-	 * @param String|Array	    path
-	 *
-	 * @return void
-	 */
 	constructor(cx, path = []) {
         this.cx = cx;
         this.path = _isArray(path) ? path : (path + '').split('/').filter(a => a);
     }
 
-    /**
-     * Performs dynamic routing
-     * 
-     * @param array|string      method
-     * @param Object            event
-     * @param any               arg
-     * @param function          _default
-     * @param function          remoteFetch
-     * 
-     * @return object
-     */
     async route(method, event, arg, _default, remoteFetch = null) {
 
         const $this = this;
@@ -57,7 +27,7 @@ export default class Router {
                 // -------------
                 if (thisTick.exports) {
                     // Broadcast any hints exported by handler
-                    if (thisTick.exports.hints) { await event.port.post({ ...thisTick.exports.hints, $type: 'handler:hints' }); }
+                    //@obsolete if (thisTick.exports.hints) { await event.port.post({ ...thisTick.exports.hints, $type: 'handler:hints' }); }
                     const methods = _arrFrom(thisTick.method).map(m => m === 'default' ? m : m.toUpperCase());
                     const handler = _isFunction(thisTick.exports) && methods.includes('default') ? thisTick.exports : methods.reduce((_handler, name) => _handler || thisTick.exports[name], null);
                     if (handler) {
