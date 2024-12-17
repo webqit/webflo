@@ -38,7 +38,7 @@ export default class Router {
                             const nextTick = { ...thisTick, arg: _args[0] };
                             if (_args.length > 1) {
                                 let _url = _args[1], _request, requestInit = { ...(_args[2] || {}) };
-                                if (_args[1] instanceof nextTick.event.Request) {
+                                if (_args[1] instanceof Request) {
                                     _request = _args[1];
                                     _url = _request.url;
                                 } else if (!_isString(_url)) {

@@ -1,26 +1,22 @@
 import AbstractStorage from '../AbstractStorage.js';
-import Sessions from 'client-sessions';
 
 export default class SessionStorage extends AbstractStorage {
-    static create(request, detail, options = {}) {
-        if (!(detail.request && detail.response)) return new this;
-        Sessions({
-            duration: 0,                                                    // how long the session will stay valid in ms
-            activeDuration: 0,                                              // if expiresIn < activeDuration, the session will be extended by activeDuration milliseconds
-            ...options,
-            cookieName: '_session',                                         // cookie name dictates the key name added to the request object
-            secret: options.secret || 'unsecureSecret',                     // should be a large unguessable string
-        })(detail.request, detail.response, (e) => { if (e) throw e; });
-        return new this(Object.entries(detail.request._session));
+    #sessid;
+
+    static create(request, options, runtime) {
+        if (!runtime.__sessionStore) Object.defineProperty(runtime, '__sessionStore', { value: new Map });
+        const sessionID = request.headers.get('Cookie', true).find((c) => c.name === '__sessid')?.value || `~${(0 | Math.random() * 9e6).toString(36)}`;
+        if (runtime.__sessionStore.has(sessionID)) {
+            return runtime.__sessionStore.get(sessionID);
+        }
+        const instance = new this;
+        runtime.__sessionStore.set(sessionID, instance);
+        instance.#sessid = sessionID;
+        return instance;
     }
 
-    commit(response, detail) {
-        if (!detail.request?._session) return;
-        for (const key of this.getAdded()) {
-            detail.request._session[key] = this.get(key);
-        }
-        for (const key of this.getDeleted()) {
-            delete detail.request._session[key];
-        }
+    commit(response) {
+        if (!this.getAdded().length && !this.getDeleted().length) return;
+        return response.headers.append('Set-Cookie', `__sessid=${this.#sessid}; expires=Tue, 29 Oct 2026 16:56:32 GMT`);
     }
 }

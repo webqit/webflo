@@ -256,8 +256,8 @@ export default class Runtime extends _Runtime {
             ? ((await (new this.cx.config.runtime.server.Headers(this.cx)).read()).entries || []).filter(entry => pattern(entry.url, url.origin).exec(url.href))
             : [];
         const request = this.createRequest(url.href, init, autoHeaders.filter((header) => header.type === 'request'));
-        const cookieStorage = CookieStorage.create(request, detail);
-        const sessionStorage = SessionStorage.create(request, detail, { secret: this.cx.env.entries.SESSION_KEY });
+        const cookieStorage = CookieStorage.create(request);
+        const sessionStorage = SessionStorage.create(request, { secret: this.cx.env.entries.SESSION_KEY }, this);
         const httpEvent = new HttpEvent(request, detail, cookieStorage, sessionStorage);
         // Response
         let response;
@@ -266,18 +266,20 @@ export default class Runtime extends _Runtime {
             if (typeof response === 'undefined') { response = new Response(null, { status: 404 }); }
             else if (!(response instanceof Response)) response = Response.create(response);
             for (const storage of [cookieStorage, sessionStorage]) {
-                storage.commit(response, detail);
+                storage.commit(response);
             }
             response = await this.encodeRedirect(httpEvent, response, async () => {
                 if (httpEvent.request.headers.get('Accept', true).match('text/html') && this.app.render && !response.meta.static) {
                     let rendering;
                     if (response.ok && (!response.meta.type || (response.meta.type === 'json' && typeof response.meta.body === 'object' && response.meta.body))) {
-                        rendering = await this.app.render(httpEvent, response);
+                        const data = await response.parse();
+                        rendering = await this.app.render(httpEvent, data);
                     } else if (!response.ok) {
                         if ([404, 500].includes(response.status)) {
                             Observer.set(this.network, 'error', new Error(response.statusText, { cause: response.status }));
                         }
-                        rendering = await this.app.render(httpEvent, response);
+                        const data = await response.parse();
+                        rendering = await this.app.render(httpEvent, data);
                     }
                     if (typeof rendering !== 'string' && !(typeof rendering === 'object' && rendering && typeof rendering.toString === 'function')) {
                         throw new Error('render() must return a string response or an object that implements toString()..');

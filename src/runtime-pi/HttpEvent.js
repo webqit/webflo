@@ -38,13 +38,13 @@ export default class HttpEvent {
     }
 
     async with(url, init = {}) {
-        let request;
+        let request, _;
         if (url instanceof Request) {
             if (init instanceof Request) { [ /*url*/, init ] = await Request.copy(init); }
             request = !_isEmpty(init) ? new Request(url, init) : url;
         } else {
             url = new xURL(url, this.#url.origin);
-            [ /*url*/, init ] = await Request.copy(this.#request);
+            ({ url: _, ...init } = await Request.copy(this.#request));
             request = new Request(url, { ...init, referrer: this.#request.url });
         }            
         return new HttpEvent(request, this.#detail, this.#cookies, this.#session, this.#storage);

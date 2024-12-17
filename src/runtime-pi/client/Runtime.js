@@ -27,6 +27,11 @@ export default class Runtime extends _Runtime {
 		Observer.set(this, 'network', {});
 		window.addEventListener('online', () => Observer.set(this.network, 'status', 'online'));
 		window.addEventListener('offline', () => Observer.set(this.network, 'status', 'offline'));
+		if (window.opener) {
+			window.addEventListener('beforeunload', () => {
+				window.opener.postMessage('close');
+			});
+		}
 		this.useNavigationAPI = window.navigation;
 		// -----------------------
 		// Initialise API
@@ -48,22 +53,24 @@ export default class Runtime extends _Runtime {
 			if (this.app.init) {
 				const request = this.createRequest(this.location);
 				const httpEvent = new HttpEvent(request, { navigationType: 'init' });
-				shouldHydrate = await this.app.init(httpEvent, ( ...args ) => this.remoteFetch( ...args ));
+				shouldHydrate = await this.app.init(httpEvent, (...args) => this.remoteFetch(...args));
 			}
 			if (shouldHydrate !== false) {
 				this.go(this.location, {}, { navigationType: 'startup', navigationOrigins: [], });
 			}
-		})(); 
+		})();
 	}
 
 	_initLegacyAPI() {
 		const updateLocation = (navigationOrigins, newHref) => {
 			const scrollContainer = navigationOrigins[2] || window;
-			try { window.history.replaceState({
-				...(this.currentEntry().getState() || {}),
-				scrollPosition: scrollContainer === window ? [] : [ scrollContainer.scrollLeft, scrollContainer.scrollTop, ],
-			}, '', window.location.href); } catch(e) {}
-			try { window.history.pushState({}, '', newHref); } catch(e) {}
+			try {
+				window.history.replaceState({
+					...(this.currentEntry().getState() || {}),
+					scrollPosition: scrollContainer === window ? [window.scrollX, window.scrollY] : [scrollContainer.scrollLeft, scrollContainer.scrollTop,],
+				}, '', window.location.href);
+			} catch (e) { }
+			try { window.history.pushState({}, '', newHref); } catch (e) { }
 		};
 		// -----------------------
 		// Capture all link-clicks
@@ -80,17 +87,17 @@ export default class Runtime extends _Runtime {
 			// Handle now
 			e.preventDefault();
 			this._abortController?.abort();
-			this._abortController = new AbortController();	
+			this._abortController = new AbortController();
 			// Note the order of calls below
 			const detail = {
 				navigationType: 'push',
-				navigationOrigins: [ anchorEl, null, anchorEl.closest('[navigation-context]') ],
+				navigationOrigins: [anchorEl, null, anchorEl.closest('[navigation-context]')],
 				destination: this._asEntry(null),
 				source: this.currentEntry(), // this
 				userInitiated: true,
 			};
-			updateLocation([ anchorEl ], anchorEl.href); // this
-			this.go( 
+			updateLocation([anchorEl], anchorEl.href); // this
+			this.go(
 				Url.copy(anchorEl),
 				{ signal: this._abortController.signal, },
 				detail,
@@ -104,7 +111,7 @@ export default class Runtime extends _Runtime {
 			// ---------------
 			// Declare form submission modifyers
 			const form = e.target.closest('form'), submitter = e.submitter;
-			const submitParams = [ 'action', 'enctype', 'method', 'noValidate', 'target' ].reduce((params, prop) => {
+			const submitParams = ['action', 'enctype', 'method', 'noValidate', 'target'].reduce((params, prop) => {
 				params[prop] = submitter && submitter.hasAttribute(`form${prop.toLowerCase()}`) ? submitter[`form${_toTitle(prop)}`] : form[prop];
 				return params;
 			}, {});
@@ -130,16 +137,16 @@ export default class Runtime extends _Runtime {
 			}
 			e.preventDefault();
 			this._abortController?.abort();
-			this._abortController = new AbortController();		
+			this._abortController = new AbortController();
 			// Note the order of calls below
 			const detail = {
 				navigationType: 'push',
-				navigationOrigins: [ submitter, form, submitter?.closest('[navigation-context]') ],
+				navigationOrigins: [submitter, form, submitter?.closest('[navigation-context]')],
 				destination: this._asEntry(null),
 				source: this.currentEntry(), // this
 				userInitiated: true,
 			};
-			updateLocation([ submitter, form ], actionEl.href); // this
+			updateLocation([submitter, form], actionEl.href); // this
 			this.go(
 				Url.copy(actionEl),
 				{
@@ -184,11 +191,11 @@ export default class Runtime extends _Runtime {
 			if (!this._canIntercept(e)) return;
 			let anchorEl = e.target.closest('a');
 			if (!anchorEl || !anchorEl.href || anchorEl.target) return;
-			navigationOrigins = [ anchorEl, null, anchorEl.closest('[navigation-context]') ];
+			navigationOrigins = [anchorEl, null, anchorEl.closest('[navigation-context]')];
 		});
 		window.addEventListener('submit', e => {
 			if (!this._canIntercept(e)) return;
-			navigationOrigins = [ e.submitter, e.target.closest('form'), e.target.closest('[navigation-context]') ];
+			navigationOrigins = [e.submitter, e.target.closest('form'), e.target.closest('[navigation-context]')];
 		});
 		// -----------------------
 		// Handle navigation event which happens after the above
@@ -211,10 +218,12 @@ export default class Runtime extends _Runtime {
 				info,
 			};
 			const scrollContainer = navigationOrigins[2] || window;
-			this.updateCurrentEntry({ state: {
-				...(this.currentEntry().getState() || {}),
-				scrollPosition: scrollContainer === window ? [] : [ scrollContainer.scrollLeft, scrollContainer.scrollTop, ],
-			} });
+			this.updateCurrentEntry({
+				state: {
+					...(this.currentEntry().getState() || {}),
+					scrollPosition: scrollContainer === window ? [window.scrollX, window.scrollY] : [scrollContainer.scrollLeft, scrollContainer.scrollTop,],
+				}
+			});
 			navigationOrigins = [];
 			// Traversal?
 			// Push
@@ -224,23 +233,23 @@ export default class Runtime extends _Runtime {
 				body: formData,
 				signal
 			};
-			const nav = this;
+			const runtime = this;
 			e.intercept({
 				scroll: (scrollContainer !== window) && 'manual' || 'after-transition',
 				focusReset: (scrollContainer !== window) && 'manual' || 'after-transition',
-				async handler() { await nav.go(url, init, detail); },
+				async handler() { await runtime.go(url, init, detail); },
 			});
 		});
 	}
 
 	_asEntry(state) { return { getState() { return state; } }; }
 	_canIntercept(e) { return !(e.metaKey || e.altKey || e.ctrlKey || e.shiftKey); }
-	_uniqueId() { return ( 0 | Math.random() * 9e6 ).toString( 36 ); }
+	_uniqueId() { return (0 | Math.random() * 9e6).toString(36); }
 
 	_transitOrigins(origins, state) {
 		if (!window.webqit?.oohtml?.configs) return;
 		const { BINDINGS_API: { api: bindingsConfig } = {}, } = window.webqit.oohtml.configs;
-		origins.forEach(node => { node && (node[bindingsConfig.bindings].loading = state); });
+		origins.slice(0, 2).forEach(node => { node && (node[bindingsConfig.bindings].loading = state); });
 	}
 
 	_xRedirectCode = 200;
@@ -264,37 +273,37 @@ export default class Runtime extends _Runtime {
 
 	// -----------------------------------------------
 
-    reload(params) {
+	reload(params) {
 		if (this.useNavigationAPI) { return window.navigation.reload(params); }
 		return window.history.reload();
 	}
-	
-    back() {
+
+	back() {
 		if (this.useNavigationAPI) { return window.navigation.canGoBack && window.navigation.back(); }
 		return window.history.back();
 	}
-	
-    forward() {
+
+	forward() {
 		if (this.useNavigationAPI) { return window.navigation.canGoForward && window.navigation.forward(); }
 		return window.history.forward();
 	}
-	
-    traverseTo(...args) {
+
+	traverseTo(...args) {
 		if (this.useNavigationAPI) { return window.navigation.traverseTo(...args); }
 		return window.history.go(...args);
 	}
-	
-    entries() {
+
+	entries() {
 		if (this.useNavigationAPI) { return window.navigation.entries(); }
 		return history;
 	}
-	
+
 	currentEntry() {
 		if (window.navigation) return window.navigation.currentEntry;
 		return this._asEntry(history.state);
 	}
-	
-    async updateCurrentEntry(params, url = null) {
+
+	async updateCurrentEntry(params, url = null) {
 		if (this.useNavigationAPI) {
 			if (!url || url === window.navigation.currentEntry.url) {
 				window.navigation.updateCurrentEntry(params);
@@ -303,8 +312,8 @@ export default class Runtime extends _Runtime {
 		}
 		window.history.replaceState(params.state, '', url);
 	}
-	
-    async push(url, state = {}) {
+
+	async push(url, state = {}) {
 		if (typeof url === 'string' && url.startsWith('&')) { url = this.location.href.split('#')[0] + (this.location.href.includes('?') ? url : url.replace('&', '?')); }
 		url = new URL(url, this.location.href);
 		if (this.useNavigationAPI) {
@@ -326,24 +335,27 @@ export default class Runtime extends _Runtime {
 		});
 	}
 
-    async go(url, init = {}, detail = {}) {
+	async go(url, init = {}, detail = {}) {
 		// ------------
 		// Resolve inputs
 		// ------------
-        url = typeof url === 'string' ? new URL(url, this.location.origin) : url;
+		url = typeof url === 'string' ? new URL(url, this.location.origin) : url;
 		if (!(init instanceof Request) && !init.referrer) { init = { referrer: this.location.href, ...init }; }
-        if (!detail.navigationOrigins?.[1]/*form*/ && ![ 'startup', 'rdr' ].includes(detail.navigationType) && (_before(url.href, '#') === _before(init.referrer, '#') && (init.method || 'GET').toUpperCase() === 'GET')) return;
-		
-        // ------------
+		if (!detail.navigationOrigins?.[1]/*form*/ && !['startup', 'rdr'].includes(detail.navigationType) && (_before(url.href, '#') === _before(init.referrer, '#') && (init.method || 'GET').toUpperCase() === 'GET')) return;
+		const navigationContext = detail.navigationOrigins?.[2];
+
+		// ------------
 		// Pre-request states
 		// ------------
-        Observer.set(this.network, 'error', null, { diff: true });
-        Observer.set(this.network, 'request', { init, detail });
+		if (!navigationContext) {
+			Observer.set(this.network, 'request', { init, detail });
+			Observer.set(this.network, 'error', null, { diff: true });
+		}
 		if (detail.navigationOrigins && detail.navigationType !== 'traverse') {
 			this._transitOrigins(detail.navigationOrigins, true);
 		}
 
-        // ------------
+		// ------------
 		// Request
 		// ------------
 		const request = this.createRequest(url.href, init);
@@ -354,92 +366,122 @@ export default class Runtime extends _Runtime {
 		let response;
 		try {
 			// Fire request and obtain response
-			response = await this.app.handle(httpEvent, ( ...args ) => this.remoteFetch( ...args ), detail.navigationOrigins?.[2]);
+			response = await this.app.handle(httpEvent, (...args) => this.remoteFetch(...args), navigationContext);
 			if (typeof response === 'undefined') { response = new Response(null, { status: 404 }); }
-            else if (!(response instanceof Response)) response = Response.create(response);
+			else if (!(response instanceof Response)) response = Response.create(response);
 			for (const storage of [cookieStorage, sessionStorage, localStorage]) {
-                storage.commit();
-            }
-		} catch(e) {
+				storage.commit();
+			}
+		} catch (e) {
 			console.error(e);
-			Object.defineProperty(e, 'retry', { value: () => this.go(url, init, detail) })
-			Observer.set(this.network, 'error', e);
-			response = new Response(e.message, { status: 500 });
+			response = new Response(e.message, { status: 500, statusText: e.message });
 		}
-		// Handle redirection
+
+		// ------------
+		// // Post-request states
+		// ------------
+		const finalUrl = response.url || request.url;
+		if (!navigationContext) {
+			Observer.set(this.network, 'request', null, { diff: true });
+			Observer.set(this.network, 'redirect', null, { diff: true });
+			if ([404, 500].includes(response.status)) {
+				const error = new Error(response.statusText, { code: response.status });
+				Object.defineProperty(error, 'retry', { value: () => this.go(url, init, detail) });
+				Observer.set(this.network, 'error', error);
+			}
+			// Update location and render
+			Observer.set(this.location, 'href', finalUrl);
+			Observer.set(this.referrer, 'href', init.referrer);
+		}
+
+		// Update DOM
+		const render = async (data) => {
+			const execRender = async () => {
+				await this.app.render?.(httpEvent, data, navigationContext);
+				// UI/history state...
+				if (navigationContext) {
+					if (httpEvent.url.hash) {
+						navigationContext.querySelector(httpEvent.url.hash)?.scrollIntoView();
+					} else {
+						navigationContext.scrollTo(0, 0);
+					}
+					(navigationContext.querySelector('[autofocus]') || navigationContext).focus();
+				} else {
+					if (!this.useNavigationAPI) {
+						const destinationState = detail.destination?.getState() || {};
+						if (destinationState.scrollPosition?.length) {
+							window.scroll(...destinationState.scrollPosition);
+							(document.querySelector('[autofocus]') || document.body).focus();
+						}
+					} else if (detail.navigationType !== 'traverse') {
+						const stateData = { ...(this.currentEntry().getState() || {}), redirected: response.redirected, };
+						await this.updateCurrentEntry({ state: stateData }, finalUrl);
+					}
+				}
+				await new Promise(res => setTimeout(res, 50));
+				if (detail.navigationOrigins) {
+					this._transitOrigins(detail.navigationOrigins, false);
+				}
+			};
+			if (document.startViewTransition && detail.navigationType !== 'startup') {
+				const viewTransitionContext = navigationContext || document.documentElement;
+				const synthesizeWhile = window.webqit?.realdom?.synthesizeWhile || (callback => callback());
+				synthesizeWhile(async () => {
+					const rel = this.referrer.pathname === this.location.pathname ? 'same' : (`${this.referrer.pathname}/`.startsWith(`${this.location.pathname}/`) ? 'parent' : (`${this.location.pathname}/`.startsWith(`${this.referrer.pathname}/`) ? 'child' : 'unrelated'));
+					viewTransitionContext.setAttribute('view-transition-rel', rel);
+					viewTransitionContext.setAttribute('view-transition-phase', 1);
+					const viewTransition = document.startViewTransition(execRender);
+					try { await viewTransition.updateCallbackDone; } catch (e) { console.log(e); }
+					viewTransitionContext.setAttribute('view-transition-phase', 2);
+					try { await viewTransition.ready; } catch (e) { console.log(e); }
+					viewTransitionContext.setAttribute('view-transition-phase', 3);
+					try { await viewTransition.finished; } catch (e) { console.log(e); }
+					viewTransitionContext.toggleAttribute('view-transition-rel', false);
+					viewTransitionContext.toggleAttribute('view-transition-phase', false);
+				});
+			} else await execRender();
+		};
+
+		// ------------
+		// Handle rendering or redirection
+		// ------------
 		const location = response.headers.get('Location');
 		if (location) {
 			const xActualRedirectCode = parseInt(response.headers.get('X-Redirect-Code'));
 			if (xActualRedirectCode && response.status === this._xRedirectCode) {
 				response.meta.status = xActualRedirectCode; // @NOTE 1
 			}
-			if ([ 302,301 ].includes(response.status)) {
-				Observer.set(this.network, 'redirect', location, { diff: true });
-				if (this.isSpaRoute(location)) {
-					this.go(location, {}, { navigationType: 'rdr', navigationOrigins: [ , , detail.navigationOrigins?.[2] ] });
-				} else { window.location = location; }
-				return;
-			}
-		}
-
-		// ------------
-		// // Post-request states
-		// ------------
-		// Reset states
-		Observer.set(this.network, 'request', null, { diff: true });
-		Observer.set(this.network, 'redirect', null, { diff: true });
-		if ([ 404, 500 ].includes(response.status)) {
-			Observer.set(this.network, 'error', new Error(response.statusText, { code: response.status }));
-		}
-		// Update location and render
-		const finalUrl = response.url || request.url;
-		Observer.set(this.location, 'href', finalUrl);
-		Observer.set(this.referrer, 'href', init.referrer);
-		// Update DOM
-		const update = async () => {
-			const extraDetail = (await this.app.render?.(httpEvent, response, detail.navigationOrigins?.[2]), {});
-			// Transit origins
-			const scrollContainer = detail.navigationOrigins?.[2] || window;
-			if (detail.navigationType === 'traverse') {
-				const destinationState = detail.destination?.getState() || {};
-				// Manual scrolling?
-				if (scrollContainer !== window && destinationState.scrollPosition?.length) {
-					scrollContainer.scroll(...destinationState.scrollPosition);
-					(document.querySelector('[autofocus]') || document.body).focus();
-				}
-			} else {
-				if (detail.navigationOrigins) { this._transitOrigins(detail.navigationOrigins, false); }
-				const stateData = { ...(this.currentEntry().getState() || {}), ...extraDetail, redirected: response.redirected, };
-				await this.updateCurrentEntry({ state: stateData }, finalUrl);
-				// Manual scrolling?
-				if (scrollContainer !== window) {
-					if (httpEvent.url.hash) {
-						document.querySelector(httpEvent.url.hash)?.scrollIntoView();
-					} else {
-						scrollContainer.scrollTo(0, 0);
-					}
-					(document.querySelector('[autofocus]') || document.body).focus();
+			if ([302, 301].includes(response.status)) {
+				if (navigationContext) {
+					const width = Math.min(800, window.innerWidth);
+					const height = Math.min(600, window.innerHeight);
+					const left = (window.outerWidth - width) / 2;
+					const top = (window.outerHeight - height) / 2;
+					const popup = window.open(location, '_blank', `popup=true,width=${width},height=${height},left=${left},top=${top}`);
+					let handled;
+					window.addEventListener('message', (event) => {
+						if (handled || event.source !== popup || !['close', 'success'].includes(event.data)) return;
+						if (detail.navigationOrigins) {
+							this._transitOrigins(detail.navigationOrigins, false);
+						}
+						if (event.data === 'success') {
+							this.go(url, init, detail);
+							setTimeout(() => popup.close(), 5000);
+						}
+						handled = true;
+					});
+				} else {
+					Observer.set(this.network, 'redirect', location, { diff: true });
+					if (this.isSpaRoute(location)) {
+						this.go(location, {}, { navigationType: 'rdr', navigationOrigins: [, , detail.navigationOrigins?.[2]] });
+					} else { window.location = location; }
 				}
 			}
-			await new Promise(res => setTimeout(res, 50));
-		};
-		if (/*!detail.navigationOrigins?.[2] && */document.startViewTransition && detail.navigationType !== 'startup') {
-			const synthesizeWhile = window.webqit?.realdom?.synthesizeWhile || ( callback => callback() );
-			return synthesizeWhile(async () => {
-				const rel = this.referrer.pathname === this.location.pathname ? 'same' : ( `${ this.referrer.pathname }/`.startsWith( `${ this.location.pathname }/` ) ? 'parent' : ( `${ this.location.pathname }/`.startsWith( `${ this.referrer.pathname }/` ) ? 'child' : 'unrelated' ) );
-				document.documentElement.setAttribute('view-transition-rel', rel);
-				document.documentElement.setAttribute('view-transition-phase', 1);
-				const viewTransition = document.startViewTransition( update );
-				try { await viewTransition.updateCallbackDone; } catch(e) { console.log(e); }
-				document.documentElement.setAttribute('view-transition-phase', 2);
-				try { await viewTransition.ready; } catch(e) { console.log(e); }
-				document.documentElement.setAttribute('view-transition-phase', 3);
-				try { await viewTransition.finished; } catch(e) { console.log(e); }
-				document.documentElement.toggleAttribute('view-transition-phase', false);
-			});
+		} else {
+			const data = await response.parse();
+			return await render(data);
 		}
-		return await update();
-    }
+	}
 
 	async remoteFetch(request, ...args) {
 		let href = request;

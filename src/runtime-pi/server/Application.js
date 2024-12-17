@@ -48,8 +48,7 @@ export default class Application extends _Application {
     }
 
     // Renderer
-    async render(httpEvent, response) {
-        let data = await response.parse();
+    async render(httpEvent, data) {
 		const router = new this.Router(this.cx, httpEvent.url.pathname);
         return router.route('render', httpEvent, data, async (httpEvent, data) => {
             let renderFile, pathnameSplit = httpEvent.url.pathname.split('/');

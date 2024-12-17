@@ -30,7 +30,7 @@ export function renderHttpMessageInit(httpMessageInit) {
         !headers['content-length'] && (headers['content-length'] = body.byteLength);
     } else if (type === 'json' && _isTypeObject(body)) {
         if (!headers['content-type']) {
-            const [_body, isJsonfiable] = createFormDataFromJson(body);
+            const [_body, isJsonfiable] = createFormDataFromJson(body, true/*jsonfy*/, true/*getIsJsonfiable*/);
             if (isJsonfiable) {
                 body = JSON.stringify(body, (k, v) => v instanceof Error ? { ...v, message: v.message } : v);
                 headers['content-type'] = 'application/json';
@@ -99,7 +99,7 @@ export async function renderFormDataToJson(formData, jsonfy = true, getIsJsonfia
 }
 
 export function renderCookieObj(cookieObj) {
-    const attrsArr = [`${cookieObj.name}=${encodeURIComponent(cookieObj.value)}`];
+    const attrsArr = [`${cookieObj.name}=${/*encodeURIComponent*/(cookieObj.value)}`];
     for (const attrName in cookieObj) {
         if (['name', 'value'].includes(attrName)) continue;
         let _attrName = attrName[0].toUpperCase() + attrName.substring(1);
@@ -244,7 +244,7 @@ Object.defineProperties(Headers.prototype, {
                 value = this.getSetCookie()/*IMPORTANT*/.map((str) => {
                     const [cookieDefinition, attrsStr] = str.split(';');
                     const [name, value] = cookieDefinition.split('=').map((s) => s.trim());
-                    const cookieObj = { name, value: decodeURIComponent(value), };
+                    const cookieObj = { name, value: /*decodeURIComponent*/(value), };
                     attrsStr && attrsStr.split(/\;/g).map(attrStr => attrStr.trim().split('=')).forEach(attrsArr => {
                         cookieObj[attrsArr[0][0].toLowerCase() + attrsArr[0].substring(1).replace('-', '')] = attrsArr.length === 1 ? true : attrsArr[1];
                     });
@@ -256,7 +256,7 @@ Object.defineProperties(Headers.prototype, {
             if (/Cookie/i.test(name) && parsed) {
                 value = value?.split(';').map((str) => {
                     const [name, value] = str.split('=').map((s) => s.trim());
-                    return { name, value: decodeURIComponent(value), };
+                    return { name, value: /*decodeURIComponent*/(value), };
                 }) || [];
             }
             // -------------------------
@@ -316,7 +316,7 @@ Object.defineProperties(FormData.prototype, {
     json: {
         value: async function (data = {}) {
             const result = await renderFormDataToJson(this, ...arguments);
-            return result[0];
+            return result;
         }
     }
 });

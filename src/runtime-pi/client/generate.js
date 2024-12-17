@@ -46,7 +46,7 @@ export async function generate() {
         }
         const envConfig = await (new cx.config.deployment.Env(cx)).read();
         for (const key in envConfig.entries) {
-            if (!key.includes('PUBLIC_')) continue;
+            if (!key.includes('PUBLIC_') && !key.includes('_PUBLIC')) continue;
             if (clientConfig.bundle_public_env) {
                 if (!clientConfig.env) { clientConfig.env = {}; }
                 clientConfig.env[key] = envConfig.entries[key];
