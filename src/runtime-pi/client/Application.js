@@ -67,7 +67,7 @@ export default class Application extends _Application {
 						}, { diff: true });
 					}
 				}
-				if (modulesContextAttrs && !navigationContext) {
+				if (modulesContextAttrs) {
 					const newRoute = '/' + `routes/${location.pathname}`.split('/').map(a => (a => a.startsWith('$') ? '-' : a)(a.trim())).filter(a => a).join('/');
 					window.document.body.setAttribute(modulesContextAttrs.importscontext, newRoute);
 				}
