@@ -91,7 +91,7 @@ export default class Runtime extends _Runtime {
 			// Note the order of calls below
 			const detail = {
 				navigationType: 'push',
-				navigationOrigins: [anchorEl, null, anchorEl.closest('[navigation-context]')],
+				navigationOrigins: [anchorEl, null, anchorEl.closest('[navigationcontext]')],
 				destination: this._asEntry(null),
 				source: this.currentEntry(), // this
 				userInitiated: true,
@@ -141,7 +141,7 @@ export default class Runtime extends _Runtime {
 			// Note the order of calls below
 			const detail = {
 				navigationType: 'push',
-				navigationOrigins: [submitter, form, submitter?.closest('[navigation-context]')],
+				navigationOrigins: [submitter, form, submitter?.closest('[navigationcontext]')],
 				destination: this._asEntry(null),
 				source: this.currentEntry(), // this
 				userInitiated: true,
@@ -191,11 +191,11 @@ export default class Runtime extends _Runtime {
 			if (!this._canIntercept(e)) return;
 			let anchorEl = e.target.closest('a');
 			if (!anchorEl || !anchorEl.href || anchorEl.target) return;
-			navigationOrigins = [anchorEl, null, anchorEl.closest('[navigation-context]')];
+			navigationOrigins = [anchorEl, null, anchorEl.closest('[navigationcontext]')];
 		});
 		window.addEventListener('submit', e => {
 			if (!this._canIntercept(e)) return;
-			navigationOrigins = [e.submitter, e.target.closest('form'), e.target.closest('[navigation-context]')];
+			navigationOrigins = [e.submitter, e.target.closest('form'), e.target.closest('[navigationcontext]')];
 		});
 		// -----------------------
 		// Handle navigation event which happens after the above
@@ -419,7 +419,7 @@ export default class Runtime extends _Runtime {
 					}
 				}
 				await new Promise(res => setTimeout(res, 50));
-				if (detail.navigationOrigins) {
+				if (!response.headers.get('Retry-After') && detail.navigationOrigins) {
 					this._transitOrigins(detail.navigationOrigins, false);
 				}
 			};
@@ -479,7 +479,12 @@ export default class Runtime extends _Runtime {
 			}
 		} else {
 			const data = await response.parse();
-			return await render(data);
+			const returnValue = await render(data);
+			if (response.headers.get('Retry-After')) {
+				setTimeout(() => {
+					this.go(url, init, detail);
+				}, parseFloat(response.headers.get('Retry-After')) * 1000);
+			} else return returnValue;
 		}
 	}
 

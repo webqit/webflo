@@ -54,7 +54,7 @@ export async function parseHttpMessage(httpMessage) {
         result = await formData?.json();
     } else if (contentType === 'application/json') {
         result = await httpMessage.json();
-    } else if (contentType === 'text/plain') {
+    } else /*if (contentType === 'text/plain')*/ {
         result = await httpMessage.text();
     }
     return result;

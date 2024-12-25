@@ -3,7 +3,7 @@ import Path from 'path';
 import Http from 'http';
 import Https from 'https';
 import { _from as _arrFrom, _any } from '@webqit/util/arr/index.js';
-import { _isEmpty } from '@webqit/util/js/index.js';
+import { _isEmpty, _isObject } from '@webqit/util/js/index.js';
 import { _each } from '@webqit/util/obj/index.js';
 import { slice as _streamSlice } from 'stream-slice';
 import { Readable as _ReadableStream } from 'stream';
@@ -260,9 +260,9 @@ export default class Runtime extends _Runtime {
         const sessionStorage = SessionStorage.create(request, { secret: this.cx.env.entries.SESSION_KEY }, this);
         const httpEvent = new HttpEvent(request, detail, cookieStorage, sessionStorage);
         // Response
-        let response;
+        let response, r;
         try {
-            response = await this.app.handle(httpEvent, (...args) => this.remoteFetch(...args));
+            response = r = await this.app.handle(httpEvent, (...args) => this.remoteFetch(...args));
             if (typeof response === 'undefined') { response = new Response(null, { status: 404 }); }
             else if (!(response instanceof Response)) response = Response.create(response);
             for (const storage of [cookieStorage, sessionStorage]) {
@@ -279,7 +279,9 @@ export default class Runtime extends _Runtime {
                             Observer.set(this.network, 'error', new Error(response.statusText, { cause: response.status }));
                         }
                         const data = await response.parse();
-                        rendering = await this.app.render(httpEvent, data);
+                        rendering = await this.app.render(httpEvent, _isObject(data) ? data : {});
+                    } else {
+                        rendering = await response.parse();
                     }
                     if (typeof rendering !== 'string' && !(typeof rendering === 'object' && rendering && typeof rendering.toString === 'function')) {
                         throw new Error('render() must return a string response or an object that implements toString()..');
