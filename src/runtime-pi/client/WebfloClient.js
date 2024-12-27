@@ -136,43 +136,45 @@ export class WebfloClient extends AbstractController {
 	}
 }
 
-const embedTagNames = 'webflo-embedded';
-window.customElements.define(embedTagNames, class extends HTMLElement {
+export function defineWebfloEmbedded() {
+	const embedTagNames = 'webflo-embedded';
+	window.customElements.define(embedTagNames, class extends HTMLElement {
 
-	#superController;
-	#webfloControllerUninitialize;
-	#location;
+		#superController;
+		#webfloControllerUninitialize;
+		#location;
 
-	static get observedAttributes() { return ['location']; }
+		static get observedAttributes() { return ['location']; }
 
-	get location() {
-		if (!this.#location) {
-			this.#location = new URL(this.getAttribute('location') || '', window.location.origin);
+		get location() {
+			if (!this.#location) {
+				this.#location = new URL(this.getAttribute('location') || '', window.location.origin);
+			}
+			return this.#location;
 		}
-		return this.#location;
-	}
 
-	set location(value) {
-		if (!(value instanceof URL)) {
-			value = new URL(value, window.location.origin);
+		set location(value) {
+			if (!(value instanceof URL)) {
+				value = new URL(value, window.location.origin);
+			}
+			if (value.href === this.location.href) return;
+			this.#location = value;
+			this.setAttribute('location', value.href.replace(value.origin, ''));
+			this.getWebfloControllerInstance().navigate(value);
 		}
-		if (value.href === this.location.href) return;
-		this.#location = value;
-		this.setAttribute('location', value.href.replace(value.origin, ''));
-		this.getWebfloControllerInstance().navigate(value);
-	}
 
-	attributeChangedCallback(name, oldValue, newValue) {
-		if (oldValue === newValue) return;
-		this.location = newValue;
-	}
+		attributeChangedCallback(name, oldValue, newValue) {
+			if (oldValue === newValue) return;
+			this.location = newValue;
+		}
 
-	connectedCallback() {
-		this.#superController = (this.parentNode?.closest(embedTagNames) || document).getWebfloControllerInstance();
-		this.#webfloControllerUninitialize = WebfloEmbedded.create(this, this.#superController).initialize();
-	}
+		connectedCallback() {
+			this.#superController = (this.parentNode?.closest(embedTagNames) || document).getWebfloControllerInstance();
+			this.#webfloControllerUninitialize = WebfloEmbedded.create(this, this.#superController).initialize();
+		}
 
-	disconnectedCallback() {
-		this.#webfloControllerUninitialize();
-	}
-});
+		disconnectedCallback() {
+			this.#webfloControllerUninitialize();
+		}
+	});
+}
