@@ -246,6 +246,7 @@ export class AbstractController extends AbsCntrl {
             return await this.remoteFetch(event.request);
         });
         const finalUrl = scope.response.url || scope.request.url;
+        this._prevPathname = this.location.pathname;
         Observer.set(this.location, 'href', finalUrl);
         // Set post-request states
         Observer.set(this.navigator, {
@@ -318,7 +319,7 @@ export class AbstractController extends AbsCntrl {
         if (document.startViewTransition && httpEvent.detail.navigationType !== 'startup') {
             const synthesizeWhile = window.webqit?.realdom?.synthesizeWhile || (callback => callback());
             synthesizeWhile(async () => {
-                const rel = this.referrer.pathname === this.location.pathname ? 'same' : (`${this.referrer.pathname}/`.startsWith(`${this.location.pathname}/`) ? 'parent' : (`${this.location.pathname}/`.startsWith(`${this.referrer.pathname}/`) ? 'child' : 'unrelated'));
+                const rel = this._prevPathname === this.location.pathname ? 'same' : (`${this._prevPathname}/`.startsWith(`${this.location.pathname}/`) ? 'parent' : (`${this.location.pathname}/`.startsWith(`${this._prevPathname}/`) ? 'child' : 'unrelated'));
                 Observer.set(this.transition, { rel, phase: 1 });
                 const viewTransition = document.startViewTransition(execRender);
                 try { await viewTransition.updateCallbackDone; } catch (e) { console.log(e); }
