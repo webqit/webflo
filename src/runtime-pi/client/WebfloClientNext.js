@@ -38,13 +38,13 @@ export class WebfloClientNext extends WebfloClient {
 				userInitiated,
 				info
 			};
-			const navigationContext = navigationOrigins[2];
 			this.updateCurrentEntry({
 				state: {
 					...(this.currentEntry().getState() || {}),
 					scrollPosition: [window.scrollX, window.scrollY],
 				}
-			});gationOrigins = [];
+			});
+			navigationOrigins = [];
 			// Traversal?
 			// Push
 			const url = destination.url;

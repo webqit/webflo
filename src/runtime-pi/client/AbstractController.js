@@ -65,7 +65,7 @@ export class AbstractController extends AbsCntrl {
         window.addEventListener('online', onlineHandler);
         window.addEventListener('offline', onlineHandler);
         const uncontrols = this.control();
-        this.navigate(this.location, {}, { navigationType: 'startup', });
+        this.navigate(this.location.href, {}, { navigationType: 'startup', });
         return () => {
             window.removeEventListener('online', onlineHandler);
             window.removeEventListener('offline', onlineHandler);
@@ -99,8 +99,10 @@ export class AbstractController extends AbsCntrl {
             };
             locationCallback(anchorEl.href); // this
             this.navigate(
-                Url.copy(anchorEl),
-                { signal: this._abortController.signal, },
+                anchorEl.href,
+                {
+                    signal: this._abortController.signal,
+                },
                 detail,
             ); // this
         };
@@ -112,15 +114,15 @@ export class AbstractController extends AbsCntrl {
             // Declare form submission modifyers
             const form = e.target.closest('form'), submitter = e.submitter;
             const submitParams = ['action', 'enctype', 'method', 'noValidate', 'target'].reduce((params, prop) => {
-                params[prop] = submitter && submitter.hasAttribute(`form${prop.toLowerCase()}`) ? submitter[`form${_toTitle(prop)}`] : form[prop];
+                params[prop] = submitter && submitter.hasAttribute(`form${prop.toLowerCase()}`) ? submitter[`form${_toTitle(prop)}`] : (form.getAttribute(prop) || form[prop]);
                 return params;
             }, {});
             submitParams.method = (submitter && submitter.dataset.formmethod) || form.dataset.method || submitParams.method;
             if (submitParams.target || !this.isSpaRoute(submitParams.action)) return;
             const actionEl = window.document.createElement('a');
             actionEl.href = submitParams.action;
-            if (this.isHashChange(anchorEl) && submitParams.method.toUpperCase() !== 'POST') {
-                Observer.set(this.location, 'href', anchorEl.href);
+            if (this.isHashChange(actionEl) && submitParams.method.toUpperCase() !== 'POST') {
+                Observer.set(this.location, 'href', actionEl.href);
                 return;
             }
             // ---------------
@@ -150,7 +152,7 @@ export class AbstractController extends AbsCntrl {
             };
             locationCallback(actionEl.href); // this
             this.navigate(
-                Url.copy(actionEl),
+                actionEl.href,
                 {
                     method: submitParams.method,
                     body: formData,
@@ -176,6 +178,7 @@ export class AbstractController extends AbsCntrl {
     isHashChange(urlObj) { return _before(this.location.href, '#') === _before(urlObj.href, '#') && (this.location.href.includes('#') || urlObj.href.includes('#')); }
 
     isSpaRoute(urlObj) {
+        urlObj = typeof urlObj === 'string' ? new URL(urlObj, this.location.origin) : urlObj;
         if (urlObj.origin && urlObj.origin !== this.location.origin) return false;
         if (!this.cx.params.routing) return true;
         if (this.cx.params.routing.targets === false/** explicit false means disabled */) return false;

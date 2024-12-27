@@ -34,10 +34,10 @@ export class WebfloWorker extends AbstractController {
 	get cx() { return this.#cx; }
 
 	constructor(cx) {
+		super();
 		if (!(cx instanceof this.constructor.Context)) {
 			throw new Error('Argument #2 must be a Webflo Context instance');
 		}
-		super();
 		this.#cx = cx;
 	}
 

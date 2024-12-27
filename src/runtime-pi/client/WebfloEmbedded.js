@@ -4,6 +4,58 @@ const { Observer } = webqit;
 
 export class WebfloEmbedded extends AbstractController {
 
+	static defineElement() {
+		const embedTagNames = 'webflo-embedded';
+		window.customElements.define(embedTagNames, class extends HTMLElement {
+	
+			#superController;
+			#webfloControllerUninitialize;
+			#location;
+	
+			static get observedAttributes() { return ['location']; }
+	
+			get location() {
+				if (!this.#location) {
+					this.#location = new URL(this.getAttribute('location') || '', window.location.origin);
+				}
+				return this.#location;
+			}
+	
+			set location(value) {
+				if (!(value instanceof URL)) {
+					value = new URL(value, window.location.origin);
+				}
+				// "Startup" navigation would stop at the check below this line.
+				// But we need this to be updated
+				this.querySelector('base[auto]').setAttribute('href', value.pathname);
+				if (value.href === this.location.href) return;
+				this.#location = value;
+				this.setAttribute('location', value.href.replace(value.origin, ''));
+				this.getWebfloControllerInstance().navigate(value);
+			}
+
+			constructor() {
+				super();
+				this.attachShadow({ mode: 'open' });
+			}
+	
+			attributeChangedCallback(name, oldValue, newValue) {
+				if (oldValue === newValue) return;
+				this.location = newValue;
+			}
+	
+			connectedCallback() {
+				this.#superController = (this.parentNode?.closest(embedTagNames) || document).getWebfloControllerInstance();
+				this.#webfloControllerUninitialize = WebfloEmbedded.create(this, this.#superController).initialize();
+				this.shadowRoot.innerHTML = `<slot></slot>`;
+			}
+	
+			disconnectedCallback() {
+				this.#webfloControllerUninitialize();
+			}
+		});
+	}
+
 	static create(host, superController) {
         return new this(host, superController);
     }

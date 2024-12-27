@@ -38,14 +38,21 @@ export class WebfloClient extends AbstractController {
 			const { public_base_url: base, service_worker: { filename, ...serviceWorkerParams }, env } = this.cx.params;
 			this.#workport = new this.constructor.Workport(base + filename, { ...serviceWorkerParams, startMessages: true }, env);
 		}
-		// Window opener pinging
-		if (window.opener) {
-			window.addEventListener('beforeunload', () => {
-				window.opener.postMessage('close');
-			});
-		}
 		// Main initializations
-		return super.initialize();
+		let undoControl = super.initialize();
+		if (window.opener) {
+			// Window opener pinging
+			const $undoControl = undoControl;
+			const beforeunloadHandler = () => {
+				window.opener.postMessage('close');
+			};
+			window.addEventListener('beforeunload', beforeunloadHandler);
+			undoControl = () => {
+				window.removeEventListener('beforeunload', beforeunloadHandler);
+				$undoControl();
+			};
+		}
+		return undoControl
 	}
 
 	/**
@@ -134,47 +141,4 @@ export class WebfloClient extends AbstractController {
 			(document.querySelector('[autofocus]') || document.body).focus();
 		}
 	}
-}
-
-export function defineWebfloEmbedded() {
-	const embedTagNames = 'webflo-embedded';
-	window.customElements.define(embedTagNames, class extends HTMLElement {
-
-		#superController;
-		#webfloControllerUninitialize;
-		#location;
-
-		static get observedAttributes() { return ['location']; }
-
-		get location() {
-			if (!this.#location) {
-				this.#location = new URL(this.getAttribute('location') || '', window.location.origin);
-			}
-			return this.#location;
-		}
-
-		set location(value) {
-			if (!(value instanceof URL)) {
-				value = new URL(value, window.location.origin);
-			}
-			if (value.href === this.location.href) return;
-			this.#location = value;
-			this.setAttribute('location', value.href.replace(value.origin, ''));
-			this.getWebfloControllerInstance().navigate(value);
-		}
-
-		attributeChangedCallback(name, oldValue, newValue) {
-			if (oldValue === newValue) return;
-			this.location = newValue;
-		}
-
-		connectedCallback() {
-			this.#superController = (this.parentNode?.closest(embedTagNames) || document).getWebfloControllerInstance();
-			this.#webfloControllerUninitialize = WebfloEmbedded.create(this, this.#superController).initialize();
-		}
-
-		disconnectedCallback() {
-			this.#webfloControllerUninitialize();
-		}
-	});
 }
