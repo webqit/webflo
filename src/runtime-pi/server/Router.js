@@ -1,20 +1,9 @@
-
-/**
- * @imports
- */
 import Fs from 'fs';
 import Url from 'url';
 import Path from 'path';
-import Mime from 'mime-types';
-import _Router from '../Router.js';
-
-/**
- * ---------------------------
- * The Router class
- * ---------------------------
- */
+import { AbstractRouter } from '../AbstractRouter.js';
 			
-export default class Router extends _Router {
+export class Router extends AbstractRouter {
 
     async readTick(thisTick) {
         thisTick = { ...thisTick };
@@ -50,61 +39,6 @@ export default class Router extends _Router {
 
     pathJoin(...args) {
         return Path.join(...args);
-    }
-
-    /**
-     * Reads a static file from the public directory.
-     * 
-     * @param ServerNavigationEvent httpEvent
-     * 
-     * @return Promise
-     */
-    file(httpEvent) {
-        let filename = Path.join(this.cx.CWD, this.cx.layout.PUBLIC_DIR, decodeURIComponent(httpEvent.url.pathname));
-        let index, ext = Path.parse(httpEvent.url.pathname).ext;
-        // if is a directory search for index file matching the extention
-        if (!ext && Fs.existsSync(filename) && Fs.lstatSync(filename).isDirectory()) {
-            ext = '.html';
-            index = `index${ext}`;
-            filename = Path.join(filename, index);
-        }
-        let enc, acceptEncs = [], supportedEncs = { gzip: '.gz', br: '.br' };
-        // based on the URL path, extract the file extention. e.g. .js, .doc, ...
-        // and process encoding
-        if ((acceptEncs = (httpEvent.request.headers.get('Accept-Encoding') || '').split(',').map(e => e.trim())).length
-        && (enc = acceptEncs.reduce((prev, _enc) => prev || (Fs.existsSync(filename + supportedEncs[_enc]) && _enc), null))) {
-            filename = filename + supportedEncs[enc];
-        } else {
-            if (!Fs.existsSync(filename)) return;
-            if (Object.values(supportedEncs).includes(ext)) {
-                enc = Object.keys(supportedEncs).reduce((prev, _enc) => prev || (supportedEncs[_enc] === ext && _enc), null);
-                ext = Path.parse(filename.substring(0, filename.length - ext.length)).ext;
-            }
-        }
-
-        // read file from file system
-        return new Promise(resolve => {
-            Fs.readFile(filename, function(err, data) {
-                let response;
-                if (err) {
-                    response = new Response(null, { status: 500, statusText: `Error reading static file: ${filename}` } );
-                } else {
-                    // if the file is found, set Content-type and send data
-                    let mime = Mime.lookup(ext);
-                    response = new Response(data, { headers: {
-                        'Content-Type': mime === 'application/javascript' ? 'text/javascript' : mime,
-                        'Content-Length': Buffer.byteLength(data),
-                    } });
-                    if (enc) {
-                        response.headers.set('Content-Encoding', enc);
-                    }
-                }
-                response.meta.filename = filename;
-                response.meta.static = true;
-                response.meta.index = index;
-                resolve(response);
-            });
-        });
     }
 
     /**

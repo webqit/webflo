@@ -1,12 +1,5 @@
+export class AbstractContext {
 
-export default class Context {
-
-    /**
-     * Initializes a context.
-     * 
-     * @param Object  dict 
-     * @param String  CD 
-     */
     constructor(dict, CD = null) {
         // dict can be plain object or some Context instance itself
         // Using it as only a prototype protects it from being mutated down here
@@ -76,5 +69,4 @@ export default class Context {
     set logger(value) {
         Object.defineProperty(this.dict, 'logger', { value } );
     }
-
 }

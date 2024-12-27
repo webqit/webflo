@@ -1,6 +1,6 @@
-import AbstractStorage from '../../AbstractStorage.js';
+import { AbstractStorage } from '../../AbstractStorage.js';
 
-export default class WebStorage extends AbstractStorage {
+export class WebStorage extends AbstractStorage {
     #type;
 
     static async create(storeType) {

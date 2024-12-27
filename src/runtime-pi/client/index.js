@@ -1,21 +1,14 @@
+import { WebfloClient } from './WebfloClient.js';
+import { WebfloClientNext } from './WebfloClientNext.js';
 
-/**
- * @imports
- */
-import Context from './Context.js';
-import Application from './Application.js';
-import Runtime from './Runtime.js';
-
-/**
- * @start
- */
-export async function start(applicationInstance = null) {
-    const cx = this || {};
-    const defaultApplicationInstance = _cx => new Application(_cx);
-    return new Runtime(Context.create(cx), applicationInstance || defaultApplicationInstance);
+export function start() {
+    const Controller = window.navigation ? WebfloClientNext : WebfloClient;
+    const instance = Controller.create(document, this || {});
+    instance.initialize();
 }
 
-/**
- * @APIS
- */
-export * as APIS from './Runtime.js';
+export { WebfloEmbedded } from './WebfloEmbedded.js';
+export {
+    WebfloClient,
+    WebfloClientNext
+}

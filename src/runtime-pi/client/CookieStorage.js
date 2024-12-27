@@ -1,6 +1,6 @@
-import AbstractCookieStorage from '../AbstractCookieStorage.js';
+import { AbstractCookieStorage } from '../AbstractCookieStorage.js';
 
-export default class CookieStorage extends AbstractCookieStorage {
+export class CookieStorage extends AbstractCookieStorage {
     static create() {
         return new this(document.cookie.split(';').map((c) => c.split('=').map((s) => s.trim())));
     }

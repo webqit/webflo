@@ -1,12 +1,8 @@
-
-
-/**
- * @imports
- */
 import { _isFunction, _isObject } from '@webqit/util/js/index.js';
-import { Observer } from './Runtime.js';
 
-export default class Workport {
+const { Observer } = webqit;
+
+export class Workport {
 
     constructor(file, params = {}, env = {}) {
         this.ready = navigator.serviceWorker ? navigator.serviceWorker.ready : new Promise(() => {});

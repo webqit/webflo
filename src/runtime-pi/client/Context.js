@@ -1,7 +1,3 @@
+import { AbstractContext } from '../../AbstractContext.js';
 
-/**
- * @imports
- */
-import _Context from '../../Context.js';
-
-export default class Context extends _Context {}
+export class Context extends AbstractContext {}

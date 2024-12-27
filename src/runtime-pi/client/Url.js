@@ -1,28 +1,11 @@
-
-/**
- * @imports
- */
 import { _with } from '@webqit/util/obj/index.js';
 import { _isArray, _isObject, _isTypeObject, _isString, _isEmpty } from '@webqit/util/js/index.js';
-import { Observer } from './Runtime.js';
 import { params } from '../util-url.js';
 
-/**
- * ---------------------------
- * The Url class
- * ---------------------------
- */
+const { Observer } = webqit;
 
-export default class Url {
+export class Url {
 
-	/**
-	 * Constructs a new Url instance.
-	 *
-     * @param object input
-     * @param object pathMappingScheme
-     * 
-	 * @return void
-	 */
 	constructor(input) {
         const Self = this.constructor;
 		// -----------------------
@@ -127,35 +110,14 @@ export default class Url {
         Observer.set(this, _isString(input) ? Self.parseUrl(input) : Url.copy(input));
 	}
 
-	/**
-	 * Converts the instance to string.
-	 *
-	 * @return string
-	 */
 	toString() {
         return this.href;
     }
     
-	/**
-	 * Creates an instance from parsing an URL string
-     * or from a regular object.
-	 *
-	 * @param string|object 	href
-	 *
-	 * @return Url
-	 */
 	static from(href) {
         return new this(_isObject(href) ? href : this.parseUrl(href));
 	}
 
-	/**
-	 * Copies URL properties off
-	 * the given object.
-	 *
-	 * @param object 			urlObj
-	 *
-	 * @return object
-	 */
 	static copy(urlObj) {
 		var url = urlProperties.reduce((obj, prop) => _with(obj, prop, urlObj[prop]), {});
 		if (!('query' in urlObj)) {
@@ -164,48 +126,22 @@ export default class Url {
 		return url;
 	}
 
-	/**
-	 * Parses an URL and returns its properties
-	 *
-	 * @param string			href
-	 *
-	 * @return object
-	 */
 	static parseUrl(href) {
 		var a = document.createElement('a');
 		a.href = href;
 		return this.copy(a);
 	}
 
-	/**
-	 * Parses the input search string into a named map
-	 *
-	 * @param string			search
-	 *
-	 * @return object
-	 */
 	static toQuery(search) {
 		return params.parse(search);
 	}
 
-	/**
-	 * Stringifies the input query to search string.
-	 *
-	 * @param object			query
-	 *
-	 * @return string
-	 */
 	static toSearch(query) {
 		var search = params.stringify(query);
 		return search ? '?' + search : '';
-	}}
+	}
+}
 
-/**
- * These are standard
- * and shouldnt'/can't be modified
- *
- * @array
- */
 const urlProperties = [
 	'protocol', 
 	'username',

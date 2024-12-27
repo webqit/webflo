@@ -1,8 +1,8 @@
 import { _isObject } from '@webqit/util/js/index.js';
 import { renderCookieObj } from './util-http.js';
-import AbstractStorage from './AbstractStorage.js';
+import { AbstractStorage } from './AbstractStorage.js';
 
-export default class AbstractCookieStorage extends AbstractStorage {
+export class AbstractCookieStorage extends AbstractStorage {
     constructor(iterable = []) {
         iterable = [...iterable].map(([key, value]) => [key, !_isObject(value) ? { name: key, value } : value]);
         super(iterable);

@@ -1,7 +1,7 @@
 import { _isString, _isFunction, _isArray } from '@webqit/util/js/index.js';
 import { _from as _arrFrom } from '@webqit/util/arr/index.js';
 
-export default class Router {
+export class AbstractRouter {
 
 	constructor(cx, path = []) {
         this.cx = cx;
@@ -96,5 +96,4 @@ export default class Router {
          });
 
     }
-
 }

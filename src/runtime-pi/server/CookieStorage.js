@@ -1,6 +1,6 @@
-import AbstractCookieStorage from '../AbstractCookieStorage.js';
+import { AbstractCookieStorage } from '../AbstractCookieStorage.js';
 
-export default class CookieStorage extends AbstractCookieStorage {
+export class CookieStorage extends AbstractCookieStorage {
     static create(request) {
         return new this(request.headers.get('Cookie', true).map((c) => [c.name, c]));
     }

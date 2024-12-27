@@ -1,7 +1,6 @@
-import AbstractStorage from '../AbstractStorage.js';
+import { AbstractStorage } from '../AbstractStorage.js';
 
-export default class SessionStorage extends AbstractStorage {
-    #sessid;
+export class SessionStorage extends AbstractStorage {
 
     static create(request, options, runtime) {
         if (!runtime.__sessionStore) Object.defineProperty(runtime, '__sessionStore', { value: new Map });
@@ -14,6 +13,8 @@ export default class SessionStorage extends AbstractStorage {
         instance.#sessid = sessionID;
         return instance;
     }
+
+    #sessid;
 
     commit(response) {
         if (!this.getAdded().length && !this.getDeleted().length) return;

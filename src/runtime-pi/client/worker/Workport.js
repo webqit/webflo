@@ -1,7 +1,7 @@
+export class Workport {
 
-export default class Workport {
-
-    constructor() {
+    constructor(client) {
+        this.client = client;
         // --------
         // Post messaging
         // --------
@@ -69,10 +69,6 @@ export default class Workport {
                 return this;
             },
         };
-    }
-
-    setCurrentClient(client) {
-        this.client = client;
     }
 
 }

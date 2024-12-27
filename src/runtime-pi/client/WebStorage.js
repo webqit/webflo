@@ -1,7 +1,6 @@
-import AbstractStorage from '../AbstractStorage.js';
+import { AbstractStorage } from '../AbstractStorage.js';
 
-export default class WebStorage extends AbstractStorage {
-    #type;
+export class WebStorage extends AbstractStorage {
 
     static create(storeType) {
         const keys = [];
@@ -12,6 +11,8 @@ export default class WebStorage extends AbstractStorage {
         instance.#type = storeType;
         return instance;
     }
+
+    #type;
 
     commit() {
         for (const key of this.getAdded()) {

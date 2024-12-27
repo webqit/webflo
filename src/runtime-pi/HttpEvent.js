@@ -1,9 +1,9 @@
 import { _isEmpty } from '@webqit/util/js/index.js';
-import CookieStore from './AbstractCookieStorage.js';
-import Store from './AbstractStorage.js';
+import { AbstractCookieStorage } from './AbstractCookieStorage.js';
+import { AbstractStorage } from './AbstractStorage.js';
 import xURL from "./xURL.js";
 
-export default class HttpEvent {
+export class HttpEvent {
 
     #request;
     #url;
@@ -11,14 +11,16 @@ export default class HttpEvent {
     #cookies;
     #session;
     #storage;
+    #workport;
 
-    constructor(request, detail = {}, cookies = new CookieStore, session = new Store, storage = new Store) {
+    constructor(request, detail = {}, cookies = new AbstractCookieStorage, session = new AbstractStorage, storage = new AbstractStorage, workport = null) {
         this.#request = request;
         this.#url = new xURL(this.#request.url);
         this.#detail = detail;
         this.#cookies = cookies;
         this.#session = session;
         this.#storage = storage;
+        this.#workport = workport;
     }
 
     get request() { return this.#request; }
@@ -32,6 +34,8 @@ export default class HttpEvent {
     get session() { return this.#session; }
 
     get storage() { return this.#storage; }
+
+    get workport() { return this.#workport; }
 
     redirect(url, code = 302) {
         return new Response(null, { status: code, headers: { Location: url } });
@@ -49,5 +53,4 @@ export default class HttpEvent {
         }            
         return new HttpEvent(request, this.#detail, this.#cookies, this.#session, this.#storage);
     }
-
 }

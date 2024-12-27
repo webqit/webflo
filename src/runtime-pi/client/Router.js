@@ -1,17 +1,7 @@
-
-/**
- * @imports
- */
 import { path as Path } from '../util-url.js';
-import _Router from '../Router.js';
-
-/**
- * ---------------------------
- * The Router class
- * ---------------------------
- */
+import { AbstractRouter } from '../AbstractRouter.js';
 			
-export default class Router extends _Router {
+export class Router extends AbstractRouter {
 
     async readTick(thisTick) {
         thisTick = { ...thisTick };
@@ -45,4 +35,4 @@ export default class Router extends _Router {
     pathJoin(...args) {
         return Path.join(...args);
     }
-};
+}
