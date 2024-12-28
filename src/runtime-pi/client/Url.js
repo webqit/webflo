@@ -119,7 +119,7 @@ export class Url {
 	}
 
 	static copy(urlObj) {
-		var url = urlProperties.reduce((obj, prop) => _with(obj, prop, urlObj[prop]), {});
+		var url = urlProperties.reduce((obj, prop) => _with(obj, prop, urlObj[prop] || ''), {});
 		if (!('query' in urlObj)) {
 			delete url.query;
 		}

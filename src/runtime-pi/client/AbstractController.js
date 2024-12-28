@@ -44,9 +44,7 @@ export class AbstractController extends AbsCntrl {
         this.#host = host;
         Object.defineProperty(this.host, 'getWebfloControllerInstance', { value: () => this });
         this.#network = { status: window.navigator.onLine };
-        this.#location = this.host.location
-            ? new Url(this.host.location)
-            : {};
+        this.#location = new Url(this.host.location);
         this.#navigator = {
             requesting: null,
             redirecting: null,
@@ -55,8 +53,10 @@ export class AbstractController extends AbsCntrl {
             error: null,
         };
         this.#transition = {
-            phase: 0,
-            rel: null
+            from: new Url({}),
+            to: new Url(this.host.location),
+            rel: 'unrelated',
+            phase: 0
         };
     }
 
@@ -115,6 +115,9 @@ export class AbstractController extends AbsCntrl {
             const form = e.target.closest('form'), submitter = e.submitter;
             const submitParams = ['action', 'enctype', 'method', 'noValidate', 'target'].reduce((params, prop) => {
                 params[prop] = submitter && submitter.hasAttribute(`form${prop.toLowerCase()}`) ? submitter[`form${_toTitle(prop)}`] : (form.getAttribute(prop) || form[prop]);
+                if (form[prop] && [RadioNodeList, HTMLElement].some((x) => params[prop] instanceof x)) {
+                    params[prop] = null;
+                }
                 return params;
             }, {});
             submitParams.method = (submitter && submitter.dataset.formmethod) || form.dataset.method || submitParams.method;
@@ -248,26 +251,30 @@ export class AbstractController extends AbsCntrl {
             }
             return await this.remoteFetch(event.request);
         });
-        const finalUrl = scope.response.url || scope.request.url;
-        this._prevPathname = this.location.pathname;
-        Observer.set(this.location, 'href', finalUrl);
-        // Set post-request states
-        Observer.set(this.navigator, {
-            requesting: null,
-            redirecting: null,
-            remotely: false,
-            origins: [],
-            method: null
-        });
-        // Error?
-        if ([404, 500].includes(scope.response.status)) {
-            const error = new Error(scope.response.statusText, { code: scope.response.status });
-            Object.defineProperty(error, 'retry', { value: async () => await this.navigate(scope.url, scope.init, scope.detail) });
-            Observer.set(this.navigator, 'error', error);
-        }
-        // Render
-        const data = (await scope.response.parse()) || {};
-        await this.render(scope.httpEvent, data);
+        scope.finalUrl = scope.response.url || scope.request.url;
+        scope.data = (await scope.response.parse()) || {};
+        // Transition UI
+        Observer.set(this.transition.from, Url.copy(this.location));
+        Observer.set(this.transition.to, 'href', scope.finalUrl);
+        Observer.set(this.transition, 'rel', this.transition.from.pathname === this.transition.to.pathname ? 'unchanged' : (`${this.transition.from.pathname}/`.startsWith(`${this.transition.to.pathname}/`) ? 'parent' : (`${this.transition.to.pathname}/`.startsWith(`${this.transition.from.pathname}/`) ? 'child' : 'unrelated')));
+        await this.transitionUI(async () => {
+            Observer.set(this.location, 'href', scope.finalUrl);
+            // Set post-request states
+            Observer.set(this.navigator, {
+                requesting: null,
+                redirecting: null,
+                remotely: false,
+                origins: [],
+                method: null
+            });
+            // Error?
+            if ([404, 500].includes(scope.response.status)) {
+                const error = new Error(scope.response.statusText, { code: scope.response.status });
+                Object.defineProperty(error, 'retry', { value: async () => await this.navigate(scope.url, scope.init, scope.detail) });
+                Observer.set(this.navigator, 'error', error);
+            }
+            await this.render(scope.httpEvent, scope.data);
+        }, scope.httpEvent.detail.navigationType);
     }
 
     async dispatch(httpEvent, context, crossLayerFetch) {
@@ -291,48 +298,47 @@ export class AbstractController extends AbsCntrl {
         return response;
     }
 
-    async render(httpEvent, data) {
-        const execRender = async () => {
-            const router = new this.constructor.Router(this.cx, this.location.pathname);
-            await router.route('render', httpEvent, data, async (httpEvent, data) => {
-                if (!window.webqit?.oohtml?.configs) return;
-                if (window.webqit?.dom) {
-                    await new Promise(res => window.webqit.dom.ready(res));
-                }
-                const {
-                    BINDINGS_API: { api: bindingsConfig } = {},
-                    HTML_IMPORTS: { attr: modulesContextAttrs } = {},
-                } = window.webqit.oohtml.configs;
-                if (bindingsConfig) {
-                    this.host[bindingsConfig.bind]({
-                        env: 'client',
-                        location: this.location,
-                        referrer: this.referrer,
-                        network: this.network, // request, redirect, error, status, remote
-                        transition: this.transition,
-                        data: !_isObject(data) ? {} : data
-                    }, { diff: true });
-                }
-                if (modulesContextAttrs) {
-                    const newRoute = '/' + `routes/${this.location.pathname}`.split('/').map(a => (a => a.startsWith('$') ? '-' : a)(a.trim())).filter(a => a).join('/');
-                    (this.host === window.document ? window.document.body : this.host).setAttribute(modulesContextAttrs.importscontext, newRoute);
-                }
-            });
-        };
-        if (document.startViewTransition && httpEvent.detail.navigationType !== 'startup') {
-            const synthesizeWhile = window.webqit?.realdom?.synthesizeWhile || (callback => callback());
-            synthesizeWhile(async () => {
-                const rel = this._prevPathname === this.location.pathname ? 'same' : (`${this._prevPathname}/`.startsWith(`${this.location.pathname}/`) ? 'parent' : (`${this.location.pathname}/`.startsWith(`${this._prevPathname}/`) ? 'child' : 'unrelated'));
-                Observer.set(this.transition, { rel, phase: 1 });
-                const viewTransition = document.startViewTransition(execRender);
+    async transitionUI(updateCallback, navigationType) {
+        if (document.startViewTransition && navigationType !== 'startup') {
+            const synthesizeWhile = window.webqit?.realdom?.synthesizeWhile || ((callback) => callback());
+            await synthesizeWhile(async () => {
+                Observer.set(this.transition, 'phase', 1);
+                const viewTransition = document.startViewTransition(updateCallback);
                 try { await viewTransition.updateCallbackDone; } catch (e) { console.log(e); }
                 Observer.set(this.transition, 'phase', 2);
                 try { await viewTransition.ready; } catch (e) { console.log(e); }
                 Observer.set(this.transition, 'phase', 3);
                 try { await viewTransition.finished; } catch (e) { console.log(e); }
-                Observer.set(this.transition, { rel: null, phase: 0 });
+                Observer.set(this.transition, 'phase', 0);
             });
-        } else await execRender();
+        } else await updateCallback();
+    }
+
+    async render(httpEvent, data) {
+        const router = new this.constructor.Router(this.cx, this.location.pathname);
+        await router.route('render', httpEvent, data, async (httpEvent, data) => {
+            if (!window.webqit?.oohtml?.configs) return;
+            if (window.webqit?.dom) {
+                await new Promise(res => window.webqit.dom.ready(res));
+            }
+            const {
+                BINDINGS_API: { api: bindingsConfig } = {},
+                HTML_IMPORTS: { attr: modulesContextAttrs } = {},
+            } = window.webqit.oohtml.configs;
+            if (bindingsConfig) {
+                this.host[bindingsConfig.bind]({
+                    env: 'client',
+                    location: this.location,
+                    network: this.network, // request, redirect, error, status, remote
+                    transition: this.transition,
+                    data: !_isObject(data) ? {} : data
+                }, { diff: true });
+            }
+            if (modulesContextAttrs) {
+                const newRoute = '/' + `routes/${this.location.pathname}`.split('/').map(a => (a => a.startsWith('$') ? '-' : a)(a.trim())).filter(a => a).join('/');
+                (this.host === window.document ? window.document.body : this.host).setAttribute(modulesContextAttrs.importscontext, newRoute);
+            }
+        });
     }
 	
 	async remoteFetch(request, ...args) {
