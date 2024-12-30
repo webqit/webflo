@@ -36,7 +36,7 @@ export class WebfloWorker extends AbstractController {
 	constructor(cx) {
 		super();
 		if (!(cx instanceof this.constructor.Context)) {
-			throw new Error('Argument #2 must be a Webflo Context instance');
+			throw new Error('Argument #1 must be a Webflo Context instance');
 		}
 		this.#cx = cx;
 	}
