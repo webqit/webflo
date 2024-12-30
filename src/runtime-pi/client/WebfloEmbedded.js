@@ -12,6 +12,7 @@ export class WebfloEmbedded extends AbstractController {
 			#superController;
 			#webfloControllerUninitialize;
 			#location;
+			#reflectAction;
 	
 			static get observedAttributes() { return ['location']; }
 
@@ -33,7 +34,15 @@ export class WebfloEmbedded extends AbstractController {
 				if (value.href === this.location.href) return;
 				this.#location = value;
 				this.setAttribute('location', value.href.replace(value.origin, ''));
-				this.getWebfloControllerInstance().navigate(value);
+				if (!this.#reflectAction) {
+					this.getWebfloControllerInstance().navigate(value);
+				}
+			}
+
+			reflectLocation(location) {
+				this.#reflectAction = true;
+				this.location = location;
+				this.#reflectAction = false;
 			}
 	
 			attributeChangedCallback(name, oldValue, newValue) {
@@ -83,7 +92,7 @@ export class WebfloEmbedded extends AbstractController {
 	
 	control() {
 		return super.controlClassic((newHref) => {
-			this.host.location = newHref;
+			this.host.reflectLocation(newHref);
 		});
 	}
 
