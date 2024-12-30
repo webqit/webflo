@@ -95,7 +95,7 @@ export class WebfloWorker extends AbstractController {
 			if (!event.request.url.startsWith(self.origin)) {
 				return event.respondWith(this.remoteFetch(event.request));
 			}
-			if (event.request.cache === 'force-cache'/* && event.request.mode === 'navigate' - even webflo client init call also comes with that... needs investigation */) {
+			if (event.request.mode === 'navigate' || event.request.cache === 'force-cache'/* && event.request.mode === 'navigate' - even webflo client init call also comes with that... needs investigation */) {
 				// Now, the following is key:
 				// The browser likes to use "force-cache" for "navigate" requests, when, e.g: re-entering your site with the back button
 				// Problem here, force-cache forces out JSON not HTML as per webflo's design.
@@ -125,7 +125,7 @@ export class WebfloWorker extends AbstractController {
 		}
 		// Create and route request
 		scope.request = this.createRequest(scope.url, scope.init);
-		scope.cookieStorage = this.constructor.CookieStorage.create();
+		scope.cookieStorage = this.constructor.CookieStorage.create(scope.request);
 		scope.sessionStorage = this.constructor.SessionStorage.create('sessionStorage');
 		scope.localStorage = this.constructor.LocalStorage.create('localStorage');
 		scope.workport = new this.constructor.Workport(await self.clients.get(detail.event?.clientId));
