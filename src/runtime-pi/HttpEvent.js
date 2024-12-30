@@ -12,6 +12,7 @@ export class HttpEvent {
     #session;
     #storage;
     #workport;
+    #requestCloneCallback;
 
     constructor(request, detail = {}, cookies = new AbstractCookieStorage, session = new AbstractStorage, storage = new AbstractStorage, workport = null) {
         this.#request = request;
@@ -36,6 +37,22 @@ export class HttpEvent {
     get storage() { return this.#storage; }
 
     get workport() { return this.#workport; }
+
+    set onRequestClone(callback) {
+        this.#requestCloneCallback = callback;
+    }
+
+    clone() {
+        const request = this.#requestCloneCallback?.() || this.#request;
+        const detail = this.#detail;
+        const cookies = this.#cookies;
+        const session = this.#session;
+        const storage = this.#storage;
+        const workport = this.#workport;
+        const instance = new this.constructor(request, detail, cookies, session, storage, workport);
+        instance.#requestCloneCallback = this.#requestCloneCallback;
+        return instance;
+    }
 
     redirect(url, code = 302) {
         return new Response(null, { status: code, headers: { Location: url } });

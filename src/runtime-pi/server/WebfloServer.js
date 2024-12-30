@@ -293,21 +293,20 @@ export class WebfloServer extends AbstractController {
         scope.response = await this.dispatch(scope.httpEvent, {}, async (event) => {
             return await this.localFetch(event);
         });
-        // -----------------
-        // Handle redirect. Stop processing there
         if (scope.response.headers.get('Location')) {
-            return this.writeRedirectHeaders(scope.httpEvent, scope.response);
+            // Handle redirect. Stop processing there
+            this.writeRedirectHeaders(scope.httpEvent, scope.response);
+        } else {
+            // Write headers
+            this.writeAutoHeaders(scope.response.headers, scope.autoHeaders.filter((header) => header.type === 'response'));
+            if (scope.httpEvent.request.method !== 'GET' && !scope.response.headers.get('Cache-Control')) {
+                scope.response.headers.set('Cache-Control', 'no-store');
+            }
+            scope.response.headers.set('Accept-Ranges', 'bytes');
+            // Satisfy request format
+            scope.response = await this.satisfyRequestFormat(scope.httpEvent, scope.response);
+
         }
-        // -----------------
-        // Write headers
-        this.writeAutoHeaders(scope.response.headers, scope.autoHeaders.filter((header) => header.type === 'response'));
-        if (scope.httpEvent.request.method !== 'GET' && !scope.response.headers.get('Cache-Control')) {
-            scope.response.headers.set('Cache-Control', 'no-store');
-        }
-        scope.response.headers.set('Accept-Ranges', 'bytes');
-        // -----------------
-        // Satisfy request format
-        scope.response = await this.satisfyRequestFormat(scope.httpEvent, scope.response);
         // Logging
         if (this.cx.logger) {
             const log = this.generateLog(scope.httpEvent.request, scope.response);

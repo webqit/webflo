@@ -18,6 +18,6 @@ export class SessionStorage extends AbstractStorage {
 
     commit(response) {
         if (!this.getAdded().length && !this.getDeleted().length) return;
-        return response.headers.append('Set-Cookie', `__sessid=${this.#sessid}; expires=Tue, 29 Oct 2026 16:56:32 GMT`);
+        return response.headers.append('Set-Cookie', `__sessid=${this.#sessid}; Path=/; expires=Tue, 29 Oct 2026 16:56:32 GMT`);
     }
 }

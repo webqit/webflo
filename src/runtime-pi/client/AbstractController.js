@@ -44,7 +44,7 @@ export class AbstractController extends AbsCntrl {
         this.#host = host;
         Object.defineProperty(this.host, 'getWebfloControllerInstance', { value: () => this });
         this.#network = { status: window.navigator.onLine };
-        this.#location = new Url(this.host.location);
+        this.#location = new Url/*NOT URL*/(this.host.location);
         this.#navigator = {
             requesting: null,
             redirecting: null,
@@ -53,8 +53,8 @@ export class AbstractController extends AbsCntrl {
             error: null,
         };
         this.#transition = {
-            from: new Url({}),
-            to: new Url(this.host.location),
+            from: new Url/*NOT URL*/({}),
+            to: new Url/*NOT URL*/(this.host.location),
             rel: 'unrelated',
             phase: 0
         };
@@ -65,7 +65,9 @@ export class AbstractController extends AbsCntrl {
         window.addEventListener('online', onlineHandler);
         window.addEventListener('offline', onlineHandler);
         const uncontrols = this.control();
-        this.navigate(this.location.href, {}, { navigationType: 'startup', });
+        if (this.host.startupFlight !== false) {
+            this.navigate(this.location.href, {}, { navigationType: 'startup', });
+        }
         return () => {
             window.removeEventListener('online', onlineHandler);
             window.removeEventListener('offline', onlineHandler);
@@ -144,7 +146,7 @@ export class AbstractController extends AbsCntrl {
             }
             e.preventDefault();
             this._abortController?.abort();
-            this._abortController = new AbortController();
+            this._abortController = new AbortController;
             // Note the order of calls below
             const detail = {
                 navigationType: 'push',
@@ -195,12 +197,11 @@ export class AbstractController extends AbsCntrl {
         }, true);
     }
 
-    async redirect(location) {
+    async redirect(location, processObj) {
         location = typeof location === 'string' ? new URL(location, this.location.origin) : location;
-        Observer.set(this.navigator, 'redirecting', location, { diff: true });
         if (this.isSpaRoute(location)) {
             await this.navigate(location, {}, { navigationType: 'rdr' });
-        } else this.hardRedirect(location);
+        } else this.hardRedirect(location, processObj);
     }
 
     hardRedirect(location) {
@@ -228,13 +229,17 @@ export class AbstractController extends AbsCntrl {
 		}
         // Create and route request
         scope.request = this.createRequest(scope.url, scope.init);
+        if (detail.navigationType === 'startup') {
+            scope.request.headers.set('X-Is-Startup-Flight', 1);
+        }
         scope.cookieStorage = this.constructor.CookieStorage.create();
         scope.sessionStorage = this.constructor.SessionStorage.create('sessionStorage');
         scope.localStorage = this.constructor.LocalStorage.create('localStorage');
         scope.httpEvent = new this.constructor.HttpEvent(scope.request, scope.detail, scope.cookieStorage, scope.sessionStorage, scope.localStorage, this.workport);
+        scope.httpEvent.onRequestClone = () => this.createRequest(scope.url, scope.init);
         // Ste pre-request states
         Observer.set(this.navigator, {
-            requesting: new URL(scope.url),
+            requesting: new Url/*NOT URL*/(scope.url),
             origins: scope.detail.navigationOrigins || [],
             method: scope.request.method,
             error: null
@@ -262,7 +267,6 @@ export class AbstractController extends AbsCntrl {
             // Set post-request states
             Observer.set(this.navigator, {
                 requesting: null,
-                redirecting: null,
                 remotely: false,
                 origins: [],
                 method: null
@@ -277,8 +281,18 @@ export class AbstractController extends AbsCntrl {
         }, scope.httpEvent.detail.navigationType);
     }
 
-    async dispatch(httpEvent, context, crossLayerFetch) {
+    async dispatch(httpEvent, context, crossLayerFetch, processObj = {}) {
         const response = await super.dispatch(httpEvent, context, crossLayerFetch);
+        if (response.headers.has('Retry-After')) {
+            // Set the below before calling redirect handlers
+            if (!processObj.abortController) {
+                // This is start of the process
+                processObj.abortController = new AbortController;
+            }
+        } else if (processObj.abortController) {
+            // Abort the signal. This is the end of the process
+            processObj.abortController.abort();
+        }
         if (response.headers.get('Location')) {
             // Normalize redirect
             const xActualRedirectCode = parseInt(response.headers.get('X-Redirect-Code'));
@@ -286,14 +300,17 @@ export class AbstractController extends AbsCntrl {
                 response.meta.status = xActualRedirectCode; // @NOTE 1
             }
             // Trigger redirect
-            if ([302, 301].includes(response.status)) {
-                this.redirect(response);
+            if ([302, 301].includes(response.status) && !processObj.exited) {
+                const location = response.headers.get('Location');
+                this.redirect(location, processObj);
             }
         }
         // Handle "retry" directives
-        if (response.headers.get('Retry-After')) {
-            await new Promise((res) => setTimeout(res, parseFloat(response.headers.get('Retry-After')) * 1000));
-            return await this.dispatch(httpEvent, context, crossLayerFetch);
+        if (response.headers.has('Retry-After') && !processObj.abortController.signal.aborted) {
+            await new Promise((res) => setTimeout(res, parseInt(response.headers.get('Retry-After')) * 1000));
+            const eventClone = httpEvent.clone();
+            eventClone.request.headers.set('X-Is-Retry', 1);
+            return await this.dispatch(eventClone, context, crossLayerFetch, processObj);
         }
         return response;
     }
@@ -328,6 +345,7 @@ export class AbstractController extends AbsCntrl {
             if (bindingsConfig) {
                 this.host[bindingsConfig.bind]({
                     env: 'client',
+                    navigator: this.navigator,
                     location: this.location,
                     network: this.network, // request, redirect, error, status, remote
                     transition: this.transition,
