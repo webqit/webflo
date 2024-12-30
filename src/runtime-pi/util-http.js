@@ -129,11 +129,11 @@ Object.defineProperties(Request, {
     },
 
     copy: {
-        value: async function (request) {
+        value: async function (request, init = {}) {
             const requestInit = [
                 'method', 'headers', 'mode', 'credentials', 'cache', 'redirect', 'referrer', 'integrity',
             ].reduce((init, prop) => ({ [prop]: request[prop], ...init }), {});
-            if (!['GET', 'HEAD'].includes(request.method)) {
+            if (!['GET', 'HEAD'].includes(init.method?.toUpperCase() || request.method)) {
                 requestInit.body = await request.clone().arrayBuffer();
             }
             if (requestInit.mode === 'navigate') {

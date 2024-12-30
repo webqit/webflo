@@ -65,7 +65,7 @@ export class HttpEvent {
             request = !_isEmpty(init) ? new Request(url, init) : url;
         } else {
             url = new xURL(url, this.#url.origin);
-            ({ url: _, ...init } = await Request.copy(this.#request));
+            init = await Request.copy(this.#request, init);
             request = new Request(url, { ...init, referrer: this.#request.url });
         }            
         return new HttpEvent(request, this.#detail, this.#cookies, this.#session, this.#storage);
