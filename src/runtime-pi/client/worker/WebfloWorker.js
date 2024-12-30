@@ -43,12 +43,12 @@ export class WebfloWorker extends AbstractController {
 
 	initialize() {
 		// ONINSTALL
-		const installHandler = (evt) => {
+		const installHandler = (event) => {
 			if (this.cx.params.skip_waiting) self.skipWaiting();
 			// Manage CACHE
 			if (this.cx.params.cache_name && (this.cx.params.cache_only_urls || []).length) {
 				// Add files to cache
-				evt.waitUntil(self.caches.open(this.cx.params.cache_name).then(async cache => {
+				event.waitUntil(self.caches.open(this.cx.params.cache_name).then(async cache => {
 					if (this.cx.logger) { this.cx.logger.log('[ServiceWorker] Pre-caching resources.'); }
 					for (const urls of [ 'cache_first_urls', 'cache_only_urls' ]) {
 						const _urls = (this.cx.params[urls] || []).map(c => c.trim()).filter(c => c && !pattern(c, self.origin).isPattern());
@@ -58,8 +58,8 @@ export class WebfloWorker extends AbstractController {
 			}
 		};
 		// ONACTIVATE
-		const activateHandler = (evt) => {
-			evt.waitUntil(new Promise(async resolve => {
+		const activateHandler = (event) => {
+			event.waitUntil(new Promise(async resolve => {
 				if (this.cx.params.skip_waiting) { await self.clients.claim(); }
 				// Manage CACHE
 				if (this.cx.params.cache_name) {
@@ -95,7 +95,7 @@ export class WebfloWorker extends AbstractController {
 			if (!event.request.url.startsWith(self.origin)) {
 				return event.respondWith(this.remoteFetch(event.request));
 			}
-			if (event.request.cache === 'force-cache'/* && evt.request.mode === 'navigate' - even webflo client init call also comes with that... needs investigation */) {
+			if (event.request.cache === 'force-cache'/* && event.request.mode === 'navigate' - even webflo client init call also comes with that... needs investigation */) {
 				// Now, the following is key:
 				// The browser likes to use "force-cache" for "navigate" requests, when, e.g: re-entering your site with the back button
 				// Problem here, force-cache forces out JSON not HTML as per webflo's design.
@@ -105,7 +105,7 @@ export class WebfloWorker extends AbstractController {
 					requestInit.cache = 'default';
 					return this.navigate(url, requestInit, { event });
 				})(event));
-			} else event.respondWith(this.navigate(evt.request.url, evt.request, { event: evt }));
+			} else event.respondWith(this.navigate(event.request.url, event.request, { event }));
 		};
 		self.addEventListener('fetch', fetchHandler);
         return () => {
