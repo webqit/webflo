@@ -82,8 +82,9 @@ export class AbstractController extends AbsCntrl {
             if (!this._canIntercept(e)) return;
             var anchorEl = e.target.closest('a');
             if (!anchorEl || !anchorEl.href || anchorEl.target || anchorEl.download || !this.isSpaRoute(anchorEl)) return;
-            if (this.isHashChange(anchorEl)) {
-                Observer.set(this.location, 'href', anchorEl.href);
+            const resolvedUrl = new URL(anchorEl.hasAttribute('href') ? anchorEl.getAttribute('href') : '', this.location.href);
+            if (this.isHashChange(resolvedUrl)) {
+                Observer.set(this.location, 'href', resolvedUrl.href);
                 return;
             }
             // ---------------
@@ -99,9 +100,9 @@ export class AbstractController extends AbsCntrl {
                 source: this.currentEntry(), // this
                 userInitiated: true,
             };
-            locationCallback(anchorEl.href); // this
+            locationCallback(resolvedUrl); // this
             this.navigate(
-                anchorEl.href,
+                resolvedUrl,
                 {
                     signal: this._abortController.signal,
                 },
@@ -114,22 +115,21 @@ export class AbstractController extends AbsCntrl {
             if (!this._canIntercept(e)) return;
             // ---------------
             // Declare form submission modifyers
-            const form = e.target.closest('form'), submitter = e.submitter;
-            const submitParams = ['action', 'enctype', 'method', 'noValidate', 'target'].reduce((params, prop) => {
-                params[prop] = submitter && submitter.hasAttribute(`form${prop.toLowerCase()}`) ? submitter[`form${_toTitle(prop)}`] : (form.getAttribute(prop) || form[prop]);
-                if (form[prop] && [RadioNodeList, HTMLElement].some((x) => params[prop] instanceof x)) {
-                    params[prop] = null;
+            const form = e.target.closest('form');
+            const submitter = e.submitter;
+            const _attr = (name) => {
+                let value = submitter && submitter.hasAttribute(`form${name.toLowerCase()}`) ? submitter[`form${_toTitle(name)}`] : (form.getAttribute(name) || form[name]);
+                if (value && [RadioNodeList, HTMLElement].some((x) => value instanceof x)) {
+                    value = null;
                 }
-                return params;
-            }, {});
-            submitParams.method = (submitter && submitter.dataset.formmethod) || form.dataset.method || submitParams.method;
+                return value;
+            };
+            const submitParams = Object.fromEntries(['method', 'action', 'enctype', 'noValidate', 'target'].map((name) => [name, _attr(name)]));
+            submitParams.method = submitParams.method || submitter.dataset.formmethod || 'GET';
+            submitParams.action = new URL(form.hasAttribute('action') ? form.getAttribute('action') : (
+                submitter?.hasAttribute('formaction') ? submitter.getAttribute('formaction') : ''),
+            this.location.href);
             if (submitParams.target || !this.isSpaRoute(submitParams.action)) return;
-            const actionEl = window.document.createElement('a');
-            actionEl.href = submitParams.action;
-            if (this.isHashChange(actionEl) && submitParams.method.toUpperCase() !== 'POST') {
-                Observer.set(this.location, 'href', actionEl.href);
-                return;
-            }
             // ---------------
             // Handle now
             let formData = new FormData(form);
@@ -137,12 +137,14 @@ export class AbstractController extends AbsCntrl {
                 formData.set(submitter.name, submitter.value);
             }
             if (submitParams.method.toUpperCase() === 'GET') {
-                const query = {};
                 Array.from(formData.entries()).forEach((_entry) => {
-                    httpParams.set(query, _entry[0], _entry[1]);
+                    submitParams.action.searchParams.set(_entry[0], _entry[1]);
                 });
-                actionEl.search = httpParams.stringify(query);
                 formData = null;
+            }
+            if (this.isHashChange(submitParams.action) && submitParams.method.toUpperCase() !== 'POST') {
+                Observer.set(this.location, 'href', submitParams.action.href);
+                return;
             }
             e.preventDefault();
             this._abortController?.abort();
@@ -155,9 +157,9 @@ export class AbstractController extends AbsCntrl {
                 source: this.currentEntry(), // this
                 userInitiated: true,
             };
-            locationCallback(actionEl.href); // this
+            locationCallback(submitParams.action); // this
             this.navigate(
-                actionEl.href,
+                submitParams.action,
                 {
                     method: submitParams.method,
                     body: formData,
@@ -257,6 +259,10 @@ export class AbstractController extends AbsCntrl {
             return await this.remoteFetch(event.request);
         });
         scope.finalUrl = scope.response.url || scope.request.url;
+        if (scope.response.redirected && scope.httpEvent.detail.navigationType !== 'traverse') {
+            const stateData = { ...(this.currentEntry().getState() || {}), redirected: true, };
+            await this.updateCurrentEntry({ state: stateData }, scope.finalUrl);    
+        }
         scope.data = (await scope.response.parse()) || {};
         // Transition UI
         Observer.set(this.transition.from, Url.copy(this.location));
@@ -300,7 +306,7 @@ export class AbstractController extends AbsCntrl {
                 response.meta.status = xActualRedirectCode; // @NOTE 1
             }
             // Trigger redirect
-            if ([302, 301].includes(response.status) && !processObj.exited) {
+            if ([302, 301].includes(response.status) && !processObj.abortController.signal.aborted) {
                 const location = response.headers.get('Location');
                 this.redirect(location, processObj);
             }

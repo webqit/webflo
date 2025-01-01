@@ -547,8 +547,8 @@ export class WebfloServer extends AbstractController {
         const style = this.cx.logger.style || { keyword: str => str, comment: str => str, url: str => str, val: str => str, err: str => str, };
         const errorCode = [404, 500].includes(response.status) ? response.status : 0;
         const xRedirectCode = response.headers.get('X-Redirect-Code');
-        const redirectCode = xRedirectCode || ((response.status + '').startsWith('3') ? response.status : 0);
-        const statusCode = xRedirectCode || response.status;
+        const isRedirect = xRedirectCode || (response.status + '').startsWith('3');
+        const statusCode = xRedirectCode && `${xRedirectCode} (${response.status})` || response.status;
         // ---------------
         log.push(`[${style.comment((new Date).toUTCString())}]`);
         log.push(style.keyword(request.method));
@@ -560,7 +560,7 @@ export class WebfloServer extends AbstractController {
         if (response.headers.get('Content-Encoding')) log.push(`(${style.comment(response.headers.get('Content-Encoding'))})`);
         if (errorCode) log.push(style.err(`${errorCode} ${response.statusText}`));
         else log.push(style.val(`${statusCode} ${response.statusText}`));
-        if (redirectCode) log.push(`- ${style.url(response.headers.get('Location'))}`);
+        if (isRedirect) log.push(`- ${style.url(response.headers.get('Location'))}`);
 
         return log.join(' ');
     }

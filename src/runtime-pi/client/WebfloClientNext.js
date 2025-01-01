@@ -47,7 +47,7 @@ export class WebfloClientNext extends WebfloClient {
 			navigationOrigins = [];
 			// Traversal?
 			// Push
-			const url = destination.url;
+			const url = new URL(destination.url, this.location.href);
 			const init = {
 				method: formData && 'POST' || 'GET',
 				body: formData,
@@ -105,11 +105,5 @@ export class WebfloClientNext extends WebfloClient {
 		url = new URL(url, this.location.href);
 		await window.navigation.navigate(url.href, state).committed;
 		Observer.set(this.location, 'href', url.href);
-	}
-
-	async applyPostRenderState(httpEvent) {
-		if (httpEvent.detail.navigationType === 'traverse') return;
-		//const stateData = { ...(this.currentEntry().getState() || {}), redirected: response.redirected, };
-		//await this.updateCurrentEntry({ state: stateData }, finalUrl);
 	}
 }
