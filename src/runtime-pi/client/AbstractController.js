@@ -260,7 +260,7 @@ export class AbstractController extends AbsCntrl {
         });
         scope.finalUrl = scope.response.url || scope.request.url;
         if (scope.response.redirected && scope.httpEvent.detail.navigationType !== 'traverse') {
-            const stateData = { ...(this.currentEntry().getState() || {}), redirected: true, };
+            const stateData = { ...(this.currentEntry()?.getState() || {}), redirected: true, };
             await this.updateCurrentEntry({ state: stateData }, scope.finalUrl);    
         }
         scope.data = (await scope.response.parse()) || {};
