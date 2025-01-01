@@ -122,7 +122,6 @@ export class WebfloEmbedded extends AbstractController {
 
     hardRedirect(location, processObj = {}) {
         location = typeof location === 'string' ? new URL(location, this.location.origin) : location;
-		const matchLocation = (a, b) => b && `${a.origin}${a.pathname}` === `${b.origin}${b.pathname}`
         const width = Math.min(800, window.innerWidth);
 		const height = Math.min(600, window.innerHeight);
 		const left = (window.outerWidth - width) / 2;

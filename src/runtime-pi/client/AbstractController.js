@@ -306,13 +306,13 @@ export class AbstractController extends AbsCntrl {
                 response.meta.status = xActualRedirectCode; // @NOTE 1
             }
             // Trigger redirect
-            if ([302, 301].includes(response.status) && !processObj.abortController.signal.aborted) {
+            if ([302, 301].includes(response.status) && !processObj.abortController?.signal.aborted) {
                 const location = response.headers.get('Location');
                 this.redirect(location, processObj);
             }
         }
         // Handle "retry" directives
-        if (response.headers.has('Retry-After') && !processObj.abortController.signal.aborted) {
+        if (response.headers.has('Retry-After') && !processObj.abortController?.signal.aborted) {
             await new Promise((res) => setTimeout(res, parseInt(response.headers.get('Retry-After')) * 1000));
             const eventClone = httpEvent.clone();
             eventClone.request.headers.set('X-Is-Retry', 1);
