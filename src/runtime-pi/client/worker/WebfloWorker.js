@@ -103,9 +103,11 @@ export class WebfloWorker extends AbstractController {
 				event.respondWith((async (event) => {
 					const { url, ...requestInit } = await Request.copy(event.request);
 					requestInit.cache = 'default';
-					return this.navigate(url, requestInit, { event });
+					return await this.navigate(url, requestInit, { event });
 				})(event));
-			} else event.respondWith(this.navigate(event.request.url, event.request, { event }));
+			} else {
+				event.respondWith(this.navigate(event.request.url, event.request, { event }));
+			}
 		};
 		self.addEventListener('fetch', fetchHandler);
         return () => {
@@ -177,19 +179,19 @@ export class WebfloWorker extends AbstractController {
 		return await scope.response;
 	}
 
-	networkFetch(request, params = {}) {
+	async networkFetch(request, params = {}) {
 		if (!params.cacheFallback) {
 			return xfetch(request);
 		}
-		return xfetch(request).then(response => {
+		return xfetch(request).then((response) => {
 			if (params.cacheRefresh) this.refreshCache(request, response);
 			return response;
-		}).catch(() => this.getRequestCache(request).then(cache => {
+		}).catch((e) => this.getRequestCache(request).then(cache => {
 			return cache.match(request);
 		}));
 	}
 
-	cacheFetch(request, params = {}) {
+	async cacheFetch(request, params = {}) {
 		return this.getRequestCache(request).then(cache => cache.match(request).then((response) => {
 			// Nothing cache, use network
 			if (!response && params.networkFallback) return this.networkFetch(request, { ...params, cacheFallback: false });
@@ -199,7 +201,7 @@ export class WebfloWorker extends AbstractController {
 		}));
 	}
 
-	refreshCache(request, response) {
+	async refreshCache(request, response) {
 		// Check if we received a valid response
 		if (request.method !== 'GET' || !response || response.status !== 200 || (response.type !== 'basic' && response.type !== 'cors')) {
 			return response;
@@ -215,7 +217,7 @@ export class WebfloWorker extends AbstractController {
 		return response;
 	}
 
-	getRequestCache(request) {
+	async getRequestCache(request) {
 		const cacheName = request.headers.get('Accept') === 'application/json'
 			? this.cx.params.cache_name + '_json' 
 			: this.cx.params.cache_name;
