@@ -3,6 +3,7 @@ import Url from 'url';
 import Path from 'path';
 import Http from 'http';
 import Https from 'https';
+import WebSocket from 'ws';
 import Mime from 'mime-types';
 import QueryString from 'querystring';
 import Observer from '@webqit/observer';
@@ -16,10 +17,13 @@ import { CookieStorage } from './CookieStorage.js';
 import { SessionStorage } from './SessionStorage.js';
 import { AbstractController } from '../AbstractController.js';
 import { HttpEvent } from '../HttpEvent.js';
+import { HttpUser } from '../HttpUser.js';
 import { Router } from './Router.js';
 import { pattern } from '../util-url.js';
 import xfetch from '../xfetch.js';
 import '../util-http.js';
+import { WebSocketWorker } from '../WebSocketWorker.js';
+import { WorkportManager } from './WorkportManager.js';
 
 const parseDomains = (domains) => _arrFrom(domains).reduce((arr, str) => arr.concat(str.split(',')), []).map(str => str.trim()).filter(str => str);
 const selectDomains = (serverDefs, matchingPort = null) => serverDefs.reduce((doms, def) => doms.length ? doms : (((!matchingPort || def.port === matchingPort) && parseDomains(def.domains || def.hostnames)) || []), []);
@@ -36,11 +40,18 @@ export class WebfloServer extends AbstractController {
 
     static get SessionStorage() { return SessionStorage; }
 
+    static get HttpUser() { return HttpUser(this.SessionStorage); }
+
     static create(cx) {
         return new this(this.Context.create(cx));
     }
 
     #cx;
+    #servers = new Map;
+    #proxies = new Map;
+    #sockets = new Map;
+
+    // Typically for access by Router
     get cx() { return this.#cx; }
 
     constructor(cx) {
@@ -57,22 +68,21 @@ export class WebfloServer extends AbstractController {
             if (_isEmpty(cx.server) || force) { cx.server = await (new cx.config.runtime.Server(cx)).read(); }
             if (_isEmpty(cx.env) || force) { cx.env = await (new cx.config.deployment.Env(cx)).read(); }
         };
-        await resolveContextObj(this.cx);
-        if (this.cx.env.autoload !== false) {
-            Object.keys(this.cx.env.entries).forEach(key => {
+        await resolveContextObj(this.#cx);
+        if (this.#cx.env.autoload !== false) {
+            Object.keys(this.#cx.env.entries).forEach(key => {
                 if (!(key in process.env)) {
-                    process.env[key] = this.cx.env.entries[key];
+                    process.env[key] = this.#cx.env.entries[key];
                 }
             });
         }
         // ---------------
-        this.proxied = new Map;
-        if (this.cx.config.deployment.Proxy) {
-            const proxied = await (new this.cx.config.deployment.Proxy(this.cx)).read();
+        if (this.#cx.config.deployment.Proxy) {
+            const proxied = await (new this.#cx.config.deployment.Proxy(this.#cx)).read();
             await Promise.all((proxied.entries || []).map(async vhost => {
                 let cx, hostnames = parseDomains(vhost.hostnames), port = vhost.port, proto = vhost.proto;
                 if (vhost.path) {
-                    cx = this.cx.constructor.create(this.cx, Path.join(this.cx.CWD, vhost.path));
+                    cx = this.#cx.constructor.create(this.#cx, Path.join(this.#cx.CWD, vhost.path));
                     await resolveContextObj(cx, true);
                     cx.dict.key = true;
                     // From the server that's most likely to be active
@@ -85,49 +95,52 @@ export class WebfloServer extends AbstractController {
                     proto || (proto = port === cx.server.https.port ? 'https' : 'http');
                 }
                 hostnames.length || (hostnames = ['*']);
-                this.proxied.set(hostnames.sort().join('|'), { cx, hostnames, port, proto });
+                this.#proxies.set(hostnames.sort().join('|'), { cx, hostnames, port, proto });
             }));
         }
         // ---------------
         this.control();
-        if (this.cx.logger) {
-            if (this.servers.size) {
-                this.cx.logger.info(`> Server running! (${this.cx.app.title || ''})`);
-                for (let [proto, def] of this.servers) {
-                    this.cx.logger.info(`> ${proto.toUpperCase()} / ${def.domains.concat('').join(`:${def.port} / `)}`);
+        if (this.#cx.logger) {
+            if (this.#servers.size) {
+                this.#cx.logger.info(`> Server running! (${this.#cx.app.title || ''})`);
+                for (let [proto, def] of this.#servers) {
+                    this.#cx.logger.info(`> ${proto.toUpperCase()} / ${def.domains.concat('').join(`:${def.port} / `)}`);
                 }
             } else {
-                this.cx.logger.info(`> Server not running! No port specified.`);
+                this.#cx.logger.info(`> Server not running! No port specified.`);
             }
-            if (this.proxied.size) {
-                this.cx.logger.info(`> Reverse proxy active.`);
-                for (let [id, def] of this.proxied) {
-                    this.cx.logger.info(`> ${id} >>> ${def.port}`);
+            if (this.#proxies.size) {
+                this.#cx.logger.info(`> Reverse proxy active.`);
+                for (let [id, def] of this.#proxies) {
+                    this.#cx.logger.info(`> ${id} >>> ${def.port}`);
                 }
             }
-            this.cx.logger.info(``);
+            this.#cx.logger.info(``);
         }
     }
 
     control() {
-        this.servers = new Map;
         // ---------------
-        if (!this.cx.flags['test-only'] && !this.cx.flags['https-only'] && this.cx.server.port) {
-            const httpServer = Http.createServer((request, response) => handleRequest('http', request, response));
-            httpServer.listen(this.cx.server.port);
+        if (!this.#cx.flags['test-only'] && !this.#cx.flags['https-only'] && this.#cx.server.port) {
+            const httpServer = Http.createServer((request, response) => this.handleNodeHttpRequest('http', request, response));
+            httpServer.listen(this.#cx.server.port);
             // -------
-            let domains = parseDomains(this.cx.server.domains);
+            let domains = parseDomains(this.#cx.server.domains);
             if (!domains.length) { domains = ['*']; }
-            this.servers.set('http', {
+            this.#servers.set('http', {
                 instance: httpServer,
-                port: this.cx.server.port,
+                port: this.#cx.server.port,
                 domains,
+            });
+            // Handle WebSocket connections
+            httpServer.on('upgrade', (request, socket, head) => {
+                this.handleNodeWsRequest(wss, 'ws', request, socket, head);
             });
         }
         // ---------------
-        if (!this.cx.flags['test-only'] && !this.cx.flags['http-only'] && this.cx.server.https.port) {
-            const httpsServer = Https.createServer((request, response) => handleRequest('https', request, response));
-            httpsServer.listen(this.cx.server.https.port);
+        if (!this.#cx.flags['test-only'] && !this.#cx.flags['http-only'] && this.#cx.server.https.port) {
+            const httpsServer = Https.createServer((request, response) => this.handleNodeHttpRequest('https', request, response));
+            httpsServer.listen(this.#cx.server.https.port);
             // -------
             const addSSLContext = (serverConfig, domains) => {
                 if (!Fs.existsSync(serverConfig.https.keyfile)) return;
@@ -138,60 +151,190 @@ export class WebfloServer extends AbstractController {
                 domains.forEach(domain => { httpsServer.addContext(domain, cert); });
             }
             // -------
-            let domains = parseDomains(this.cx.server.https.domains);
+            let domains = parseDomains(this.#cx.server.https.domains);
             if (!domains.length) { domains = ['*']; }
-            this.servers.set('https', {
+            this.#servers.set('https', {
                 instance: httpsServer,
-                port: this.cx.server.https.port,
+                port: this.#cx.server.https.port,
                 domains,
             });
             // -------
-            addSSLContext(this.cx.server, domains);
-            for (const [ /*id*/, vhost] of this.proxied) {
+            addSSLContext(this.#cx.server, domains);
+            for (const [ /*id*/, vhost] of this.#proxies) {
                 vhost.cx && addSSLContext(vhost.cx.server, vhost.hostnames);
             }
+            // Handle WebSocket connections
+            httpsServer.on('upgrade', (request, socket, head) => {
+                this.handleNodeWsRequest(wss, 'wss', request, socket, head);
+            });
         }
         // ---------------
-        const handleRequest = async (proto, request, response) => {
-            request[Symbol.toStringTag] = 'ReadableStream';
-            const [fullUrl, requestInit] = this.parseNodeRequest(proto, request);
-            const clientResponse = await this.navigate(fullUrl, requestInit, { request, response });
-            if (response.headersSent) return;
-            // --------
-            for (const [name, value] of clientResponse.headers) {
-                const existing = response.getHeader(name);
-                if (existing) response.setHeader(name, [].concat(existing).concat(value));
-                else response.setHeader(name, value);
-            }
-            // --------
-            response.statusCode = clientResponse.status;
-            response.statusMessage = clientResponse.statusText;
-            if (clientResponse.headers.has('Location')) {
-                return response.end();
-            }
-            if ((clientResponse.body instanceof _ReadableStream)) {
-                return clientResponse.body.pipe(response);
-            }
-            if ((clientResponse.body instanceof ReadableStream)) {
-                return _ReadableStream.from(clientResponse.body).pipe(response);
-            }
-            let body = clientResponse.body;
-            if (clientResponse.headers.get('Content-Type') === 'application/json') {
-                body += '';
-            }
-            return response.end(body);
-        };
+        const wss = new WebSocket.Server({ noServer: true });
     }
 
-    parseNodeRequest(proto, request) {
-        // Detected when using manual proxy setting in a browser
-        if (request.url.startsWith(`http://${request.headers.host}`) || request.url.startsWith(`https://${request.headers.host}`)) {
-            request.url = request.url.split(request.headers.host)[1];
+    #workportRegistry = new Map;
+    async handleNodeWsRequest(wss, proto, nodeRequest, socket, head) {
+        const [fullUrl, requestInit] = this.parseNodeRequest(proto, nodeRequest, false);
+        const scope = {};
+        scope.url = new URL(fullUrl);
+        // -----------------
+        // Level 1 validation
+        const hosts = [...this.#servers.values()].reduce((_hosts, server) => _hosts.concat(server.domains), []);
+        for (const [ /*id*/, vhost] of this.#proxies) {
+            if (vhost.hostnames.includes(scope.url.hostname) || (vhost.hostnames.includes('*') && !hosts.includes('*'))) {
+                scope.error = `Web sockets not supported over Webflo reverse proxies`;
+                break;
+            }
         }
-        const fullUrl = proto + '://' + request.headers.host + request.url;
-        const requestInit = { method: request.method, headers: request.headers };
-        if (!['GET', 'HEAD'].includes(request.method)) {
-            requestInit.body = request;
+        // -----------------
+        // Level 2 validation
+        if (!scope.error) {
+            if (!hosts.includes(scope.url.hostname) && !hosts.includes('*')) {
+                scope.error = 'Unrecognized host';
+            } else if (scope.url.protocol === 'ws:' && this.#cx.server.https.force) {
+                scope.error = `Only secure connections allowed (wss:)`;
+            } else if (scope.url.hostname.startsWith('www.') && this.#cx.server.force_www === 'remove') {
+                scope.error = `Connections not allowed over the www subdomain`;
+            } else if (!scope.url.hostname.startsWith('www.') && this.#cx.server.force_www === 'add') {
+                scope.error = `Connections only allowed over the www subdomain`;
+            }
+        }
+        // -----------------
+        // Level 3 validation
+        // and actual processing
+        scope.request = this.createRequest(scope.url.href, requestInit);
+        scope.session = this.constructor.SessionStorage.create(scope.request, { secret: this.#cx.env.entries.SESSION_KEY });
+        if (!scope.error) {
+            if (!(scope.clientPorts = this.#workportRegistry.get(scope.session.sessionID))) {
+                scope.error = `Lost or invalid clientID`;
+            } else if (!(scope.workport = scope.clientPorts.get(scope.url.pathname.split('/').pop()))) {
+                scope.error = `Lost or invalid portID`;
+            } else {
+                wss.handleUpgrade(nodeRequest, socket, head, (ws) => {
+                    wss.emit('connection', ws, nodeRequest);
+                    if (scope.existingConnection = scope.workport.connection()) {
+                        scope.existingConnection.close();
+                    }
+                    scope.newConnection = new WebSocketWorker(ws);
+                    scope.workport.stateChange('connected', scope.newConnection);
+                    ws.on('close', () => {
+                        scope.workport.stateChange('disconnected', scope.newConnection);
+                    });
+                });
+            }
+        }
+        // -----------------
+        // Errors?
+        if (scope.error) {
+            socket.write(
+                `HTTP/1.1 400 Bad Request\r\n` +
+                `Content-Type: text/plain\r\n` +
+                `Connection: close\r\n` +
+                `\r\n` +
+                `${scope.error}\r\n`
+            );
+            socket.destroy();
+            return;
+        }
+    }
+
+    async handleNodeHttpRequest(proto, nodeRequest, nodeResponse) {
+        const [fullUrl, requestInit] = this.parseNodeRequest(proto, nodeRequest);
+        const scope = {};
+        scope.url = new URL(fullUrl);
+        // -----------------
+        // Level 1 handling
+        const hosts = [...this.#servers.values()].reduce((_hosts, server) => _hosts.concat(server.domains), []);
+        for (const [ /*id*/, vhost] of this.#proxies) {
+            if (vhost.hostnames.includes(scope.url.hostname) || (vhost.hostnames.includes('*') && !hosts.includes('*'))) {
+                scope.response = await this.proxyFetch(vhost, scope.url, scope.init);
+                break;
+            }
+        }
+        // -----------------
+        // Level 2 handling
+        if (!scope.response) {
+            if (!hosts.includes(scope.url.hostname) && !hosts.includes('*')) {
+                scope.exit = { status: 500 };
+                scope.exitMessage = 'Unrecognized host';
+            } else if (scope.url.protocol === 'http:' && this.#cx.server.https.force) {
+                scope.exit = {
+                    status: 302,
+                    headers: { Location: (scope.url.protocol = 'https:', scope.url.href) }
+                };
+            } else if (scope.url.hostname.startsWith('www.') && this.#cx.server.force_www === 'remove') {
+                scope.exit = {
+                    status: 302,
+                    headers: { Location: (scope.url.hostname = scope.url.hostname.substr(4), scope.url.href) }
+                };
+            } else if (!scope.url.hostname.startsWith('www.') && this.#cx.server.force_www === 'add') {
+                scope.exit = {
+                    status: 302,
+                    headers: { Location: (scope.url.hostname = `www.${scope.url.hostname}`, scope.url.href) }
+                };
+            } else if (this.#cx.config.runtime.server.Redirects) {
+                scope.exit = ((await (new this.#cx.config.runtime.server.Redirects(this.#cx)).read()).entries || []).reduce((_rdr, entry) => {
+                    return _rdr || ((_rdr = pattern(entry.from, scope.url.origin).exec(scope.url.href)) && {
+                        status: entry.code || 302,
+                        headers: { Location: _rdr.render(entry.to) }
+                    });
+                }, null);
+            }
+            if (scope.exit) {
+                scope.response = new Response(scope.exitMessage, scope.exit);
+            }
+        }
+        // -----------------
+        // Level 3 handling
+        if (!scope.response) {
+            scope.response = await this.navigate(fullUrl, requestInit, {
+                request: nodeRequest,
+                response: nodeResponse
+            });
+        }
+        // -----------------
+        // To Nodejs response
+        if (nodeResponse.headersSent) return;
+        // --------
+        for (const [name, value] of scope.response.headers) {
+            const existing = nodeResponse.getHeader(name);
+            if (existing) nodeResponse.setHeader(name, [].concat(existing).concat(value));
+            else nodeResponse.setHeader(name, value);
+        }
+        // --------
+        nodeResponse.statusCode = scope.response.status;
+        nodeResponse.statusMessage = scope.response.statusText;
+        if (scope.response.headers.has('Location')) {
+            nodeResponse.end();
+        } else if ((scope.response.body instanceof _ReadableStream)) {
+            scope.response.body.pipe(nodeResponse);
+        } else if ((scope.response.body instanceof ReadableStream)) {
+            _ReadableStream.from(scope.response.body).pipe(nodeResponse);
+        } else {
+            let body = scope.response.body;
+            if (scope.response.headers.get('Content-Type') === 'application/json') {
+                body += '';
+            }
+            nodeResponse.end(body);
+        }
+        // -----------------
+        // Logging
+        if (this.#cx.logger) {
+            const log = this.generateLog({ url: fullUrl, method: nodeRequest.method }, scope.response);
+            this.#cx.logger.log(log);
+        }
+    }
+
+    parseNodeRequest(proto, nodeRequest, withBody = true) {
+        // Detected when using manual proxy setting in a browser
+        if (nodeRequest.url.startsWith(`${proto}://${nodeRequest.headers.host}`)) {
+            nodeRequest.url = nodeRequest.url.split(nodeRequest.headers.host)[1];
+        }
+        const fullUrl = proto + '://' + nodeRequest.headers.host + nodeRequest.url;
+        const requestInit = { method: nodeRequest.method, headers: nodeRequest.headers };
+        if (withBody && !['GET', 'HEAD'].includes(nodeRequest.method)) {
+            nodeRequest[Symbol.toStringTag] = 'ReadableStream';
+            requestInit.body = nodeRequest;
             requestInit.duplex = 'half'; // See https://github.com/nodejs/node/issues/46221
         }
         return [fullUrl, requestInit];
@@ -216,7 +359,7 @@ export class WebfloServer extends AbstractController {
         const xRedirectCode = httpEvent.request.headers.get('X-Redirect-Code') || 300;
         const destinationUrl = new URL(response.headers.get('Location'), httpEvent.url.origin);
         const isSameOriginRedirect = destinationUrl.origin === httpEvent.url.origin;
-        let isSameSpaRedirect, sparootsFile = Path.join(this.cx.CWD, this.cx.layout.PUBLIC_DIR, 'sparoots.json');
+        let isSameSpaRedirect, sparootsFile = Path.join(this.#cx.CWD, this.#cx.layout.PUBLIC_DIR, 'sparoots.json');
         if (isSameOriginRedirect && xRedirectPolicy === 'manual-when-cross-spa' && Fs.existsSync(sparootsFile)) {
             // Longest-first sorting
             const sparoots = _arrFrom(JSON.parse(Fs.readFileSync(sparootsFile))).sort((a, b) => a.length > b.length ? -1 : 1);
@@ -237,87 +380,51 @@ export class WebfloServer extends AbstractController {
         return request;
     }
 
-    async navigate(url, init = {}, detail = {}) {
-        // Resolve inputs
-        const scope = { url, init, detail };
-        if (typeof scope.url === 'string') {
-            scope.url = new URL(scope.url, 'http://localhost');
+    async proxyFetch(vhost, url, init) {
+        const scope = {};
+        scope.url = new URL(url);
+        scope.url.port = vhost.port;
+        if (vhost.proto) {
+            scope.url.protocol = vhost.proto;
         }
-        // -----------------
-        // Aggregate all hosts and resolve
-        const hosts = [];
-        this.servers.forEach((server) => hosts.push(...server.domains));
-        for (const [ /*id*/, vhost] of this.proxied) {
-            if (vhost.hostnames.includes(scope.url.hostname) || (vhost.hostnames.includes('*') && !hosts.includes('*'))) {
-                return await this.proxyFetch(vhost, scope.url, scope.init);
-            }
-        }
-        // -----------------
-        // Validate and normalize request
-        if (!hosts.includes(scope.url.hostname) && !hosts.includes('*')) {
-            scope.exit = { status: 500 };
-            scope.exitMessage = 'Unrecognized host';
-        } else if (scope.url.protocol === 'http:' && this.cx.server.https.force) {
-            scope.exit = {
-                status: 302,
-                headers: { Location: (scope.url.protocol = 'https:', scope.url.href) }
-            };
-        } else if (scope.url.hostname.startsWith('www.') && this.cx.server.force_www === 'remove') {
-            scope.exit = {
-                status: 302,
-                headers: { Location: (scope.url.hostname = scope.url.hostname.substr(4), scope.url.href) }
-            };
-        } else if (!scope.url.hostname.startsWith('www.') && this.cx.server.force_www === 'add') {
-            scope.exit = {
-                status: 302,
-                headers: { Location: (scope.url.hostname = `www.${scope.url.hostname}`, scope.url.href) }
-            };
-        } else if (this.cx.config.runtime.server.Redirects) {
-            scope.exit = ((await (new this.cx.config.runtime.server.Redirects(this.cx)).read()).entries || []).reduce((_rdr, entry) => {
-                return _rdr || ((_rdr = pattern(entry.from, scope.url.origin).exec(scope.url.href)) && {
-                    status: entry.code || 302,
-                    headers: { Location: _rdr.render(entry.to) }
-                });
-            }, null);
-        }
-        if (scope.exit) { return new Response(scope.exitMessage, scope.exit); }
-        // -----------------
-        // Process normally
-        scope.autoHeaders = this.cx.config.runtime.server.Headers
-            ? ((await (new this.cx.config.runtime.server.Headers(this.cx)).read()).entries || []).filter(entry => pattern(entry.url, url.origin).exec(url.href))
-            : [];
-        scope.request = this.createRequest(scope.url.href, scope.init, scope.autoHeaders.filter((header) => header.type === 'request'));
-        scope.cookieStorage = this.constructor.CookieStorage.create(scope.request);
-        scope.sessionStorage = this.constructor.SessionStorage.create(scope.request, { secret: this.cx.env.entries.SESSION_KEY }, this);
-        scope.httpEvent = new this.constructor.HttpEvent(scope.request, scope.detail, scope.cookieStorage, scope.sessionStorage);
-        scope.response = await this.dispatch(scope.httpEvent, {}, async (event) => {
-            return await this.localFetch(event);
-        });
-        if (scope.response.headers.get('Location')) {
-            // Handle redirect. Stop processing there
-            this.writeRedirectHeaders(scope.httpEvent, scope.response);
+        // ---------
+        if (init instanceof Request) {
+            scope.init = init.clone();
+            scope.init.headers.set('Host', scope.url.host);
         } else {
-            // Write headers
-            this.writeAutoHeaders(scope.response.headers, scope.autoHeaders.filter((header) => header.type === 'response'));
-            if (scope.httpEvent.request.method !== 'GET' && !scope.response.headers.get('Cache-Control')) {
-                scope.response.headers.set('Cache-Control', 'no-store');
-            }
-            scope.response.headers.set('Accept-Ranges', 'bytes');
-            // Satisfy request format
-            scope.response = await this.satisfyRequestFormat(scope.httpEvent, scope.response);
-
+            scope.init = { ...init, decompress: false/* honoured in xfetch() */ };
+            if (!scope.init.headers) scope.init.headers = {};
+            scope.init.headers.host = scope.url.host;
+            delete scope.init.headers.connection;
         }
-        // Logging
-        if (this.cx.logger) {
-            const log = this.generateLog(scope.httpEvent.request, scope.response);
-            this.cx.logger.log(log);
+        // ---------
+        try {
+            scope.response = await this.remoteFetch(scope.url, scope.init);
+        } catch (e) {
+            scope.response = new Response(`Reverse Proxy Error: ${e.message}`, { status: 500 });
+            console.error(e);
         }
         return scope.response;
     }
 
+    async remoteFetch(request, ...args) {
+        let href = request;
+        if (request instanceof Request) {
+            href = request.url;
+        } else if (request instanceof URL) {
+            href = request.href;
+        }
+        const _response = xfetch(request, ...args);
+        // Save a reference to this
+        return _response.then(async response => {
+            // Stop loading status
+            return response;
+        });
+    }
+
     async localFetch(httpEvent) {
         const scope = {};
-        scope.filename = Path.join(this.cx.CWD, this.cx.layout.PUBLIC_DIR, decodeURIComponent(httpEvent.url.pathname));
+        scope.filename = Path.join(this.#cx.CWD, this.#cx.layout.PUBLIC_DIR, decodeURIComponent(httpEvent.url.pathname));
         scope.ext = Path.parse(httpEvent.url.pathname).ext;
         // if is a directory search for index file matching the extention
         if (!scope.ext && Fs.existsSync(scope.filename) && Fs.lstatSync(scope.filename).isDirectory()) {
@@ -365,52 +472,80 @@ export class WebfloServer extends AbstractController {
         });
     }
 
-    async remoteFetch(request, ...args) {
-        let href = request;
-        if (request instanceof Request) {
-            href = request.url;
-        } else if (request instanceof URL) {
-            href = request.href;
+    async navigate(url, init = {}, detail = {}) {
+        const scope = { url, init, detail };
+        if (typeof scope.url === 'string') {
+            scope.url = new URL(scope.url, 'http://localhost');
         }
-        Observer.set(this.network, 'remote', href, { diff: true });
-        const _response = xfetch(request, ...args);
-        // Save a reference to this
-        return _response.then(async response => {
-            // Stop loading status
-            Observer.set(this.network, 'remote', false, { diff: true });
-            return response;
+        scope.autoHeaders = this.#cx.config.runtime.server.Headers
+            ? ((await (new this.#cx.config.runtime.server.Headers(this.#cx)).read()).entries || []).filter(entry => pattern(entry.url, url.origin).exec(url.href))
+            : [];
+        scope.request = this.createRequest(scope.url.href, scope.init, scope.autoHeaders.filter((header) => header.type === 'request'));
+        scope.cookies = this.constructor.CookieStorage.create(scope.request);
+        scope.session = this.constructor.SessionStorage.create(scope.request, { secret: this.#cx.env.entries.SESSION_KEY });
+        scope.user = this.constructor.HttpUser.create(scope.request, { secret: this.#cx.env.entries.SESSION_KEY });
+        const sessionID = scope.session.sessionID;
+        if (!this.#workportRegistry.has(sessionID)) {
+            this.#workportRegistry.set(sessionID, new WorkportManager(sessionID));
+        }
+        scope.workportManager = this.#workportRegistry.get(sessionID);
+        scope.workport = scope.workportManager.createPort();
+        scope.httpEvent = this.constructor.HttpEvent.create({
+            request: scope.request,
+            detail: scope.detail,
+            cookies: scope.cookies,
+            session: scope.session,
+            user: scope.user,
+            workport: scope.workport
         });
-    }
-
-    async proxyFetch(vhost, url, init) {
-        // ---------
-        const url2 = new URL(url);
-        url2.port = vhost.port;
-        if (vhost.proto) { url2.protocol = vhost.proto; }
-        // ---------
-        let init2;
-        if (init instanceof Request) {
-            init2 = init.clone();
-            init.headers.set('Host', url2.host);
+        scope.response = await this.dispatch(scope.httpEvent, {}, async (event) => {
+            return await this.localFetch(event);
+        });
+        if (scope.response.headers.get('Location')) {
+            // Handle redirect. Stop processing there
+            this.writeRedirectHeaders(scope.httpEvent, scope.response);
         } else {
-            init2 = { ...init, decompress: false/* honoured in xfetch() */ };
-            if (!init2.headers) init2.headers = {};
-            init2.headers.host = url2.host;
-            delete init2.headers.connection;
+            // Write headers
+            this.writeAutoHeaders(scope.response.headers, scope.autoHeaders.filter((header) => header.type === 'response'));
+            if (scope.httpEvent.request.method !== 'GET' && !scope.response.headers.get('Cache-Control')) {
+                scope.response.headers.set('Cache-Control', 'no-store');
+            }
+            scope.response.headers.set('Accept-Ranges', 'bytes');
+            // Satisfy request format
+            scope.response = await this.satisfyRequestFormat(scope.httpEvent, scope.response);
+
         }
-        // ---------
-        let response;
-        try {
-            response = await this.remoteFetch(url2, init2);
-        } catch (e) {
-            response = new Response(`Reverse Proxy Error: ${e.message}`, { status: 500 });
-            console.error(e);
+        if (scope.workport.hasActivities) {
+            scope.response.headers.set('X-Webflo-Activity-Request', `/${scope.workport.portID}`);
+            scope.session.commit(scope.response, true);
+            
+
+
+
+            scope.workport.postMessageCallback('Please confirm your name', (e) => {
+                console.log('_________________________NAME_CONFIRMED:', e)
+            }, { eventType: 'confirm' });
+
+            scope.workport.addEventListener('message', (e) => {
+                console.log('Recieved event:22222', e.data);
+                if (e.ports.length) {
+                    e.ports[0].postMessage({
+                        Hahahahaahah: true
+                    });
+                    e.ports[2]?.postMessage({
+                        Hahahahaahah___________: true
+                    });
+                }
+            });
+
+
+
+
+
+        } else {
+            scope.workportManager.delete(scope.workport.portID);
         }
-        if (this.cx.logger) {
-            const log = this.generateLog({ url: url2.href, ...init2 }, response, true);
-            this.cx.logger.log(log);
-        }
-        return response;
+        return scope.response;
     }
 
     async satisfyRequestFormat(httpEvent, response) {
@@ -480,19 +615,19 @@ export class WebfloServer extends AbstractController {
                 status: response.status,
             });
         }
-        scope.router = new this.constructor.Router(this.cx, httpEvent.url.pathname);
+        scope.router = new this.constructor.Router(this.#cx, httpEvent.url.pathname);
         scope.rendering = await scope.router.route('render', httpEvent, scope.data, async (httpEvent, data) => {
             let renderFile, pathnameSplit = httpEvent.url.pathname.split('/');
-            while ((renderFile = Path.join(this.cx.CWD, this.cx.layout.PUBLIC_DIR, './' + pathnameSplit.join('/'), 'index.html'))
+            while ((renderFile = Path.join(this.#cx.CWD, this.#cx.layout.PUBLIC_DIR, './' + pathnameSplit.join('/'), 'index.html'))
                 && (this.#renderFileCache.get(renderFile) === false/* false on previous runs */ || !Fs.existsSync(renderFile))) {
                 this.#renderFileCache.set(renderFile, false);
                 pathnameSplit.pop();
             }
-            const dirPublic = Url.pathToFileURL(Path.resolve(Path.join(this.cx.CWD, this.cx.layout.PUBLIC_DIR)));
+            const dirPublic = Url.pathToFileURL(Path.resolve(Path.join(this.#cx.CWD, this.#cx.layout.PUBLIC_DIR)));
             const instanceParams = QueryString.stringify({
                 file: renderFile,
                 url: dirPublic.href,// httpEvent.url.href,
-                root: this.cx.CWD,
+                root: this.#cx.CWD,
             });
             const { window, document } = await import('@webqit/oohtml-ssr/src/instance.js?' + instanceParams);
             await new Promise(res => {
@@ -509,7 +644,7 @@ export class WebfloServer extends AbstractController {
                     document[bindingsConfig.bind]({
                         env: 'server',
                         location: this.location,
-                        network: this.network, // request, error, remote
+                        network: undefined, // request, error, remote
                         data,
                     }, { diff: true });
                 }
@@ -544,7 +679,7 @@ export class WebfloServer extends AbstractController {
     generateLog(request, response, isproxy = false) {
         let log = [];
         // ---------------
-        const style = this.cx.logger.style || { keyword: str => str, comment: str => str, url: str => str, val: str => str, err: str => str, };
+        const style = this.#cx.logger.style || { keyword: str => str, comment: str => str, url: str => str, val: str => str, err: str => str, };
         const errorCode = [404, 500].includes(response.status) ? response.status : 0;
         const xRedirectCode = response.headers.get('X-Redirect-Code');
         const isRedirect = xRedirectCode || (response.status + '').startsWith('3');

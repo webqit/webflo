@@ -1,9 +1,9 @@
 import { AbstractStorage } from '../../AbstractStorage.js';
 
-export class WebStorage extends AbstractStorage {
+export class SessionStorage extends AbstractStorage {
     #type;
 
-    static async create(storeType) {
+    static async create(request) {
         return new this;
     }
 

@@ -1,25 +1,25 @@
 import { AbstractStorage } from '../AbstractStorage.js';
 
-export class WebStorage extends AbstractStorage {
+export class SessionStorage extends AbstractStorage {
+    static get type() { return 'session'; }
 
-    static create(storeType) {
+    static create(request) {
         const keys = [];
+        const storeType = this.type === 'user' ? 'localStorage' : 'sessionStorage';
 		for(let i = 0; i < window[storeType].length; i ++){
 			keys.push(window[storeType].key(i));
 		};
         const instance = new this(keys.map((key) => [key, window[storeType].getItem(key)]));
-        instance.#type = storeType;
         return instance;
     }
 
-    #type;
-
     commit() {
+        const storeType = this.constructor.type === 'user' ? 'localStorage' : 'sessionStorage';
         for (const key of this.getAdded()) {
-            window[this.#type].setItem(key, this.get(key));
+            window[storeType].setItem(key, this.get(key));
         }
         for (const key of this.getDeleted()) {
-            window[this.#type].removeItem(key);
+            window[storeType].removeItem(key);
         }
     }
 }

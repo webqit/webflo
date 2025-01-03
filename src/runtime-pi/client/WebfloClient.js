@@ -36,7 +36,7 @@ export class WebfloClient extends AbstractController {
 		// Service Worker && COMM
 		if (this.cx.params.service_worker?.filename) {
 			const { public_base_url: base, service_worker: { filename, ...serviceWorkerParams }, env } = this.cx.params;
-			//this.#workport = new this.constructor.Workport(base + filename, { ...serviceWorkerParams, startMessages: true }, env);
+			//this.#workport = new this.constructor.Workport(base + filename, { ...serviceWorkerParams, env, startMessages: true });
 		}
 		// Main initializations
 		let undoControl = super.initialize();

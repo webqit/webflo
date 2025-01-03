@@ -1,14 +1,15 @@
 import { _before, _toTitle } from '@webqit/util/str/index.js';
 import { _isObject } from '@webqit/util/js/index.js';
-import { params as httpParams } from '../util-url.js';
 import { AbstractController as AbsCntrl } from '../AbstractController.js';
 import { CookieStorage } from './CookieStorage.js';
-import { WebStorage } from './WebStorage.js';
+import { SessionStorage } from './SessionStorage.js';
 import { HttpEvent } from '../HttpEvent.js';
+import { HttpUser } from '../HttpUser.js';
 import { Router } from './Router.js';
 import { Url } from './Url.js';
 import xfetch from '../xfetch.js';
 import '../util-http.js';
+import { WebSocketWorker } from '../WebSocketWorker.js';
 
 const { Observer } = webqit;
 
@@ -20,9 +21,9 @@ export class AbstractController extends AbsCntrl {
 
 	static get CookieStorage() { return CookieStorage; }
 
-	static get SessionStorage() { return WebStorage; }
+	static get SessionStorage() { return SessionStorage; }
 
-	static get LocalStorage() { return WebStorage; }
+    static get HttpUser() { return HttpUser(this.SessionStorage); }
 
     #host;
     get host() { return this.#host; }
@@ -234,10 +235,14 @@ export class AbstractController extends AbsCntrl {
         if (detail.navigationType === 'startup') {
             scope.request.headers.set('X-Is-Startup-Flight', 1);
         }
-        scope.cookieStorage = this.constructor.CookieStorage.create();
-        scope.sessionStorage = this.constructor.SessionStorage.create('sessionStorage');
-        scope.localStorage = this.constructor.LocalStorage.create('localStorage');
-        scope.httpEvent = new this.constructor.HttpEvent(scope.request, scope.detail, scope.cookieStorage, scope.sessionStorage, scope.localStorage, this.workport);
+        scope.httpEvent = this.constructor.HttpEvent.create({
+            request: scope.request,
+            detail: scope.detail,
+            cookies: this.constructor.CookieStorage.create(),
+            session: this.constructor.SessionStorage.create(),
+            user: this.constructor.HttpUser.create(scope.request),
+            workport: this.workport
+        });
         scope.httpEvent.onRequestClone = () => this.createRequest(scope.url, scope.init);
         // Ste pre-request states
         Observer.set(this.navigator, {
@@ -262,6 +267,48 @@ export class AbstractController extends AbsCntrl {
         if (scope.response.redirected && scope.httpEvent.detail.navigationType !== 'traverse') {
             const stateData = { ...(this.currentEntry()?.getState() || {}), redirected: true, };
             await this.updateCurrentEntry({ state: stateData }, scope.finalUrl);    
+        }
+        if (scope.response.headers.has('X-Webflo-Activity-Request')) {
+            const ws = new WebSocket(scope.response.headers.get('X-Webflo-Activity-Request'));
+            const $ws = new WebSocketWorker(ws);
+
+            $ws.addEventListener('message', (e) => {
+                console.log('Recieved message', e.data, e.ports);
+            });
+            $ws.addEventListener('confirm', (e) => {
+                console.log('Recieved confirm:', e.data, e.ports);
+                e.ports[0].postMessage('Yes name is Ox-Harris');
+            });
+
+            const mp1 = new MessageChannel;
+            const mp2 = new MessageChannel;
+            const mp3 = new MessageChannel;
+            mp1.port1.addEventListener('message', (e) => {
+                console.log('Recieved mp1.port2 message', e.data);
+            });
+            mp2.port1.addEventListener('message', (e) => {
+                console.log('Recieved mp2.port2 message', e.data);
+            });
+            mp3.port1.addEventListener('message', (e) => {
+                console.log('Recieved mp3.port2 message', e.data);
+            });
+            mp1.port1.start();
+            mp2.port1.start();
+            mp3.port1.start();
+            $ws.postMessage({
+                key2: 'Hello world 2'
+            }, [mp1.port2, mp2.port2, mp3.port2]);
+
+            $ws.postMessage({
+                key3: 'Hello world 3'
+            });
+            setTimeout(() => {
+                $ws.close();
+            }, 2000);
+        }
+        if ([202/*Accepted*/, 304/*Not Modified*/].includes(scope.response.status)) {
+            // No rendering
+            return;
         }
         scope.data = (await scope.response.parse()) || {};
         // Transition UI
@@ -299,7 +346,7 @@ export class AbstractController extends AbsCntrl {
             // Abort the signal. This is the end of the process
             processObj.abortController.abort();
         }
-        if (response.headers.get('Location')) {
+        if (response.headers.has('Location')) {
             // Normalize redirect
             const xActualRedirectCode = parseInt(response.headers.get('X-Redirect-Code'));
             if (xActualRedirectCode && response.status === this._xRedirectCode) {
@@ -315,7 +362,10 @@ export class AbstractController extends AbsCntrl {
         if (response.headers.has('Retry-After') && !processObj.abortController?.signal.aborted) {
             await new Promise((res) => setTimeout(res, parseInt(response.headers.get('Retry-After')) * 1000));
             const eventClone = httpEvent.clone();
-            eventClone.request.headers.set('X-Is-Retry', 1);
+            eventClone.request.headers.set('X-Is-Retrying', 1);
+            if (response.headers.has('X-Webflo-Activity-Request')) {
+                eventClone.request.headers.set('X-Is-Retrying', response.headers.get('X-Webflo-Activity-Request').split('/').pop());
+            }
             return await this.dispatch(eventClone, context, crossLayerFetch, processObj);
         }
         return response;

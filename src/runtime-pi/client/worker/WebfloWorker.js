@@ -1,9 +1,10 @@
 import { _any } from '@webqit/util/arr/index.js';
 import { pattern } from '../../util-url.js';
 import { AbstractController } from '../../AbstractController.js';
-import { HttpEvent } from '../../HttpEvent.js';
 import { CookieStorage } from './CookieStorage.js';
-import { WebStorage } from './WebStorage.js';
+import { SessionStorage } from './SessionStorage.js';
+import { HttpEvent } from '../../HttpEvent.js';
+import { HttpUser } from '../../HttpUser.js';
 import { Workport } from './Workport.js';
 import { Context } from './Context.js';
 import { Router } from '../Router.js';
@@ -20,9 +21,9 @@ export class WebfloWorker extends AbstractController {
 
 	static get CookieStorage() { return CookieStorage; }
 
-	static get SessionStorage() { return WebStorage; }
+	static get SessionStorage() { return SessionStorage; }
 
-	static get LocalStorage() { return WebStorage; }
+    static get HttpUser() { return HttpUser(this.SessionStorage); }
 
 	static get Workport() { return Workport; }
 
@@ -127,11 +128,14 @@ export class WebfloWorker extends AbstractController {
 		}
 		// Create and route request
 		scope.request = this.createRequest(scope.url, scope.init);
-		scope.cookieStorage = this.constructor.CookieStorage.create(scope.request);
-		scope.sessionStorage = this.constructor.SessionStorage.create('sessionStorage');
-		scope.localStorage = this.constructor.LocalStorage.create('localStorage');
-		scope.workport = new this.constructor.Workport(await self.clients.get(detail.event?.clientId));
-		scope.httpEvent = new this.constructor.HttpEvent(scope.request, scope.detail, scope.cookieStorage, scope.sessionStorage, scope.localStorage, scope.workport);
+		scope.httpEvent = this.constructor.HttpEvent.create({
+            request: scope.request,
+            detail: scope.detail,
+            cookies: this.constructor.CookieStorage.create(scope.request),
+            session: this.constructor.SessionStorage.create(scope.request, { secret: this.cx.env.entries.SESSION_KEY }),
+            user: this.constructor.HttpUser.create(scope.request, { secret: this.cx.env.entries.SESSION_KEY }),
+            workport: new this.constructor.Workport(await self.clients.get(detail.event?.clientId))
+        });
 		return await this.dispatch(scope.httpEvent, {}, async (event) => {
 			// Was this nexted()? Tell the next layer we're in JSON mode by default
 			if (event !== scope.httpEvent && !event.request.headers.has('Accept')) {
