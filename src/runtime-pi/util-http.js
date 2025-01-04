@@ -184,7 +184,7 @@ Object.defineProperties(Headers.prototype, {
         value: function (name, value) {
             // -------------------------
             // Format "Set-Cookie" response header
-            if (/Set-Cookie/i.test(name) && _isObject(value)) {
+            if (/^Set-Cookie$/i.test(name) && _isObject(value)) {
                 value = renderCookieObj(value);
             }
             // -------------------------
@@ -194,7 +194,7 @@ Object.defineProperties(Headers.prototype, {
             }
             // -------------------------
             // Format "Content-Range" response header?
-            if (/Content-Range/i.test(name) && Array.isArray(value)) {
+            if (/^Content-Range$/i.test(name) && Array.isArray(value)) {
                 if (value.length < 2 || !value[0].includes('-')) {
                     throw new Error(`A Content-Range array must be in the format: [ 'start-end', 'total' ]`);
                 }
@@ -202,7 +202,7 @@ Object.defineProperties(Headers.prototype, {
             }
             // -------------------------
             // Format "Range" request header?
-            if (/Range/i.test(name)) {
+            if (/^Range$/i.test(name)) {
                 let rangeArr = [];
                 _arrFrom(value).forEach((range, i) => {
                     let rangeStr = Array.isArray(range) ? range.join('-') : range + '';
@@ -215,7 +215,7 @@ Object.defineProperties(Headers.prototype, {
             }
             // -------------------------
             // Format "Accept" request header?
-            if (/Accept/i.test(name) && Array.isArray(value)) {
+            if (/^Accept$/i.test(name) && Array.isArray(value)) {
                 value = value.join(',');
             }
             // -------------------------
@@ -227,7 +227,7 @@ Object.defineProperties(Headers.prototype, {
         value: function (name, value) {
             // -------------------------
             // Format "Set-Cookie" response header
-            if (/Set-Cookie/i.test(name) && _isObject(value)) {
+            if (/^Set-Cookie$/i.test(name) && _isObject(value)) {
                 value = renderCookieObj(value);
             }
             // -------------------------
@@ -240,7 +240,7 @@ Object.defineProperties(Headers.prototype, {
             let value = headerGet.call(this, name);
             // -------------------------
             // Parse "Set-Cookie" response header
-            if (/Set-Cookie/i.test(name) && parsed) {
+            if (/^Set-Cookie$/i.test(name) && parsed) {
                 value = this.getSetCookie()/*IMPORTANT*/.map((str) => {
                     const [cookieDefinition, attrsStr] = str.split(';');
                     const [name, value] = cookieDefinition.split('=').map((s) => s.trim());
@@ -253,7 +253,7 @@ Object.defineProperties(Headers.prototype, {
             }
             // -------------------------
             // Parse "Cookie" request header
-            if (/Cookie/i.test(name) && parsed) {
+            if (/^Cookie$/i.test(name) && parsed) {
                 value = value?.split(';').map((str) => {
                     const [name, value] = str.split('=').map((s) => s.trim());
                     return { name, value: /*decodeURIComponent*/(value), };
@@ -261,12 +261,12 @@ Object.defineProperties(Headers.prototype, {
             }
             // -------------------------
             // Parse "Content-Range" response header?
-            if (/Content-Range/i.test(name) && value && parsed) {
+            if (/^Content-Range$/i.test(name) && value && parsed) {
                 value = _after(value, 'bytes ').split('/');
             }
             // -------------------------
             // Parse "Range" request header?
-            if (/Range/i.test(name) && parsed) {
+            if (/^Range$/i.test(name) && parsed) {
                 value = !value ? [] : _after(value, 'bytes=').split(',').map((rangeStr) => {
                     let range = rangeStr.trim().split('-');
                     range[0] = range[0] ? parseInt(range[0], 10) : undefined;
@@ -284,7 +284,7 @@ Object.defineProperties(Headers.prototype, {
             }
             // -------------------------
             // Parse "Accept" request header?
-            if (/Accept/i.test(name) && parsed) {
+            if (/^Accept$/i.test(name) && parsed) {
                 const list = value && value.split(',')
                     .map((a) => (a = a.trim().split(';').map(a => a.trim()), [a.shift(), parseFloat((a.pop() || '1').replace('q=', ''))]))
                     .sort((a, b) => a[1] > b[1] ? -1 : 1) || [];

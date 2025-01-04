@@ -51,12 +51,12 @@ export class HttpEvent {
     #saveResponseOrigin() {
         const stack = new Error().stack;
         const stackLines = stack.split('\n');
-        this.#responseOrigin = stackLines[2].trim();
+        this.#responseOrigin = stackLines[3].trim();
     }
 
     async respondWith(response) {
         if (this.#response) {
-            throw new Error(`Event has already been responded to at: ${this.#responseOrigin}`);
+            throw new Error(`Event has already been responded to! (${this.#responseOrigin})`);
         }
         this.#response = response;
         if (!this.#responseOrigin) {

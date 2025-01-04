@@ -6,7 +6,7 @@ export class WebSocketWorker extends EventTarget {
     constructor(socket) {
         super();
         this.#socket = socket;
-        this.#socket.addEventListener('message', async (event) => {
+        const messageHandler = async (event) => {
             let message;
             try {
                 if (!(message = JSON.parse(event.data)) 
@@ -23,16 +23,33 @@ export class WebSocketWorker extends EventTarget {
                 message.data,
                 message.numPorts
             ));
-        });
-        this.#socket.addEventListener('open', (e) => {
+        };
+        const openHandler = (e) => {
             this.dispatchEvent(new Event('open'));
-        });
-        this.#socket.addEventListener('error', (e) => {
+        };
+        const errorHandler = (e) => {
             this.dispatchEvent(new Event('error'));
-        });
-        this.#socket.addEventListener('close', (e) => {
+        };
+        const closeHandler = (e) => {
             this.dispatchEvent(new Event('close'));
-        });
+            this.#socket.removeEventListener('message', messageHandler);
+            this.#socket.removeEventListener('open', openHandler);
+            this.#socket.removeEventListener('error', errorHandler);
+            this.#socket.removeEventListener('close', closeHandler);
+            for (const listenerArgs of this.#listenersRegistry) {
+                this.removeEventListener(...listenerArgs);
+            }
+        };
+        this.#socket.addEventListener('message', messageHandler);
+        this.#socket.addEventListener('open', openHandler);
+        this.#socket.addEventListener('error', errorHandler);
+        this.#socket.addEventListener('close', closeHandler);
+    }
+
+    #listenersRegistry = new Set;
+    addEventListener(...args) {
+        this.#listenersRegistry.add(args);
+        return super.addEventListener(...args);
     }
 
     postMessage(data, transferOrOptions = []) {

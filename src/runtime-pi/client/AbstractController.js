@@ -320,6 +320,23 @@ export class AbstractController extends AbsCntrl {
             const ws = new WebSocket(scope.response.headers.get('X-Background-Activity'));
             scope.backgroundActivity = new WebSocketWorker(ws);
             this.#workport.add(scope.backgroundActivity);
+            scope.backgroundActivity.addEventListener('render', (e) => {
+                this.transitionUI(() => {
+                    console.log('__________________RENDERING');
+                    this.render(scope.httpEvent, e.data);
+                }, 'backgroundActivity');
+            });
+            console.log('Still inside?1', this.#workport.length);
+            setTimeout(() => {
+                console.log('Still inside?2', this.#workport.length);
+                scope.backgroundActivity.dispatchEvent(new SocketEvent(
+                    scope.backgroundActivity,
+                    null,
+                    'render',
+                    { hi: 'hi '},
+                    0
+                ));
+            }, 12000);
         }
 
 
@@ -421,6 +438,7 @@ export class AbstractController extends AbsCntrl {
             });
             // Error?
             if ([404, 500].includes(scope.response.status)) {
+                console.log('_____________Error', scope.response.status);
                 const error = new Error(scope.response.statusText, { code: scope.response.status });
                 Object.defineProperty(error, 'retry', { value: async () => await this.navigate(scope.url, scope.init, scope.detail) });
                 Observer.set(this.navigator, 'error', error);

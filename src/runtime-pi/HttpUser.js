@@ -75,6 +75,29 @@ export class HttpUser extends AbstractStorage {
         return entries;
     }
 
+    confirm(data, callback, options = {}) {
+        return this.#workport.postRequest(
+            data,
+            callback,
+            { ...options, eventType: 'confim' }
+        );
+    }
+
+    prompt(data, callback, options = {}) {
+        return this.#workport.postRequest(
+            data,
+            callback,
+            { ...options, eventType: 'prompt' }
+        );
+    }
+
+    alert(data, options = {}) {
+        return this.#workport.postMessage(
+            data,
+            { ...options, eventType: 'alert' }
+        );
+    }
+
     toJSON() {
         return Object.fromEntries(this);
     }

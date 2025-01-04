@@ -22,6 +22,9 @@ export class AbstractWorkport {
         if (!this.#allTimeHasWorkers) {
             this.#emit('active', worker);
         }
+        worker.addEventListener('close', () => {
+            this.remove(worker);
+        })
         this.#allTimeHasWorkers = true;
     }
 
@@ -127,6 +130,12 @@ export class AbstractWorkport {
                 p.postMessage(response);
             }
         }, options);
+    }
+
+    close(...args) {
+        for (const w of this.#workers) {
+            w.close?.(...args);
+        }
     }
 
     createBroadcastChannel(name) {
