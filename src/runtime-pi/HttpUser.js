@@ -1,5 +1,26 @@
-export const HttpUser = (SessionStorage) => class extends SessionStorage {
-    static get type() { return 'user'; }
+import { AbstractStorage } from './AbstractStorage.js';
+
+export class HttpUser extends AbstractStorage {
+    
+    static create(request, session, workport) {
+        if (session.has('user')) {
+            return session.get('user');
+        }
+        const instance = new this(request, session, workport);
+        session.set('user', instance);
+        return instance;
+    }
+
+    #request;
+    #session;
+    #workport;
+
+    constructor(request, session, workport) {
+        super();
+        this.#request = request;
+        this.#session = session;
+        this.#workport = workport;
+    }
 
     #handlers = new Map;
 
@@ -42,9 +63,9 @@ export const HttpUser = (SessionStorage) => class extends SessionStorage {
                     entries.push(await handler(this, attr));
                     continue;
                 }
-                const urlRewrite = new URL(this.request.url);
+                const urlRewrite = new URL(this.#request.url);
                 if (!urlRewrite.searchParams.has('success-redirect')) {
-                    urlRewrite.searchParams.set('success-redirect', this.request.url.replace(urlRewrite.origin, ''));
+                    urlRewrite.searchParams.set('success-redirect', this.#request.url.replace(urlRewrite.origin, ''));
                 }
                 return Response.redirect(urlRewrite);
             }
@@ -52,5 +73,9 @@ export const HttpUser = (SessionStorage) => class extends SessionStorage {
         }
         if (callback) return await callback(...entries);
         return entries;
+    }
+
+    toJSON() {
+        return Object.fromEntries(this);
     }
 }

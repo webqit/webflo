@@ -1,4 +1,5 @@
 import { _any } from '@webqit/util/arr/index.js';
+import { _isObject } from '@webqit/util/js/index.js';
 import { pattern } from '../../util-url.js';
 import { AbstractController } from '../../AbstractController.js';
 import { CookieStorage } from './CookieStorage.js';
@@ -23,7 +24,7 @@ export class WebfloWorker extends AbstractController {
 
 	static get SessionStorage() { return SessionStorage; }
 
-    static get HttpUser() { return HttpUser(this.SessionStorage); }
+    static get HttpUser() { return HttpUser; }
 
 	static get Workport() { return Workport; }
 
@@ -126,22 +127,51 @@ export class WebfloWorker extends AbstractController {
 		if (typeof scope.url === 'string') {
 			scope.url = new URL(scope.url, self.location.origin);
 		}
-		// Create and route request
-		scope.request = this.createRequest(scope.url, scope.init);
-		scope.httpEvent = this.constructor.HttpEvent.create({
-            request: scope.request,
-            detail: scope.detail,
-            cookies: this.constructor.CookieStorage.create(scope.request),
-            session: this.constructor.SessionStorage.create(scope.request, { secret: this.cx.env.entries.SESSION_KEY }),
-            user: this.constructor.HttpUser.create(scope.request, { secret: this.cx.env.entries.SESSION_KEY }),
-            workport: new this.constructor.Workport(await self.clients.get(detail.event?.clientId))
-        });
-		return await this.dispatch(scope.httpEvent, {}, async (event) => {
-			// Was this nexted()? Tell the next layer we're in JSON mode by default
-			if (event !== scope.httpEvent && !event.request.headers.has('Accept')) {
-				event.request.headers.set('Accept', 'application/json');
+		scope.response = await new Promise(async (resolveResponse) => {
+            scope.handleRespondWith = async (response) => {
+                if (!(response instanceof Response)) {
+                    response = Response.create(response);
+                }
+                resolveResponse(response);
+			};
+			// Create and route request
+			scope.request = this.createRequest(scope.url, scope.init);
+			scope.cookies = this.constructor.CookieStorage.create(scope.request);
+			scope.session = this.constructor.SessionStorage.create(scope.request, { secret: this.cx.env.entries.SESSION_KEY });
+			scope.workport = new this.constructor.Workport;
+			scope.workport.add(await self.clients.get(detail.event?.clientId));
+			scope.user = this.constructor.HttpUser.create(
+				scope.request,
+				scope.session,
+				scope.workport
+			);
+			scope.httpEvent = this.constructor.HttpEvent.create(scope.handleRespondWith, {
+                request: scope.request,
+                detail: scope.detail,
+                cookies: scope.cookies,
+                session: scope.session,
+                user: scope.user,
+                workport: scope.workport
+            });
+			// Dispatch for response
+			scope.$response = await this.dispatch(scope.httpEvent, {}, async (event) => {
+				// Was this nexted()? Tell the next layer we're in JSON mode by default
+				if (event !== scope.httpEvent && !event.request.headers.has('Accept')) {
+					event.request.headers.set('Accept', 'application/json');
+				}
+				return await this.remoteFetch(event.request);
+			});
+			// Handle background mode's final reponse
+			if (scope.httpEvent.response) {
+				const data = scope.$response instanceof Response
+					? await scope.$response.parse()
+					: scope.$response;
+				if (_isObject(data)) {
+					scope.workport.postMessage(data, { eventType: 'render' });
+				}
+				return;
 			}
-			return await this.remoteFetch(event.request);
+			resolveResponse(scope.$response);
 		});
 	}
 

@@ -1,19 +1,19 @@
 import { _isEmpty } from '@webqit/util/js/index.js';
-import { AbstractCookieStorage } from './AbstractCookieStorage.js';
-import { AbstractStorage } from './AbstractStorage.js';
 import xURL from "./xURL.js";
 
 export class HttpEvent {
 
-    static create(init) {
-        return new this(init);
+    static create(parentEvent, init) {
+        return new this(parentEvent, init);
     }
 
+    #parentEvent;
     #init;
     #url;
     #requestCloneCallback;
 
-    constructor(init) {
+    constructor(parentEvent, init) {
+        this.#parentEvent = parentEvent;
         this.#init = init;
         this.#url = new xURL(init.request.url);
     }
@@ -44,8 +44,42 @@ export class HttpEvent {
         return instance;
     }
 
-    redirect(url, code = 302) {
-        return new Response(null, { status: code, headers: { Location: url } });
+    #response = null;
+    get response() { return this.#response; }
+
+    #responseOrigin = null;
+    #saveResponseOrigin() {
+        const stack = new Error().stack;
+        const stackLines = stack.split('\n');
+        this.#responseOrigin = stackLines[2].trim();
+    }
+
+    async respondWith(response) {
+        if (this.#response) {
+            throw new Error(`Event has already been responded to at: ${this.#responseOrigin}`);
+        }
+        this.#response = response;
+        if (!this.#responseOrigin) {
+            this.#saveResponseOrigin();
+        }
+        if (this.#parentEvent instanceof HttpEvent) {
+            // Set responseOrigin first to prevent parent from repeating the work
+            this.#parentEvent.#responseOrigin = this.#responseOrigin;
+            // Ensure the respondWith() method is how we propagate response
+            await this.#parentEvent.respondWith(this.#response);
+        } else {
+            // The callback passed at root
+            await this.#parentEvent?.(response);
+        }
+    }
+
+    async defer(message = null) {
+        this.#saveResponseOrigin();
+        await this.respondWith(new Response(message, { status: 202/*Accepted*/ }));
+    }
+
+    deferred() {
+        return this.#response?.status === 202;
     }
 
     async with(url, init = {}) {
@@ -58,6 +92,6 @@ export class HttpEvent {
             init = await Request.copy(this.request, init);
             request = new Request(url, { ...init, referrer: this.request.url });
         }            
-        return new HttpEvent(request, this.detail, this.cookies, this.session, this.storage);
+        return new HttpEvent(this, { ...this.#init, request  });
     }
 }

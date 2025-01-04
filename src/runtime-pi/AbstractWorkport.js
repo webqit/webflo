@@ -3,84 +3,130 @@ export class AbstractWorkport {
     #params;
     get params() { return this.#params; }
 
-    constructor(connection, params = {}) {
-        this.#connection = connection;
+    constructor(params = {}) {
         this.#params = params;
     }
 
-    #connection;
-    connection(callback = null) {
-        if (!callback) return this.#connection;
-        return this.onStateChange('connected', callback);
+    #workers = new Set;
+    get length() { return this.#workers.size; }
+
+    [ Symbol.iterator ]() { return this.#workers[ Symbol.iterator ](); }
+
+    #onConnectionHooks = 0;
+    get hasActivities() { return !!this.#onConnectionHooks; }
+
+    #allTimeHasWorkers;
+    add(worker) {
+        this.#workers.add(worker);
+        this.#emit('add', worker);
+        if (!this.#allTimeHasWorkers) {
+            this.#emit('active', worker);
+        }
+        this.#allTimeHasWorkers = true;
     }
 
-    #wasOnceConnected = false;
-    #hasActivities = 0;
-    get hasActivities() { return !!this.#hasActivities; }
+    remove(worker) {
+        this.#workers.delete(worker);
+        this.#emit('remove', worker);
+        if (!this.#isReplaceAction && this.#workers.size === 0) {
+            this.#emit('empty');
+        }
+    }
+
+    #isReplaceAction;
+    replace(worker) {
+        this.#isReplaceAction = true;
+        for (const worker of this.#workers) {
+            this.remove(worker);
+        }
+        this.#isReplaceAction = false;
+        this.add(worker);
+    }
+
+    get(index, callback = null) {
+        const _leadMax = this.#workers.size - 1;
+        if (index > _leadMax && callback) {
+            return this.on('add', () => this.get(index, callback), { once: true });
+        }
+        const worker = [...this.#workers][index];
+        if (callback) {
+            callback(worker);
+        } else return worker;
+    }
 
     #hooks = new Set;
-    onStateChange(state, callback, { once = true } = {}) {
-        if ((state === 'connected' && this.#connection)
-        || (state === 'disconnected' && !this.#connection && this.#wasOnceConnected)) {
-            callback(this.#connection);
-            if (once) {
-                return () => {};
+    on(state, callback, { once = false } = {}) {
+        if (['add', 'active'].includes(state)) {
+            this.#onConnectionHooks ++;
+            if (state === 'active' && this.#workers.size) {
+                callback();
+                if (once) {
+                    return;
+                }
             }
         }
-        if (state === 'connected') {
-            this.#hasActivities ++;
-        }
-        const hook = { state, callback, once };
+        const hook = { on: state, callback, once };
         this.#hooks.add(hook);
         return () => this.#hooks.delete(hook);
     }
 
-    stateChange(state, arg) {
-        if (state === 'connected') {
-            this.#wasOnceConnected = true;
-            this.#connection = arg;
-        }
-        if (state === 'disconnected' && arg === this.#connection) {
-            this.#connection = null;
-        }
+    #emit(eventName, arg) {
         for (const hook of this.#hooks) {
-            if (hook.state !== state) continue;
+            if (hook.on !== eventName) continue;
             hook.callback(arg);
             if (hook.once) {
                 this.#hooks.delete(hook);
             }
         }
     }
-
+    
     postMessage(message, transferOrOptions = []) {
-        this.connection((connection) => {
-            connection.postMessage(message, transferOrOptions);
-        });
+        if (!this.#workers.size) {
+            return this.on('add', (w) => w.postMessage(message, transferOrOptions), { once: true });
+        }
+        for (const w of this.#workers) {
+            w.postMessage(message, transferOrOptions);
+        }
     }
 
-    postMessageCallback(message, callback, options = {}) {
-        this.connection((connection) => {
-            const { signal, once, ...$options } = options;
-            const messageChannel = new MessageChannel();
-            messageChannel.port1.addEventListener('message', (e) => callback(e.data), {
-                signal,
-                once
-            });
-            messageChannel.port1.start();
-            connection.postMessage(message, { ...$options, transfer: [ messageChannel.port2 ] });
+    postRequest(message, callback, options = {}) {
+        if (!this.#workers.size) {
+            return this.on('add', () => this.postRequest(message, callback, options), { once: true });
+        }
+        const { signal, once, ...$options } = options;
+        const messageChannel = new MessageChannel();
+        messageChannel.port1.addEventListener('message', (e) => callback(e), {
+            signal,
+            once
         });
+        messageChannel.port1.start();
+        for (const w of this.#workers) {
+            w.postMessage(message, { ...$options, transfer: [ messageChannel.port2 ] });
+        }
     }
 
-    addEventListener(type, listener, options = {}) {
-        this.connection((connection) => {
-            connection.addEventListener(type, listener, options);
-        });
+    handleMessages(type, listener, options = {}) {
+        for (const w of this.#workers) {
+            w.addEventListener(type, listener, options);
+        }
+        const cancel1 = this.on('add', (w) => w.addEventListener(type, listener, options));
+        const cancel2 = this.on('remove', (w) => w.removeEventListener(type, listener, options));
+        return () => {
+            for (const w of this.#workers) {
+                w.removeEventListener(type, listener, options);
+            }
+            cancel1();
+            cancel2();
+        };
     }
 
-    removeEventListener(type, listener, options = {}) {
-        this.connection((connection) => {
-            connection.removeEventListener(type, listener, options);
-        });
+    handleRequests(type, listener, options = {}) {
+        return this.handleMessages(type, async (e) => {
+            const response = await listener(e);
+            for (const p of e.ports) {
+                p.postMessage(response);
+            }
+        }, options);
     }
 
     createBroadcastChannel(name) {

@@ -6,7 +6,6 @@ import Https from 'https';
 import WebSocket from 'ws';
 import Mime from 'mime-types';
 import QueryString from 'querystring';
-import Observer from '@webqit/observer';
 import { _from as _arrFrom, _any } from '@webqit/util/arr/index.js';
 import { _isEmpty, _isObject } from '@webqit/util/js/index.js';
 import { _each } from '@webqit/util/obj/index.js';
@@ -40,7 +39,7 @@ export class WebfloServer extends AbstractController {
 
     static get SessionStorage() { return SessionStorage; }
 
-    static get HttpUser() { return HttpUser(this.SessionStorage); }
+    static get HttpUser() { return HttpUser; }
 
     static create(cx) {
         return new this(this.Context.create(cx));
@@ -212,14 +211,8 @@ export class WebfloServer extends AbstractController {
             } else {
                 wss.handleUpgrade(nodeRequest, socket, head, (ws) => {
                     wss.emit('connection', ws, nodeRequest);
-                    if (scope.existingConnection = scope.workport.connection()) {
-                        scope.existingConnection.close();
-                    }
-                    scope.newConnection = new WebSocketWorker(ws);
-                    scope.workport.stateChange('connected', scope.newConnection);
-                    ws.on('close', () => {
-                        scope.workport.stateChange('disconnected', scope.newConnection);
-                    });
+                    const wsw = new WebSocketWorker(ws);
+                    scope.workport.replace(wsw);
                 });
             }
         }
@@ -293,35 +286,35 @@ export class WebfloServer extends AbstractController {
             });
         }
         // -----------------
-        // To Nodejs response
-        if (nodeResponse.headersSent) return;
-        // --------
-        for (const [name, value] of scope.response.headers) {
-            const existing = nodeResponse.getHeader(name);
-            if (existing) nodeResponse.setHeader(name, [].concat(existing).concat(value));
-            else nodeResponse.setHeader(name, value);
-        }
-        // --------
-        nodeResponse.statusCode = scope.response.status;
-        nodeResponse.statusMessage = scope.response.statusText;
-        if (scope.response.headers.has('Location')) {
-            nodeResponse.end();
-        } else if ((scope.response.body instanceof _ReadableStream)) {
-            scope.response.body.pipe(nodeResponse);
-        } else if ((scope.response.body instanceof ReadableStream)) {
-            _ReadableStream.from(scope.response.body).pipe(nodeResponse);
-        } else {
-            let body = scope.response.body;
-            if (scope.response.headers.get('Content-Type') === 'application/json') {
-                body += '';
+        // For when response was sent during this.navigate()
+        if (!nodeResponse.headersSent) {
+            for (const [name, value] of scope.response.headers) {
+                const existing = nodeResponse.getHeader(name);
+                if (existing) nodeResponse.setHeader(name, [].concat(existing).concat(value));
+                else nodeResponse.setHeader(name, value);
             }
-            nodeResponse.end(body);
-        }
-        // -----------------
-        // Logging
-        if (this.#cx.logger) {
-            const log = this.generateLog({ url: fullUrl, method: nodeRequest.method }, scope.response);
-            this.#cx.logger.log(log);
+            // --------
+            nodeResponse.statusCode = scope.response.status;
+            nodeResponse.statusMessage = scope.response.statusText;
+            if (scope.response.headers.has('Location')) {
+                nodeResponse.end();
+            } else if (scope.response.body instanceof _ReadableStream) {
+                scope.response.body.pipe(nodeResponse);
+            } else if (scope.response.body instanceof ReadableStream) {
+                _ReadableStream.from(scope.response.body).pipe(nodeResponse);
+            } else {
+                let body = scope.response.body;
+                if (scope.response.headers.get('Content-Type') === 'application/json') {
+                    body += '';
+                }
+                nodeResponse.end(body);
+            }
+            // -----------------
+            // Logging
+            if (this.#cx.logger) {
+                const log = this.generateLog({ url: fullUrl, method: nodeRequest.method }, scope.response);
+                this.#cx.logger.log(log);
+            }
         }
     }
 
@@ -477,73 +470,76 @@ export class WebfloServer extends AbstractController {
         if (typeof scope.url === 'string') {
             scope.url = new URL(scope.url, 'http://localhost');
         }
-        scope.autoHeaders = this.#cx.config.runtime.server.Headers
-            ? ((await (new this.#cx.config.runtime.server.Headers(this.#cx)).read()).entries || []).filter(entry => pattern(entry.url, url.origin).exec(url.href))
-            : [];
-        scope.request = this.createRequest(scope.url.href, scope.init, scope.autoHeaders.filter((header) => header.type === 'request'));
-        scope.cookies = this.constructor.CookieStorage.create(scope.request);
-        scope.session = this.constructor.SessionStorage.create(scope.request, { secret: this.#cx.env.entries.SESSION_KEY });
-        scope.user = this.constructor.HttpUser.create(scope.request, { secret: this.#cx.env.entries.SESSION_KEY });
-        const sessionID = scope.session.sessionID;
-        if (!this.#workportRegistry.has(sessionID)) {
-            this.#workportRegistry.set(sessionID, new WorkportManager(sessionID));
-        }
-        scope.workportManager = this.#workportRegistry.get(sessionID);
-        scope.workport = scope.workportManager.createPort();
-        scope.httpEvent = this.constructor.HttpEvent.create({
-            request: scope.request,
-            detail: scope.detail,
-            cookies: scope.cookies,
-            session: scope.session,
-            user: scope.user,
-            workport: scope.workport
+        scope.response = await new Promise(async (resolveResponse) => {
+            scope.handleRespondWith = async (response) => {
+                if (!(response instanceof Response)) {
+                    response = Response.create(response);
+                }
+                response.headers.set('X-Background-Activity', `/${scope.workport.portID}`);
+                scope.session.commit(response, true);
+                resolveResponse(response);
+            };
+            // ---------------
+            // Request processing
+            scope.autoHeaders = this.#cx.config.runtime.server.Headers
+                ? ((await (new this.#cx.config.runtime.server.Headers(this.#cx)).read()).entries || []).filter(entry => pattern(entry.url, url.origin).exec(url.href))
+                : [];
+            scope.request = this.createRequest(scope.url.href, scope.init, scope.autoHeaders.filter((header) => header.type === 'request'));
+            scope.cookies = this.constructor.CookieStorage.create(scope.request);
+            scope.session = this.constructor.SessionStorage.create(scope.request, { secret: this.#cx.env.entries.SESSION_KEY });
+            const sessionID = scope.session.sessionID;
+            if (!this.#workportRegistry.has(sessionID)) {
+                this.#workportRegistry.set(sessionID, new WorkportManager(sessionID));
+            }
+            scope.workportManager = this.#workportRegistry.get(sessionID);
+            scope.workport = scope.workportManager.createPort();
+            scope.user = this.constructor.HttpUser.create(
+                scope.request, 
+                scope.session, 
+                scope.workport
+            );
+            scope.httpEvent = this.constructor.HttpEvent.create(scope.handleRespondWith, {
+                request: scope.request,
+                detail: scope.detail,
+                cookies: scope.cookies,
+                session: scope.session,
+                user: scope.user,
+                workport: scope.workport
+            });
+            // Dispatch for response
+            scope.$response = await this.dispatch(scope.httpEvent, {}, async (event) => {
+                return await this.localFetch(event);
+            });
+            // Handle background mode's final reponse
+            if (scope.httpEvent.response) {
+                // Pass the response via workport as pure data
+                const data = scope.$response instanceof Response
+                    ? await scope.$response.parse()
+                    : scope.$response;
+                if (_isObject(data)) {
+                    scope.workport.postMessage(data, { eventType: 'render' });
+                }
+                return;
+            }
+            // Sync mode reponse handling
+            if (scope.workport.hasActivities) {
+                scope.$response.headers.set('X-Background-Activity', `/${scope.workport.portID}`);
+                scope.session.commit(scope.$response, true);
+            } else {
+                scope.workportManager.delete(scope.workport.portID);
+            }
+            resolveResponse(scope.$response);
         });
-        scope.response = await this.dispatch(scope.httpEvent, {}, async (event) => {
-            return await this.localFetch(event);
-        });
+        // Reponse handlers
         if (scope.response.headers.get('Location')) {
-            // Handle redirect. Stop processing there
             this.writeRedirectHeaders(scope.httpEvent, scope.response);
         } else {
-            // Write headers
             this.writeAutoHeaders(scope.response.headers, scope.autoHeaders.filter((header) => header.type === 'response'));
             if (scope.httpEvent.request.method !== 'GET' && !scope.response.headers.get('Cache-Control')) {
                 scope.response.headers.set('Cache-Control', 'no-store');
             }
             scope.response.headers.set('Accept-Ranges', 'bytes');
-            // Satisfy request format
             scope.response = await this.satisfyRequestFormat(scope.httpEvent, scope.response);
-
-        }
-        if (scope.workport.hasActivities) {
-            scope.response.headers.set('X-Webflo-Activity-Request', `/${scope.workport.portID}`);
-            scope.session.commit(scope.response, true);
-            
-
-
-
-            scope.workport.postMessageCallback('Please confirm your name', (e) => {
-                console.log('_________________________NAME_CONFIRMED:', e)
-            }, { eventType: 'confirm' });
-
-            scope.workport.addEventListener('message', (e) => {
-                console.log('Recieved event:22222', e.data);
-                if (e.ports.length) {
-                    e.ports[0].postMessage({
-                        Hahahahaahah: true
-                    });
-                    e.ports[2]?.postMessage({
-                        Hahahahaahah___________: true
-                    });
-                }
-            });
-
-
-
-
-
-        } else {
-            scope.workportManager.delete(scope.workport.portID);
         }
         return scope.response;
     }

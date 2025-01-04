@@ -1,6 +1,8 @@
 export class WebSocketWorker extends EventTarget {
 
     #socket;
+    get socket() { return this.#socket; }
+
     constructor(socket) {
         super();
         this.#socket = socket;
@@ -63,7 +65,7 @@ export class WebSocketWorker extends EventTarget {
     }
 }
 
-class SocketEvent extends Event {
+export class SocketEvent extends Event {
 
     #eventID;
     get eventID() { return this.#eventID; }
@@ -91,5 +93,14 @@ class SocketEvent extends Event {
             channel.port1.start();
             this.#ports.push(channel.port2);
         }
+    }
+
+    respondWith(data, transferOrOptions = []) {
+        if (!this.#ports.length) return false;
+        if (this.#ports.length > 1) {
+            throw new Error(`Multiple reply ports detected`);
+        }
+        this.#ports[0].postMessage(data, transferOrOptions);
+        return true;
     }
 }

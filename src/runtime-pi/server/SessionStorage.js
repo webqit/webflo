@@ -2,7 +2,6 @@ import { AbstractStorage } from '../AbstractStorage.js';
 import crypto from 'crypto';
 
 export class SessionStorage extends AbstractStorage {
-    static get type() { return 'session'; }
 
     static create(request, params = {}) {
         if (!this.__storage) Object.defineProperty(this, '__storage', { value: new Map });
@@ -27,14 +26,11 @@ export class SessionStorage extends AbstractStorage {
                 sessionID = crypto.randomUUID();
             }
         }
-        const storageID = `${sessionID}:${this.type}`;
-        if (this.__storage.has(storageID)) {
-            return this.__storage.get(storageID);
+        if (this.__storage.has(sessionID)) {
+            return this.__storage.get(sessionID);
         }
-        const instance = new this;
-        this.__storage.set(storageID, instance);
-        instance.#sessionID = sessionID;
-        instance.#request = request;
+        const instance = new this(sessionID);
+        this.__storage.set(sessionID, instance);
         return instance;
     }
 
@@ -43,9 +39,9 @@ export class SessionStorage extends AbstractStorage {
         return this.#sessionID;
     }
 
-    #request;
-    get request() {
-        return this.#request;
+    constructor(sessionID) {
+        super();
+        this.#sessionID = sessionID;
     }
 
     commit(response, force = false) {

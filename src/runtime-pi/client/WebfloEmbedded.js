@@ -120,16 +120,16 @@ export class WebfloEmbedded extends AbstractController {
 	async push(url, state = {}) {
 	}
 
-    hardRedirect(location, processObj = {}) {
+    hardRedirect(location, backgroundActivity = null) {
         location = typeof location === 'string' ? new URL(location, this.location.origin) : location;
         const width = Math.min(800, window.innerWidth);
 		const height = Math.min(600, window.innerHeight);
 		const left = (window.outerWidth - width) / 2;
 		const top = (window.outerHeight - height) / 2;
 		const popup = window.open(location, '_blank', `popup=true,width=${width},height=${height},left=${left},top=${top}`);
-		if (processObj.abortController) {
+		if (backgroundActivity) {
 			Observer.set(this.navigator, 'redirecting', new Url/*NOT URL*/(location), { diff: true });
-			processObj.abortController.signal.addEventListener('abort', (e) => {
+			backgroundActivity.addEventListener('close', (e) => {
 				Observer.set(this.navigator, 'redirecting', null);
 				popup.postMessage('timeout:5');
 				setTimeout(() => {
@@ -137,8 +137,8 @@ export class WebfloEmbedded extends AbstractController {
 				}, 5000);
 			});
 			window.addEventListener('message', (e) => {
-				if (e.source === popup) {
-					processObj.abortController.abort();
+				if (e.source === popup && e.data === 'close') {
+					backgroundActivity.close();
 				}
 			});
 		}

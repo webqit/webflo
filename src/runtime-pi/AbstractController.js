@@ -5,7 +5,7 @@ export class AbstractController {
         // Exec routing
         scope.router = new this.constructor.Router(this.cx, httpEvent.url.pathname);
         scope.route = async () => {
-            return scope.router.route([httpEvent.request.method, 'default'], httpEvent, context, async (event) => {
+            return await scope.router.route([httpEvent.request.method, 'default'], httpEvent, context, async (event) => {
                 return crossLayerFetch(event);
             }, (...args) => this.remoteFetch(...args));
         };
@@ -26,7 +26,7 @@ export class AbstractController {
             }
         } catch (e) {
             console.error(e);
-            scope.response = new Response(e.message, { status: 500, statusText: e.message });
+            scope.response = new Response(null, { status: 500, statusText: e.message });
         }
         return scope.response;
     }

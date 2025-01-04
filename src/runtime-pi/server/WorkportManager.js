@@ -19,13 +19,12 @@ export class WorkportManager extends Map {
         const portID = (0 | Math.random() * 9e6).toString(36);
         const portInstance = new Workport(this, portID, this.#params);
         this.set(portID, portInstance);
-        portInstance.onStateChange('disconnected', () => {
+        portInstance.on('empty', () => {
             this.delete(portID);
         });
         setTimeout(() => {
-            if (!portInstance.connection() && this.has(portID)) {
-                this.delete(portID);
-            }
+            if (portInstance.length || !this.has(portID)) return;
+            this.delete(portID);
         }, 10000/*10sec*/);
         return portInstance;
     }

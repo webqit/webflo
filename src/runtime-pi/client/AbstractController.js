@@ -1,10 +1,12 @@
 import { _before, _toTitle } from '@webqit/util/str/index.js';
 import { _isObject } from '@webqit/util/js/index.js';
 import { AbstractController as AbsCntrl } from '../AbstractController.js';
+import { SocketEvent } from '../WebSocketWorker.js';
 import { CookieStorage } from './CookieStorage.js';
 import { SessionStorage } from './SessionStorage.js';
 import { HttpEvent } from '../HttpEvent.js';
 import { HttpUser } from '../HttpUser.js';
+import { Workport } from './Workport.js';
 import { Router } from './Router.js';
 import { Url } from './Url.js';
 import xfetch from '../xfetch.js';
@@ -23,7 +25,9 @@ export class AbstractController extends AbsCntrl {
 
 	static get SessionStorage() { return SessionStorage; }
 
-    static get HttpUser() { return HttpUser(this.SessionStorage); }
+    static get HttpUser() { return HttpUser; }
+
+    static get Workport() { return Workport; }
 
     #host;
     get host() { return this.#host; }
@@ -39,6 +43,9 @@ export class AbstractController extends AbsCntrl {
 
     #transition;
     get transition() { return this.#transition; }
+
+	#workport;
+	get workport() { return this.#workport; }
 
     constructor(host) {
         super();
@@ -62,6 +69,7 @@ export class AbstractController extends AbsCntrl {
     }
 
     initialize() {
+		this.#workport = new this.constructor.Workport;
         const onlineHandler = () => Observer.set(this.network, 'status', window.navigator.onLine);
         window.addEventListener('online', onlineHandler);
         window.addEventListener('offline', onlineHandler);
@@ -70,6 +78,9 @@ export class AbstractController extends AbsCntrl {
             this.navigate(this.location.href, {}, { navigationType: 'startup', });
         }
         return () => {
+            for (const worker of this.#workport) {
+                worker.close();
+            }
             window.removeEventListener('online', onlineHandler);
             window.removeEventListener('offline', onlineHandler);
             uncontrols();
@@ -200,14 +211,18 @@ export class AbstractController extends AbsCntrl {
         }, true);
     }
 
-    async redirect(location, processObj) {
+    async redirect(location, backgroundActivity) {
         location = typeof location === 'string' ? new URL(location, this.location.origin) : location;
         if (this.isSpaRoute(location)) {
             await this.navigate(location, {}, { navigationType: 'rdr' });
-        } else this.hardRedirect(location, processObj);
+        } else this.hardRedirect(location, backgroundActivity);
     }
 
-    hardRedirect(location) {
+    hardRedirect(location, backgroundActivity) {
+        if (backgroundActivity) {
+            // Redundant as this is a window reload anyways
+            backgroundActivity.close();
+        }
         window.location = location;
     }
 
@@ -230,54 +245,114 @@ export class AbstractController extends AbsCntrl {
 		if (typeof scope.url === 'string') {
 			scope.url = new URL(scope.url, self.location.origin);
 		}
-        // Create and route request
-        scope.request = this.createRequest(scope.url, scope.init);
-        if (detail.navigationType === 'startup') {
-            scope.request.headers.set('X-Is-Startup-Flight', 1);
-        }
-        scope.httpEvent = this.constructor.HttpEvent.create({
-            request: scope.request,
-            detail: scope.detail,
-            cookies: this.constructor.CookieStorage.create(),
-            session: this.constructor.SessionStorage.create(),
-            user: this.constructor.HttpUser.create(scope.request),
-            workport: this.workport
-        });
-        scope.httpEvent.onRequestClone = () => this.createRequest(scope.url, scope.init);
-        // Ste pre-request states
-        Observer.set(this.navigator, {
-            requesting: new Url/*NOT URL*/(scope.url),
-            origins: scope.detail.navigationOrigins || [],
-            method: scope.request.method,
-            error: null
-        });
-        scope.context = {};
-        if (window.webqit?.oohtml?.configs) {
-            const { BINDINGS_API: { api: bindingsConfig } = {}, } = window.webqit.oohtml.configs;
-            scope.context = this.host[bindingsConfig.bindings];
-        }
-        scope.response = await this.dispatch(scope.httpEvent, scope.context, async (event) => {
-            // Was this nexted()? Tell the next layer we're in JSON mode by default
-            if (event !== scope.httpEvent && !event.request.headers.has('Accept')) {
-                event.request.headers.set('Accept', 'application/json');
+        scope.response = await new Promise(async (resolveResponse) => {
+            scope.handleRespondWith = async (response) => {
+                if (!(response instanceof Response)) {
+                    response = Response.create(response);
+                }
+                resolveResponse(response);
+            };
+            // Create and route request
+            scope.request = this.createRequest(scope.url, scope.init);
+            if (detail.navigationType === 'startup') {
+                scope.request.headers.set('X-Is-Startup-Flight', 1);
             }
-            return await this.remoteFetch(event.request);
+            scope.cookies = this.constructor.CookieStorage.create();
+            scope.session = this.constructor.SessionStorage.create();
+            scope.user = this.constructor.HttpUser.create(
+                scope.request, 
+                scope.session, 
+                this.workport
+            );
+            scope.httpEvent = this.constructor.HttpEvent.create(scope.handleRespondWith, {
+                request: scope.request,
+                detail: scope.detail,
+                cookies: scope.cookies,
+                session: scope.session,
+                user: scope.user,
+                workport: this.workport
+            });
+            scope.httpEvent.onRequestClone = () => this.createRequest(scope.url, scope.init);
+            // Ste pre-request states
+            Observer.set(this.navigator, {
+                requesting: new Url/*NOT URL*/(scope.url),
+                origins: scope.detail.navigationOrigins || [],
+                method: scope.request.method,
+                error: null
+            });
+            scope.context = {};
+            if (window.webqit?.oohtml?.configs) {
+                const { BINDINGS_API: { api: bindingsConfig } = {}, } = window.webqit.oohtml.configs;
+                scope.context = this.host[bindingsConfig.bindings];
+            }
+            // Dispatch for response
+            scope.$response = await this.dispatch(scope.httpEvent, scope.context, async (event) => {
+                // Was this nexted()? Tell the next layer we're in JSON mode by default
+                if (event !== scope.httpEvent && !event.request.headers.has('Accept')) {
+                    event.request.headers.set('Accept', 'application/json');
+                }
+                return await this.remoteFetch(event.request);
+            });
+            // Handle background mode's final reponse
+            if (scope.httpEvent.response) {
+                const data = scope.$response instanceof Response
+                    ? await scope.$response.parse()
+                    : scope.$response;
+                if (_isObject(data)) {
+                    this.workport.dispatchEvent(new SocketEvent(
+                        this.workport, //ownerAPI
+                        null, // eventID
+                        'render', // eventType
+                        data,
+                        0 // numPorts
+                    ));
+                }
+                return;
+            }
+            resolveResponse(scope.$response);
         });
         scope.finalUrl = scope.response.url || scope.request.url;
         if (scope.response.redirected && scope.httpEvent.detail.navigationType !== 'traverse') {
             const stateData = { ...(this.currentEntry()?.getState() || {}), redirected: true, };
             await this.updateCurrentEntry({ state: stateData }, scope.finalUrl);    
         }
-        if (scope.response.headers.has('X-Webflo-Activity-Request')) {
-            const ws = new WebSocket(scope.response.headers.get('X-Webflo-Activity-Request'));
-            const $ws = new WebSocketWorker(ws);
+        if (scope.response.headers.has('X-Background-Activity')) {
+            const ws = new WebSocket(scope.response.headers.get('X-Background-Activity'));
+            scope.backgroundActivity = new WebSocketWorker(ws);
+            this.#workport.add(scope.backgroundActivity);
+        }
 
-            $ws.addEventListener('message', (e) => {
+
+
+
+
+
+        if (scope.backgroundActivity) {
+            // Start polling in the background?
+            /*
+            scope.backgroundActivity.postRequest('can_poll', (response) => {
+                if (typeof response.data !== 'number') return;
+                const intv = setInterval(() => {
+                    scope.backgroundActivity.postRequest('render', (response) => {
+                        if (response.data) resolveData(response.data);
+                    });
+                },  response.data);
+                scope.backgroundActivity.on('close', () => clearInterval(intv));
+            });
+            // Or just wait for data?
+            scope.backgroundActivity.handleMessages('render', (e) => {
+                resolveData(response.data);
+            });
+            */
+            scope.backgroundActivity.addEventListener('message', (e) => {
                 console.log('Recieved message', e.data, e.ports);
             });
-            $ws.addEventListener('confirm', (e) => {
+            scope.backgroundActivity.addEventListener('confirm', (e) => {
                 console.log('Recieved confirm:', e.data, e.ports);
-                e.ports[0].postMessage('Yes name is Ox-Harris');
+                e.respondWith('Yes name is Ox-Harris');
+            });
+            scope.backgroundActivity.addEventListener('render', (e) => {
+                console.log('Recieved render', e.data, e.ports);
             });
 
             const mp1 = new MessageChannel;
@@ -295,22 +370,42 @@ export class AbstractController extends AbsCntrl {
             mp1.port1.start();
             mp2.port1.start();
             mp3.port1.start();
-            $ws.postMessage({
+            scope.backgroundActivity.postMessage({
                 key2: 'Hello world 2'
             }, [mp1.port2, mp2.port2, mp3.port2]);
 
-            $ws.postMessage({
+            scope.backgroundActivity.postMessage({
                 key3: 'Hello world 3'
             });
             setTimeout(() => {
-                $ws.close();
+                //scope.backgroundActivity.close();
             }, 2000);
+        }
+
+
+
+
+
+
+        if (scope.response.headers.has('Location')) {
+            // Normalize redirect
+            const xActualRedirectCode = parseInt(scope.response.headers.get('X-Redirect-Code'));
+            if (xActualRedirectCode && scope.response.status === this._xRedirectCode) {
+                scope.response.meta.status = xActualRedirectCode; // @NOTE 1
+            }
+            // Trigger redirect
+            if ([302, 301].includes(scope.response.status)) {
+                const location = scope.response.headers.get('Location');
+                this.redirect(location, scope.backgroundActivity);
+                return;
+            }
         }
         if ([202/*Accepted*/, 304/*Not Modified*/].includes(scope.response.status)) {
             // No rendering
             return;
         }
-        scope.data = (await scope.response.parse()) || {};
+        // Only render now
+        scope.data = await scope.response.parse() || {};
         // Transition UI
         Observer.set(this.transition.from, Url.copy(this.location));
         Observer.set(this.transition.to, 'href', scope.finalUrl);
@@ -336,37 +431,21 @@ export class AbstractController extends AbsCntrl {
 
     async dispatch(httpEvent, context, crossLayerFetch, processObj = {}) {
         const response = await super.dispatch(httpEvent, context, crossLayerFetch);
-        if (response.headers.has('Retry-After')) {
-            // Set the below before calling redirect handlers
-            if (!processObj.abortController) {
-                // This is start of the process
-                processObj.abortController = new AbortController;
-            }
-        } else if (processObj.abortController) {
-            // Abort the signal. This is the end of the process
-            processObj.abortController.abort();
-        }
-        if (response.headers.has('Location')) {
-            // Normalize redirect
-            const xActualRedirectCode = parseInt(response.headers.get('X-Redirect-Code'));
-            if (xActualRedirectCode && response.status === this._xRedirectCode) {
-                response.meta.status = xActualRedirectCode; // @NOTE 1
-            }
-            // Trigger redirect
-            if ([302, 301].includes(response.status) && !processObj.abortController?.signal.aborted) {
-                const location = response.headers.get('Location');
-                this.redirect(location, processObj);
-            }
-        }
         // Handle "retry" directives
-        if (response.headers.has('Retry-After') && !processObj.abortController?.signal.aborted) {
-            await new Promise((res) => setTimeout(res, parseInt(response.headers.get('Retry-After')) * 1000));
-            const eventClone = httpEvent.clone();
-            eventClone.request.headers.set('X-Is-Retrying', 1);
-            if (response.headers.has('X-Webflo-Activity-Request')) {
-                eventClone.request.headers.set('X-Is-Retrying', response.headers.get('X-Webflo-Activity-Request').split('/').pop());
+        if (response.headers.has('Retry-After')) {
+            if (!processObj.recurseController) {
+                // This is start of the process
+                processObj.recurseController = new AbortController;
             }
-            return await this.dispatch(eventClone, context, crossLayerFetch, processObj);
+            // Ensure a previous recursion hasn't aborted the process
+            if (!processObj.recurseController.signal.aborted) {
+                await new Promise((res) => setTimeout(res, parseInt(response.headers.get('Retry-After')) * 1000));
+                const eventClone = httpEvent.clone();
+                return await this.dispatch(eventClone, context, crossLayerFetch, processObj);
+            }
+        } else if (processObj.recurseController) {
+            // Abort the signal. This is the end of the process
+            processObj.recurseController.abort();
         }
         return response;
     }

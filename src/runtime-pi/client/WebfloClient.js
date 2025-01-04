@@ -1,6 +1,5 @@
 import { AbstractController } from './AbstractController.js';
 import { WebfloEmbedded } from './WebfloEmbedded.js';
-import { Workport } from './Workport.js';
 import { Context } from './Context.js';
 
 const { Observer } = webqit;
@@ -9,17 +8,12 @@ export class WebfloClient extends AbstractController {
 
 	static get Context() { return Context; }
 
-	static get Workport() { return Workport; }
-
 	static create(host, cx = {}) {
         return new this(host, this.Context.create(cx));
     }
 
 	#cx;
 	get cx() { return this.#cx; }
-
-	#workport;
-	get workport() { return this.#workport; }
 
 	constructor(host, cx) {
 		if (!(host instanceof Document)) {
@@ -33,13 +27,20 @@ export class WebfloClient extends AbstractController {
 	}
 
 	initialize() {
-		// Service Worker && COMM
-		if (this.cx.params.service_worker?.filename) {
-			const { public_base_url: base, service_worker: { filename, ...serviceWorkerParams }, env } = this.cx.params;
-			//this.#workport = new this.constructor.Workport(base + filename, { ...serviceWorkerParams, env, startMessages: true });
-		}
 		// Main initializations
 		let undoControl = super.initialize();
+		// Service Worker && COMM
+		if (this.cx.params.service_worker?.filename) {
+			const { public_base_url: base, service_worker: { filename, ...restServiceWorkerParams } } = this.cx.params;
+			const { vapid_key_env, push_registration_url_env, ..._restServiceWorkerParams } = restServiceWorkerParams;
+			const swParams = {
+				..._restServiceWorkerParams,
+				VAPID_PUBLIC_KEY: this.cx.params.env[vapid_key_env],
+				PUSH_REGISTRATION_PUBLIC_URL: this.cx.params.env[push_registration_url_env],
+				startMessages: true
+			};
+			//this.workport.registerServiceWorker(base + filename, swParams);
+		}
 		if (window.opener) {
 			// Window opener pinging
 			const $undoControl = undoControl;
