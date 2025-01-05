@@ -70,6 +70,15 @@ export class AbstractController extends AbsCntrl {
 
     initialize() {
 		this.#workport = new this.constructor.Workport;
+        this.#workport.handleMessages('alert', (e) => {
+            alert(e.data);
+        });
+        this.#workport.handleRequests('confirm', (e) => {
+            return confirm(e.data);
+        });
+        this.#workport.handleRequests('prompt', (e) => {
+            return prompt(e.data);
+        });
         const onlineHandler = () => Observer.set(this.network, 'status', window.navigator.onLine);
         window.addEventListener('online', onlineHandler);
         window.addEventListener('offline', onlineHandler);
@@ -78,9 +87,7 @@ export class AbstractController extends AbsCntrl {
             this.navigate(this.location.href, {}, { navigationType: 'startup', });
         }
         return () => {
-            for (const worker of this.#workport) {
-                worker.close();
-            }
+            this.#workport.close();
             window.removeEventListener('online', onlineHandler);
             window.removeEventListener('offline', onlineHandler);
             uncontrols();
@@ -322,21 +329,9 @@ export class AbstractController extends AbsCntrl {
             this.#workport.add(scope.backgroundActivity);
             scope.backgroundActivity.addEventListener('render', (e) => {
                 this.transitionUI(() => {
-                    console.log('__________________RENDERING');
                     this.render(scope.httpEvent, e.data);
                 }, 'backgroundActivity');
             });
-            console.log('Still inside?1', this.#workport.length);
-            setTimeout(() => {
-                console.log('Still inside?2', this.#workport.length);
-                scope.backgroundActivity.dispatchEvent(new SocketEvent(
-                    scope.backgroundActivity,
-                    null,
-                    'render',
-                    { hi: 'hi '},
-                    0
-                ));
-            }, 12000);
         }
 
 
@@ -361,8 +356,8 @@ export class AbstractController extends AbsCntrl {
                 resolveData(response.data);
             });
             */
-            scope.backgroundActivity.addEventListener('message', (e) => {
-                console.log('Recieved message', e.data, e.ports);
+            scope.backgroundActivity.addEventListener('alert', (e) => {
+                console.log('Recieved alert', e.data, e.ports);
             });
             scope.backgroundActivity.addEventListener('confirm', (e) => {
                 console.log('Recieved confirm:', e.data, e.ports);

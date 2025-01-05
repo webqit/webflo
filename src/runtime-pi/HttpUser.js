@@ -1,14 +1,7 @@
-import { AbstractStorage } from './AbstractStorage.js';
-
-export class HttpUser extends AbstractStorage {
+export class HttpUser {
     
     static create(request, session, workport) {
-        if (session.has('user')) {
-            return session.get('user');
-        }
-        const instance = new this(request, session, workport);
-        session.set('user', instance);
-        return instance;
+        return new this(request, session, workport);
     }
 
     #request;
@@ -16,10 +9,31 @@ export class HttpUser extends AbstractStorage {
     #workport;
 
     constructor(request, session, workport) {
-        super();
         this.#request = request;
         this.#session = session;
         this.#workport = workport;
+        if (!this.#session.has('user')) {
+            this.#session.set('user', {});
+        }
+    }
+
+    get size() { return Object.keys(this.#session.user).length; }
+
+    set(key, value) {
+        Reflect.set(this.#session.user, key, value);
+        return this;
+    }
+
+    get(key) {
+        return Reflect.get(this.#session.user, key);
+    }
+
+    has(key) {
+        return Reflect.has(this.#session.user, key);
+    }
+
+    delete(key) {
+        return Reflect.deleteProperty(this.#session.user, key);
     }
 
     #handlers = new Map;
@@ -75,6 +89,13 @@ export class HttpUser extends AbstractStorage {
         return entries;
     }
 
+    alert(data, options = {}) {
+        return this.#workport.postMessage(
+            data,
+            { ...options, eventType: 'alert' }
+        );
+    }
+
     confirm(data, callback, options = {}) {
         return this.#workport.postRequest(
             data,
@@ -88,13 +109,6 @@ export class HttpUser extends AbstractStorage {
             data,
             callback,
             { ...options, eventType: 'prompt' }
-        );
-    }
-
-    alert(data, options = {}) {
-        return this.#workport.postMessage(
-            data,
-            { ...options, eventType: 'alert' }
         );
     }
 
