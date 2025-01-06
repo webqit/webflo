@@ -83,7 +83,9 @@ export class HttpUser extends AbstractStorage {
         const handler = this.getHandlers().get('auth')?.[1];
         let response;
         if (typeof handler === 'string') {
-            response = Response.redirect(url);
+            response = new Response(null, { status: 302, headers: {
+                Location: url
+            }});
         }
         if (typeof handler === 'function') {
             response = await handler(this);

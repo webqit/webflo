@@ -58,7 +58,9 @@ export class AbstractStorage extends Map {
                 if (!urlRewrite.searchParams.has('success-redirect')) {
                     urlRewrite.searchParams.set('success-redirect', this.#request.url.replace(urlRewrite.origin, ''));
                 }
-                return Response.redirect(urlRewrite);
+                return new Response(null, { status: 302, headers: {
+                    Location: urlRewrite
+                }});
             }
             entries.push(this.get(attr));
         }
