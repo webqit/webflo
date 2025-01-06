@@ -70,14 +70,21 @@ export class AbstractController extends AbsCntrl {
 
     initialize() {
 		this.#workport = new this.constructor.Workport;
+        const getMessage = (e) => {
+            let message = e.data;
+            if (e.data?.message) {
+                message = e.data.message + (e.data.description ? `\r\n${e.data.description}` : '');
+            }
+            return message;
+        };
         this.#workport.handleMessages('alert', (e) => {
-            alert(e.data);
+            alert(getMessage(e));
         });
         this.#workport.handleRequests('confirm', (e) => {
-            return confirm(e.data);
+            return confirm(getMessage(e));
         });
         this.#workport.handleRequests('prompt', (e) => {
-            return prompt(e.data);
+            return prompt(getMessage(e));
         });
         this.#workport.handleMessages('render', (e) => {
             const httpEvent = this.constructor.HttpEvent.create(null, { url: this.location.href });

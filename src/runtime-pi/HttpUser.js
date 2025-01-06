@@ -1,3 +1,4 @@
+import { _isObject } from '@webqit/util/js/index.js';
 import { AbstractStorage } from './AbstractStorage.js';
 
 export class HttpUser extends AbstractStorage {
@@ -68,6 +69,16 @@ export class HttpUser extends AbstractStorage {
         this.entries().forEach(callback);
     }
 
+    json(arg = null) {
+        if (!arguments.length || typeof arg === 'boolean') {
+            return {...this.#dict};
+        }
+        if (!_isObject(arg)) {
+            throw new Error(`Argument must be a valid JSON object`);
+        }
+        Object.assign(this.#dict, arg);
+    }
+
     isSignedIn() {
         return this.has('auth');
     }
@@ -102,22 +113,22 @@ export class HttpUser extends AbstractStorage {
     }
 
     confirm(data, callback, options = {}) {
-        return this.#workport.postRequest(
-            data,
-            callback,
-            { ...options, eventType: 'confirm' }
-        );
+        return new Promise((resolve) => {
+            this.#workport.postRequest(
+                data,
+                (event) => resolve(callback(event)),
+                { ...options, eventType: 'confirm' }
+            );
+        });
     }
 
     prompt(data, callback, options = {}) {
-        return this.#workport.postRequest(
-            data,
-            callback,
-            { ...options, eventType: 'prompt' }
-        );
-    }
-
-    toJSON() {
-        return {...this.#dict};
+        return new Promise((resolve) => {
+            this.#workport.postRequest(
+                data,
+                (event) => resolve(callback(event)),
+                { ...options, eventType: 'prompt' }
+            );
+        });
     }
 }
