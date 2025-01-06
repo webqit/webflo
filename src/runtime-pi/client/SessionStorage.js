@@ -9,7 +9,10 @@ export class SessionStorage extends AbstractStorage {
 		for(let i = 0; i < window[storeType].length; i ++){
 			keys.push(window[storeType].key(i));
 		};
-        const instance = new this(keys.map((key) => [key, window[storeType].getItem(key)]));
+        const instance = new this(
+            request,
+            keys.map((key) => [key, window[storeType].getItem(key)])
+        );
         return instance;
     }
 

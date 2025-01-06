@@ -3,7 +3,7 @@ import xURL from "./xURL.js";
 
 export class HttpEvent {
 
-    static create(parentEvent, init) {
+    static create(parentEvent, init = {}) {
         return new this(parentEvent, init);
     }
 
@@ -12,10 +12,10 @@ export class HttpEvent {
     #url;
     #requestCloneCallback;
 
-    constructor(parentEvent, init) {
+    constructor(parentEvent, init = {}) {
         this.#parentEvent = parentEvent;
         this.#init = init;
-        this.#url = new xURL(init.request.url);
+        this.#url = new xURL(init.url || init.request.url);
     }
 
     get url() { return this.#url; }
@@ -82,10 +82,24 @@ export class HttpEvent {
         return this.#response?.status === 202;
     }
 
+    async redirect(url, status = 302) {
+        this.#saveResponseOrigin();
+        await this.respondWith(new Response(null, { status, headers: {
+            Location: url
+        } }));
+    }
+
+    redirected() {
+        return [301, 302, 303, 307, 308].includes(this.#response?.status);
+    }
+
     async with(url, init = {}) {
+        if (!this.request) {
+            return new HttpEvent(this, { ...this.#init, url  });
+        }
         let request, _;
         if (url instanceof Request) {
-            if (init instanceof Request) { [ /*url*/, init ] = await Request.copy(init); }
+            if (init instanceof Request) { ({ url: _, ...init } = await Request.copy(init)); }
             request = !_isEmpty(init) ? new Request(url, init) : url;
         } else {
             url = new xURL(url, this.#url.origin);

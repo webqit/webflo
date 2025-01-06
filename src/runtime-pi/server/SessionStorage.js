@@ -4,7 +4,7 @@ import crypto from 'crypto';
 export class SessionStorage extends AbstractStorage {
 
     static create(request, params = {}) {
-        if (!this.__storage) Object.defineProperty(this, '__storage', { value: new Map });
+        if (!SessionStorage.__storage) Object.defineProperty(SessionStorage, '__storage', { value: new Map });
         let sessionID = request.headers.get('Cookie', true).find((c) => c.name === '__sessid')?.value;
         if (sessionID?.includes('.')) {
             const [rand, signature] = sessionID.split('.');
@@ -26,12 +26,17 @@ export class SessionStorage extends AbstractStorage {
                 sessionID = crypto.randomUUID();
             }
         }
-        if (this.__storage.has(sessionID)) {
-            return this.__storage.get(sessionID);
+        if (SessionStorage.__storage.has(sessionID)) {
+            return SessionStorage.__storage.get(sessionID);
         }
-        const instance = new this(sessionID);
-        this.__storage.set(sessionID, instance);
+        const instance = new this(request, sessionID);
+        SessionStorage.__storage.set(sessionID, instance);
         return instance;
+    }
+
+    constructor(request, sessionID) {
+        super(request);
+        this.#sessionID = sessionID;
     }
 
     #sessionID;
@@ -39,14 +44,9 @@ export class SessionStorage extends AbstractStorage {
         return this.#sessionID;
     }
 
-    constructor(sessionID) {
-        super();
-        this.#sessionID = sessionID;
-    }
-
     commit(response, force = false) {
         if (response.headers.get('Set-Cookie', true).find((c) => c.name === '__sessid')) return;
         if (!force && !this.getAdded().length && !this.getDeleted().length) return;
-        return response.headers.append('Set-Cookie', `__sessid=${this.#sessionID}; Path=/; Secure; HttpOnly; SameSite=Strict; expires=Tue, 29 Oct 2026 16:56:32 GMT`);
+        return response.headers.append('Set-Cookie', `__sessid=${this.#sessionID}; Path=/; Secure; HttpOnly; expires=Tue, 29 Oct 2026 16:56:32 GMT`);
     }
 }

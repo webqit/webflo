@@ -79,13 +79,16 @@ export class AbstractController extends AbsCntrl {
         this.#workport.handleRequests('prompt', (e) => {
             return prompt(e.data);
         });
+        this.#workport.handleMessages('render', (e) => {
+            const httpEvent = this.constructor.HttpEvent.create(null, { url: this.location.href });
+            window.queueMicrotask(() => {
+                this.render(httpEvent, e.data);
+            });
+        });
         const onlineHandler = () => Observer.set(this.network, 'status', window.navigator.onLine);
         window.addEventListener('online', onlineHandler);
         window.addEventListener('offline', onlineHandler);
         const uncontrols = this.control();
-        if (this.host.startupFlight !== false) {
-            this.navigate(this.location.href, {}, { navigationType: 'startup', });
-        }
         return () => {
             this.#workport.close();
             window.removeEventListener('online', onlineHandler);
@@ -252,6 +255,9 @@ export class AbstractController extends AbsCntrl {
 		if (typeof scope.url === 'string') {
 			scope.url = new URL(scope.url, self.location.origin);
 		}
+        // Ping any existing background process
+        this.workport.postMessage('navigation');
+        // Process request...
         scope.response = await new Promise(async (resolveResponse) => {
             scope.handleRespondWith = async (response) => {
                 if (!(response instanceof Response)) {
@@ -261,11 +267,8 @@ export class AbstractController extends AbsCntrl {
             };
             // Create and route request
             scope.request = this.createRequest(scope.url, scope.init);
-            if (detail.navigationType === 'startup') {
-                scope.request.headers.set('X-Is-Startup-Flight', 1);
-            }
-            scope.cookies = this.constructor.CookieStorage.create();
-            scope.session = this.constructor.SessionStorage.create();
+            scope.cookies = this.constructor.CookieStorage.create(scope.request);
+            scope.session = this.constructor.SessionStorage.create(scope.request);
             scope.user = this.constructor.HttpUser.create(
                 scope.request, 
                 scope.session, 
@@ -290,7 +293,7 @@ export class AbstractController extends AbsCntrl {
             scope.context = {};
             if (window.webqit?.oohtml?.configs) {
                 const { BINDINGS_API: { api: bindingsConfig } = {}, } = window.webqit.oohtml.configs;
-                scope.context = this.host[bindingsConfig.bindings];
+                scope.context = this.host[bindingsConfig.bindings].data || {};
             }
             // Dispatch for response
             scope.$response = await this.dispatch(scope.httpEvent, scope.context, async (event) => {
@@ -324,81 +327,10 @@ export class AbstractController extends AbsCntrl {
             await this.updateCurrentEntry({ state: stateData }, scope.finalUrl);    
         }
         if (scope.response.headers.has('X-Background-Activity')) {
-            const ws = new WebSocket(scope.response.headers.get('X-Background-Activity'));
-            scope.backgroundActivity = new WebSocketWorker(ws);
-            this.#workport.add(scope.backgroundActivity);
-            scope.backgroundActivity.addEventListener('render', (e) => {
-                this.transitionUI(() => {
-                    this.render(scope.httpEvent, e.data);
-                }, 'backgroundActivity');
-            });
+            scope.backgroundActivity = this.handleBackgroundActivity(
+                scope.response.headers.get('X-Background-Activity')
+            );
         }
-
-
-
-
-
-
-        if (scope.backgroundActivity) {
-            // Start polling in the background?
-            /*
-            scope.backgroundActivity.postRequest('can_poll', (response) => {
-                if (typeof response.data !== 'number') return;
-                const intv = setInterval(() => {
-                    scope.backgroundActivity.postRequest('render', (response) => {
-                        if (response.data) resolveData(response.data);
-                    });
-                },  response.data);
-                scope.backgroundActivity.on('close', () => clearInterval(intv));
-            });
-            // Or just wait for data?
-            scope.backgroundActivity.handleMessages('render', (e) => {
-                resolveData(response.data);
-            });
-            */
-            scope.backgroundActivity.addEventListener('alert', (e) => {
-                console.log('Recieved alert', e.data, e.ports);
-            });
-            scope.backgroundActivity.addEventListener('confirm', (e) => {
-                console.log('Recieved confirm:', e.data, e.ports);
-                e.respondWith('Yes name is Ox-Harris');
-            });
-            scope.backgroundActivity.addEventListener('render', (e) => {
-                console.log('Recieved render', e.data, e.ports);
-            });
-
-            const mp1 = new MessageChannel;
-            const mp2 = new MessageChannel;
-            const mp3 = new MessageChannel;
-            mp1.port1.addEventListener('message', (e) => {
-                console.log('Recieved mp1.port2 message', e.data);
-            });
-            mp2.port1.addEventListener('message', (e) => {
-                console.log('Recieved mp2.port2 message', e.data);
-            });
-            mp3.port1.addEventListener('message', (e) => {
-                console.log('Recieved mp3.port2 message', e.data);
-            });
-            mp1.port1.start();
-            mp2.port1.start();
-            mp3.port1.start();
-            scope.backgroundActivity.postMessage({
-                key2: 'Hello world 2'
-            }, [mp1.port2, mp2.port2, mp3.port2]);
-
-            scope.backgroundActivity.postMessage({
-                key3: 'Hello world 3'
-            });
-            setTimeout(() => {
-                //scope.backgroundActivity.close();
-            }, 2000);
-        }
-
-
-
-
-
-
         if (scope.response.headers.has('Location')) {
             // Normalize redirect
             const xActualRedirectCode = parseInt(scope.response.headers.get('X-Redirect-Code'));
@@ -409,15 +341,26 @@ export class AbstractController extends AbsCntrl {
             if ([302, 301].includes(scope.response.status)) {
                 const location = scope.response.headers.get('Location');
                 this.redirect(location, scope.backgroundActivity);
+                if (scope.backgroundActivity) {
+                    scope.backgroundActivity.addEventListener('render', () => {
+                        // Set post-request states
+                        Observer.set(this.navigator, {
+                            requesting: null,
+                            remotely: false,
+                            origins: [],
+                            method: null
+                        });
+                    });
+                }
                 return;
             }
         }
-        if ([202/*Accepted*/, 304/*Not Modified*/].includes(scope.response.status)) {
-            // No rendering
-            return;
-        }
         // Only render now
-        scope.data = await scope.response.parse() || {};
+        if ([202/*Accepted*/, 304/*Not Modified*/].includes(scope.response.status)) {
+            scope.data = scope.context;
+        } else {
+            scope.data = await scope.response.parse() || {};
+        }
         // Transition UI
         Observer.set(this.transition.from, Url.copy(this.location));
         Observer.set(this.transition.to, 'href', scope.finalUrl);
@@ -433,13 +376,12 @@ export class AbstractController extends AbsCntrl {
             });
             // Error?
             if ([404, 500].includes(scope.response.status)) {
-                console.log('_____________Error', scope.response.status);
                 const error = new Error(scope.response.statusText, { code: scope.response.status });
                 Object.defineProperty(error, 'retry', { value: async () => await this.navigate(scope.url, scope.init, scope.detail) });
                 Observer.set(this.navigator, 'error', error);
             }
             await this.render(scope.httpEvent, scope.data);
-        }, scope.httpEvent.detail.navigationType);
+        });
     }
 
     async dispatch(httpEvent, context, crossLayerFetch, processObj = {}) {
@@ -463,8 +405,15 @@ export class AbstractController extends AbsCntrl {
         return response;
     }
 
-    async transitionUI(updateCallback, navigationType) {
-        if (document.startViewTransition && navigationType !== 'startup') {
+    handleBackgroundActivity(uri) {
+        const ws = new WebSocket(uri);
+        const backgroundActivity = new WebSocketWorker(ws);
+        this.#workport.add(backgroundActivity);
+        return backgroundActivity;
+    }
+
+    async transitionUI(updateCallback) {
+        if (document.startViewTransition) {
             const synthesizeWhile = window.webqit?.realdom?.synthesizeWhile || ((callback) => callback());
             await synthesizeWhile(async () => {
                 Observer.set(this.transition, 'phase', 1);

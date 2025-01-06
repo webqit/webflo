@@ -2,7 +2,10 @@ import { AbstractCookieStorage } from '../../AbstractCookieStorage.js';
 
 export class CookieStorage extends AbstractCookieStorage {
     static create(request) {
-        return new this(request.headers.get('Cookie', true).map((c) => [c.name, c]));
+        return new this(
+            request,
+            request.headers.get('Cookie', true).map((c) => [c.name, c])
+        );
     }
 
     commit(response) {

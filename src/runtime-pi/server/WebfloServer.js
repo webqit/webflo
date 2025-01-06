@@ -649,6 +649,20 @@ export class WebfloServer extends AbstractController {
                     document.body.setAttribute(modulesContextAttrs.importscontext, newRoute);
                 }
             }
+            // Append background-activity meta
+            if (response.headers.has('X-Background-Activity')) {
+                const backgroundActivityMeta = document.querySelector('meta[name="X-Background-Activity"]') || document.createElement('meta');
+                backgroundActivityMeta.setAttribute('name', 'X-Background-Activity');
+                backgroundActivityMeta.setAttribute('content', response.headers.get('X-Background-Activity'));
+                document.head.prepend(backgroundActivityMeta);
+            }
+            // Append hydration data
+            const hydrationData = document.querySelector('script[rel="hydration"][type="application/json"]') || document.createElement('script');
+            hydrationData.setAttribute('type', 'application/json');
+            hydrationData.setAttribute('rel', 'hydration');
+            hydrationData.textContent = JSON.stringify(scope.data);
+            document.body.append(hydrationData);
+            // Await rendering engine
             if (window.webqit.$qCompilerImport) {
                 await new Promise(res => {
                     window.webqit.$qCompilerImport.then(res);
@@ -656,7 +670,7 @@ export class WebfloServer extends AbstractController {
                 });
             }
             await new Promise(res => setTimeout(res, 50));
-            return window;
+        return window;
         });
         // Validate rendering
         if (typeof scope.rendering !== 'string' && !(typeof scope.rendering?.toString === 'function')) {

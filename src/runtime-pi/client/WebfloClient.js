@@ -29,6 +29,21 @@ export class WebfloClient extends AbstractController {
 	initialize() {
 		// Main initializations
 		let undoControl = super.initialize();
+		const scope = {};
+        if (scope.backgroundActivityMeta = document.querySelector('meta[name="X-Background-Activity"]')) {
+			this.handleBackgroundActivity(
+                scope.backgroundActivityMeta.content
+            );
+        }
+        if (scope.hydrationData = document.querySelector('script[rel="hydration"][type="application/json"]')) {
+			try {
+				const hydrationDataJson = JSON.parse((scope.hydrationData.textContent + '').trim());
+				const httpEvent = this.constructor.HttpEvent.create(null, { url: this.location.href});
+				window.queueMicrotask(() => {
+					this.render(httpEvent, hydrationDataJson);
+				});
+			} catch(e) {}
+        }
 		// Service Worker && COMM
 		if (this.cx.params.service_worker?.filename) {
 			const { public_base_url: base, service_worker: { filename, ...restServiceWorkerParams } } = this.cx.params;

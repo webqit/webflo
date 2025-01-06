@@ -87,7 +87,9 @@ export class WebfloEmbedded extends AbstractController {
 		if (this.host.location.origin !== window.location.origin) {
 			throw new Error(`Webflo embeddable origin violation in "${window.location}"`);
 		}
-		return super.initialize();
+		const uncontrols = super.initialize();
+		this.navigate(this.location.href);
+		return uncontrols;
 	}
 	
 	control() {

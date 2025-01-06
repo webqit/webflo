@@ -3,9 +3,9 @@ import { renderCookieObj } from './util-http.js';
 import { AbstractStorage } from './AbstractStorage.js';
 
 export class AbstractCookieStorage extends AbstractStorage {
-    constructor(iterable = []) {
+    constructor(request, iterable = []) {
         iterable = [...iterable].map(([key, value]) => [key, !_isObject(value) ? { name: key, value } : value]);
-        super(iterable);
+        super(request, iterable);
     }
 
     render() {

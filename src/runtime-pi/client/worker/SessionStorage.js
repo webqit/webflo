@@ -7,6 +7,6 @@ export class SessionStorage extends AbstractStorage {
         return new this;
     }
 
-    async commit() {
+    async commit(response) {
     }
 }
