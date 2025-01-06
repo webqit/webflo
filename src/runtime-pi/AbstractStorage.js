@@ -54,7 +54,7 @@ export class AbstractStorage extends Map {
                     entries.push(returnValue);
                     continue;
                 }
-                const urlRewrite = new URL(handler);
+                const urlRewrite = new URL(handler, this.#request.url);
                 if (!urlRewrite.searchParams.has('success-redirect')) {
                     urlRewrite.searchParams.set('success-redirect', this.#request.url.replace(urlRewrite.origin, ''));
                 }
