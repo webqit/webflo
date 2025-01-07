@@ -40,7 +40,7 @@ export class AbstractStorage extends Map {
 
     async require(attrs, callback = null) {
         const entries = [];
-        for await (const attr of attrs) {
+        for await (const attr of [].concat(attrs)) {
             if (!this.has(attr)) {
                 const handler = this.#handlers.get(attr)?.[0];
                 if (!handler) {

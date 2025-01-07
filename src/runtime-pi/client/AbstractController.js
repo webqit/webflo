@@ -92,6 +92,9 @@ export class AbstractController extends AbsCntrl {
                 this.render(httpEvent, e.data);
             });
         });
+        this.#workport.handleMessages('redirect', (e) => {
+            return this.redirect(e.data);
+        });
         const onlineHandler = () => Observer.set(this.network, 'status', window.navigator.onLine);
         window.addEventListener('online', onlineHandler);
         window.addEventListener('offline', onlineHandler);
@@ -267,9 +270,7 @@ export class AbstractController extends AbsCntrl {
         // Process request...
         scope.response = await new Promise(async (resolveResponse) => {
             scope.handleRespondWith = async (response) => {
-                if (!(response instanceof Response)) {
-                    response = Response.create(response);
-                }
+                response = await this.normalizeResponse(scope.httpEvent, response, true);
                 resolveResponse(response);
             };
             // Create and route request
@@ -326,10 +327,11 @@ export class AbstractController extends AbsCntrl {
                 }
                 return;
             }
+            scope.$response = await this.normalizeResponse(scope.httpEvent, scope.$response);
             resolveResponse(scope.$response);
         });
         scope.finalUrl = scope.response.url || scope.request.url;
-        if (scope.response.redirected && scope.httpEvent.detail.navigationType !== 'traverse') {
+        if (scope.response.redirected || scope.httpEvent.detail.navigationType === 'rdr') {
             const stateData = { ...(this.currentEntry()?.getState() || {}), redirected: true, };
             await this.updateCurrentEntry({ state: stateData }, scope.finalUrl);    
         }

@@ -48,19 +48,16 @@ export class HttpEvent {
     get response() { return this.#response; }
 
     #responseOrigin = null;
-    #saveResponseOrigin() {
-        const stack = new Error().stack;
-        const stackLines = stack.split('\n');
-        this.#responseOrigin = stackLines[3].trim();
-    }
 
-    async respondWith(response) {
+    async #respondWith(response) {
         if (this.#response) {
             throw new Error(`Event has already been responded to! (${this.#responseOrigin})`);
         }
         this.#response = response;
         if (!this.#responseOrigin) {
-            this.#saveResponseOrigin();
+            const stack = new Error().stack;
+            const stackLines = stack.split('\n');
+            this.#responseOrigin = stackLines[3].trim();
         }
         if (this.#parentEvent instanceof HttpEvent) {
             // Set responseOrigin first to prevent parent from repeating the work
@@ -73,9 +70,12 @@ export class HttpEvent {
         }
     }
 
+    async respondWith(response) {
+        await this.#respondWith(response);
+    }
+
     async defer(message = null) {
-        this.#saveResponseOrigin();
-        await this.respondWith(new Response(message, { status: 202/*Accepted*/ }));
+        await this.#respondWith(new Response(message, { status: 202/*Accepted*/ }));
     }
 
     deferred() {
@@ -83,8 +83,7 @@ export class HttpEvent {
     }
 
     async redirect(url, status = 302) {
-        this.#saveResponseOrigin();
-        await this.respondWith(new Response(null, { status, headers: {
+        await this.#respondWith(new Response(null, { status, headers: {
             Location: url
         } }));
     }

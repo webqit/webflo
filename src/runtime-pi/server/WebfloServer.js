@@ -472,11 +472,8 @@ export class WebfloServer extends AbstractController {
         }
         scope.response = await new Promise(async (resolveResponse) => {
             scope.handleRespondWith = async (response) => {
-                if (!(response instanceof Response)) {
-                    response = Response.create(response);
-                }
+                response = await this.normalizeResponse(scope.httpEvent, response, true);
                 response.headers.set('X-Background-Activity', `/${scope.workport.portID}`);
-                scope.session.commit(response, true);
                 resolveResponse(response);
             };
             // ---------------
@@ -523,9 +520,10 @@ export class WebfloServer extends AbstractController {
             }
             // Sync mode reponse handling
             if (scope.workport.hasActivities) {
+                scope.$response = await this.normalizeResponse(scope.httpEvent, scope.$response, true);
                 scope.$response.headers.set('X-Background-Activity', `/${scope.workport.portID}`);
-                scope.session.commit(scope.$response, true);
             } else {
+                scope.$response = await this.normalizeResponse(scope.httpEvent, scope.$response);
                 scope.workportManager.delete(scope.workport.portID);
             }
             resolveResponse(scope.$response);
@@ -632,7 +630,6 @@ export class WebfloServer extends AbstractController {
             });
             if (window.webqit?.oohtml?.configs) {
                 const {
-                    CONTEXT_API: { attr: contextConfig } = {},
                     BINDINGS_API: { api: bindingsConfig } = {},
                     HTML_IMPORTS: { attr: modulesContextAttrs } = {},
                 } = window.webqit.oohtml.configs;
@@ -650,11 +647,16 @@ export class WebfloServer extends AbstractController {
                 }
             }
             // Append background-activity meta
+            let backgroundActivityMeta = document.querySelector('meta[name="X-Background-Activity"]');
             if (response.headers.has('X-Background-Activity')) {
-                const backgroundActivityMeta = document.querySelector('meta[name="X-Background-Activity"]') || document.createElement('meta');
-                backgroundActivityMeta.setAttribute('name', 'X-Background-Activity');
+                if (!backgroundActivityMeta) {
+                    backgroundActivityMeta = document.createElement('meta');
+                    backgroundActivityMeta.setAttribute('name', 'X-Background-Activity');
+                    document.head.prepend(backgroundActivityMeta);
+                }
                 backgroundActivityMeta.setAttribute('content', response.headers.get('X-Background-Activity'));
-                document.head.prepend(backgroundActivityMeta);
+            } else if (backgroundActivityMeta) {
+                backgroundActivityMeta.remove();
             }
             // Append hydration data
             const hydrationData = document.querySelector('script[rel="hydration"][type="application/json"]') || document.createElement('script');

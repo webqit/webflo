@@ -129,9 +129,7 @@ export class WebfloWorker extends AbstractController {
 		}
 		scope.response = await new Promise(async (resolveResponse) => {
             scope.handleRespondWith = async (response) => {
-                if (!(response instanceof Response)) {
-                    response = Response.create(response);
-                }
+				response = await this.normalizeResponse(scope.httpEvent, response, true);
                 resolveResponse(response);
 			};
 			// Create and route request
@@ -171,6 +169,7 @@ export class WebfloWorker extends AbstractController {
 				}
 				return;
 			}
+			scope.$response = await this.normalizeResponse(scope.httpEvent, scope.$response);
 			resolveResponse(scope.$response);
 		});
 	}
