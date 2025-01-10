@@ -1,4 +1,4 @@
-import { _isEmpty } from '@webqit/util/js/index.js';
+import { _isEmpty, _isObject } from '@webqit/util/js/index.js';
 import xURL from "./xURL.js";
 
 export class HttpEvent {
@@ -30,7 +30,7 @@ export class HttpEvent {
 
     get user() { return this.#init.user; }
 
-    get workport() { return this.#init.workport; }
+    get client() { return this.#init.client; }
 
     set onRequestClone(callback) {
         this.#requestCloneCallback = callback;
@@ -50,18 +50,24 @@ export class HttpEvent {
     #responseOrigin = null;
 
     async #respondWith(response) {
+        /*
         if (this.#response) {
             throw new Error(`Event has already been responded to! (${this.#responseOrigin})`);
         }
+        */
         this.#response = response;
+        /*
         if (!this.#responseOrigin) {
             const stack = new Error().stack;
             const stackLines = stack.split('\n');
             this.#responseOrigin = stackLines[3].trim();
         }
+        */
         if (this.#parentEvent instanceof HttpEvent) {
+            /*
             // Set responseOrigin first to prevent parent from repeating the work
             this.#parentEvent.#responseOrigin = this.#responseOrigin;
+            */
             // Ensure the respondWith() method is how we propagate response
             await this.#parentEvent.respondWith(this.#response);
         } else {
@@ -74,8 +80,8 @@ export class HttpEvent {
         await this.#respondWith(response);
     }
 
-    async defer(message = null) {
-        await this.#respondWith(new Response(message, { status: 202/*Accepted*/ }));
+    async defer() {
+        await this.#respondWith(new Response(null, { status: 202/*Accepted*/ }));
     }
 
     deferred() {
@@ -86,6 +92,17 @@ export class HttpEvent {
         await this.#respondWith(new Response(null, { status, headers: {
             Location: url
         } }));
+    }
+
+    async redirectWith(url, data, ...args) {
+        if (!_isObject(data)) {
+            throw new Error('Data must be a JSON object');
+        }
+        const messageID = (0 | Math.random() * 9e6).toString(36);
+        const $url = new URL(url, this.request.url);
+        $url.searchParams.set('redirect-message', messageID);
+        this.session.set(`redirect-message:${messageID}`, data);
+        await this.redirect($url, ...args);
     }
 
     redirected() {

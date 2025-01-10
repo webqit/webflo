@@ -11,6 +11,8 @@ import { Context } from './Context.js';
 import { Router } from '../Router.js';
 import xfetch from '../../xfetch.js';
 import '../../util-http.js';
+import { PortMessagingAPI } from '../../PortMessagingAPI.js';
+import { ClientPort } from './ClientPort.js';
 
 export class WebfloWorker extends AbstractController {
 
@@ -129,6 +131,12 @@ export class WebfloWorker extends AbstractController {
 		}
 		scope.response = await new Promise(async (resolveResponse) => {
             scope.handleRespondWith = async (response) => {
+				if (scope.finalResponseSeen) {
+                    throw new Error('Final response already sent');
+                }
+                if (scope.initialResponseSeen) {
+                    return await this.execPush(scope.clientPort, response);
+                }
 				response = await this.normalizeResponse(scope.httpEvent, response, true);
                 resolveResponse(response);
 			};
@@ -136,12 +144,12 @@ export class WebfloWorker extends AbstractController {
 			scope.request = this.createRequest(scope.url, scope.init);
 			scope.cookies = this.constructor.CookieStorage.create(scope.request);
 			scope.session = this.constructor.SessionStorage.create(scope.request, { secret: this.cx.env.entries.SESSION_KEY });
-			scope.workport = new this.constructor.Workport;
-			scope.workport.add(await self.clients.get(detail.event?.clientId));
+			const portID = crypto.randomUUID();
+			scope.clientPort = new ClientPort(portID);
 			scope.user = this.constructor.HttpUser.create(
 				scope.request,
 				scope.session,
-				scope.workport
+				scope.clientPort
 			);
 			scope.httpEvent = this.constructor.HttpEvent.create(scope.handleRespondWith, {
                 request: scope.request,
@@ -149,7 +157,7 @@ export class WebfloWorker extends AbstractController {
                 cookies: scope.cookies,
                 session: scope.session,
                 user: scope.user,
-                workport: scope.workport
+                client: scope.clientPort
             });
 			// Dispatch for response
 			scope.$response = await this.dispatch(scope.httpEvent, {}, async (event) => {
@@ -159,19 +167,28 @@ export class WebfloWorker extends AbstractController {
 				}
 				return await this.remoteFetch(event.request);
 			});
-			// Handle background mode's final reponse
-			if (scope.httpEvent.response) {
-				const data = scope.$response instanceof Response
-					? await scope.$response.parse()
-					: scope.$response;
-				if (_isObject(data)) {
-					scope.workport.postMessage(data, { eventType: 'render' });
-				}
-				return;
-			}
-			scope.$response = await this.normalizeResponse(scope.httpEvent, scope.$response);
+			// Final reponse!!!
+            scope.finalResponseSeen = true;
+            if (scope.initialResponseSeen) {
+                // Send via background port
+                if (typeof scope.$response !== 'undefined') {
+					await this.execPush(scope.clientPort, scope.$response);
+                }
+                return;
+            }
+			// Send normally
+            // Has background activities?
+            if (scope.clientPort.isMessaging()) {
+                scope.$response = await this.normalizeResponse(scope.httpEvent, scope.$response, true);
+                scope.$response.headers.set('X-Background-Activity', `ch:${scope.clientPort.portID}`);
+            } else {
+                scope.$response = await this.normalizeResponse(scope.httpEvent, scope.$response);
+				scope.clientPort.close();
+            }
 			resolveResponse(scope.$response);
 		});
+		scope.initialResponseSeen = true;
+		return scope.response;
 	}
 
 	async remoteFetch(request, ...args) {

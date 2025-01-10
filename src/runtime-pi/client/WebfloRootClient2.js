@@ -1,8 +1,8 @@
-import { WebfloClient } from './WebfloClient.js';
+import { WebfloRootClient1 } from './WebfloRootClient1.js';
 
 const { Observer } = webqit;
 
-export class WebfloClientNext extends WebfloClient {
+export class WebfloRootClient2 extends WebfloRootClient1 {
 
 	control() {
 		// Detect source elements

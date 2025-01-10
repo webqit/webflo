@@ -1,6 +1,4 @@
-import { AbstractWorkport } from '../AbstractWorkport.js';
-
-export class Workport extends AbstractWorkport {
+export class Workport {
 
     #swFile;
     #swParams = {};

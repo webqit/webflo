@@ -1,6 +1,7 @@
-import { Workport } from './Workport.js';
+import { ClientPort } from './ClientPort.js';
+import crypto from 'crypto';
 
-export class WorkportManager extends Map {
+export class ClientPortsList extends Map {
 
     #sessionID;
     get sessionID() { return this.#sessionID; }
@@ -16,8 +17,8 @@ export class WorkportManager extends Map {
     }
 
     createPort() {
-        const portID = (0 | Math.random() * 9e6).toString(36);
-        const portInstance = new Workport(this, portID, this.#params);
+        const portID = crypto.randomUUID();
+        const portInstance = new ClientPort(this, portID, this.#params);
         this.set(portID, portInstance);
         portInstance.on('empty', () => {
             this.delete(portID);

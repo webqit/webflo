@@ -1,160 +1,492 @@
-import { AbstractController } from './AbstractController.js';
-import { WebfloEmbedded } from './WebfloEmbedded.js';
-import { Context } from './Context.js';
+import { _before, _toTitle } from '@webqit/util/str/index.js';
+import { _isObject } from '@webqit/util/js/index.js';
+import { AbstractController } from '../AbstractController.js';
+import { MultiportMessagingAPI } from '../MultiportMessagingAPI.js';
+import { SocketMessagingAPI } from '../SocketMessagingAPI.js';
+import { PortMessagingAPI } from '../PortMessagingAPI.js';
+import { ClientPort } from './ClientPort.js';
+import { CookieStorage } from './CookieStorage.js';
+import { SessionStorage } from './SessionStorage.js';
+import { HttpEvent } from '../HttpEvent.js';
+import { HttpUser } from '../HttpUser.js';
+import { Router } from './Router.js';
+import { Url } from './Url.js';
+import xfetch from '../xfetch.js';
+import '../util-http.js';
 
 const { Observer } = webqit;
 
 export class WebfloClient extends AbstractController {
 
-	static get Context() { return Context; }
+	static get Router() { return Router; }
 
-	static create(host, cx = {}) {
-        return new this(host, this.Context.create(cx));
+	static get HttpEvent() { return HttpEvent; }
+
+	static get CookieStorage() { return CookieStorage; }
+
+	static get SessionStorage() { return SessionStorage; }
+
+    static get HttpUser() { return HttpUser; }
+
+    #host;
+    get host() { return this.#host; }
+
+    #network;
+    get network() { return this.#network; }
+
+    #location;
+    get location() { return this.#location; }
+
+    #navigator;
+    get navigator() { return this.#navigator; }
+
+    #transition;
+    get transition() { return this.#transition; }
+
+	#backgroundPorts;
+	get backgroundPorts() { return this.#backgroundPorts; }
+
+    constructor(host) {
+        super();
+        this.#host = host;
+        Object.defineProperty(this.host, 'getWebfloControllerInstance', { value: () => this });
+        this.#network = { status: window.navigator.onLine };
+        this.#location = new Url/*NOT URL*/(this.host.location);
+        this.#navigator = {
+            requesting: null,
+            redirecting: null,
+            remotely: false,
+            origins: [],
+            error: null,
+        };
+        this.#transition = {
+            from: new Url/*NOT URL*/({}),
+            to: new Url/*NOT URL*/(this.host.location),
+            rel: 'unrelated',
+            phase: 0
+        };
     }
 
-	#cx;
-	get cx() { return this.#cx; }
+    initialize() {
+		this.#backgroundPorts = new MultiportMessagingAPI;
+        const getMessage = (e) => {
+            let message = e.data;
+            if (e.data?.message) {
+                message = e.data.message + (e.data.description ? `\r\n${e.data.description}` : '');
+            }
+            return message;
+        };
+        this.#backgroundPorts.handleMessages('alert', (e) => {
+            alert(getMessage(e));
+        });
+        this.#backgroundPorts.handleRequests('confirm', (e) => {
+            return confirm(getMessage(e));
+        });
+        this.#backgroundPorts.handleRequests('prompt', (e) => {
+            return prompt(getMessage(e));
+        });
+        this.#backgroundPorts.handleMessages('response', (e) => {
+            const httpEvent = this.constructor.HttpEvent.create(null, { url: this.location.href });
+            window.queueMicrotask(() => {
+                this.render(httpEvent, e.data, true);
+            });
+        });
+        this.#backgroundPorts.handleMessages('redirect', (e) => {
+            return this.redirect(e.data);
+        });
+        const onlineHandler = () => Observer.set(this.network, 'status', window.navigator.onLine);
+        window.addEventListener('online', onlineHandler);
+        window.addEventListener('offline', onlineHandler);
+        const uncontrols = this.control();
+        return () => {
+            this.#backgroundPorts.close();
+            window.removeEventListener('online', onlineHandler);
+            window.removeEventListener('offline', onlineHandler);
+            uncontrols();
+        };
+    }
 
-	constructor(host, cx) {
-		if (!(host instanceof Document)) {
-			throw new Error('Argument #1 must be a Document instance');
-		}
-		super(host);
-		if (!(cx instanceof this.constructor.Context)) {
-			throw new Error('Argument #2 must be a Webflo Context instance');
-		}
-		this.#cx = cx;
-	}
+    controlClassic(locationCallback) {
+        // -----------------------
+        // Capture all link-clicks
+        const clickHandler = (e) => {
+            if (!this._canIntercept(e)) return;
+            var anchorEl = e.target.closest('a');
+            if (!anchorEl || !anchorEl.href || anchorEl.target || anchorEl.download || !this.isSpaRoute(anchorEl)) return;
+            const resolvedUrl = new URL(anchorEl.hasAttribute('href') ? anchorEl.getAttribute('href') : '', this.location.href);
+            if (this.isHashChange(resolvedUrl)) {
+                Observer.set(this.location, 'href', resolvedUrl.href);
+                return;
+            }
+            // ---------------
+            // Handle now
+            e.preventDefault();
+            this._abortController?.abort();
+            this._abortController = new AbortController();
+            // Note the order of calls below
+            const detail = {
+                navigationType: 'push',
+                navigationOrigins: [anchorEl],
+                destination: this._asEntry(null),
+                source: this.currentEntry(), // this
+                userInitiated: true,
+            };
+            locationCallback(resolvedUrl); // this
+            this.navigate(
+                resolvedUrl,
+                {
+                    signal: this._abortController.signal,
+                },
+                detail,
+            ); // this
+        };
+        // -----------------------
+        // Capture all form-submits
+        const submitHandler = (e) => {
+            if (!this._canIntercept(e)) return;
+            // ---------------
+            // Declare form submission modifyers
+            const form = e.target.closest('form');
+            const submitter = e.submitter;
+            const _attr = (name) => {
+                let value = submitter && submitter.hasAttribute(`form${name.toLowerCase()}`) ? submitter[`form${_toTitle(name)}`] : (form.getAttribute(name) || form[name]);
+                if (value && [RadioNodeList, HTMLElement].some((x) => value instanceof x)) {
+                    value = null;
+                }
+                return value;
+            };
+            const submitParams = Object.fromEntries(['method', 'action', 'enctype', 'noValidate', 'target'].map((name) => [name, _attr(name)]));
+            submitParams.method = submitParams.method || submitter.dataset.formmethod || 'GET';
+            submitParams.action = new URL(form.hasAttribute('action') ? form.getAttribute('action') : (
+                submitter?.hasAttribute('formaction') ? submitter.getAttribute('formaction') : ''),
+            this.location.href);
+            if (submitParams.target || !this.isSpaRoute(submitParams.action)) return;
+            // ---------------
+            // Handle now
+            let formData = new FormData(form);
+            if ((submitter || {}).name) {
+                formData.set(submitter.name, submitter.value);
+            }
+            if (submitParams.method.toUpperCase() === 'GET') {
+                Array.from(formData.entries()).forEach((_entry) => {
+                    submitParams.action.searchParams.set(_entry[0], _entry[1]);
+                });
+                formData = null;
+            }
+            if (this.isHashChange(submitParams.action) && submitParams.method.toUpperCase() !== 'POST') {
+                Observer.set(this.location, 'href', submitParams.action.href);
+                return;
+            }
+            e.preventDefault();
+            this._abortController?.abort();
+            this._abortController = new AbortController;
+            // Note the order of calls below
+            const detail = {
+                navigationType: 'push',
+                navigationOrigins: [submitter, form],
+                destination: this._asEntry(null),
+                source: this.currentEntry(), // this
+                userInitiated: true,
+            };
+            locationCallback(submitParams.action); // this
+            this.navigate(
+                submitParams.action,
+                {
+                    method: submitParams.method,
+                    body: formData,
+                    signal: this._abortController.signal,
+                },
+                detail,
+            ); // this
+        };
+        this.host.addEventListener('click', clickHandler);
+        this.host.addEventListener('submit', submitHandler);
+        return () => {
+            this.host.removeEventListener('click', clickHandler);
+            this.host.removeEventListener('submit', submitHandler);
+        };
+    }
 
-	initialize() {
-		// Main initializations
-		let undoControl = super.initialize();
-		const scope = {};
-        if (scope.backgroundActivityMeta = document.querySelector('meta[name="X-Background-Activity"]')) {
-			this.handleBackgroundActivity(
-                scope.backgroundActivityMeta.content
+    _asEntry(state) { return { getState() { return state; } }; }
+
+    _canIntercept(e) { return !(e.metaKey || e.altKey || e.ctrlKey || e.shiftKey); }
+
+    _xRedirectCode = 200;
+
+    isHashChange(urlObj) { return _before(this.location.href, '#') === _before(urlObj.href, '#') && (this.location.href.includes('#') || urlObj.href.includes('#')); }
+
+    isSpaRoute(urlObj) {
+        urlObj = typeof urlObj === 'string' ? new URL(urlObj, this.location.origin) : urlObj;
+        if (urlObj.origin && urlObj.origin !== this.location.origin) return false;
+        if (!this.cx.params.routing) return true;
+        if (this.cx.params.routing.targets === false/** explicit false means disabled */) return false;
+        let b = urlObj.pathname.split('/').filter(s => s);
+        const match = a => {
+            a = a.split('/').filter(s => s);
+            return a.reduce((prev, s, i) => prev && (s === b[i] || [s, b[i]].includes('-')), true);
+        };
+        return match(this.cx.params.routing.root) && this.cx.params.routing.subroots.reduce((prev, subroot) => {
+            return prev && !match(subroot);
+        }, true);
+    }
+
+    async redirect(location, backgroundPort) {
+        location = typeof location === 'string' ? new URL(location, this.location.origin) : location;
+        if (this.isSpaRoute(location)) {
+            await this.navigate(location, {}, { navigationType: 'rdr' });
+        } else this.hardRedirect(location, backgroundPort);
+    }
+
+    hardRedirect(location, backgroundPort) {
+        if (backgroundPort) {
+            // Redundant as this is a window reload anyways
+            backgroundPort.close();
+        }
+        window.location = location;
+    }
+
+    createRequest(href, init = {}) {
+        return new Request(href, {
+            ...init,
+            headers: {
+                'Accept': 'application/json',
+                'X-Redirect-Policy': 'manual-when-cross-spa',
+                'X-Redirect-Code': this._xRedirectCode,
+                'X-Powered-By': '@webqit/webflo',
+                ...(init.headers || {}),
+            },
+        });
+    }
+
+    async navigate(url, init = {}, detail = {}) {
+        // Resolve inputs
+        const scope = { url, init, detail };
+		if (typeof scope.url === 'string') {
+			scope.url = new URL(scope.url, self.location.origin);
+		}
+        // Ping any existing background process
+        this.#backgroundPorts.postMessage('navigation');
+        // Process request...
+        scope.response = await new Promise(async (resolveResponse) => {
+            scope.handleRespondWith = async (response) => {
+                if (scope.finalResponseSeen) {
+                    throw new Error('Final response already sent');
+                }
+                if (scope.initialResponseSeen) {
+                    return await this.execPush(scope.clientPort, response);
+                }
+                response = await this.normalizeResponse(scope.httpEvent, response, true);
+                resolveResponse(response);
+            };
+            // Create and route request
+            scope.request = this.createRequest(scope.url, scope.init);
+            scope.cookies = this.constructor.CookieStorage.create(scope.request);
+            scope.session = this.constructor.SessionStorage.create(scope.request);
+            const messageChannel = new MessageChannel;
+            this.backgroundPorts.add(new PortMessagingAPI(messageChannel.port1));
+            scope.clientPort = new ClientPort(messageChannel.port2);
+            scope.user = this.constructor.HttpUser.create(
+                scope.request, 
+                scope.session, 
+                scope.clientPort
+            );
+            scope.httpEvent = this.constructor.HttpEvent.create(scope.handleRespondWith, {
+                request: scope.request,
+                detail: scope.detail,
+                cookies: scope.cookies,
+                session: scope.session,
+                user: scope.user,
+                client: scope.clientPort
+            });
+            scope.httpEvent.onRequestClone = () => this.createRequest(scope.url, scope.init);
+            // Ste pre-request states
+            Observer.set(this.navigator, {
+                requesting: new Url/*NOT URL*/(scope.url),
+                origins: scope.detail.navigationOrigins || [],
+                method: scope.request.method,
+                error: null
+            });
+            scope.resetState = () => {
+                Observer.set(this.navigator, {
+                    requesting: null,
+                    remotely: false,
+                    origins: [],
+                    method: null
+                });
+            };
+            scope.context = {};
+            if (window.webqit?.oohtml?.configs) {
+                const { BINDINGS_API: { api: bindingsConfig } = {}, } = window.webqit.oohtml.configs;
+                scope.context = this.host[bindingsConfig.bindings].data || {};
+            }
+            // Dispatch for response
+            scope.$response = await this.dispatch(scope.httpEvent, scope.context, async (event) => {
+                // Was this nexted()? Tell the next layer we're in JSON mode by default
+                if (event !== scope.httpEvent && !event.request.headers.has('Accept')) {
+                    event.request.headers.set('Accept', 'application/json');
+                }
+                return await this.remoteFetch(event.request);
+            });
+            // Final reponse!!!
+            scope.finalResponseSeen = true;
+            if (scope.initialResponseSeen) {
+                // Send via background port
+                if (typeof scope.$response !== 'undefined') {
+                    await this.execPush(scope.clientPort, scope.$response);
+                }
+                return;
+            }
+            // Send normally
+            scope.$response = await this.normalizeResponse(scope.httpEvent, scope.$response);
+            resolveResponse(scope.$response);
+        });
+        scope.initialResponseSeen = true;
+        scope.finalUrl = scope.response.url || scope.request.url;
+        if (scope.response.redirected || scope.detail.navigationType === 'rdr') {
+            const stateData = { ...(this.currentEntry()?.getState() || {}), redirected: true, };
+            await this.updateCurrentEntry({ state: stateData }, scope.finalUrl);    
+        }
+        if (scope.response.headers.has('X-Background-Activity')) {
+            scope.backgroundPort = this.handleBackgroundActivity(
+                scope.response.headers.get('X-Background-Activity')
             );
         }
-        if (scope.hydrationData = document.querySelector('script[rel="hydration"][type="application/json"]')) {
-			try {
-				const hydrationDataJson = JSON.parse((scope.hydrationData.textContent + '').trim());
-				const httpEvent = this.constructor.HttpEvent.create(null, { url: this.location.href});
-				window.queueMicrotask(() => {
-					this.render(httpEvent, hydrationDataJson);
-				});
-			} catch(e) {}
+        if (scope.response.headers.has('Location')) {
+            // Normalize redirect
+            const xActualRedirectCode = parseInt(scope.response.headers.get('X-Redirect-Code'));
+            if (xActualRedirectCode && scope.response.status === this._xRedirectCode) {
+                scope.response.meta.status = xActualRedirectCode; // @NOTE 1
+            }
+            // Trigger redirect
+            if ([302, 301].includes(scope.response.status)) {
+                const location = scope.response.headers.get('Location');
+                this.redirect(location, scope.backgroundPort);
+                if (scope.backgroundPort) {
+                    scope.backgroundPort.addEventListener('response', () => {
+                        scope.resetState();
+                    });
+                }
+                return;
+            }
         }
-		// Service Worker && COMM
-		if (this.cx.params.service_worker?.filename) {
-			const { public_base_url: base, service_worker: { filename, ...restServiceWorkerParams } } = this.cx.params;
-			const { vapid_key_env, push_registration_url_env, ..._restServiceWorkerParams } = restServiceWorkerParams;
-			const swParams = {
-				..._restServiceWorkerParams,
-				VAPID_PUBLIC_KEY: this.cx.params.env[vapid_key_env],
-				PUSH_REGISTRATION_PUBLIC_URL: this.cx.params.env[push_registration_url_env],
-				startMessages: true
-			};
-			//this.workport.registerServiceWorker(base + filename, swParams);
-		}
-		if (window.opener) {
-			// Window opener pinging
-			const $undoControl = undoControl;
-			const beforeunloadHandler = () => {
-				window.opener.postMessage('close');
-			};
-			window.addEventListener('beforeunload', beforeunloadHandler);
-			undoControl = () => {
-				window.removeEventListener('beforeunload', beforeunloadHandler);
-				$undoControl();
-			};
-		}
-		return undoControl
-	}
-
-	/**
-	 * The following methods
-	 * are not to be inherited
-	 * by sub classes
-	 */
-
-	control() {
-		// IMPORTANT: we're calling super.controlClassic()
-		const undoControl = super.controlClassic((newHref) => {
-            try {
-                // Save current scroll position
-                this.host.history.replaceState({
-                    ...(this.currentEntry()?.getState?.() || {}),
-                    scrollPosition: this.host === window.document ? [window.scrollX, window.scrollY] : [this.host.scrollLeft, this.host.scrollTop,],
-                }, '', this.location.href);
-            } catch (e) { }
-            // Do actual location update
-            try { this.host.history.pushState({}, '', newHref); } catch (e) { }
+        // Only render now
+        if ([202/*Accepted*/, 304/*Not Modified*/].includes(scope.response.status)) {
+            if (scope.backgroundPort) {
+                scope.backgroundPort.addEventListener('response', () => {
+                    scope.resetState();
+                });
+                return;
+            }
+            scope.data = scope.context;
+        } else {
+            scope.data = await scope.response.parse() || {};
+        }
+        // Transition UI
+        Observer.set(this.transition.from, Url.copy(this.location));
+        Observer.set(this.transition.to, 'href', scope.finalUrl);
+        Observer.set(this.transition, 'rel', this.transition.from.pathname === this.transition.to.pathname ? 'unchanged' : (`${this.transition.from.pathname}/`.startsWith(`${this.transition.to.pathname}/`) ? 'parent' : (`${this.transition.to.pathname}/`.startsWith(`${this.transition.from.pathname}/`) ? 'child' : 'unrelated')));
+        await this.transitionUI(async () => {
+            Observer.set(this.location, 'href', scope.finalUrl);
+            // Set post-request states
+            Observer.set(this.navigator, {
+                requesting: null,
+                remotely: false,
+                origins: [],
+                method: null
+            });
+            // Error?
+            if ([404, 500].includes(scope.response.status)) {
+                const error = new Error(scope.response.statusText, { code: scope.response.status });
+                Object.defineProperty(error, 'retry', { value: async () => await this.navigate(scope.url, scope.init, scope.detail) });
+                Observer.set(this.navigator, 'error', error);
+            }
+            await this.render(scope.httpEvent, scope.data, !(['GET'].includes(scope.request.method) || scope.response.redirected || scope.detail.navigationType === 'rdr'));
         });
-		// ONPOPSTATE
-		const popstateHandler = (e) => {
-			if (this.isHashChange(location)) {
-				Observer.set(this.location, 'href', location.href);
-				return;
-			}
-			// Navigation details
-			const detail = {
-				navigationType: 'traverse',
-				navigationOrigins: [],
-				destination: this._asEntry(e.state),
-				source: this.currentEntry(),
-				userInitiated: true,
-			};
-			// Traversal?
-			// Push
-			this.navigate(location.href, {}, detail);
-		};
-		window.addEventListener('popstate', popstateHandler);
-        return () => {
-            this.host.removeEventListener('popstate', popstateHandler);
-            undoControl();
-        };
-	}
+    }
 
-    reload() {
-		return window.history.reload();
-	}
+    async dispatch(httpEvent, context, crossLayerFetch, processObj = {}) {
+        const response = await super.dispatch(httpEvent, context, crossLayerFetch);
+        // Handle "retry" directives
+        if (response.headers.has('Retry-After')) {
+            if (!processObj.recurseController) {
+                // This is start of the process
+                processObj.recurseController = new AbortController;
+            }
+            // Ensure a previous recursion hasn't aborted the process
+            if (!processObj.recurseController.signal.aborted) {
+                await new Promise((res) => setTimeout(res, parseInt(response.headers.get('Retry-After')) * 1000));
+                const eventClone = httpEvent.clone();
+                return await this.dispatch(eventClone, context, crossLayerFetch, processObj);
+            }
+        } else if (processObj.recurseController) {
+            // Abort the signal. This is the end of the process
+            processObj.recurseController.abort();
+        }
+        return response;
+    }
 
-	back() {
-		return window.history.back();
-	}
+    handleBackgroundActivity(uri) {
+        const [proto, portID] = uri.split(':');
+        let instance;
+        if (proto === 'ch') {
+            const ch = new BroadcastChannel(portID);
+            instance = new PortMessagingAPI(ch);
+        } else {
+            const ws = new WebSocket(`/${portID}`);
+            instance = new SocketMessagingAPI(ws);
+        }
+        this.#backgroundPorts.add(instance);
+        return instance;
+    }
 
-	forward() {
-		return window.history.forward();
-	}
+    async transitionUI(updateCallback) {
+        if (document.startViewTransition) {
+            const synthesizeWhile = window.webqit?.realdom?.synthesizeWhile || ((callback) => callback());
+            await synthesizeWhile(async () => {
+                Observer.set(this.transition, 'phase', 1);
+                const viewTransition = document.startViewTransition(updateCallback);
+                try { await viewTransition.updateCallbackDone; } catch (e) { console.log(e); }
+                Observer.set(this.transition, 'phase', 2);
+                try { await viewTransition.ready; } catch (e) { console.log(e); }
+                Observer.set(this.transition, 'phase', 3);
+                try { await viewTransition.finished; } catch (e) { console.log(e); }
+                Observer.set(this.transition, 'phase', 0);
+            });
+        } else await updateCallback();
+    }
 
-	traverseTo(...args) {
-		return window.history.go(...args);
-	}
-
-	entries() {
-		return window.history;
-	}
-
-	currentEntry() {
-		return this._asEntry(history.state);
-	}
-
-	async updateCurrentEntry(params, url = null) {
-		window.history.replaceState(params.state, '', url);
-	}
-
-	async push(url, state = {}) {
-		if (typeof url === 'string' && url.startsWith('&')) { url = this.location.href.split('#')[0] + (this.location.href.includes('?') ? url : url.replace('&', '?')); }
-		url = new URL(url, this.location.href);
-		window.history.pushState(state, '', url.href);
-		Observer.set(this.location, 'href', url.href);
-	}
-
-	async applyPostRenderState(httpEvent) {
-		const destinationState = httpEvent.detail.destination?.getState() || {};
-		if (destinationState.scrollPosition?.length) {
-			window.scroll(...destinationState.scrollPosition);
-			(document.querySelector('[autofocus]') || document.body).focus();
-		}
+    async render(httpEvent, data, merge = false) {
+        const router = new this.constructor.Router(this.cx, this.location.pathname);
+        await router.route('render', httpEvent, data, async (httpEvent, data) => {
+            if (!window.webqit?.oohtml?.configs) return;
+            if (window.webqit?.dom) {
+                await new Promise(res => window.webqit.dom.ready(res));
+            }
+            const {
+                BINDINGS_API: { api: bindingsConfig } = {},
+                HTML_IMPORTS: { attr: modulesContextAttrs } = {},
+            } = window.webqit.oohtml.configs;
+            if (bindingsConfig) {
+                this.host[bindingsConfig.bind]({
+                    env: 'client',
+                    navigator: this.navigator,
+                    location: this.location,
+                    network: this.network, // request, redirect, error, status, remote
+                    transition: this.transition,
+                    data: !_isObject(data) ? {} : data
+                }, { diff: true, merge });
+            }
+            if (modulesContextAttrs) {
+                const newRoute = '/' + `routes/${this.location.pathname}`.split('/').map(a => (a => a.startsWith('$') ? '-' : a)(a.trim())).filter(a => a).join('/');
+                (this.host === window.document ? window.document.body : this.host).setAttribute(modulesContextAttrs.importscontext, newRoute);
+            }
+        });
+    }
+	
+	async remoteFetch(request, ...args) {
+		Observer.set(this.#navigator, 'remotely', true);
+		const response = await xfetch(request, ...args);
+		Observer.set(this.#navigator, 'remotely', false);
+        return response;
 	}
 }

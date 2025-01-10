@@ -1,3 +1,5 @@
+import { _isObject } from '@webqit/util/js/index.js';
+
 export class AbstractController {
 
     async dispatch(httpEvent, context, crossLayerFetch) {
@@ -32,5 +34,19 @@ export class AbstractController {
             await storage?.commit?.(response, forceCommit);
         }
         return response;
+    }
+
+    async execPush(clientPort, data) {
+        if (data instanceof Response) {
+            if ([301, 302, 303, 307, 308].includes(data.status) && data.headers.has('Location')) {
+                clientPort.postMessage(data.headers.get('Location'), { messageType: 'redirect' });
+                return;
+            }
+            data = await data.parse();
+        }
+        if (!_isObject(data)) {
+            throw new Error('Response not serializable');
+        }
+        clientPort.postMessage(data, { messageType: 'response' });
     }
 }

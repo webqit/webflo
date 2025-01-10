@@ -1,6 +1,6 @@
-import { AbstractWorkport } from '../AbstractWorkport.js';
+import { MultiportMessagingAPI } from '../MultiportMessagingAPI.js';
 
-export class Workport extends AbstractWorkport {
+export class ClientPort extends MultiportMessagingAPI {
 
     #manager;
     
@@ -8,7 +8,7 @@ export class Workport extends AbstractWorkport {
     get portID() { return this.#portID; }
 
     constructor(manager, portID, params = {}) {
-        super(undefined, params);
+        super(params);
         this.#manager = manager;
         this.#portID = portID;
     }

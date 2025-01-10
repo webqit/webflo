@@ -1,9 +1,9 @@
-import { AbstractController } from './AbstractController.js';
+import { WebfloClient } from './WebfloClient.js';
 import { Url } from './Url.js';
 
 const { Observer } = webqit;
 
-export class WebfloEmbedded extends AbstractController {
+export class WebfloSubClient extends WebfloClient {
 
 	static defineElement() {
 		const embedTagNames = 'webflo-embedded';
@@ -52,7 +52,7 @@ export class WebfloEmbedded extends AbstractController {
 	
 			connectedCallback() {
 				this.#superController = (this.parentNode?.closest(embedTagNames) || document).getWebfloControllerInstance();
-				this.#webfloControllerUninitialize = WebfloEmbedded.create(this, this.#superController).initialize();
+				this.#webfloControllerUninitialize = WebfloSubClient.create(this, this.#superController).initialize();
 			}
 	
 			disconnectedCallback() {
@@ -122,16 +122,16 @@ export class WebfloEmbedded extends AbstractController {
 	async push(url, state = {}) {
 	}
 
-    hardRedirect(location, backgroundActivity = null) {
+    hardRedirect(location, backgroundPort = null) {
         location = typeof location === 'string' ? new URL(location, this.location.origin) : location;
         const width = Math.min(800, window.innerWidth);
 		const height = Math.min(600, window.innerHeight);
 		const left = (window.outerWidth - width) / 2;
 		const top = (window.outerHeight - height) / 2;
 		const popup = window.open(location, '_blank', `popup=true,width=${width},height=${height},left=${left},top=${top}`);
-		if (backgroundActivity) {
+		if (backgroundPort) {
 			Observer.set(this.navigator, 'redirecting', new Url/*NOT URL*/(location), { diff: true });
-			backgroundActivity.addEventListener('close', (e) => {
+			backgroundPort.addEventListener('close', (e) => {
 				Observer.set(this.navigator, 'redirecting', null);
 				popup.postMessage('timeout:5');
 				setTimeout(() => {
@@ -140,7 +140,7 @@ export class WebfloEmbedded extends AbstractController {
 			});
 			window.addEventListener('message', (e) => {
 				if (e.source === popup && e.data === 'close') {
-					backgroundActivity.close();
+					backgroundPort.close();
 				}
 			});
 		}

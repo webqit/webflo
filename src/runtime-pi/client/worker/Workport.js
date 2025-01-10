@@ -1,6 +1,4 @@
-import { AbstractWorkport } from '../../AbstractWorkport.js';
-
-export class Workport extends AbstractWorkport {
+export class Workport {
 
     showNotification(title, params = {}) {
         return self.registration.showNotification(title, params);

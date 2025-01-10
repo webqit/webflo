@@ -1,16 +1,16 @@
-import { WebfloClient } from './WebfloClient.js';
-import { WebfloClientNext } from './WebfloClientNext.js';
-import { WebfloEmbedded } from './WebfloEmbedded.js';
+import { WebfloRootClient1 } from './WebfloRootClient1.js';
+import { WebfloRootClient2 } from './WebfloRootClient2.js';
+import { WebfloSubClient } from './WebfloSubClient.js';
 
 export function start() {
-    const Controller = window.navigation ? WebfloClientNext : WebfloClient;
+    const Controller = window.navigation ? WebfloRootClient2 : WebfloRootClient1;
     const instance = Controller.create(document, this || {});
     instance.initialize();
-    WebfloEmbedded.defineElement();
+    WebfloSubClient.defineElement();
 }
 
-export { WebfloEmbedded } from './WebfloEmbedded.js';
+export { WebfloSubClient } from './WebfloSubClient.js';
 export {
-    WebfloClient,
-    WebfloClientNext
+    WebfloRootClient1,
+    WebfloRootClient2
 }

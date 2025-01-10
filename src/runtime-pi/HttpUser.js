@@ -3,17 +3,17 @@ import { AbstractStorage } from './AbstractStorage.js';
 
 export class HttpUser extends AbstractStorage {
     
-    static create(request, session, workport) {
-        return new this(request, session, workport);
+    static create(request, session, client) {
+        return new this(request, session, client);
     }
 
     #session;
-    #workport;
+    #client;
 
-    constructor(request, session, workport) {
+    constructor(request, session, client) {
         super(request);
         this.#session = session;
-        this.#workport = workport;
+        this.#client = client;
         // Trigger this
         this.#dict;
         this.saveOriginals();
@@ -106,28 +106,28 @@ export class HttpUser extends AbstractStorage {
     }
 
     alert(data, options = {}) {
-        return this.#workport.postMessage(
+        return this.#client.postMessage(
             data,
-            { ...options, eventType: 'alert' }
+            { ...options, messageType: 'alert' }
         );
     }
 
     confirm(data, callback, options = {}) {
         return new Promise((resolve) => {
-            this.#workport.postRequest(
+            this.#client.postRequest(
                 data,
                 (event) => resolve(callback(event)),
-                { ...options, eventType: 'confirm' }
+                { ...options, messageType: 'confirm' }
             );
         });
     }
 
     prompt(data, callback, options = {}) {
         return new Promise((resolve) => {
-            this.#workport.postRequest(
+            this.#client.postRequest(
                 data,
                 (event) => resolve(callback(event)),
-                { ...options, eventType: 'prompt' }
+                { ...options, messageType: 'prompt' }
             );
         });
     }

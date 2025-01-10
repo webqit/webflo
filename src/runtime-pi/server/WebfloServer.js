@@ -15,14 +15,14 @@ import { Context } from './Context.js';
 import { CookieStorage } from './CookieStorage.js';
 import { SessionStorage } from './SessionStorage.js';
 import { AbstractController } from '../AbstractController.js';
+import { SocketMessagingAPI } from '../SocketMessagingAPI.js';
+import { ClientPortsList } from './ClientPortsList.js';
 import { HttpEvent } from '../HttpEvent.js';
 import { HttpUser } from '../HttpUser.js';
 import { Router } from './Router.js';
 import { pattern } from '../util-url.js';
 import xfetch from '../xfetch.js';
 import '../util-http.js';
-import { WebSocketWorker } from '../WebSocketWorker.js';
-import { WorkportManager } from './WorkportManager.js';
 
 const parseDomains = (domains) => _arrFrom(domains).reduce((arr, str) => arr.concat(str.split(',')), []).map(str => str.trim()).filter(str => str);
 const selectDomains = (serverDefs, matchingPort = null) => serverDefs.reduce((doms, def) => doms.length ? doms : (((!matchingPort || def.port === matchingPort) && parseDomains(def.domains || def.hostnames)) || []), []);
@@ -171,7 +171,7 @@ export class WebfloServer extends AbstractController {
         const wss = new WebSocket.Server({ noServer: true });
     }
 
-    #workportRegistry = new Map;
+    #globalPortsRegistry = new Map;
     async handleNodeWsRequest(wss, proto, nodeRequest, socket, head) {
         const [fullUrl, requestInit] = this.parseNodeRequest(proto, nodeRequest, false);
         const scope = {};
@@ -204,15 +204,15 @@ export class WebfloServer extends AbstractController {
         scope.request = this.createRequest(scope.url.href, requestInit);
         scope.session = this.constructor.SessionStorage.create(scope.request, { secret: this.#cx.env.entries.SESSION_KEY });
         if (!scope.error) {
-            if (!(scope.clientPorts = this.#workportRegistry.get(scope.session.sessionID))) {
+            if (!(scope.clientPortsList = this.#globalPortsRegistry.get(scope.session.sessionID))) {
                 scope.error = `Lost or invalid clientID`;
-            } else if (!(scope.workport = scope.clientPorts.get(scope.url.pathname.split('/').pop()))) {
+            } else if (!(scope.clientPort = scope.clientPortsList.get(scope.url.pathname.split('/').pop()))) {
                 scope.error = `Lost or invalid portID`;
             } else {
                 wss.handleUpgrade(nodeRequest, socket, head, (ws) => {
                     wss.emit('connection', ws, nodeRequest);
-                    const wsw = new WebSocketWorker(ws);
-                    scope.workport.replace(wsw);
+                    const wsw = new SocketMessagingAPI(ws);
+                    scope.clientPort.add(wsw);
                 });
             }
         }
@@ -472,8 +472,14 @@ export class WebfloServer extends AbstractController {
         }
         scope.response = await new Promise(async (resolveResponse) => {
             scope.handleRespondWith = async (response) => {
+                if (scope.finalResponseSeen) {
+                    throw new Error('Final response already sent');
+                }
+                if (scope.initialResponseSeen) {
+                    return await this.execPush(scope.clientPort, response);
+                }
                 response = await this.normalizeResponse(scope.httpEvent, response, true);
-                response.headers.set('X-Background-Activity', `/${scope.workport.portID}`);
+                response.headers.set('X-Background-Activity', `ws:${scope.clientPort.portID}`);
                 resolveResponse(response);
             };
             // ---------------
@@ -485,15 +491,15 @@ export class WebfloServer extends AbstractController {
             scope.cookies = this.constructor.CookieStorage.create(scope.request);
             scope.session = this.constructor.SessionStorage.create(scope.request, { secret: this.#cx.env.entries.SESSION_KEY });
             const sessionID = scope.session.sessionID;
-            if (!this.#workportRegistry.has(sessionID)) {
-                this.#workportRegistry.set(sessionID, new WorkportManager(sessionID));
+            if (!this.#globalPortsRegistry.has(sessionID)) {
+                this.#globalPortsRegistry.set(sessionID, new ClientPortsList(sessionID));
             }
-            scope.workportManager = this.#workportRegistry.get(sessionID);
-            scope.workport = scope.workportManager.createPort();
+            scope.clientPortsList = this.#globalPortsRegistry.get(sessionID);
+            scope.clientPort = scope.clientPortsList.createPort();
             scope.user = this.constructor.HttpUser.create(
                 scope.request, 
                 scope.session, 
-                scope.workport
+                scope.clientPort
             );
             scope.httpEvent = this.constructor.HttpEvent.create(scope.handleRespondWith, {
                 request: scope.request,
@@ -501,33 +507,38 @@ export class WebfloServer extends AbstractController {
                 cookies: scope.cookies,
                 session: scope.session,
                 user: scope.user,
-                workport: scope.workport
+                client: scope.clientPort
             });
+            if (scope.request.method === 'GET' 
+            && (scope.redirectMessageID = scope.httpEvent.url.query['redirect-message'])
+            && (scope.redirectData = scope.session.get(`redirect-message:${scope.redirectMessageID}`))) {
+                scope.session.delete(`redirect-message:${scope.redirectMessageID}`);
+            }
             // Dispatch for response
             scope.$response = await this.dispatch(scope.httpEvent, {}, async (event) => {
                 return await this.localFetch(event);
             });
-            // Handle background mode's final reponse
-            if (scope.httpEvent.response) {
-                // Pass the response via workport as pure data
-                const data = scope.$response instanceof Response
-                    ? await scope.$response.parse()
-                    : scope.$response;
-                if (_isObject(data)) {
-                    scope.workport.postMessage(data, { eventType: 'render' });
+            // Final reponse!!!
+            scope.finalResponseSeen = true;
+            if (scope.initialResponseSeen) {
+                // Send via background port
+                if (typeof scope.$response !== 'undefined') {
+                    await this.execPush(scope.clientPort, scope.$response);
                 }
                 return;
             }
-            // Sync mode reponse handling
-            if (scope.workport.hasActivities) {
+            // Send normally
+            // Has background activities?
+            if (scope.clientPort.isMessaging() || scope.redirectData) {
                 scope.$response = await this.normalizeResponse(scope.httpEvent, scope.$response, true);
-                scope.$response.headers.set('X-Background-Activity', `/${scope.workport.portID}`);
+                scope.$response.headers.set('X-Background-Activity', `ws:${scope.clientPort.portID}`);
             } else {
                 scope.$response = await this.normalizeResponse(scope.httpEvent, scope.$response);
-                scope.workportManager.delete(scope.workport.portID);
+                scope.clientPortsList.delete(scope.clientPort.portID);
             }
             resolveResponse(scope.$response);
         });
+        scope.initialResponseSeen = true;
         // Reponse handlers
         if (scope.response.headers.get('Location')) {
             this.writeRedirectHeaders(scope.httpEvent, scope.response);
@@ -539,15 +550,24 @@ export class WebfloServer extends AbstractController {
             scope.response.headers.set('Accept-Ranges', 'bytes');
             scope.response = await this.satisfyRequestFormat(scope.httpEvent, scope.response);
         }
+        if (scope.redirectData) {
+            setTimeout(() => {
+                this.execPush(scope.clientPort, scope.redirectData);
+            }, 2000);
+        }
         return scope.response;
     }
 
     async satisfyRequestFormat(httpEvent, response) {
         // Satisfy "Accept" header
+        const acceptedOrUnchanged = [202/*Accepted*/, 304/*Not Modified*/].includes(response.status);
         if (httpEvent.request.headers.get('Accept')) {
             const requestAccept = httpEvent.request.headers.get('Accept', true);
             if (requestAccept.match('text/html') && !response.meta.static) {
-                response = await this.render(httpEvent, response);
+                const data = acceptedOrUnchanged ? {} : await response.parse();
+                response = await this.render(httpEvent, data, response);
+            } else if (acceptedOrUnchanged) {
+                return response;
             } else if (response.headers.get('Content-Type') && !requestAccept.match(response.headers.get('Content-Type'))) {
                 return new Response(response.body, { status: 406, headers: response.headers });
             }
@@ -600,17 +620,16 @@ export class WebfloServer extends AbstractController {
     }
 
     #renderFileCache = new Map;
-    async render(httpEvent, response) {
+    async render(httpEvent, data, response) {
         const scope = {};
-        scope.data = await response.parse();
-        if (!_isObject(scope.data)) {
-            return new Response(scope.data + '', {
+        if (!_isObject(data)) {
+            return new Response(data + '', {
                 headers: response.headers,
                 status: response.status,
             });
         }
         scope.router = new this.constructor.Router(this.#cx, httpEvent.url.pathname);
-        scope.rendering = await scope.router.route('render', httpEvent, scope.data, async (httpEvent, data) => {
+        scope.rendering = await scope.router.route('render', httpEvent, data, async (httpEvent, data) => {
             let renderFile, pathnameSplit = httpEvent.url.pathname.split('/');
             while ((renderFile = Path.join(this.#cx.CWD, this.#cx.layout.PUBLIC_DIR, './' + pathnameSplit.join('/'), 'index.html'))
                 && (this.#renderFileCache.get(renderFile) === false/* false on previous runs */ || !Fs.existsSync(renderFile))) {
@@ -662,7 +681,7 @@ export class WebfloServer extends AbstractController {
             const hydrationData = document.querySelector('script[rel="hydration"][type="application/json"]') || document.createElement('script');
             hydrationData.setAttribute('type', 'application/json');
             hydrationData.setAttribute('rel', 'hydration');
-            hydrationData.textContent = JSON.stringify(scope.data);
+            hydrationData.textContent = JSON.stringify(data);
             document.body.append(hydrationData);
             // Await rendering engine
             if (window.webqit.$qCompilerImport) {
