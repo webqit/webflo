@@ -1,30 +1,35 @@
-import { ClientPort } from './ClientPort.js';
+import { ClientMessaging } from './ClientMessaging.js';
 import crypto from 'crypto';
 
-export class ClientPortsList extends Map {
+export class ClientMessagingRegistry extends Map {
+
+    #parentNode;
+    get parentNode() { return this.#parentNode; }
 
     #sessionID;
     get sessionID() { return this.#sessionID; }
 
     #params;
+    get params() { return this.#params; }
 
     #channels = new Map;
 
-    constructor(sessionID, params = {}) {
+    constructor(parentNode/*WebfloServer*/, sessionID, params = {}) {
         super();
+        this.#parentNode = parentNode;
         this.#sessionID = sessionID;
         this.#params = params;
     }
 
     createPort() {
         const portID = crypto.randomUUID();
-        const portInstance = new ClientPort(this, portID, this.#params);
+        const portInstance = new ClientMessaging(this, portID, this.#params);
         this.set(portID, portInstance);
         portInstance.on('empty', () => {
             this.delete(portID);
         });
         setTimeout(() => {
-            if (portInstance.length || !this.has(portID)) return;
+            if (portInstance.ports.size || !this.has(portID)) return;
             this.delete(portID);
         }, 10000/*10sec*/);
         return portInstance;

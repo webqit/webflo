@@ -1,6 +1,6 @@
-import { AbstractStorage } from '../../AbstractStorage.js';
+import { WebfloStorage } from '../../WebfloStorage.js';
 
-export class SessionStorage extends AbstractStorage {
+export class SessionStorage extends WebfloStorage {
     #type;
 
     static async create(request) {

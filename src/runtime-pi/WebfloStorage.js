@@ -1,7 +1,7 @@
 import { _isObject } from '@webqit/util/js/index.js';
 import { _even } from '@webqit/util/obj/index.js';
 
-export class AbstractStorage extends Map {
+export class WebfloStorage extends Map {
     
     #request;
 

@@ -1,7 +1,7 @@
 import { _isObject } from '@webqit/util/js/index.js';
-import { AbstractStorage } from './AbstractStorage.js';
+import { WebfloStorage } from './WebfloStorage.js';
 
-export class HttpUser extends AbstractStorage {
+export class HttpUser extends WebfloStorage {
     
     static create(request, session, client) {
         return new this(request, session, client);
@@ -105,18 +105,11 @@ export class HttpUser extends AbstractStorage {
         return response;
     }
 
-    alert(data, options = {}) {
-        return this.#client.postMessage(
-            data,
-            { ...options, messageType: 'alert' }
-        );
-    }
-
     confirm(data, callback, options = {}) {
         return new Promise((resolve) => {
             this.#client.postRequest(
                 data,
-                (event) => resolve(callback(event)),
+                (event) => resolve(callback ? callback(event) : event),
                 { ...options, messageType: 'confirm' }
             );
         });
@@ -126,7 +119,7 @@ export class HttpUser extends AbstractStorage {
         return new Promise((resolve) => {
             this.#client.postRequest(
                 data,
-                (event) => resolve(callback(event)),
+                (event) => resolve(callback ? callback(event) : event),
                 { ...options, messageType: 'prompt' }
             );
         });

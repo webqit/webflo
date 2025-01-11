@@ -9,7 +9,7 @@ export class WebfloSubClient extends WebfloClient {
 		const embedTagNames = 'webflo-embedded';
 		window.customElements.define(embedTagNames, class extends HTMLElement {
 	
-			#superController;
+			#superRuntime;
 			#webfloControllerUninitialize;
 			#location;
 			#reflectAction;
@@ -35,7 +35,7 @@ export class WebfloSubClient extends WebfloClient {
 				this.#location = value;
 				this.setAttribute('location', value.href.replace(value.origin, ''));
 				if (!this.#reflectAction) {
-					this.getWebfloControllerInstance().navigate(value);
+					this.webfloRuntime.navigate(value);
 				}
 			}
 
@@ -51,8 +51,8 @@ export class WebfloSubClient extends WebfloClient {
 			}
 	
 			connectedCallback() {
-				this.#superController = (this.parentNode?.closest(embedTagNames) || document).getWebfloControllerInstance();
-				this.#webfloControllerUninitialize = WebfloSubClient.create(this, this.#superController).initialize();
+				this.#superRuntime = (this.parentNode?.closest(embedTagNames) || document).webfloRuntime;
+				this.#webfloControllerUninitialize = WebfloSubClient.create(this, this.#superRuntime).initialize();
 			}
 	
 			disconnectedCallback() {
@@ -61,26 +61,26 @@ export class WebfloSubClient extends WebfloClient {
 		});
 	}
 
-	static create(host, superController) {
-        return new this(host, superController);
+	static create(host, superRuntime) {
+        return new this(host, superRuntime);
     }
 
-	#superController;
-	get superController() { return this.#superController; }
+	#superRuntime;
+	get superRuntime() { return this.#superRuntime; }
 	
-	get cx() { return this.#superController.cx; }
+	get cx() { return this.#superRuntime.cx; }
 
-	get workport() { return this.#superController.workport; }
+	get workport() { return this.#superRuntime.workport; }
 
-	constructor(host, superController) {
+	constructor(host, superRuntime) {
 		if (!(host instanceof HTMLElement)) {
 			throw new Error('Argument #1 must be a HTMLElement instance');
 		}
 		super(host);
-		if (!(superController instanceof AbstractController)) {
-			throw new Error('Argument #2 must be a Webflo Controller instance');
+		if (!(superRuntime instanceof WebfloClient)) {
+			throw new Error('Argument #2 must be a Webflo Client instance');
 		}
-		this.#superController = superController;
+		this.#superRuntime = superRuntime;
 	}
 
 	initialize() {
@@ -88,8 +88,14 @@ export class WebfloSubClient extends WebfloClient {
 			throw new Error(`Webflo embeddable origin violation in "${window.location}"`);
 		}
 		const uncontrols = super.initialize();
+		this.backgroundMessaging.setParent(this.#superRuntime.backgroundMessaging);
 		this.navigate(this.location.href);
-		return uncontrols;
+		return () => {
+			if (this.backgroundMessaging.parentNode === this.#superRuntime.backgroundMessaging) {
+				this.backgroundMessaging.setParent(null);
+			}
+			uncontrols();
+		};
 	}
 	
 	control() {
@@ -122,16 +128,16 @@ export class WebfloSubClient extends WebfloClient {
 	async push(url, state = {}) {
 	}
 
-    hardRedirect(location, backgroundPort = null) {
+    hardRedirect(location, backgroundMessaging = null) {
         location = typeof location === 'string' ? new URL(location, this.location.origin) : location;
         const width = Math.min(800, window.innerWidth);
 		const height = Math.min(600, window.innerHeight);
 		const left = (window.outerWidth - width) / 2;
 		const top = (window.outerHeight - height) / 2;
 		const popup = window.open(location, '_blank', `popup=true,width=${width},height=${height},left=${left},top=${top}`);
-		if (backgroundPort) {
+		if (backgroundMessaging) {
 			Observer.set(this.navigator, 'redirecting', new Url/*NOT URL*/(location), { diff: true });
-			backgroundPort.addEventListener('close', (e) => {
+			backgroundMessaging.addEventListener('close', (e) => {
 				Observer.set(this.navigator, 'redirecting', null);
 				popup.postMessage('timeout:5');
 				setTimeout(() => {
@@ -140,7 +146,7 @@ export class WebfloSubClient extends WebfloClient {
 			});
 			window.addEventListener('message', (e) => {
 				if (e.source === popup && e.data === 'close') {
-					backgroundPort.close();
+					backgroundMessaging.close();
 				}
 			});
 		}

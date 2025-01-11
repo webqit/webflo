@@ -1,24 +1,30 @@
 export class WebfloEventTarget extends EventTarget {
 
-    #parent;
-    setParent(parent) {
-        this.#parent = parent;
+    #parentNode;
+    #params;
+    #listenersRegistry = new Set;
+
+    get parentNode() { return this.#parentNode; }
+    get params() { return this.#params; }
+    get length() { return this.#listenersRegistry.size; }
+
+    constructor(parentNode, params = {}) {
+        super();
+        this.#parentNode = parentNode;
+        this.#params = params;
     }
 
-    parentIs(node) {
-        return this.#parent === node;
+    setParent(parentNode) {
+        this.#parentNode = parentNode;
     }
 
     dispatchEvent(event) {
         const returnValue = super.dispatchEvent(event);
-        if (this.#parent && !event.defaultPrevented) {
-            this.#parent.dispatchEvent(event);
+        if (this.#parentNode instanceof EventTarget && !event.defaultPrevented && !event.propagationStopped) {
+            this.#parentNode.dispatchEvent(event);
         }
         return returnValue;
     }
-
-    #listenersRegistry = new Set;
-    get length() { return this.#listenersRegistry.size; }
 
     addEventListener(...args) {
         this.#listenersRegistry.add(args);
@@ -29,6 +35,5 @@ export class WebfloEventTarget extends EventTarget {
         for (const listenerArgs of this.#listenersRegistry) {
             this.removeEventListener(...listenerArgs);
         }
-        this.#parent = null;
     }
 }

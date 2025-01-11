@@ -2,17 +2,10 @@ import { WebfloMessagingAPI } from './WebfloMessagingAPI.js';
 
 export class MultiportMessagingAPI extends WebfloMessagingAPI {
 
-    #params;
+    get runtime() { return this.parentNode; }
+
     #ports = new Set;
-
-    constructor(params = {}) {
-        super();
-        this.#params = params;
-    }
-
-    get params() { return this.#params; }
-
-    get length() { return this.#ports.size; }
+    get ports() { return this.#ports; }
 
     [ Symbol.iterator ]() { return this.#ports[ Symbol.iterator ](); }
 
@@ -32,7 +25,7 @@ export class MultiportMessagingAPI extends WebfloMessagingAPI {
     }
 
     remove(port) {
-        if (port.parentIs(this)) {
+        if (port.parentNode === this) {
             port.setParent(null);
         }
         this.#ports.delete(port);

@@ -1,18 +1,19 @@
+import { WebfloMessageEvent } from './WebfloMessageEvent.js';
 import { WebfloMessagingAPI } from './WebfloMessagingAPI.js';
 
-export class SocketMessagingAPI extends WebfloMessagingAPI {
+export class MessagingOverSocket extends WebfloMessagingAPI {
 
     #socket;
     get socket() { return this.#socket; }
 
-    constructor(socket) {
-        super();
-        this.#socket = socket;
+    constructor(parentNode, instanceOrConnectionID, params = {}) {
+        super(parentNode, params);
+        this.#socket = typeof instanceOrConnectionID === 'string' ? new WebSocket(`/${instanceOrConnectionID}`) : instanceOrConnectionID;
         const messageHandler = async (event) => {
             let json;
             try {
                 if (!(json = JSON.parse(event.data)) 
-                || !['messageType', 'messageID', 'message'].every((k) => k in json)) {
+                || !['messageType', 'message', 'messageID'].every((k) => k in json)) {
                     return;
                 }
             } catch(e) {
@@ -20,9 +21,9 @@ export class SocketMessagingAPI extends WebfloMessagingAPI {
             }
             this.dispatchEvent(new SocketMessageEvent(
                 this,
-                json.messageID,
                 json.messageType,
                 json.message,
+                json.messageID,
                 json.numPorts
             ));
         };
@@ -59,9 +60,9 @@ export class SocketMessagingAPI extends WebfloMessagingAPI {
             const messagePorts = transfer.filter((t) => t instanceof MessagePort);
             const messageID = (0 | Math.random() * 9e6).toString(36);
             this.#socket.send(JSON.stringify({
-                messageID,
                 messageType,
                 message,
+                messageID,
                 numPorts: messagePorts.length
             }), options);
             for (let i = 0; i < messagePorts.length; i ++) {
@@ -78,40 +79,20 @@ export class SocketMessagingAPI extends WebfloMessagingAPI {
     }
 }
 
-export class SocketMessageEvent extends Event {
-
-    #messageID;
-    get messageID() { return this.#messageID; }
-
-    #data;
-    get data() { return this.#data; }
-
-    #ports = [];
-    get ports() { return this.#ports; }
-
-    #ownerAPI;
-    constructor(ownerAPI, messageID, messageType, message, numPorts = 0) {
-        super(messageType);
-        this.#ownerAPI = ownerAPI;
-        this.#messageID = messageID;
-        this.#data = message;
+export class SocketMessageEvent extends WebfloMessageEvent {
+    constructor(ownerAPI, messageType, message, messageID, numPorts = 0) {
+        const ports = [];
         for (let i = 0; i < numPorts; i ++) {
             const channel = new MessageChannel;
             channel.port1.addEventListener('message', (event) => {
-                this.#ownerAPI.postMessage(event.data, {
+                this.ownerAPI.postMessage(event.data, {
                     messageType: `${messageType}:${messageID}:${i}`,
                     transfer: event.ports
                 });
             });
             channel.port1.start();
-            this.#ports.push(channel.port2);
+            ports.push(channel.port2);
         }
-    }
-
-    respondWith(data, transferOrOptions = []) {
-        for (const port of this.#ports) {
-            port.postMessage(data, transferOrOptions);
-        }
-        return !!this.#ports.length;
+        super(ownerAPI, messageType, message, ports);
     }
 }

@@ -1,10 +1,11 @@
 import { _before, _toTitle } from '@webqit/util/str/index.js';
 import { _isObject } from '@webqit/util/js/index.js';
-import { AbstractController } from '../AbstractController.js';
+import { WebfloRuntime } from '../WebfloRuntime.js';
 import { MultiportMessagingAPI } from '../MultiportMessagingAPI.js';
-import { SocketMessagingAPI } from '../SocketMessagingAPI.js';
-import { PortMessagingAPI } from '../PortMessagingAPI.js';
-import { ClientPort } from './ClientPort.js';
+import { MessagingOverBroadcast } from '../MessagingOverBroadcast.js';
+import { MessagingOverChannel } from '../MessagingOverChannel.js';
+import { MessagingOverSocket } from '../MessagingOverSocket.js';
+import { ClientMessaging } from './ClientMessaging.js';
 import { CookieStorage } from './CookieStorage.js';
 import { SessionStorage } from './SessionStorage.js';
 import { HttpEvent } from '../HttpEvent.js';
@@ -16,7 +17,7 @@ import '../util-http.js';
 
 const { Observer } = webqit;
 
-export class WebfloClient extends AbstractController {
+export class WebfloClient extends WebfloRuntime {
 
 	static get Router() { return Router; }
 
@@ -43,13 +44,13 @@ export class WebfloClient extends AbstractController {
     #transition;
     get transition() { return this.#transition; }
 
-	#backgroundPorts;
-	get backgroundPorts() { return this.#backgroundPorts; }
+	#backgroundMessaging;
+	get backgroundMessaging() { return this.#backgroundMessaging; }
 
     constructor(host) {
         super();
         this.#host = host;
-        Object.defineProperty(this.host, 'getWebfloControllerInstance', { value: () => this });
+        Object.defineProperty(this.host, 'webfloRuntime', { get: () => this });
         this.#network = { status: window.navigator.onLine };
         this.#location = new Url/*NOT URL*/(this.host.location);
         this.#navigator = {
@@ -68,38 +69,32 @@ export class WebfloClient extends AbstractController {
     }
 
     initialize() {
-		this.#backgroundPorts = new MultiportMessagingAPI;
-        const getMessage = (e) => {
-            let message = e.data;
-            if (e.data?.message) {
-                message = e.data.message + (e.data.description ? `\r\n${e.data.description}` : '');
-            }
-            return message;
+		this.#backgroundMessaging = new MultiportMessagingAPI(this);
+        // Bind response and redirect handlers
+        const responseHandler = (e) => {
+            e.stopPropagation();
+            setTimeout(() => {
+                if (e.defaultPrevented || e.immediatePropagationStopped) return;
+                window.queueMicrotask(() => {
+                    if (e.type === 'response') {
+                        const httpEvent = this.constructor.HttpEvent.create(null, { url: this.location.href });
+                        this.render(httpEvent, e.data, true);
+                    } else if (e.type === 'redirect') {
+                        this.redirect(e.data);
+                    }
+                });
+            }, 10);
         };
-        this.#backgroundPorts.handleMessages('alert', (e) => {
-            alert(getMessage(e));
-        });
-        this.#backgroundPorts.handleRequests('confirm', (e) => {
-            return confirm(getMessage(e));
-        });
-        this.#backgroundPorts.handleRequests('prompt', (e) => {
-            return prompt(getMessage(e));
-        });
-        this.#backgroundPorts.handleMessages('response', (e) => {
-            const httpEvent = this.constructor.HttpEvent.create(null, { url: this.location.href });
-            window.queueMicrotask(() => {
-                this.render(httpEvent, e.data, true);
-            });
-        });
-        this.#backgroundPorts.handleMessages('redirect', (e) => {
-            return this.redirect(e.data);
-        });
+        this.backgroundMessaging.handleMessages('response', responseHandler);
+        this.backgroundMessaging.handleMessages('redirect', responseHandler);
+        // Bind network status handlers
         const onlineHandler = () => Observer.set(this.network, 'status', window.navigator.onLine);
         window.addEventListener('online', onlineHandler);
         window.addEventListener('offline', onlineHandler);
+        // Start controlling
         const uncontrols = this.control();
         return () => {
-            this.#backgroundPorts.close();
+            this.#backgroundMessaging.close();
             window.removeEventListener('online', onlineHandler);
             window.removeEventListener('offline', onlineHandler);
             uncontrols();
@@ -230,17 +225,17 @@ export class WebfloClient extends AbstractController {
         }, true);
     }
 
-    async redirect(location, backgroundPort) {
+    async redirect(location, backgroundMessaging) {
         location = typeof location === 'string' ? new URL(location, this.location.origin) : location;
         if (this.isSpaRoute(location)) {
             await this.navigate(location, {}, { navigationType: 'rdr' });
-        } else this.hardRedirect(location, backgroundPort);
+        } else this.hardRedirect(location, backgroundMessaging);
     }
 
-    hardRedirect(location, backgroundPort) {
-        if (backgroundPort) {
+    hardRedirect(location, backgroundMessaging) {
+        if (backgroundMessaging) {
             // Redundant as this is a window reload anyways
-            backgroundPort.close();
+            backgroundMessaging.close();
         }
         window.location = location;
     }
@@ -265,7 +260,7 @@ export class WebfloClient extends AbstractController {
 			scope.url = new URL(scope.url, self.location.origin);
 		}
         // Ping any existing background process
-        this.#backgroundPorts.postMessage('navigation');
+        this.#backgroundMessaging.postMessage('navigation');
         // Process request...
         scope.response = await new Promise(async (resolveResponse) => {
             scope.handleRespondWith = async (response) => {
@@ -273,7 +268,7 @@ export class WebfloClient extends AbstractController {
                     throw new Error('Final response already sent');
                 }
                 if (scope.initialResponseSeen) {
-                    return await this.execPush(scope.clientPort, response);
+                    return await this.execPush(scope.clientMessaging, response);
                 }
                 response = await this.normalizeResponse(scope.httpEvent, response, true);
                 resolveResponse(response);
@@ -283,12 +278,12 @@ export class WebfloClient extends AbstractController {
             scope.cookies = this.constructor.CookieStorage.create(scope.request);
             scope.session = this.constructor.SessionStorage.create(scope.request);
             const messageChannel = new MessageChannel;
-            this.backgroundPorts.add(new PortMessagingAPI(messageChannel.port1));
-            scope.clientPort = new ClientPort(messageChannel.port2);
+            this.backgroundMessaging.add(new MessagingOverChannel(null, messageChannel.port1));
+            scope.clientMessaging = new ClientMessaging(this, messageChannel.port2);
             scope.user = this.constructor.HttpUser.create(
                 scope.request, 
                 scope.session, 
-                scope.clientPort
+                scope.clientMessaging
             );
             scope.httpEvent = this.constructor.HttpEvent.create(scope.handleRespondWith, {
                 request: scope.request,
@@ -296,7 +291,7 @@ export class WebfloClient extends AbstractController {
                 cookies: scope.cookies,
                 session: scope.session,
                 user: scope.user,
-                client: scope.clientPort
+                client: scope.clientMessaging
             });
             scope.httpEvent.onRequestClone = () => this.createRequest(scope.url, scope.init);
             // Ste pre-request states
@@ -332,7 +327,7 @@ export class WebfloClient extends AbstractController {
             if (scope.initialResponseSeen) {
                 // Send via background port
                 if (typeof scope.$response !== 'undefined') {
-                    await this.execPush(scope.clientPort, scope.$response);
+                    await this.execPush(scope.clientMessaging, scope.$response);
                 }
                 return;
             }
@@ -346,10 +341,11 @@ export class WebfloClient extends AbstractController {
             const stateData = { ...(this.currentEntry()?.getState() || {}), redirected: true, };
             await this.updateCurrentEntry({ state: stateData }, scope.finalUrl);    
         }
-        if (scope.response.headers.has('X-Background-Activity')) {
-            scope.backgroundPort = this.handleBackgroundActivity(
-                scope.response.headers.get('X-Background-Activity')
+        if (scope.response.headers.has('X-Background-Messaging')) {
+            scope.backgroundMessaging = this.$createBackgroundMessagingFrom(
+                scope.response.headers.get('X-Background-Messaging')
             );
+            this.backgroundMessaging.add(scope.backgroundMessaging);
         }
         if (scope.response.headers.has('Location')) {
             // Normalize redirect
@@ -360,9 +356,9 @@ export class WebfloClient extends AbstractController {
             // Trigger redirect
             if ([302, 301].includes(scope.response.status)) {
                 const location = scope.response.headers.get('Location');
-                this.redirect(location, scope.backgroundPort);
-                if (scope.backgroundPort) {
-                    scope.backgroundPort.addEventListener('response', () => {
+                this.redirect(location, scope.backgroundMessaging);
+                if (scope.backgroundMessaging) {
+                    scope.backgroundMessaging.addEventListener('response', () => {
                         scope.resetState();
                     });
                 }
@@ -371,8 +367,8 @@ export class WebfloClient extends AbstractController {
         }
         // Only render now
         if ([202/*Accepted*/, 304/*Not Modified*/].includes(scope.response.status)) {
-            if (scope.backgroundPort) {
-                scope.backgroundPort.addEventListener('response', () => {
+            if (scope.backgroundMessaging) {
+                scope.backgroundMessaging.addEventListener('response', () => {
                     scope.resetState();
                 });
                 return;
@@ -425,17 +421,14 @@ export class WebfloClient extends AbstractController {
         return response;
     }
 
-    handleBackgroundActivity(uri) {
+    $createBackgroundMessagingFrom(uri) {
         const [proto, portID] = uri.split(':');
         let instance;
         if (proto === 'ch') {
-            const ch = new BroadcastChannel(portID);
-            instance = new PortMessagingAPI(ch);
+            instance = new MessagingOverBroadcast(null, portID);
         } else {
-            const ws = new WebSocket(`/${portID}`);
-            instance = new SocketMessagingAPI(ws);
+            instance = new MessagingOverSocket(null, portID);
         }
-        this.#backgroundPorts.add(instance);
         return instance;
     }
 
@@ -468,13 +461,18 @@ export class WebfloClient extends AbstractController {
             } = window.webqit.oohtml.configs;
             if (bindingsConfig) {
                 this.host[bindingsConfig.bind]({
+                    ...(!_isObject(data) ? {} : data),
                     env: 'client',
                     navigator: this.navigator,
                     location: this.location,
                     network: this.network, // request, redirect, error, status, remote
                     transition: this.transition,
-                    data: !_isObject(data) ? {} : data
+                    background: null
                 }, { diff: true, merge });
+                let overridenKeys;
+                if (_isObject(data) && (overridenKeys = ['env', 'navigator', 'location', 'network', 'transition', 'background'].filter((k) => k in data)).length) {
+                    console.error(`The following data properties were overridden: ${overridenKeys.join(', ')}`);
+                }
             }
             if (modulesContextAttrs) {
                 const newRoute = '/' + `routes/${this.location.pathname}`.split('/').map(a => (a => a.startsWith('$') ? '-' : a)(a.trim())).filter(a => a).join('/');

@@ -1,9 +1,9 @@
 import Fs from 'fs';
 import Url from 'url';
 import Path from 'path';
-import { AbstractRouter } from '../AbstractRouter.js';
+import { WebfloRouter } from '../WebfloRouter.js';
 			
-export class Router extends AbstractRouter {
+export class Router extends WebfloRouter {
 
     async readTick(thisTick) {
         thisTick = { ...thisTick };

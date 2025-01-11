@@ -1,6 +1,6 @@
-import { AbstractStorage } from '../AbstractStorage.js';
+import { WebfloStorage } from '../WebfloStorage.js';
 
-export class SessionStorage extends AbstractStorage {
+export class SessionStorage extends WebfloStorage {
     static get type() { return 'session'; }
 
     static create(request) {

@@ -1,17 +1,22 @@
 import { _isObject } from '@webqit/util/js/index.js';
 import { WebfloMessagingAPI } from './WebfloMessagingAPI.js';
+import { WebfloMessageEvent } from './WebfloMessageEvent.js';
 
-export class PortMessagingAPI extends WebfloMessagingAPI {
+export class MessagingOverChannel extends WebfloMessagingAPI {
 
     #port;
     get port() { return this.#port; }
 
-    constructor(port, isPrimary = false) {
-        super();
+    #isPrimary;
+    get isPrimary() { return this.#isPrimary; }
+
+    constructor(parentNode, port, { isPrimary = false, ...params } = {}) {
+        super(parentNode, params);
         this.#port = port;
+        this.#isPrimary = isPrimary;
         this.#port.start?.();
         const messageHandler = async (event) => {
-            if (isPrimary && event.data === 'connection') {
+            if (this.isPrimary && event.data === 'connection') {
                 this.$emit('connected');
             }
             if (event.data === 'close') {
@@ -23,7 +28,8 @@ export class PortMessagingAPI extends WebfloMessagingAPI {
             if (!_isObject(event.data) || !['messageType', 'message'].every((k) => k in event.data)) {
                 return;
             }
-            this.dispatchEvent(new PortMessageEvent(
+            this.dispatchEvent(new ChannelMessageEvent(
+                this,
                 event.data.messageType,
                 event.data.message,
                 event.ports
@@ -42,7 +48,7 @@ export class PortMessagingAPI extends WebfloMessagingAPI {
             Object.defineProperty(this.#port, 'close', { value: nativeCloseMethod });
             this.#port.close();
         }});
-        if (!isPrimary) {
+        if (!this.isPrimary) {
             // We are client
             this.$emit('connected');
             this.#port.postMessage('connection');
@@ -68,24 +74,4 @@ export class PortMessagingAPI extends WebfloMessagingAPI {
     }
 }
 
-export class PortMessageEvent extends Event {
-
-    #data;
-    get data() { return this.#data; }
-
-    #ports = [];
-    get ports() { return this.#ports; }
-
-    constructor(messageType, message, ports = []) {
-        super(messageType);
-        this.#data = message;
-        this.#ports = ports;
-    }
-
-    respondWith(data, transferOrOptions = []) {
-        for (const port of this.#ports) {
-            port.postMessage(data, transferOrOptions);
-        }
-        return !!this.#ports.length;
-    }
-}
+export class ChannelMessageEvent extends WebfloMessageEvent {}

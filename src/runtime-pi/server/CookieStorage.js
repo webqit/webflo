@@ -1,6 +1,6 @@
-import { AbstractCookieStorage } from '../AbstractCookieStorage.js';
+import { WebfloCookieStorage } from '../WebfloCookieStorage.js';
 
-export class CookieStorage extends AbstractCookieStorage {
+export class CookieStorage extends WebfloCookieStorage {
     static create(request) {
         return new this(
             request,

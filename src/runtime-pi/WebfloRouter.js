@@ -1,7 +1,7 @@
 import { _isString, _isFunction, _isArray } from '@webqit/util/js/index.js';
 import { _from as _arrFrom } from '@webqit/util/arr/index.js';
 
-export class AbstractRouter {
+export class WebfloRouter {
 
 	constructor(cx, path = []) {
         this.cx = cx;

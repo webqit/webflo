@@ -1,7 +1,8 @@
 import { _any } from '@webqit/util/arr/index.js';
 import { _isObject } from '@webqit/util/js/index.js';
 import { pattern } from '../../util-url.js';
-import { AbstractController } from '../../AbstractController.js';
+import { WebfloRuntime } from '../../WebfloRuntime.js';
+import { ClientMessaging } from './ClientMessaging.js';
 import { CookieStorage } from './CookieStorage.js';
 import { SessionStorage } from './SessionStorage.js';
 import { HttpEvent } from '../../HttpEvent.js';
@@ -11,10 +12,8 @@ import { Context } from './Context.js';
 import { Router } from '../Router.js';
 import xfetch from '../../xfetch.js';
 import '../../util-http.js';
-import { PortMessagingAPI } from '../../PortMessagingAPI.js';
-import { ClientPort } from './ClientPort.js';
 
-export class WebfloWorker extends AbstractController {
+export class WebfloWorker extends WebfloRuntime {
 
 	static get Context() { return Context; }
 
@@ -135,9 +134,8 @@ export class WebfloWorker extends AbstractController {
                     throw new Error('Final response already sent');
                 }
                 if (scope.initialResponseSeen) {
-                    return await this.execPush(scope.clientPort, response);
+                    return await this.execPush(scope.clientMessaging, response);
                 }
-				response = await this.normalizeResponse(scope.httpEvent, response, true);
                 resolveResponse(response);
 			};
 			// Create and route request
@@ -145,11 +143,11 @@ export class WebfloWorker extends AbstractController {
 			scope.cookies = this.constructor.CookieStorage.create(scope.request);
 			scope.session = this.constructor.SessionStorage.create(scope.request, { secret: this.cx.env.entries.SESSION_KEY });
 			const portID = crypto.randomUUID();
-			scope.clientPort = new ClientPort(portID);
+			scope.clientMessaging = new ClientMessaging(this, portID, { isPrimary: true });
 			scope.user = this.constructor.HttpUser.create(
 				scope.request,
 				scope.session,
-				scope.clientPort
+				scope.clientMessaging
 			);
 			scope.httpEvent = this.constructor.HttpEvent.create(scope.handleRespondWith, {
                 request: scope.request,
@@ -157,8 +155,14 @@ export class WebfloWorker extends AbstractController {
                 cookies: scope.cookies,
                 session: scope.session,
                 user: scope.user,
-                client: scope.clientPort
+                client: scope.clientMessaging
             });
+			// Restore session before dispatching
+            if (scope.request.method === 'GET' 
+			&& (scope.redirectMessageID = scope.httpEvent.url.query['redirect-message'])
+			&& (scope.redirectMessage = scope.session.get(`redirect-message:${scope.redirectMessageID}`))) {
+				scope.session.delete(`redirect-message:${scope.redirectMessageID}`);
+			}
 			// Dispatch for response
 			scope.$response = await this.dispatch(scope.httpEvent, {}, async (event) => {
 				// Was this nexted()? Tell the next layer we're in JSON mode by default
@@ -172,22 +176,34 @@ export class WebfloWorker extends AbstractController {
             if (scope.initialResponseSeen) {
                 // Send via background port
                 if (typeof scope.$response !== 'undefined') {
-					await this.execPush(scope.clientPort, scope.$response);
+					await this.execPush(scope.clientMessaging, scope.$response);
                 }
+				scope.clientMessaging.close();
                 return;
             }
 			// Send normally
-            // Has background activities?
-            if (scope.clientPort.isMessaging()) {
-                scope.$response = await this.normalizeResponse(scope.httpEvent, scope.$response, true);
-                scope.$response.headers.set('X-Background-Activity', `ch:${scope.clientPort.portID}`);
-            } else {
-                scope.$response = await this.normalizeResponse(scope.httpEvent, scope.$response);
-				scope.clientPort.close();
-            }
 			resolveResponse(scope.$response);
 		});
 		scope.initialResponseSeen = true;
+		if ((!scope.finalResponseSeen || scope.redirectMessage) && !(scope.response instanceof Response && scope.response.headers.get('Location'))) {
+            scope.hasBackgroundActivity = true;
+        }
+        scope.response = await this.normalizeResponse(scope.httpEvent, scope.response, scope.hasBackgroundActivity);
+		if (scope.hasBackgroundActivity) {
+			scope.response.headers.set('X-Background-Messaging', `ch:${scope.clientMessaging.port.name}`);
+		} else {
+			scope.clientMessaging.close();
+		}
+		if (scope.redirectMessage) {
+            setTimeout(() => {
+                this.execPush(scope.clientMessaging, scope.redirectMessage);
+                if (scope.finalResponseSeen) {
+                    scope.clientMessaging.close();
+                }
+            }, 500);
+        } else if (scope.finalResponseSeen) {
+            scope.clientMessaging.close();
+        }
 		return scope.response;
 	}
 

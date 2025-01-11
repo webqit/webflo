@@ -1,7 +1,7 @@
-import { AbstractStorage } from '../AbstractStorage.js';
+import { WebfloStorage } from '../WebfloStorage.js';
 import crypto from 'crypto';
 
-export class SessionStorage extends AbstractStorage {
+export class SessionStorage extends WebfloStorage {
 
     static create(request, params = {}) {
         if (!SessionStorage.__storage) Object.defineProperty(SessionStorage, '__storage', { value: new Map });

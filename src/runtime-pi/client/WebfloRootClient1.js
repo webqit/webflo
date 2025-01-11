@@ -28,11 +28,31 @@ export class WebfloRootClient1 extends WebfloClient {
 	initialize() {
 		// Main initializations
 		let undoControl = super.initialize();
+		// Bind global prompt handlers
+        const promptsHandler = (e) => {
+            e.stopPropagation();
+            setTimeout(() => {
+                if (e.defaultPrevented || e.immediatePropagationStopped) return;
+				let message = e.data;
+				if (e.data?.message) {
+					message = e.data.message + (e.data.details ? `\r\n${e.data.details}` : '');
+				}
+                window.queueMicrotask(() => {
+					if (e.type === 'confirm') {
+						e.respondWith(confirm(message));
+					} else if (e.type === 'prompt') {
+						e.respondWith(prompt(message));
+					}
+				});
+            }, 10);
+        };
+        this.backgroundMessaging.handleMessages('confirm', promptsHandler);
+        this.backgroundMessaging.handleMessages('prompt', promptsHandler);
+		// Respond to background activity request at pageload
 		const scope = {};
-        if (scope.backgroundPortMeta = document.querySelector('meta[name="X-Background-Activity"]')) {
-			this.handleBackgroundActivity(
-                scope.backgroundPortMeta.content
-            );
+        if (scope.backgroundMessagingMeta = document.querySelector('meta[name="X-Background-Messaging"]')) {
+			scope.backgroundMessaging = this.$createBackgroundMessagingFrom(scope.backgroundMessagingMeta.content);
+			this.backgroundMessaging.add(scope.backgroundMessaging);
         }
         if (scope.hydrationData = document.querySelector('script[rel="hydration"][type="application/json"]')) {
 			try {

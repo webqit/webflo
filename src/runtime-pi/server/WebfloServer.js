@@ -11,12 +11,12 @@ import { _isEmpty, _isObject } from '@webqit/util/js/index.js';
 import { _each } from '@webqit/util/obj/index.js';
 import { slice as _streamSlice } from 'stream-slice';
 import { Readable as _ReadableStream } from 'stream';
+import { WebfloRuntime } from '../WebfloRuntime.js';
 import { Context } from './Context.js';
 import { CookieStorage } from './CookieStorage.js';
 import { SessionStorage } from './SessionStorage.js';
-import { AbstractController } from '../AbstractController.js';
-import { SocketMessagingAPI } from '../SocketMessagingAPI.js';
-import { ClientPortsList } from './ClientPortsList.js';
+import { MessagingOverSocket } from '../MessagingOverSocket.js';
+import { ClientMessagingRegistry } from './ClientMessagingRegistry.js';
 import { HttpEvent } from '../HttpEvent.js';
 import { HttpUser } from '../HttpUser.js';
 import { Router } from './Router.js';
@@ -27,7 +27,7 @@ import '../util-http.js';
 const parseDomains = (domains) => _arrFrom(domains).reduce((arr, str) => arr.concat(str.split(',')), []).map(str => str.trim()).filter(str => str);
 const selectDomains = (serverDefs, matchingPort = null) => serverDefs.reduce((doms, def) => doms.length ? doms : (((!matchingPort || def.port === matchingPort) && parseDomains(def.domains || def.hostnames)) || []), []);
 
-export class WebfloServer extends AbstractController {
+export class WebfloServer extends WebfloRuntime {
 
     static get Context() { return Context; }
 
@@ -171,7 +171,7 @@ export class WebfloServer extends AbstractController {
         const wss = new WebSocket.Server({ noServer: true });
     }
 
-    #globalPortsRegistry = new Map;
+    #globalMessagingRegistry = new Map;
     async handleNodeWsRequest(wss, proto, nodeRequest, socket, head) {
         const [fullUrl, requestInit] = this.parseNodeRequest(proto, nodeRequest, false);
         const scope = {};
@@ -204,15 +204,15 @@ export class WebfloServer extends AbstractController {
         scope.request = this.createRequest(scope.url.href, requestInit);
         scope.session = this.constructor.SessionStorage.create(scope.request, { secret: this.#cx.env.entries.SESSION_KEY });
         if (!scope.error) {
-            if (!(scope.clientPortsList = this.#globalPortsRegistry.get(scope.session.sessionID))) {
+            if (!(scope.clientMessagingRegistry = this.#globalMessagingRegistry.get(scope.session.sessionID))) {
                 scope.error = `Lost or invalid clientID`;
-            } else if (!(scope.clientPort = scope.clientPortsList.get(scope.url.pathname.split('/').pop()))) {
+            } else if (!(scope.clientMessaging = scope.clientMessagingRegistry.get(scope.url.pathname.split('/').pop()))) {
                 scope.error = `Lost or invalid portID`;
             } else {
                 wss.handleUpgrade(nodeRequest, socket, head, (ws) => {
                     wss.emit('connection', ws, nodeRequest);
-                    const wsw = new SocketMessagingAPI(ws);
-                    scope.clientPort.add(wsw);
+                    const wsw = new MessagingOverSocket(null, ws);
+                    scope.clientMessaging.add(wsw);
                 });
             }
         }
@@ -476,10 +476,8 @@ export class WebfloServer extends AbstractController {
                     throw new Error('Final response already sent');
                 }
                 if (scope.initialResponseSeen) {
-                    return await this.execPush(scope.clientPort, response);
+                    return await this.execPush(scope.clientMessaging, response);
                 }
-                response = await this.normalizeResponse(scope.httpEvent, response, true);
-                response.headers.set('X-Background-Activity', `ws:${scope.clientPort.portID}`);
                 resolveResponse(response);
             };
             // ---------------
@@ -491,15 +489,15 @@ export class WebfloServer extends AbstractController {
             scope.cookies = this.constructor.CookieStorage.create(scope.request);
             scope.session = this.constructor.SessionStorage.create(scope.request, { secret: this.#cx.env.entries.SESSION_KEY });
             const sessionID = scope.session.sessionID;
-            if (!this.#globalPortsRegistry.has(sessionID)) {
-                this.#globalPortsRegistry.set(sessionID, new ClientPortsList(sessionID));
+            if (!this.#globalMessagingRegistry.has(sessionID)) {
+                this.#globalMessagingRegistry.set(sessionID, new ClientMessagingRegistry(this, sessionID));
             }
-            scope.clientPortsList = this.#globalPortsRegistry.get(sessionID);
-            scope.clientPort = scope.clientPortsList.createPort();
+            scope.clientMessagingRegistry = this.#globalMessagingRegistry.get(sessionID);
+            scope.clientMessaging = scope.clientMessagingRegistry.createPort();
             scope.user = this.constructor.HttpUser.create(
                 scope.request, 
                 scope.session, 
-                scope.clientPort
+                scope.clientMessaging
             );
             scope.httpEvent = this.constructor.HttpEvent.create(scope.handleRespondWith, {
                 request: scope.request,
@@ -507,11 +505,12 @@ export class WebfloServer extends AbstractController {
                 cookies: scope.cookies,
                 session: scope.session,
                 user: scope.user,
-                client: scope.clientPort
+                client: scope.clientMessaging
             });
+            // Restore session before dispatching
             if (scope.request.method === 'GET' 
             && (scope.redirectMessageID = scope.httpEvent.url.query['redirect-message'])
-            && (scope.redirectData = scope.session.get(`redirect-message:${scope.redirectMessageID}`))) {
+            && (scope.redirectMessage = scope.session.get(`redirect-message:${scope.redirectMessageID}`))) {
                 scope.session.delete(`redirect-message:${scope.redirectMessageID}`);
             }
             // Dispatch for response
@@ -523,22 +522,24 @@ export class WebfloServer extends AbstractController {
             if (scope.initialResponseSeen) {
                 // Send via background port
                 if (typeof scope.$response !== 'undefined') {
-                    await this.execPush(scope.clientPort, scope.$response);
+                    await this.execPush(scope.clientMessaging, scope.$response);
                 }
+                scope.clientMessaging.close();
                 return;
             }
             // Send normally
-            // Has background activities?
-            if (scope.clientPort.isMessaging() || scope.redirectData) {
-                scope.$response = await this.normalizeResponse(scope.httpEvent, scope.$response, true);
-                scope.$response.headers.set('X-Background-Activity', `ws:${scope.clientPort.portID}`);
-            } else {
-                scope.$response = await this.normalizeResponse(scope.httpEvent, scope.$response);
-                scope.clientPortsList.delete(scope.clientPort.portID);
-            }
             resolveResponse(scope.$response);
         });
         scope.initialResponseSeen = true;
+        if ((!scope.finalResponseSeen || scope.redirectMessage) && !(scope.response instanceof Response && scope.response.headers.get('Location'))) {
+            scope.hasBackgroundActivity = true;
+        }
+        scope.response = await this.normalizeResponse(scope.httpEvent, scope.response, scope.hasBackgroundActivity);
+        if (scope.hasBackgroundActivity) {
+            scope.response.headers.set('X-Background-Messaging', `ws:${scope.clientMessaging.portID}`);
+        } else {
+            scope.clientMessaging.close();
+        }
         // Reponse handlers
         if (scope.response.headers.get('Location')) {
             this.writeRedirectHeaders(scope.httpEvent, scope.response);
@@ -550,10 +551,15 @@ export class WebfloServer extends AbstractController {
             scope.response.headers.set('Accept-Ranges', 'bytes');
             scope.response = await this.satisfyRequestFormat(scope.httpEvent, scope.response);
         }
-        if (scope.redirectData) {
+        if (scope.redirectMessage) {
             setTimeout(() => {
-                this.execPush(scope.clientPort, scope.redirectData);
-            }, 2000);
+                this.execPush(scope.clientMessaging, scope.redirectMessage);
+                if (scope.finalResponseSeen) {
+                    scope.clientMessaging.close();
+                }
+            }, 500);
+        } else if (scope.finalResponseSeen) {
+            scope.clientMessaging.close();
         }
         return scope.response;
     }
@@ -622,12 +628,6 @@ export class WebfloServer extends AbstractController {
     #renderFileCache = new Map;
     async render(httpEvent, data, response) {
         const scope = {};
-        if (!_isObject(data)) {
-            return new Response(data + '', {
-                headers: response.headers,
-                status: response.status,
-            });
-        }
         scope.router = new this.constructor.Router(this.#cx, httpEvent.url.pathname);
         scope.rendering = await scope.router.route('render', httpEvent, data, async (httpEvent, data) => {
             let renderFile, pathnameSplit = httpEvent.url.pathname.split('/');
@@ -654,11 +654,18 @@ export class WebfloServer extends AbstractController {
                 } = window.webqit.oohtml.configs;
                 if (bindingsConfig) {
                     document[bindingsConfig.bind]({
+                        ...(!_isObject(data) ? {} : data),
                         env: 'server',
+                        navigator: null,
                         location: this.location,
-                        network: undefined, // request, error, remote
-                        data,
+                        network: null,
+                        transition: null,
+                        background: null
                     }, { diff: true });
+                    let overridenKeys;
+                    if (_isObject(data) && (overridenKeys = ['env', 'navigator', 'location', 'network', 'transition', 'background'].filter((k) => k in data)).length) {
+                        console.error(`The following data properties were overridden: ${overridenKeys.join(', ')}`);
+                    }
                 }
                 if (modulesContextAttrs) {
                     const newRoute = '/' + `routes/${httpEvent.url.pathname}`.split('/').map(a => (a => a.startsWith('$') ? '-' : a)(a.trim())).filter(a => a).join('/');
@@ -666,14 +673,14 @@ export class WebfloServer extends AbstractController {
                 }
             }
             // Append background-activity meta
-            let backgroundActivityMeta = document.querySelector('meta[name="X-Background-Activity"]');
-            if (response.headers.has('X-Background-Activity')) {
+            let backgroundActivityMeta = document.querySelector('meta[name="X-Background-Messaging"]');
+            if (response.headers.has('X-Background-Messaging')) {
                 if (!backgroundActivityMeta) {
                     backgroundActivityMeta = document.createElement('meta');
-                    backgroundActivityMeta.setAttribute('name', 'X-Background-Activity');
+                    backgroundActivityMeta.setAttribute('name', 'X-Background-Messaging');
                     document.head.prepend(backgroundActivityMeta);
                 }
-                backgroundActivityMeta.setAttribute('content', response.headers.get('X-Background-Activity'));
+                backgroundActivityMeta.setAttribute('content', response.headers.get('X-Background-Messaging'));
             } else if (backgroundActivityMeta) {
                 backgroundActivityMeta.remove();
             }

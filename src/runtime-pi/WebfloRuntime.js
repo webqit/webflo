@@ -1,6 +1,6 @@
 import { _isObject } from '@webqit/util/js/index.js';
 
-export class AbstractController {
+export class WebfloRuntime {
 
     async dispatch(httpEvent, context, crossLayerFetch) {
         // Exec routing
