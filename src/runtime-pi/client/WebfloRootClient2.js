@@ -38,12 +38,6 @@ export class WebfloRootClient2 extends WebfloRootClient1 {
 				userInitiated,
 				info
 			};
-			this.updateCurrentEntry({
-				state: {
-					...(this.currentEntry().getState() || {}),
-					scrollPosition: [window.scrollX, window.scrollY],
-				}
-			});
 			navigationOrigins = [];
 			// Traversal?
 			// Push
@@ -53,6 +47,12 @@ export class WebfloRootClient2 extends WebfloRootClient1 {
 				body: formData,
 				signal
 			};
+			this.updateCurrentEntry({
+				state: {
+					...(this.currentEntry().getState() || {}),
+					scrollPosition: [window.scrollX, window.scrollY],
+				}
+			});
 			const runtime = this;
 			e.intercept({
 				scroll: 'after-transition',

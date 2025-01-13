@@ -45,9 +45,9 @@ export class MessagingOverChannel extends WebfloMessagingAPI {
             // Then post to the other end
             this.#port.postMessage('close');
             // Then restore nativeCloseMethod and execute normally
-            Object.defineProperty(this.#port, 'close', { value: nativeCloseMethod });
+            Object.defineProperty(this.#port, 'close', { value: nativeCloseMethod, configurable: true });
             this.#port.close();
-        }});
+        }, configurable: true });
         if (!this.isPrimary) {
             // We are client
             this.$emit('connected');

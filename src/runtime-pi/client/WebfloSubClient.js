@@ -123,6 +123,7 @@ export class WebfloSubClient extends WebfloClient {
 	}
 
 	async updateCurrentEntry(params, url = null) {
+		this.host.reflectLocation(url);
 	}
 
 	async push(url, state = {}) {

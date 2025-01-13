@@ -107,7 +107,7 @@ export class WebfloClient extends WebfloRuntime {
         const clickHandler = (e) => {
             if (!this._canIntercept(e)) return;
             var anchorEl = e.target.closest('a');
-            if (!anchorEl || !anchorEl.href || anchorEl.target || anchorEl.download || !this.isSpaRoute(anchorEl)) return;
+            if (!anchorEl || !anchorEl.href || (anchorEl.target && !anchorEl.target.startsWith('_webflo:')) || anchorEl.download || !this.isSpaRoute(anchorEl)) return;
             const resolvedUrl = new URL(anchorEl.hasAttribute('href') ? anchorEl.getAttribute('href') : '', this.location.href);
             if (this.isHashChange(resolvedUrl)) {
                 Observer.set(this.location, 'href', resolvedUrl.href);
@@ -126,6 +126,20 @@ export class WebfloClient extends WebfloRuntime {
                 source: this.currentEntry(), // this
                 userInitiated: true,
             };
+
+            if (anchorEl.target === '_webflo:_parent' && this.superRuntime) {
+                this.superRuntime.navigate(
+                    resolvedUrl,
+                    {
+                        signal: this._abortController.signal,
+                    },
+                    {
+                        ...detail,
+                        isHoisted: true,
+                    }
+                );
+                return;
+            }
             locationCallback(resolvedUrl); // this
             this.navigate(
                 resolvedUrl,
@@ -155,7 +169,7 @@ export class WebfloClient extends WebfloRuntime {
             submitParams.action = new URL(form.hasAttribute('action') ? form.getAttribute('action') : (
                 submitter?.hasAttribute('formaction') ? submitter.getAttribute('formaction') : ''),
             this.location.href);
-            if (submitParams.target || !this.isSpaRoute(submitParams.action)) return;
+            if ((submitParams.target && !submitParams.target.startsWith('_webflo:')) || !this.isSpaRoute(submitParams.action)) return;
             // ---------------
             // Handle now
             let formData = new FormData(form);
@@ -183,6 +197,21 @@ export class WebfloClient extends WebfloRuntime {
                 source: this.currentEntry(), // this
                 userInitiated: true,
             };
+            if (submitParams.target === '_webflo:_parent' && this.superRuntime) {
+                this.superRuntime.navigate(
+                    submitParams.action,
+                    {
+                        method: submitParams.method,
+                        body: formData,
+                        signal: this._abortController.signal,
+                    },
+                    {
+                        ...detail,
+                        isHoisted: true,
+                    }
+                );
+                return;
+            }
             locationCallback(submitParams.action); // this
             this.navigate(
                 submitParams.action,
@@ -191,7 +220,7 @@ export class WebfloClient extends WebfloRuntime {
                     body: formData,
                     signal: this._abortController.signal,
                 },
-                detail,
+                detail
             ); // this
         };
         this.host.addEventListener('click', clickHandler);
@@ -337,7 +366,7 @@ export class WebfloClient extends WebfloRuntime {
         });
         scope.initialResponseSeen = true;
         scope.finalUrl = scope.response.url || scope.request.url;
-        if (scope.response.redirected || scope.detail.navigationType === 'rdr') {
+        if (scope.response.redirected || scope.detail.navigationType === 'rdr' || scope.detail.isHoisted) {
             const stateData = { ...(this.currentEntry()?.getState() || {}), redirected: true, };
             await this.updateCurrentEntry({ state: stateData }, scope.finalUrl);    
         }
