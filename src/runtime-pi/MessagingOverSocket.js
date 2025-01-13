@@ -74,18 +74,26 @@ export class MessagingOverSocket extends WebfloMessagingAPI {
         super.postMessage(message, transferOrOptions);
     }
 
+    fire(messageType, message) {
+        this.dispatchEvent(new SocketMessageEvent(
+            this,
+            messageType,
+            message
+        ));
+    }
+
     close(...args) {
         return this.#socket.close(...args);
     }
 }
 
 export class SocketMessageEvent extends WebfloMessageEvent {
-    constructor(ownerAPI, messageType, message, messageID, numPorts = 0) {
+    constructor(originalTarget, messageType, message, messageID = null, numPorts = 0) {
         const ports = [];
         for (let i = 0; i < numPorts; i ++) {
             const channel = new MessageChannel;
             channel.port1.addEventListener('message', (event) => {
-                this.ownerAPI.postMessage(event.data, {
+                this.originalTarget.postMessage(event.data, {
                     messageType: `${messageType}:${messageID}:${i}`,
                     transfer: event.ports
                 });
@@ -93,6 +101,6 @@ export class SocketMessageEvent extends WebfloMessageEvent {
             channel.port1.start();
             ports.push(channel.port2);
         }
-        super(ownerAPI, messageType, message, ports);
+        super(originalTarget, messageType, message, ports);
     }
 }

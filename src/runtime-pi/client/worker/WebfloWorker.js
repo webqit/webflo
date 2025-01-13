@@ -185,7 +185,7 @@ export class WebfloWorker extends WebfloRuntime {
 			resolveResponse(scope.$response);
 		});
 		scope.initialResponseSeen = true;
-		if ((!scope.finalResponseSeen || scope.redirectMessage) && !(scope.response instanceof Response && scope.response.headers.get('Location'))) {
+		if (!scope.finalResponseSeen || scope.redirectMessage) {
             scope.hasBackgroundActivity = true;
         }
         scope.response = await this.normalizeResponse(scope.httpEvent, scope.response, scope.hasBackgroundActivity);

@@ -68,6 +68,14 @@ export class MessagingOverChannel extends WebfloMessagingAPI {
         });
         super.postMessage(message, transferOrOptions);
     }
+
+    fire(messageType, message) {
+        this.dispatchEvent(new ChannelMessageEvent(
+            this,
+            messageType,
+            message
+        ));
+    }
     
     close() {
         return this.#port.close();

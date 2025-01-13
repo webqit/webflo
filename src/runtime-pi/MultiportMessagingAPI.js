@@ -2,7 +2,7 @@ import { WebfloMessagingAPI } from './WebfloMessagingAPI.js';
 
 export class MultiportMessagingAPI extends WebfloMessagingAPI {
 
-    get runtime() { return this.parentNode; }
+    get runtime() { return this.params.runtime || this.parentNode; }
 
     #ports = new Set;
     get ports() { return this.#ports; }

@@ -1,11 +1,11 @@
 
 export class WebfloMessageEvent extends Event {
 
-    #ownerAPI;
-    get ownerAPI() { return this.#ownerAPI; }
+    #originalTarget;
+    get originalTarget() { return this.#originalTarget; }
 
     get runtime() {
-        let parentNode = this.#ownerAPI;
+        let parentNode = this.#originalTarget;
         do {
             if (parentNode.runtime) return parentNode.runtime;
         } while (parentNode = parentNode.parentNode)
@@ -17,9 +17,9 @@ export class WebfloMessageEvent extends Event {
     #ports = [];
     get ports() { return this.#ports; }
 
-    constructor(ownerAPI, messageType, message, ports) {
+    constructor(originalTarget, messageType, message, ports) {
         super(messageType);
-        this.#ownerAPI = ownerAPI;
+        this.#originalTarget = originalTarget;
         this.#data = message;
         this.#ports = ports;
     }

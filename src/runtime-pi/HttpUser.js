@@ -80,18 +80,18 @@ export class HttpUser extends WebfloStorage {
     }
 
     isSignedIn() {
-        return this.has('auth');
+        return this.has('id');
     }
 
     async signIn(...args) {
         return await this.require(
-            ['auth'].concat(typeof args[0] === 'string' || Array.isArray(args[0]) ? args.unshift() : []),
+            ['id'].concat(typeof args[0] === 'string' || Array.isArray(args[0]) ? args.unshift() : []),
             ...args
         );
     }
 
     async signOut() {
-        const handler = this.getHandlers().get('auth')?.[1];
+        const handler = this.getHandlers().get('id')?.[1];
         let response;
         if (typeof handler === 'string') {
             response = new Response(null, { status: 302, headers: {

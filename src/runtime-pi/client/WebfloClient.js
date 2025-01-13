@@ -5,6 +5,7 @@ import { MultiportMessagingAPI } from '../MultiportMessagingAPI.js';
 import { MessagingOverBroadcast } from '../MessagingOverBroadcast.js';
 import { MessagingOverChannel } from '../MessagingOverChannel.js';
 import { MessagingOverSocket } from '../MessagingOverSocket.js';
+import { ChannelMessageEvent } from '../MessagingOverChannel.js';
 import { ClientMessaging } from './ClientMessaging.js';
 import { CookieStorage } from './CookieStorage.js';
 import { SessionStorage } from './SessionStorage.js';
@@ -69,10 +70,13 @@ export class WebfloClient extends WebfloRuntime {
     }
 
     initialize() {
-		this.#backgroundMessaging = new MultiportMessagingAPI(this);
+		this.#backgroundMessaging = new MultiportMessagingAPI(this, { runtime: this });
         // Bind response and redirect handlers
         const responseHandler = (e) => {
             e.stopPropagation();
+            if (e.type === 'response' && _isObject(e.data) && _isObject(e.data.status)) {
+                e.originalTarget.fire('status', e.data.status);
+            }
             setTimeout(() => {
                 if (e.defaultPrevented || e.immediatePropagationStopped) return;
                 window.queueMicrotask(() => {
@@ -102,6 +106,22 @@ export class WebfloClient extends WebfloRuntime {
     }
 
     controlClassic(locationCallback) {
+        const setStates = (url, detail, method = 'GET') => {
+            Observer.set(this.navigator, {
+                requesting: new Url/*NOT URL*/(url),
+                origins: detail.navigationOrigins || [],
+                method,
+                error: null
+            });
+        };
+        const resetStates = () => {
+            Observer.set(this.navigator, {
+                requesting: null,
+                remotely: false,
+                origins: [],
+                method: null
+            });
+        };
         // -----------------------
         // Capture all link-clicks
         const clickHandler = (e) => {
@@ -128,6 +148,7 @@ export class WebfloClient extends WebfloRuntime {
             };
 
             if (anchorEl.target === '_webflo:_parent' && this.superRuntime) {
+                setStates(resolvedUrl, detail);
                 this.superRuntime.navigate(
                     resolvedUrl,
                     {
@@ -137,7 +158,7 @@ export class WebfloClient extends WebfloRuntime {
                         ...detail,
                         isHoisted: true,
                     }
-                );
+                ).then(resetStates);
                 return;
             }
             locationCallback(resolvedUrl); // this
@@ -198,6 +219,7 @@ export class WebfloClient extends WebfloRuntime {
                 userInitiated: true,
             };
             if (submitParams.target === '_webflo:_parent' && this.superRuntime) {
+                setStates(submitParams.action, detail, submitParams.method);
                 this.superRuntime.navigate(
                     submitParams.action,
                     {
@@ -209,7 +231,7 @@ export class WebfloClient extends WebfloRuntime {
                         ...detail,
                         isHoisted: true,
                     }
-                );
+                ).then(resetStates);
                 return;
             }
             locationCallback(submitParams.action); // this
@@ -330,7 +352,7 @@ export class WebfloClient extends WebfloRuntime {
                 method: scope.request.method,
                 error: null
             });
-            scope.resetState = () => {
+            scope.resetStates = () => {
                 Observer.set(this.navigator, {
                     requesting: null,
                     remotely: false,
@@ -388,7 +410,7 @@ export class WebfloClient extends WebfloRuntime {
                 this.redirect(location, scope.backgroundMessaging);
                 if (scope.backgroundMessaging) {
                     scope.backgroundMessaging.addEventListener('response', () => {
-                        scope.resetState();
+                        scope.resetStates();
                     });
                 }
                 return;
@@ -398,7 +420,7 @@ export class WebfloClient extends WebfloRuntime {
         if ([202/*Accepted*/, 304/*Not Modified*/].includes(scope.response.status)) {
             if (scope.backgroundMessaging) {
                 scope.backgroundMessaging.addEventListener('response', () => {
-                    scope.resetState();
+                    scope.resetStates();
                 });
                 return;
             }
