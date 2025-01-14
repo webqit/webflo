@@ -137,6 +137,7 @@ export class WebfloSubClient extends WebfloClient {
 		const top = (window.outerHeight - height) / 2;
 		const popup = window.open(location, '_blank', `popup=true,width=${width},height=${height},left=${left},top=${top}`);
 		if (backgroundMessaging) {
+			backgroundMessaging.postMessage('keepAlive');
 			Observer.set(this.navigator, 'redirecting', new Url/*NOT URL*/(location), { diff: true });
 			backgroundMessaging.addEventListener('close', (e) => {
 				Observer.set(this.navigator, 'redirecting', null);
