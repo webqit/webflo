@@ -52,7 +52,7 @@ export async function parseHttpMessage(httpMessage) {
     if (contentType === 'application/x-www-form-urlencoded' || contentType.startsWith('multipart/form-data')) {
         const formData = await httpMessage.formData();
         result = await formData?.json();
-    } else if (contentType === 'application/json') {
+    } else if (contentType.startsWith('application/json')/*can include charset*/) {
         result = await httpMessage.json();
     } else /*if (contentType === 'text/plain')*/ {
         result = await httpMessage.text();

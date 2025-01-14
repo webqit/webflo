@@ -5,7 +5,6 @@ import { MultiportMessagingAPI } from '../MultiportMessagingAPI.js';
 import { MessagingOverBroadcast } from '../MessagingOverBroadcast.js';
 import { MessagingOverChannel } from '../MessagingOverChannel.js';
 import { MessagingOverSocket } from '../MessagingOverSocket.js';
-import { ChannelMessageEvent } from '../MessagingOverChannel.js';
 import { ClientMessaging } from './ClientMessaging.js';
 import { CookieStorage } from './CookieStorage.js';
 import { SessionStorage } from './SessionStorage.js';
@@ -446,6 +445,9 @@ export class WebfloClient extends WebfloRuntime {
                 const error = new Error(scope.response.statusText, { code: scope.response.status });
                 Object.defineProperty(error, 'retry', { value: async () => await this.navigate(scope.url, scope.init, scope.detail) });
                 Observer.set(this.navigator, 'error', error);
+            }
+            if (_isObject(scope.data) && _isObject(scope.data.status)) {
+                scope.httpEvent.client.postMessage(scope.data.status, { messageType: 'status' });
             }
             await this.render(scope.httpEvent, scope.data, !(['GET'].includes(scope.request.method) || scope.response.redirected || scope.detail.navigationType === 'rdr'));
         });

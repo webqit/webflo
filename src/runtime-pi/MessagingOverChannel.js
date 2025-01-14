@@ -61,7 +61,7 @@ export class MessagingOverChannel extends WebfloMessagingAPI {
                 transferOrOptions = { transfer: transferOrOptions };
             }
             const { messageType = 'message', ...options } = transferOrOptions;
-            return super.postMessage({
+            return this.#port.postMessage({
                 messageType,
                 message
             }, options);
