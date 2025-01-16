@@ -16,7 +16,6 @@ export class HttpUser extends WebfloStorage {
         this.#client = client;
         // Trigger this
         this.#dict;
-        this.saveOriginals();
     }
 
     get #dict() {

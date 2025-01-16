@@ -24,5 +24,6 @@ export class SessionStorage extends WebfloStorage {
         for (const key of this.getDeleted()) {
             window[storeType].removeItem(key);
         }
+        super.commit();
     }
 }

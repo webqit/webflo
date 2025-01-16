@@ -27,6 +27,10 @@ export class WebfloStorage extends Map {
         });
     }
 
+    commit() {
+        this.saveOriginals();
+    }
+
     #handlers = new Map;
     defineHandler(attr, handler, invalidationHandler = null) {
         const handlers = [handler].concat(invalidationHandler || []);

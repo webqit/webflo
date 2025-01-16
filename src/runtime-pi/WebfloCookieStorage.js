@@ -6,6 +6,7 @@ export class WebfloCookieStorage extends WebfloStorage {
     constructor(request, iterable = []) {
         iterable = [...iterable].map(([key, value]) => [key, !_isObject(value) ? { name: key, value } : value]);
         super(request, iterable);
+        this.saveOriginals();
     }
 
     render() {

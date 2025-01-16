@@ -12,5 +12,6 @@ export class CookieStorage extends WebfloCookieStorage {
         for (const cookieStr of this.render()) {
             response.headers.append('Set-Cookie', cookieStr);
         }
+        super.commit();
     }
 }

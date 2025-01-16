@@ -433,6 +433,7 @@ export class WebfloServer extends WebfloRuntime {
             && (scope.enc = scope.acceptEncs.reduce((prev, _enc) => prev || (Fs.existsSync(scope.filename + scope.supportedEncs[_enc]) && _enc), null))) {
             scope.filename = scope.filename + scope.supportedEncs[scope.enc];
         } else {
+            if (!Fs.existsSync(scope.filename)) 
             if (!Fs.existsSync(scope.filename)) return;
             if (Object.values(scope.supportedEncs).includes(scope.ext)) {
                 scope.enc = Object.keys(scope.supportedEncs).reduce((prev, _enc) => prev || (scope.supportedEncs[_enc] === ext && _enc), null);
@@ -565,6 +566,7 @@ export class WebfloServer extends WebfloRuntime {
     }
 
     async satisfyRequestFormat(httpEvent, response) {
+        if (response.status === 404) return response;
         // Satisfy "Accept" header
         const acceptedOrUnchanged = [202/*Accepted*/, 304/*Not Modified*/].includes(response.status);
         if (httpEvent.request.headers.get('Accept')) {
