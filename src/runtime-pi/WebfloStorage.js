@@ -4,10 +4,12 @@ import { _even } from '@webqit/util/obj/index.js';
 export class WebfloStorage extends Map {
     
     #request;
+    #session;
 
-    constructor(request, iterable = []) {
+    constructor(request, session, iterable = []) {
         super(iterable);
         this.#request = request;
+        this.#session = session === true ? this : session;
     }
     
     #originals;
@@ -32,39 +34,72 @@ export class WebfloStorage extends Map {
     }
 
     #handlers = new Map;
-    defineHandler(attr, handler, invalidationHandler = null) {
-        const handlers = [handler].concat(invalidationHandler || []);
-        if (!handler || handlers.some((h) => !['string', 'function'].includes(typeof h))) {
-            throw new Error(`Handler must be either an URL or a function`);
+    #reverseHandlers = new Map;
+    defineHandler(attr, ...handlers) {
+        let registry = this.#handlers;
+        if (handlers[0] === false) {
+            registry = this.#reverseHandlers;
+            handlers.shift();
         }
-        this.#handlers.set(attr, handlers);
+        const $handlers = [];
+        for (let handler of handlers) {
+            if (typeof handler === 'function') {
+                handler = { callback: handler };
+            } else if (typeof handler === 'string') {
+                handler = { url: handler };
+            } else if (typeof handler?.callback !== 'function' && typeof handler?.url !== 'string') {
+                throw new Error(`Handler must be either an URL or a function or an object specifying either an URL (handler.url) or a function (handler.callback)`);
+            }
+            $handlers.push(handler);
+        }
+        registry.set(attr, $handlers);
+    }
+
+    defineReverseHandler(attr, ...handlers) {
+        return this.defineHandler(attr, false, ...handlers);
     }
 
     getHandlers() { return this.#handlers; }
 
+    getReverseHandlers() { return this.#reverseHandlers; }
+
     async require(attrs, callback = null) {
         const entries = [];
-        for await (const attr of [].concat(attrs)) {
+        main: for await (const attr of [].concat(attrs)) {
             if (!this.has(attr)) {
-                const handler = this.#handlers.get(attr)?.[0];
-                if (!handler) {
+                const handlers = this.#handlers.get(attr);
+                if (!handlers) {
                     throw new Error(`No handler defined for the user attribute: ${attr}`);
                 }
-                if (typeof handler === 'function') {
-                    const returnValue = await handler(this, attr);
-                    if (returnValue instanceof Response) {
-                        return returnValue;
+                for (let i = 0; i < handlers.length; i ++) {
+                    const handler = handlers[i];
+                    if (handler.callback) {
+                        const returnValue = await handler.callback(this, attr);
+                        if (returnValue instanceof Response) {
+                            return returnValue;
+                        }
+                        if (typeof returnValue === 'undefined' && i < handlers.length - 1) {
+                            continue;
+                        }
+                        entries.push(returnValue);
+                        continue main;
                     }
-                    entries.push(returnValue);
-                    continue;
+                    const urlRewrite = new URL(handler.url, this.#request.url);
+                    if (!urlRewrite.searchParams.has('success-redirect')) {
+                        urlRewrite.searchParams.set('success-redirect', this.#request.url.replace(urlRewrite.origin, ''));
+                    }
+                    if (handler.message) {
+                        if (!this.#session) {
+                            throw new Error('Storage type does not support redirect messages');
+                        }
+                        const messageID = (0 | Math.random() * 9e6).toString(36);
+                        urlRewrite.searchParams.set('redirect-message', messageID);
+                        this.#session.set(`redirect-message:${messageID}`, { status: { type: handler.type || 'info', message: handler.message }});
+                    }
+                    return new Response(null, { status: 302, headers: {
+                        Location: urlRewrite
+                    }});
                 }
-                const urlRewrite = new URL(handler, this.#request.url);
-                if (!urlRewrite.searchParams.has('success-redirect')) {
-                    urlRewrite.searchParams.set('success-redirect', this.#request.url.replace(urlRewrite.origin, ''));
-                }
-                return new Response(null, { status: 302, headers: {
-                    Location: urlRewrite
-                }});
             }
             entries.push(this.get(attr));
         }

@@ -5,7 +5,7 @@ import { WebfloStorage } from './WebfloStorage.js';
 export class WebfloCookieStorage extends WebfloStorage {
     constructor(request, iterable = []) {
         iterable = [...iterable].map(([key, value]) => [key, !_isObject(value) ? { name: key, value } : value]);
-        super(request, iterable);
+        super(request, null, iterable);
         this.saveOriginals();
     }
 

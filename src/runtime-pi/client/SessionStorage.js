@@ -16,6 +16,10 @@ export class SessionStorage extends WebfloStorage {
         return instance;
     }
 
+    constructor(request, iterable) {
+        super(request, true, iterable);
+    }
+
     commit() {
         const storeType = this.constructor.type === 'user' ? 'localStorage' : 'sessionStorage';
         for (const key of this.getAdded()) {

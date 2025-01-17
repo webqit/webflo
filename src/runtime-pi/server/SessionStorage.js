@@ -35,7 +35,7 @@ export class SessionStorage extends WebfloStorage {
     }
 
     constructor(request, sessionID) {
-        super(request);
+        super(request, true);
         this.#sessionID = sessionID;
     }
 

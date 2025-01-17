@@ -11,7 +11,7 @@ export class HttpUser extends WebfloStorage {
     #client;
 
     constructor(request, session, client) {
-        super(request);
+        super(request, session);
         this.#session = session;
         this.#client = client;
         // Trigger this
@@ -90,7 +90,7 @@ export class HttpUser extends WebfloStorage {
     }
 
     async signOut() {
-        const handler = this.getHandlers().get('id')?.[1];
+        const handler = this.getReverseHandlers().get('id')?.[0];
         let response;
         if (typeof handler === 'string') {
             response = new Response(null, { status: 302, headers: {
