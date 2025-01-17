@@ -31,7 +31,7 @@ export class ClientMessagingRegistry extends Map {
         setTimeout(() => {
             if (portInstance.ports.size || !this.has(portID)) return;
             this.delete(portID);
-        }, 20000/*20sec*/);
+        }, 30000/*30sec*/);
         return portInstance;
     }
 
