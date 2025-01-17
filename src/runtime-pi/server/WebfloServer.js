@@ -512,6 +512,7 @@ export class WebfloServer extends WebfloRuntime {
             if (scope.request.method === 'GET' 
             && (scope.redirectMessageID = scope.httpEvent.url.query['redirect-message'])
             && (scope.redirectMessage = scope.session.get(`redirect-message:${scope.redirectMessageID}`))) {
+                console.log('______', scope.redirectMessage);
                 scope.session.delete(`redirect-message:${scope.redirectMessageID}`);
             }
             // Dispatch for response
