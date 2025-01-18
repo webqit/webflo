@@ -514,6 +514,7 @@ export class WebfloClient extends WebfloRuntime {
             } = window.webqit.oohtml.configs;
             if (bindingsConfig) {
                 this.host[bindingsConfig.bind]({
+                    state: {},
                     ...(!_isObject(data) ? {} : data),
                     env: 'client',
                     navigator: this.navigator,

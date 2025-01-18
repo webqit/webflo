@@ -185,25 +185,27 @@ export class WebfloWorker extends WebfloRuntime {
 			resolveResponse(scope.$response);
 		});
 		scope.initialResponseSeen = true;
-		if (!scope.finalResponseSeen || scope.redirectMessage) {
-            scope.hasBackgroundActivity = true;
-        }
+        scope.hasBackgroundActivity = !scope.finalResponseSeen || (scope.redirectMessage && !(scope.response instanceof Response && scope.response.headers.get('Location')));
         scope.response = await this.normalizeResponse(scope.httpEvent, scope.response, scope.hasBackgroundActivity);
 		if (scope.hasBackgroundActivity) {
 			scope.response.headers.set('X-Background-Messaging', `ch:${scope.clientMessaging.port.name}`);
-		} else {
-			scope.clientMessaging.close();
-		}
-		if (scope.redirectMessage) {
-            setTimeout(() => {
-                this.execPush(scope.clientMessaging, scope.redirectMessage);
-                if (scope.finalResponseSeen) {
-                    scope.clientMessaging.close();
-                }
-            }, 500);
-        } else if (scope.finalResponseSeen) {
-            scope.clientMessaging.close();
         }
+		if (scope.response instanceof Response && scope.response.headers.get('Location')) {
+            if (scope.redirectMessage) {
+                scope.session.set(`redirect-message:${scope.redirectMessageID}`, scope.redirectMessage);
+            }
+		} else {
+			if (scope.redirectMessage) {
+				setTimeout(() => {
+					this.execPush(scope.clientMessaging, scope.redirectMessage);
+					if (scope.finalResponseSeen) {
+						scope.clientMessaging.close();
+					}
+				}, 500);
+			} else if (scope.finalResponseSeen) {
+				scope.clientMessaging.close();
+			}
+		}
 		return scope.response;
 	}
 

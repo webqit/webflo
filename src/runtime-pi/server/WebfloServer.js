@@ -430,10 +430,9 @@ export class WebfloServer extends WebfloRuntime {
         // based on the URL path, extract the file extention. e.g. .js, .doc, ...
         // and process encoding
         if ((scope.acceptEncs = (httpEvent.request.headers.get('Accept-Encoding') || '').split(',').map((e) => e.trim())).length
-            && (scope.enc = scope.acceptEncs.reduce((prev, _enc) => prev || (Fs.existsSync(scope.filename + scope.supportedEncs[_enc]) && _enc), null))) {
+        && (scope.enc = scope.acceptEncs.reduce((prev, _enc) => prev || (Fs.existsSync(scope.filename + scope.supportedEncs[_enc]) && _enc), null))) {
             scope.filename = scope.filename + scope.supportedEncs[scope.enc];
         } else {
-            if (!Fs.existsSync(scope.filename)) 
             if (!Fs.existsSync(scope.filename)) return;
             if (Object.values(scope.supportedEncs).includes(scope.ext)) {
                 scope.enc = Object.keys(scope.supportedEncs).reduce((prev, _enc) => prev || (scope.supportedEncs[_enc] === ext && _enc), null);
@@ -451,7 +450,7 @@ export class WebfloServer extends WebfloRuntime {
                     scope.response = new Response(data, {
                         headers: {
                             'Content-Type': mime === 'application/javascript' ? 'text/javascript' : mime,
-                            'Content-Length': Buffer.byteLength(data),
+                            'Content-Length': Buffer.byteLength(data)
                         }
                     });
                     if (scope.enc) {
@@ -532,18 +531,17 @@ export class WebfloServer extends WebfloRuntime {
             resolveResponse(scope.$response);
         });
         scope.initialResponseSeen = true;
-        if (!scope.finalResponseSeen || scope.redirectMessage) {
-            scope.hasBackgroundActivity = true;
-        }
+        scope.hasBackgroundActivity = !scope.finalResponseSeen || (scope.redirectMessage && !(scope.response instanceof Response && scope.response.headers.get('Location')));
         scope.response = await this.normalizeResponse(scope.httpEvent, scope.response, scope.hasBackgroundActivity);
         if (scope.hasBackgroundActivity) {
             scope.response.headers.set('X-Background-Messaging', `ws:${scope.clientMessaging.portID}`);
-        } else {
-            scope.clientMessaging.close();
         }
         // Reponse handlers
-        if (scope.response.headers.get('Location')) {
+        if (scope.response instanceof Response && scope.response.headers.get('Location')) {
             this.writeRedirectHeaders(scope.httpEvent, scope.response);
+            if (scope.redirectMessage) {
+                scope.session.set(`redirect-message:${scope.redirectMessageID}`, scope.redirectMessage);
+            }
         } else {
             this.writeAutoHeaders(scope.response.headers, scope.autoHeaders.filter((header) => header.type === 'response'));
             if (scope.httpEvent.request.method !== 'GET' && !scope.response.headers.get('Cache-Control')) {
@@ -551,24 +549,26 @@ export class WebfloServer extends WebfloRuntime {
             }
             scope.response.headers.set('Accept-Ranges', 'bytes');
             scope.response = await this.satisfyRequestFormat(scope.httpEvent, scope.response);
-        }
-        if (scope.redirectMessage) {
-            setTimeout(() => {
-                this.execPush(scope.clientMessaging, scope.redirectMessage);
-                if (scope.finalResponseSeen) {
-                    scope.clientMessaging.close();
-                }
-            }, 500);
-        } else if (scope.finalResponseSeen) {
-            scope.clientMessaging.close();
+            if (scope.redirectMessage) {
+                setTimeout(() => {
+                    this.execPush(scope.clientMessaging, scope.redirectMessage);
+                    if (scope.finalResponseSeen) {
+                        scope.clientMessaging.close();
+                    }
+                }, 500);
+            } else if (scope.finalResponseSeen) {
+                scope.clientMessaging.close();
+            }
         }
         return scope.response;
     }
 
     async satisfyRequestFormat(httpEvent, response) {
-        if (response.status === 404) return response;
         // Satisfy "Accept" header
+        const is404 = response.status === 404;
+        if (is404) return response;
         const acceptedOrUnchanged = [202/*Accepted*/, 304/*Not Modified*/].includes(response.status);
+        const t = response.status === 404;
         if (httpEvent.request.headers.get('Accept')) {
             const requestAccept = httpEvent.request.headers.get('Accept', true);
             if (requestAccept.match('text/html') && !response.meta.static) {
@@ -582,7 +582,10 @@ export class WebfloServer extends WebfloRuntime {
         }
         // Satisfy "Range" header
         if (httpEvent.request.headers.get('Range') && !response.headers.get('Content-Range')
-            && (response.body instanceof ReadableStream || ArrayBuffer.isView(response.body))) {
+        && (response.body instanceof ReadableStream || ArrayBuffer.isView(response.body))) {
+                if (t) {
+                    console.log(httpEvent.request.url, response.body);
+                }
             const rangeRequest = httpEvent.request.headers.get('Range', true);
             const body = _ReadableStream.from(response.body);
             // ...in partials
@@ -656,6 +659,7 @@ export class WebfloServer extends WebfloRuntime {
                 } = window.webqit.oohtml.configs;
                 if (bindingsConfig) {
                     document[bindingsConfig.bind]({
+                        state: {},
                         ...(!_isObject(data) ? {} : data),
                         env: 'server',
                         navigator: null,

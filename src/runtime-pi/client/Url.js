@@ -127,8 +127,7 @@ export class Url {
 	}
 
 	static parseUrl(href) {
-		var a = document.createElement('a');
-		a.href = href;
+		var a = new URL(href);
 		return this.copy(a);
 	}
 
