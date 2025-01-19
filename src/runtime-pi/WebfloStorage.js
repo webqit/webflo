@@ -63,10 +63,10 @@ export class WebfloStorage extends Map {
 
     getReverseHandlers() { return this.#reverseHandlers; }
 
-    async require(attrs, callback = null) {
+    async require(attrs, callback = null, noNulls = false) {
         const entries = [];
         main: for await (const attr of [].concat(attrs)) {
-            if (!this.has(attr)) {
+            if (!this.has(attr) || (noNulls && [undefined, null].includes(this.get(attr)))) {
                 const handlers = this.#handlers.get(attr);
                 if (!handlers) {
                     throw new Error(`No handler defined for the user attribute: ${attr}`);
@@ -78,7 +78,7 @@ export class WebfloStorage extends Map {
                         if (returnValue instanceof Response) {
                             return returnValue;
                         }
-                        if (typeof returnValue === 'undefined' && i < handlers.length - 1) {
+                        if ((typeof returnValue === 'undefined' || (noNulls && returnValue === null)) && i < handlers.length - 1) {
                             continue;
                         }
                         entries.push(returnValue);
