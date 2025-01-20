@@ -120,7 +120,6 @@ export class WebfloServer extends WebfloRuntime {
 
     control() {
         // ---------------
-        console.log('________port 1:', this.#cx.server.port);
         if (!this.#cx.flags['test-only'] && !this.#cx.flags['https-only'] && this.#cx.server.port) {
             const httpServer = Http.createServer((request, response) => this.handleNodeHttpRequest(request, response));
             httpServer.listen(this.#cx.server.port);
@@ -138,7 +137,6 @@ export class WebfloServer extends WebfloRuntime {
             });
         }
         // ---------------
-        console.log('________port 1:', this.#cx.server.https.port);
         if (!this.#cx.flags['test-only'] && !this.#cx.flags['http-only'] && this.#cx.server.https.port) {
             const httpsServer = Https.createServer((request, response) => this.handleNodeHttpRequest(request, response));
             httpsServer.listen(this.#cx.server.https.port);
@@ -174,7 +172,6 @@ export class WebfloServer extends WebfloRuntime {
     }
 
     getRequestProto(nodeRequest) {
-        console.log({ encrypted: nodeRequest.connection.encrypted, headers: nodeRequest });
         return nodeRequest.connection.encrypted ? 'https' : (nodeRequest.headers['x-forwarded-proto'] || 'http');
     }
 
@@ -182,6 +179,7 @@ export class WebfloServer extends WebfloRuntime {
     async handleNodeWsRequest(wss, nodeRequest, socket, head) {
         const proto = this.getRequestProto(nodeRequest);
         console.log('__________ws:', proto);
+
         const [fullUrl, requestInit] = this.parseNodeRequest(proto, nodeRequest, false);
         const scope = {};
         scope.url = new URL(fullUrl);
@@ -242,6 +240,8 @@ export class WebfloServer extends WebfloRuntime {
 
     async handleNodeHttpRequest(nodeRequest, nodeResponse) {
         const proto = this.getRequestProto(nodeRequest);
+        console.log('__________http:', proto);
+
         const [fullUrl, requestInit] = this.parseNodeRequest(proto, nodeRequest);
         const scope = {};
         scope.url = new URL(fullUrl);
@@ -580,7 +580,6 @@ export class WebfloServer extends WebfloRuntime {
         const is404 = response.status === 404;
         if (is404) return response;
         const acceptedOrUnchanged = [202/*Accepted*/, 304/*Not Modified*/].includes(response.status);
-        const t = response.status === 404;
         if (httpEvent.request.headers.get('Accept')) {
             const requestAccept = httpEvent.request.headers.get('Accept', true);
             if (requestAccept.match('text/html') && !response.meta.static) {
@@ -595,9 +594,6 @@ export class WebfloServer extends WebfloRuntime {
         // Satisfy "Range" header
         if (httpEvent.request.headers.get('Range') && !response.headers.get('Content-Range')
         && (response.body instanceof ReadableStream || ArrayBuffer.isView(response.body))) {
-                if (t) {
-                    console.log(httpEvent.request.url, response.body);
-                }
             const rangeRequest = httpEvent.request.headers.get('Range', true);
             const body = _ReadableStream.from(response.body);
             // ...in partials

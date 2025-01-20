@@ -141,7 +141,7 @@ export class WebfloWorker extends WebfloRuntime {
 			// Create and route request
 			scope.request = this.createRequest(scope.url, scope.init);
 			scope.cookies = this.constructor.CookieStorage.create(scope.request);
-			scope.session = this.constructor.SessionStorage.create(scope.request, { secret: this.cx.env.entries.SESSION_KEY });
+			scope.session = this.constructor.SessionStorage.create(scope.request);
 			const portID = crypto.randomUUID();
 			scope.clientMessaging = new ClientMessaging(this, portID, { isPrimary: true });
 			scope.user = this.constructor.HttpUser.create(
