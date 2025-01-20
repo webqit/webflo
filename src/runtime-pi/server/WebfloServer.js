@@ -177,9 +177,7 @@ export class WebfloServer extends WebfloRuntime {
 
     #globalMessagingRegistry = new Map;
     async handleNodeWsRequest(wss, nodeRequest, socket, head) {
-        const proto = this.getRequestProto(nodeRequest);
-        console.log('__________ws:', proto);
-
+        const proto = this.getRequestProto(nodeRequest).replace('http', 'ws');
         const [fullUrl, requestInit] = this.parseNodeRequest(proto, nodeRequest, false);
         const scope = {};
         scope.url = new URL(fullUrl);
@@ -240,8 +238,6 @@ export class WebfloServer extends WebfloRuntime {
 
     async handleNodeHttpRequest(nodeRequest, nodeResponse) {
         const proto = this.getRequestProto(nodeRequest);
-        console.log('__________http:', proto);
-
         const [fullUrl, requestInit] = this.parseNodeRequest(proto, nodeRequest);
         const scope = {};
         scope.url = new URL(fullUrl);
