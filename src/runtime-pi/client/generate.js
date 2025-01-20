@@ -26,10 +26,12 @@ export async function generate() {
         throw new Error(`The Client configurator "config.deployment.Layout" is required in context.`);
     }
     const clientConfig = await (new cx.config.runtime.Client(cx)).read();
+    clientConfig.env = {};
     if (clientConfig.service_worker?.filename && !cx.config.runtime.client?.Worker) {
         throw new Error(`The Service Worker configurator "config.runtime.client.Worker" is required in context.`);
     }
     const workerConfig = await (new cx.config.runtime.client.Worker(cx)).read();
+    workerConfig.env = {};
     // -----------
     if (!cx.config.deployment?.Layout) {
         throw new Error(`The Layout configurator "config.deployment.Layout" is required in context.`);
@@ -48,11 +50,9 @@ export async function generate() {
         for (const key in envConfig.entries) {
             if (!key.includes('PUBLIC_') && !key.includes('_PUBLIC')) continue;
             if (clientConfig.bundle_public_env) {
-                if (!clientConfig.env) { clientConfig.env = {}; }
                 clientConfig.env[key] = envConfig.entries[key];
             }
             if (workerConfig.bundle_public_env) {
-                if (!workerConfig.env) { workerConfig.env = {}; }
                 workerConfig.env[key] = envConfig.entries[key];
             }
         }
