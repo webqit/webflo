@@ -120,8 +120,9 @@ export class WebfloServer extends WebfloRuntime {
 
     control() {
         // ---------------
+        console.log('________port 1:', this.#cx.server.port);
         if (!this.#cx.flags['test-only'] && !this.#cx.flags['https-only'] && this.#cx.server.port) {
-            const httpServer = Http.createServer((request, response) => this.handleNodeHttpRequest('http', request, response));
+            const httpServer = Http.createServer((request, response) => this.handleNodeHttpRequest(request, response));
             httpServer.listen(this.#cx.server.port);
             // -------
             let domains = parseDomains(this.#cx.server.domains);
@@ -133,12 +134,13 @@ export class WebfloServer extends WebfloRuntime {
             });
             // Handle WebSocket connections
             httpServer.on('upgrade', (request, socket, head) => {
-                this.handleNodeWsRequest(wss, 'ws', request, socket, head);
+                this.handleNodeWsRequest(wss, request, socket, head);
             });
         }
         // ---------------
+        console.log('________port 1:', this.#cx.server.https.port);
         if (!this.#cx.flags['test-only'] && !this.#cx.flags['http-only'] && this.#cx.server.https.port) {
-            const httpsServer = Https.createServer((request, response) => this.handleNodeHttpRequest('https', request, response));
+            const httpsServer = Https.createServer((request, response) => this.handleNodeHttpRequest(request, response));
             httpsServer.listen(this.#cx.server.https.port);
             // -------
             const addSSLContext = (serverConfig, domains) => {
@@ -164,15 +166,22 @@ export class WebfloServer extends WebfloRuntime {
             }
             // Handle WebSocket connections
             httpsServer.on('upgrade', (request, socket, head) => {
-                this.handleNodeWsRequest(wss, 'wss', request, socket, head);
+                this.handleNodeWsRequest(wss, request, socket, head);
             });
         }
         // ---------------
         const wss = new WebSocket.Server({ noServer: true });
     }
 
+    getRequestProto(nodeRequest) {
+        console.log({ encrypted: nodeRequest.connection.encrypted, headers: nodeRequest });
+        return nodeRequest.connection.encrypted ? 'https' : (nodeRequest.headers['x-forwarded-proto'] || 'http');
+    }
+
     #globalMessagingRegistry = new Map;
-    async handleNodeWsRequest(wss, proto, nodeRequest, socket, head) {
+    async handleNodeWsRequest(wss, nodeRequest, socket, head) {
+        const proto = this.getRequestProto(nodeRequest);
+        console.log('__________ws:', proto);
         const [fullUrl, requestInit] = this.parseNodeRequest(proto, nodeRequest, false);
         const scope = {};
         scope.url = new URL(fullUrl);
@@ -231,7 +240,8 @@ export class WebfloServer extends WebfloRuntime {
         }
     }
 
-    async handleNodeHttpRequest(proto, nodeRequest, nodeResponse) {
+    async handleNodeHttpRequest(nodeRequest, nodeResponse) {
+        const proto = this.getRequestProto(nodeRequest);
         const [fullUrl, requestInit] = this.parseNodeRequest(proto, nodeRequest);
         const scope = {};
         scope.url = new URL(fullUrl);

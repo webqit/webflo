@@ -1,11 +1,14 @@
 import { WebfloClient } from './WebfloClient.js';
 import { Context } from './Context.js';
+import { Workport } from './Workport.js';
 
 const { Observer } = webqit;
 
 export class WebfloRootClient1 extends WebfloClient {
 
 	static get Context() { return Context; }
+
+	static get Workport() { return Workport; }
 
 	static create(host, cx = {}) {
         return new this(host, this.Context.create(cx));
@@ -73,7 +76,8 @@ export class WebfloRootClient1 extends WebfloClient {
 				PUSH_REGISTRATION_PUBLIC_URL: this.cx.params.env[push_registration_url_env],
 				startMessages: true
 			};
-			//this.workport.registerServiceWorker(base + filename, swParams);
+			this.workport = new this.constructor.Workport;
+			this.workport.registerServiceWorker(base + filename, swParams);
 		}
 		if (window.opener) {
 			// Window opener pinging

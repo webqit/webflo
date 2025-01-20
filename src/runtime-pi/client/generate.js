@@ -47,13 +47,14 @@ export async function generate() {
             throw new Error(`The Layout configurator "config.deployment.Env" is required in context to bundle public env.`);
         }
         const envConfig = await (new cx.config.deployment.Env(cx)).read();
-        for (const key in envConfig.entries) {
+        const env = { ...envConfig.entries, ...process.env };
+        for (const key in env) {
             if (!key.includes('PUBLIC_') && !key.includes('_PUBLIC')) continue;
             if (clientConfig.bundle_public_env) {
-                clientConfig.env[key] = envConfig.entries[key];
+                clientConfig.env[key] = env[key];
             }
             if (workerConfig.bundle_public_env) {
-                workerConfig.env[key] = envConfig.entries[key];
+                workerConfig.env[key] = env[key];
             }
         }
     }

@@ -19,9 +19,9 @@ export class Workport {
         const stateChange = (target) => {
             // target.state can be any of: "parsed", "installing", "installed", "activating", "activated", "redundant"
             if (target.state === 'redundant') {
-                this.remove(target);
+                //this.remove(target);
             } else if (target.state === 'activated') {
-                this.add(target);
+                //this.add(target);
             }
         }
         // We're always installing at first for a new service worker.
