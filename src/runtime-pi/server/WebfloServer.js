@@ -550,12 +550,14 @@ export class WebfloServer extends WebfloRuntime {
             scope.response.headers.set('Accept-Ranges', 'bytes');
             scope.response = await this.satisfyRequestFormat(scope.httpEvent, scope.response);
             if (scope.redirectMessage) {
-                setTimeout(() => {
-                    this.execPush(scope.clientMessaging, scope.redirectMessage);
-                    if (scope.finalResponseSeen) {
-                        scope.clientMessaging.close();
-                    }
-                }, 500);
+                this.execPush(scope.clientMessaging, scope.redirectMessage);
+                if (scope.finalResponseSeen) {
+                    scope.clientMessaging.on('connected', () => {
+                        setTimeout(() => {
+                            scope.clientMessaging.close();
+                        }, 100);
+                    });
+                }
             } else if (scope.finalResponseSeen) {
                 scope.clientMessaging.close();
             }
