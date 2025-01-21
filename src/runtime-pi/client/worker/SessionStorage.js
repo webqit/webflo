@@ -1,10 +1,12 @@
 import { WebfloStorage } from '../../WebfloStorage.js';
 
 export class SessionStorage extends WebfloStorage {
-    #type;
+    static create(request) {
+        return new this(request);
+    }
 
-    static async create(request) {
-        return new this;
+    constructor(request) {
+        super(request, true);
     }
 
     async commit(response) {
