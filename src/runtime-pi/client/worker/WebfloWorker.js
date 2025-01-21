@@ -119,6 +119,9 @@ export class WebfloWorker extends WebfloRuntime {
 	}
 
     createRequest(href, init = {}) {
+		if (init instanceof Request && init.url === (href.href || href)) {
+			return init;
+		}
 		return new Request(href, init);
     }
 
