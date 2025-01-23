@@ -72,7 +72,7 @@ export class WebfloSubClient extends WebfloClient {
 
 	get workport() { return this.#superRuntime.workport; }
 
-    get withViewTransitions() { return this.host.has('viewtransitions'); }
+    get withViewTransitions() { return this.host.hasAttribute('viewtransitions'); }
 
 	constructor(host, superRuntime) {
 		if (!(host instanceof HTMLElement)) {
