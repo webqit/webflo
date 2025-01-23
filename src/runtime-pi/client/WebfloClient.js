@@ -47,6 +47,10 @@ export class WebfloClient extends WebfloRuntime {
 	#backgroundMessaging;
 	get backgroundMessaging() { return this.#backgroundMessaging; }
 
+    get withViewTransitions() {
+        return document.querySelector('meta[name="webflo-viewtransitions"]')?.value;
+    }
+
     constructor(host) {
         super();
         this.#host = host;
@@ -486,7 +490,7 @@ export class WebfloClient extends WebfloRuntime {
     }
 
     async transitionUI(updateCallback) {
-        if (document.startViewTransition) {
+        if (document.startViewTransition && this.withViewTransitions) {
             const synthesizeWhile = window.webqit?.realdom?.synthesizeWhile || ((callback) => callback());
             await synthesizeWhile(async () => {
                 Observer.set(this.transition, 'phase', 1);

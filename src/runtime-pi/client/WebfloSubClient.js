@@ -72,6 +72,8 @@ export class WebfloSubClient extends WebfloClient {
 
 	get workport() { return this.#superRuntime.workport; }
 
+    get withViewTransitions() { return this.host.has('viewtransitions'); }
+
 	constructor(host, superRuntime) {
 		if (!(host instanceof HTMLElement)) {
 			throw new Error('Argument #1 must be a HTMLElement instance');
