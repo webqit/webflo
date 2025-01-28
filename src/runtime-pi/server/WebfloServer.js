@@ -656,6 +656,13 @@ export class WebfloServer extends WebfloRuntime {
                 if (document.readyState === 'complete') return res();
                 document.addEventListener('load', res);
             });
+            // Await rendering engine
+            if (window.webqit.$qCompilerImport) {
+                await new Promise(res => {
+                    window.webqit.$qCompilerImport.then(res);
+                    setTimeout(res, 300);
+                });
+            }
             if (window.webqit?.oohtml?.configs) {
                 const {
                     BINDINGS_API: { api: bindingsConfig } = {},
@@ -681,6 +688,7 @@ export class WebfloServer extends WebfloRuntime {
                     const newRoute = '/' + `routes/${httpEvent.url.pathname}`.split('/').map(a => (a => a.startsWith('$') ? '-' : a)(a.trim())).filter(a => a).join('/');
                     document.body.setAttribute(modulesContextAttrs.importscontext, newRoute);
                 }
+                await new Promise(res => setTimeout(res, 150));
             }
             // Append background-activity meta
             let backgroundActivityMeta = document.querySelector('meta[name="X-Background-Messaging"]');
@@ -700,15 +708,7 @@ export class WebfloServer extends WebfloRuntime {
             hydrationData.setAttribute('rel', 'hydration');
             hydrationData.textContent = JSON.stringify(data);
             document.body.append(hydrationData);
-            // Await rendering engine
-            if (window.webqit.$qCompilerImport) {
-                await new Promise(res => {
-                    window.webqit.$qCompilerImport.then(res);
-                    setTimeout(res, 300);
-                });
-            }
-            await new Promise(res => setTimeout(res, 50));
-        return window;
+            return window;
         });
         // Validate rendering
         if (typeof scope.rendering !== 'string' && !(typeof scope.rendering?.toString === 'function')) {

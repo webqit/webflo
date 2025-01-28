@@ -91,7 +91,9 @@ export class WebfloSubClient extends WebfloClient {
 		}
 		const uncontrols = super.initialize();
 		this.backgroundMessaging.setParent(this.#superRuntime.backgroundMessaging);
-		this.navigate(this.location.href);
+		if (this.host.getAttribute('location')) {
+			this.navigate(this.location.href);
+		}
 		return () => {
 			if (this.backgroundMessaging.parentNode === this.#superRuntime.backgroundMessaging) {
 				this.backgroundMessaging.setParent(null);
