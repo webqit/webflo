@@ -688,7 +688,7 @@ export class WebfloServer extends WebfloRuntime {
                     const newRoute = '/' + `routes/${httpEvent.url.pathname}`.split('/').map(a => (a => a.startsWith('$') ? '-' : a)(a.trim())).filter(a => a).join('/');
                     document.body.setAttribute(modulesContextAttrs.importscontext, newRoute);
                 }
-                await new Promise(res => setTimeout(res, 150));
+                await new Promise(res => setTimeout(res, 500));
             }
             // Append background-activity meta
             let backgroundActivityMeta = document.querySelector('meta[name="X-Background-Messaging"]');
