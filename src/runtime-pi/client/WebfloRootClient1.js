@@ -178,6 +178,6 @@ export class WebfloRootClient1 extends WebfloClient {
 		if (destinationState.scrollPosition?.length) {
 			window.scroll(...destinationState.scrollPosition);
 			(document.querySelector('[autofocus]') || document.body).focus();
-		}
+		} else await super.applyPostRenderState(httpEvent);
 	}
 }

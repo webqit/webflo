@@ -161,9 +161,7 @@ export class WebfloSubClient extends WebfloClient {
 	async applyPostRenderState(httpEvent) {
 		if (httpEvent.url.hash) {
 			this.host.querySelector(httpEvent.url.hash)?.scrollIntoView();
-		} else {
-			this.host.scrollTo(0, 0);
-		}
+		} else await super.applyPostRenderState(httpEvent);
 		(this.host.querySelector('[autofocus]') || this.host).focus();
 	}
 }

@@ -454,6 +454,7 @@ export class WebfloClient extends WebfloRuntime {
                 scope.httpEvent.client.postMessage(scope.data.status, { messageType: 'status' });
             }
             await this.render(scope.httpEvent, scope.data, !(['GET'].includes(scope.request.method) || scope.response.redirected || scope.detail.navigationType === 'rdr'));
+            await this.applyPostRenderState(scope.httpEvent);
         });
     }
 
@@ -538,6 +539,12 @@ export class WebfloClient extends WebfloRuntime {
             }
         });
     }
+
+	async applyPostRenderState(httpEvent) {
+		if (!httpEvent.url.hash && httpEvent.detail.navigationType !== 'traverse' && httpEvent.request.method === 'GET') {
+			(this.host === document ? window : this.host).scrollTo(0, 0);
+		}
+	}
 	
 	async remoteFetch(request, ...args) {
 		Observer.set(this.#navigator, 'remotely', true);
