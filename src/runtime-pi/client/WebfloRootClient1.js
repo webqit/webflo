@@ -105,13 +105,13 @@ export class WebfloRootClient1 extends WebfloClient {
 		const undoControl = super.controlClassic((newHref) => {
             try {
                 // Save current scroll position
-                this.host.history.replaceState({
+                window.history.replaceState({
                     ...(this.currentEntry()?.getState?.() || {}),
                     scrollPosition: this.host === window.document ? [window.scrollX, window.scrollY] : [this.host.scrollLeft, this.host.scrollTop,],
                 }, '', this.location.href);
             } catch (e) { }
             // Do actual location update
-            try { this.host.history.pushState({}, '', newHref); } catch (e) { }
+            try { window.history.pushState({}, '', newHref); } catch (e) { }
         });
 		// ONPOPSTATE
 		const popstateHandler = (e) => {
