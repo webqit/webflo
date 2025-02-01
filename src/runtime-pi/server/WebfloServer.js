@@ -21,7 +21,7 @@ import { ClientMessagingRegistry } from './ClientMessagingRegistry.js';
 import { HttpEvent } from '../HttpEvent.js';
 import { HttpUser } from '../HttpUser.js';
 import { Router } from './Router.js';
-import { pattern } from '../util-url.js';
+import { params, pattern } from '../util-url.js';
 import xfetch from '../xfetch.js';
 import '../util-http.js';
 
@@ -652,25 +652,29 @@ export class WebfloServer extends WebfloRuntime {
                 url: dirPublic.href,// httpEvent.url.href,
                 root: this.#cx.CWD,
             });
-            const window = createWindow(renderFile, instanceParams);
-            const document = window.document;
+            const { window, document } = createWindow(renderFile, instanceParams);
             //const { window, document } = await import('@webqit/oohtml-ssr/src/instance.js?' + instanceParams);
             await new Promise(res => {
-                if (document.readyState === 'complete') return res();
+                if (document.readyState === 'complete') return res(1);
                 document.addEventListener('load', res);
             });
-            // Await rendering engine
-            if (window.webqit.$qCompilerImport) {
-                await new Promise(res => {
-                    window.webqit.$qCompilerImport.then(res);
-                    setTimeout(res, 300);
-                });
-            }
             if (window.webqit?.oohtml?.configs) {
+                // Await rendering engine
+                if (window.webqit?.$qCompilerWorker) {
+                    window.webqit.$qCompilerWorker.postMessage({ source: '1+1', params: {} }, []);
+                    await new Promise(res => {
+                        window.webqit.$qCompilerImport.then(res);
+                        setTimeout(() => res(1), 1000);
+                    });
+                }
                 const {
-                    BINDINGS_API: { api: bindingsConfig } = {},
                     HTML_IMPORTS: { attr: modulesContextAttrs } = {},
+                    BINDINGS_API: { api: bindingsConfig } = {},
                 } = window.webqit.oohtml.configs;
+                if (modulesContextAttrs) {
+                    const newRoute = '/' + `routes/${httpEvent.url.pathname}`.split('/').map(a => (a => a.startsWith('$') ? '-' : a)(a.trim())).filter(a => a).join('/');
+                    document.body.setAttribute(modulesContextAttrs.importscontext, newRoute);
+                }
                 if (bindingsConfig) {
                     document[bindingsConfig.bind]({
                         state: {},
@@ -687,11 +691,7 @@ export class WebfloServer extends WebfloRuntime {
                         console.error(`The following data properties were overridden: ${overridenKeys.join(', ')}`);
                     }
                 }
-                if (modulesContextAttrs) {
-                    const newRoute = '/' + `routes/${httpEvent.url.pathname}`.split('/').map(a => (a => a.startsWith('$') ? '-' : a)(a.trim())).filter(a => a).join('/');
-                    document.body.setAttribute(modulesContextAttrs.importscontext, newRoute);
-                }
-                await new Promise(res => setTimeout(res, 500));
+                await new Promise(res => setTimeout(res, 300));
             }
             // Append background-activity meta
             let backgroundActivityMeta = document.querySelector('meta[name="X-Background-Messaging"]');
@@ -711,7 +711,11 @@ export class WebfloServer extends WebfloRuntime {
             hydrationData.setAttribute('rel', 'hydration');
             hydrationData.textContent = JSON.stringify(data);
             document.body.append(hydrationData);
-            return window;
+            const rendering = window.toString();
+            document.documentElement.remove();
+            document.writeln('');
+            try { window.close(); } catch(e) {}
+            return rendering;
         });
         // Validate rendering
         if (typeof scope.rendering !== 'string' && !(typeof scope.rendering?.toString === 'function')) {
@@ -722,7 +726,6 @@ export class WebfloServer extends WebfloRuntime {
             headers: response.headers,
             status: response.status,
         });
-        scope.rendering.close?.();
         scope.response.headers.set('Content-Type', 'text/html');
         scope.response.headers.set('Content-Length', (new Blob([scope.rendering])).size);
         return scope.response;
