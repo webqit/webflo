@@ -6,7 +6,7 @@ export class SessionStorage extends WebfloStorage {
 
     static create(request, params = {}) {
         let sessionID = request.headers.get('Cookie', true).find((c) => c.name === '__sessid')?.value;
-        if (sessionID?.includes('.')) {
+        if (sessionID?.includes('.') && params.secret) {
             const [rand, signature] = sessionID.split('.');
             const expectedSignature = crypto.createHmac('sha256', params.secret)
                 .update(rand)

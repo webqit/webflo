@@ -12,6 +12,7 @@ import { _each } from '@webqit/util/obj/index.js';
 import { slice as _streamSlice } from 'stream-slice';
 import { Readable as _ReadableStream } from 'stream';
 import { WebfloRuntime } from '../WebfloRuntime.js';
+import { createWindow } from '@webqit/oohtml-ssr';
 import { Context } from './Context.js';
 import { CookieStorage } from './CookieStorage.js';
 import { SessionStorage } from './SessionStorage.js';
@@ -646,12 +647,14 @@ export class WebfloServer extends WebfloRuntime {
                 pathnameSplit.pop();
             }
             const dirPublic = Url.pathToFileURL(Path.resolve(Path.join(this.#cx.CWD, this.#cx.layout.PUBLIC_DIR)));
-            const instanceParams = QueryString.stringify({
-                file: renderFile,
+            const instanceParams = /*QueryString.stringify*/({
+                //file: renderFile,
                 url: dirPublic.href,// httpEvent.url.href,
                 root: this.#cx.CWD,
             });
-            const { window, document } = await import('@webqit/oohtml-ssr/src/instance.js?' + instanceParams);
+            const window = createWindow(renderFile, instanceParams);
+            const document = window.document;
+            //const { window, document } = await import('@webqit/oohtml-ssr/src/instance.js?' + instanceParams);
             await new Promise(res => {
                 if (document.readyState === 'complete') return res();
                 document.addEventListener('load', res);
@@ -719,6 +722,7 @@ export class WebfloServer extends WebfloRuntime {
             headers: response.headers,
             status: response.status,
         });
+        scope.rendering.close?.();
         scope.response.headers.set('Content-Type', 'text/html');
         scope.response.headers.set('Content-Length', (new Blob([scope.rendering])).size);
         return scope.response;
