@@ -78,15 +78,17 @@ export class WebfloRouter {
                                 thisTick.event.onRespondWith = null;
                                 res(response);
                             };
-                            const $returnValue = handler.call(thisContext, thisTick.event, thisTick.arg, _next/*next*/, remoteFetch);
+                            const $returnValue = Promise.resolve(handler.call(thisContext, thisTick.event, thisTick.arg, _next/*next*/, remoteFetch));
+                            // This should listen first before waitUntil's listener
+                            $returnValue.then(async (returnValue) => {
+                                if (thisTick.event.onRespondWith) {
+                                    thisTick.event.onRespondWith = null;
+                                    res(returnValue);
+                                } else if (typeof returnValue !== 'undefined') {
+                                    await thisTick.event.respondWith(returnValue);
+                                }
+                            });
                             thisTick.event.waitUntil($returnValue);
-                            const returnValue = await $returnValue;
-                            if (thisTick.event.onRespondWith) {
-                                thisTick.event.onRespondWith = null;
-                                res(returnValue);
-                            } else if (typeof returnValue !== 'undefined') {
-                                await thisTick.event.respondWith(returnValue);
-                            }
                         });
                     }
                     // Handler not found but exports found

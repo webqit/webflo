@@ -397,13 +397,10 @@ export class WebfloClient extends WebfloRuntime {
             }
 		}
         Promise.all([...scope.eventLifecyclePromises]).then(() => {
-            if (scope.clientMessaging.isMessaging()) {
-                scope.clientMessaging.on('connected', () => {
-                    setTimeout(() => {
-                        scope.clientMessaging.close();
-                    }, 100);
-                });
-            } else scope.clientMessaging.close();
+            if (!scope.clientMessaging.isMessaging()) {
+                // DOn't clos the below; think the below: scope.httpEvent.client.postMessage()
+                //scope.clientMessaging.close();
+            }
         });
         // ---------------
         // Decode response
