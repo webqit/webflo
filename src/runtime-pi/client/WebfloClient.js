@@ -313,83 +313,100 @@ export class WebfloClient extends WebfloRuntime {
 		if (typeof scope.url === 'string') {
 			scope.url = new URL(scope.url, self.location.origin);
 		}
-        // Ping any existing background process
-        this.#backgroundMessaging.postMessage('navigation');
-        // Process request...
-        scope.response = await new Promise(async (resolveResponse) => {
-            scope.handleRespondWith = async (response) => {
-                if (scope.finalResponseSeen) {
+        // ---------------
+        // Event lifecycle
+        scope.eventLifecyclePromises = new Set;
+        scope.eventLifecycleHooks = {
+            waitUntil: (promise) => {
+                promise = Promise.resolve(promise);
+                scope.eventLifecyclePromises.add(promise);
+                scope.eventLifecyclePromises.dirty = true;
+                promise.then(() => scope.eventLifecyclePromises.delete(promise));
+            },
+            respondWith: async (response) => {
+                if (scope.eventLifecyclePromises.dirty && !scope.eventLifecyclePromises.size) {
                     throw new Error('Final response already sent');
                 }
-                if (scope.initialResponseSeen) {
-                    return await this.execPush(scope.clientMessaging, response);
-                }
-                response = await this.normalizeResponse(scope.httpEvent, response, true);
-                resolveResponse(response);
-            };
-            // Create and route request
-            scope.request = this.createRequest(scope.url, scope.init);
-            scope.cookies = this.constructor.CookieStorage.create(scope.request);
-            scope.session = this.constructor.SessionStorage.create(scope.request);
-            const messageChannel = new MessageChannel;
-            this.backgroundMessaging.add(new MessagingOverChannel(null, messageChannel.port1));
-            scope.clientMessaging = new ClientMessaging(this, messageChannel.port2);
-            scope.user = this.constructor.HttpUser.create(
-                scope.request, 
-                scope.session, 
-                scope.clientMessaging
-            );
-            scope.httpEvent = this.constructor.HttpEvent.create(scope.handleRespondWith, {
-                request: scope.request,
-                detail: scope.detail,
-                cookies: scope.cookies,
-                session: scope.session,
-                user: scope.user,
-                client: scope.clientMessaging
-            });
-            scope.httpEvent.onRequestClone = () => this.createRequest(scope.url, scope.init);
-            // Ste pre-request states
-            Observer.set(this.navigator, {
-                requesting: new Url/*NOT URL*/(scope.url),
-                origins: scope.detail.navigationOrigins || [],
-                method: scope.request.method,
-                error: null
-            });
-            scope.resetStates = () => {
-                Observer.set(this.navigator, {
-                    requesting: null,
-                    remotely: false,
-                    origins: [],
-                    method: null
-                });
-            };
-            scope.context = {};
-            if (window.webqit?.oohtml?.configs) {
-                const { BINDINGS_API: { api: bindingsConfig } = {}, } = window.webqit.oohtml.configs;
-                scope.context = this.host[bindingsConfig.bindings].data || {};
-            }
-            // Dispatch for response
-            scope.$response = await this.dispatch(scope.httpEvent, scope.context, async (event) => {
-                // Was this nexted()? Tell the next layer we're in JSON mode by default
-                if (event !== scope.httpEvent && !event.request.headers.has('Accept')) {
-                    event.request.headers.set('Accept', 'application/json');
-                }
-                return await this.remoteFetch(event.request);
-            });
-            // Final reponse!!!
-            scope.finalResponseSeen = true;
-            if (scope.initialResponseSeen) {
-                // Send via background port
-                if (typeof scope.$response !== 'undefined') {
-                    await this.execPush(scope.clientMessaging, scope.$response);
-                }
-                return;
-            }
-            // Send normally
-            scope.$response = await this.normalizeResponse(scope.httpEvent, scope.$response);
-            resolveResponse(scope.$response);
+                return await this.execPush(scope.clientMessaging, response);
+            },
+        };
+        // Create and route request
+        scope.request = this.createRequest(scope.url, scope.init);
+        scope.cookies = this.constructor.CookieStorage.create(scope.request);
+        scope.session = this.constructor.SessionStorage.create(scope.request);
+        const messageChannel = new MessageChannel;
+        this.backgroundMessaging.add(new MessagingOverChannel(null, messageChannel.port1));
+        scope.clientMessaging = new ClientMessaging(this, messageChannel.port2);
+        scope.user = this.constructor.HttpUser.create(
+            scope.request, 
+            scope.session, 
+            scope.clientMessaging
+        );
+        scope.httpEvent = this.constructor.HttpEvent.create(scope.eventLifecycleHooks, {
+            request: scope.request,
+            detail: scope.detail,
+            cookies: scope.cookies,
+            session: scope.session,
+            user: scope.user,
+            client: scope.clientMessaging
         });
-        scope.initialResponseSeen = true;
+        scope.httpEvent.onRequestClone = () => this.createRequest(scope.url, scope.init);
+        // Ste pre-request states
+        Observer.set(this.navigator, {
+            requesting: new Url/*NOT URL*/(scope.url),
+            origins: scope.detail.navigationOrigins || [],
+            method: scope.request.method,
+            error: null
+        });
+        scope.resetStates = () => {
+            Observer.set(this.navigator, {
+                requesting: null,
+                remotely: false,
+                origins: [],
+                method: null
+            });
+        };
+        scope.context = {};
+        if (window.webqit?.oohtml?.configs) {
+            const { BINDINGS_API: { api: bindingsConfig } = {}, } = window.webqit.oohtml.configs;
+            scope.context = this.host[bindingsConfig.bindings].data || {};
+        }
+        if (scope.request.method === 'GET') {
+            // Ping any existing background process
+            this.#backgroundMessaging.postMessage('navigation');
+        }
+        // Dispatch for response
+        scope.response = await this.dispatch(scope.httpEvent, scope.context, async (event) => {
+            // Was this nexted()? Tell the next layer we're in JSON mode by default
+            if (event !== scope.httpEvent && !event.request.headers.has('Accept')) {
+                event.request.headers.set('Accept', 'application/json');
+            }
+            return await this.remoteFetch(event.request);
+        });
+        // ---------------
+        // Response processing
+        scope.hasBackgroundActivity = scope.eventLifecyclePromises.size || (scope.redirectMessage && !(scope.response instanceof Response && scope.response.headers.get('Location')));
+        scope.response = await this.normalizeResponse(scope.httpEvent, scope.response);
+        if (scope.response.headers.get('Location')) {
+            if (scope.redirectMessage) {
+                scope.session.set(`redirect-message:${scope.redirectMessageID}`, scope.redirectMessage);
+            }
+		} else {
+			if (scope.redirectMessage) {
+                scope.eventLifecycleHooks.respondWith(scope.redirectMessage);
+            }
+		}
+        Promise.all([...scope.eventLifecyclePromises]).then(() => {
+            if (scope.clientMessaging.isMessaging()) {
+                scope.clientMessaging.on('connected', () => {
+                    setTimeout(() => {
+                        scope.clientMessaging.close();
+                    }, 100);
+                });
+            } else scope.clientMessaging.close();
+        });
+        // ---------------
+        // Decode response
         scope.finalUrl = scope.response.url || scope.request.url;
         if (scope.response.redirected || scope.detail.navigationType === 'rdr' || scope.detail.isHoisted) {
             const stateData = { ...(this.currentEntry()?.getState() || {}), redirected: true, };

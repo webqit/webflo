@@ -63,6 +63,8 @@ export class WebfloRouter {
                                 nextTick.destination = newDestination.split('?').shift().split('/').map(a => a.trim()).filter(a => a);
                                 nextTick.trail = _args[1].startsWith('/') ? [] : thisTick.trail.reduce((_commonRoot, _seg, i) => _commonRoot.length === i && _seg === nextTick.destination[i] ? _commonRoot.concat(_seg) : _commonRoot, []);
                                 nextTick.trailOnFile = thisTick.trailOnFile.slice(0, nextTick.trail.length);
+                            } else {
+                                nextTick.event = thisTick.event.clone();
                             }
                             return next(nextTick);
                         };
@@ -71,7 +73,21 @@ export class WebfloRouter {
                         _next.pathname = nextPathname.join('/');
                         _next.stepname = nextPathname[0];
                         // -------------
-                        return await handler.call(thisContext, thisTick.event, thisTick.arg, _next/*next*/, remoteFetch);
+                        return new Promise(async (res) => {
+                            thisTick.event.onRespondWith = (response) => {
+                                thisTick.event.onRespondWith = null;
+                                res(response);
+                            };
+                            const $returnValue = handler.call(thisContext, thisTick.event, thisTick.arg, _next/*next*/, remoteFetch);
+                            thisTick.event.waitUntil($returnValue);
+                            const returnValue = await $returnValue;
+                            if (thisTick.event.onRespondWith) {
+                                thisTick.event.onRespondWith = null;
+                                res(returnValue);
+                            } else if (typeof returnValue !== 'undefined') {
+                                await thisTick.event.respondWith(returnValue);
+                            }
+                        });
                     }
                     // Handler not found but exports found
                     return next(thisTick);

@@ -10,7 +10,6 @@ export class HttpEvent {
     #parentEvent;
     #init;
     #url;
-    #requestCloneCallback;
 
     constructor(parentEvent, init = {}) {
         this.#parentEvent = parentEvent;
@@ -32,56 +31,48 @@ export class HttpEvent {
 
     get client() { return this.#init.client; }
 
+    #requestCloneCallback;
     set onRequestClone(callback) {
         this.#requestCloneCallback = callback;
+    }
+
+    #responseHandler;
+    set onRespondWith(callback) {
+        this.#responseHandler = callback;
+    }
+
+    get onRespondWith() {
+        return this.#responseHandler;
     }
 
     clone() {
         const request = this.#requestCloneCallback?.() || this.request;
         const init = { ...this.#init, request };
-        const instance = this.constructor.create(init);
+        const instance = this.constructor.create(this.#parentEvent, init);
         instance.#requestCloneCallback = this.#requestCloneCallback;
         return instance;
+    }
+
+    waitUntil(promise) {
+        if (this.#parentEvent) {
+            this.#parentEvent.waitUntil(promise);
+        }
     }
 
     #response = null;
     get response() { return this.#response; }
 
-    #responseOrigin = null;
-
-    async #respondWith(response) {
-        /*
-        if (this.#response) {
-            throw new Error(`Event has already been responded to! (${this.#responseOrigin})`);
-        }
-        */
-        this.#response = response;
-        /*
-        if (!this.#responseOrigin) {
-            const stack = new Error().stack;
-            const stackLines = stack.split('\n');
-            this.#responseOrigin = stackLines[3].trim();
-        }
-        */
-        if (this.#parentEvent instanceof HttpEvent) {
-            /*
-            // Set responseOrigin first to prevent parent from repeating the work
-            this.#parentEvent.#responseOrigin = this.#responseOrigin;
-            */
-            // Ensure the respondWith() method is how we propagate response
-            await this.#parentEvent.respondWith(this.#response);
-        } else {
-            // The callback passed at root
-            await this.#parentEvent?.(response);
-        }
-    }
-
     async respondWith(response) {
-        await this.#respondWith(response);
+        this.#response = response;
+        if (this.#responseHandler) {
+            await this.#responseHandler(this.#response);
+        } else if (this.#parentEvent) {
+            await this.#parentEvent.respondWith(this.#response);
+        }
     }
 
     async defer() {
-        await this.#respondWith(new Response(null, { status: 202/*Accepted*/ }));
+        await this.respondWith(new Response(null, { status: 202/*Accepted*/ }));
     }
 
     deferred() {
@@ -89,7 +80,7 @@ export class HttpEvent {
     }
 
     async redirect(url, status = 302) {
-        await this.#respondWith(new Response(null, { status, headers: {
+        await this.respondWith(new Response(null, { status, headers: {
             Location: url
         } }));
     }
@@ -111,7 +102,7 @@ export class HttpEvent {
 
     async with(url, init = {}) {
         if (!this.request) {
-            return new HttpEvent(this, { ...this.#init, url  });
+            return new HttpEvent(this, { ...this.#init, url });
         }
         let request, _;
         if (url instanceof Request) {
@@ -122,6 +113,6 @@ export class HttpEvent {
             init = await Request.copy(this.request, init);
             request = new Request(url, { ...init, referrer: this.request.url });
         }            
-        return new HttpEvent(this, { ...this.#init, request  });
+        return new HttpEvent(this, { ...this.#init, request });
     }
 }

@@ -477,98 +477,93 @@ export class WebfloServer extends WebfloRuntime {
         if (typeof scope.url === 'string') {
             scope.url = new URL(scope.url, 'http://localhost');
         }
-        scope.response = await new Promise(async (resolveResponse) => {
-            scope.handleRespondWith = async (response) => {
-                if (scope.finalResponseSeen) {
+        // ---------------
+        // Event lifecycle
+        scope.eventLifecyclePromises = new Set;
+        scope.eventLifecycleHooks = {
+            waitUntil: (promise) => {
+                promise = Promise.resolve(promise);
+                scope.eventLifecyclePromises.add(promise);
+                scope.eventLifecyclePromises.dirty = true;
+                promise.then(() => scope.eventLifecyclePromises.delete(promise));
+            },
+            respondWith: async (response) => {
+                if (scope.eventLifecyclePromises.dirty && !scope.eventLifecyclePromises.size) {
                     throw new Error('Final response already sent');
                 }
-                if (scope.initialResponseSeen) {
-                    return await this.execPush(scope.clientMessaging, response);
-                }
-                resolveResponse(response);
-            };
-            // ---------------
-            // Request processing
-            scope.autoHeaders = this.#cx.config.runtime.server.Headers
-                ? ((await (new this.#cx.config.runtime.server.Headers(this.#cx)).read()).entries || []).filter(entry => pattern(entry.url, url.origin).exec(url.href))
-                : [];
-            scope.request = this.createRequest(scope.url.href, scope.init, scope.autoHeaders.filter((header) => header.type === 'request'));
-            scope.cookies = this.constructor.CookieStorage.create(scope.request);
-            scope.session = this.constructor.SessionStorage.create(scope.request, { secret: this.#cx.env.entries.SESSION_KEY });
-            const sessionID = scope.session.sessionID;
-            if (!this.#globalMessagingRegistry.has(sessionID)) {
-                this.#globalMessagingRegistry.set(sessionID, new ClientMessagingRegistry(this, sessionID));
-            }
-            scope.clientMessagingRegistry = this.#globalMessagingRegistry.get(sessionID);
-            scope.clientMessaging = scope.clientMessagingRegistry.createPort();
-            scope.user = this.constructor.HttpUser.create(
-                scope.request, 
-                scope.session, 
-                scope.clientMessaging
-            );
-            scope.httpEvent = this.constructor.HttpEvent.create(scope.handleRespondWith, {
-                request: scope.request,
-                detail: scope.detail,
-                cookies: scope.cookies,
-                session: scope.session,
-                user: scope.user,
-                client: scope.clientMessaging
-            });
-            // Restore session before dispatching
-            if (scope.request.method === 'GET' 
-            && (scope.redirectMessageID = scope.httpEvent.url.query['redirect-message'])
-            && (scope.redirectMessage = scope.session.get(`redirect-message:${scope.redirectMessageID}`))) {
-                scope.session.delete(`redirect-message:${scope.redirectMessageID}`);
-            }
-            // Dispatch for response
-            scope.$response = await this.dispatch(scope.httpEvent, {}, async (event) => {
-                return await this.localFetch(event);
-            });
-            // Final reponse!!!
-            scope.finalResponseSeen = true;
-            if (scope.initialResponseSeen) {
-                // Send via background port
-                if (typeof scope.$response !== 'undefined') {
-                    await this.execPush(scope.clientMessaging, scope.$response);
-                }
-                scope.clientMessaging.close();
-                return;
-            }
-            // Send normally
-            resolveResponse(scope.$response);
+                return await this.execPush(scope.clientMessaging, response);
+            },
+        };
+        // ---------------
+        // Request processing
+        scope.autoHeaders = this.#cx.config.runtime.server.Headers
+            ? ((await (new this.#cx.config.runtime.server.Headers(this.#cx)).read()).entries || []).filter(entry => pattern(entry.url, url.origin).exec(url.href))
+            : [];
+        scope.request = this.createRequest(scope.url.href, scope.init, scope.autoHeaders.filter((header) => header.type === 'request'));
+        scope.cookies = this.constructor.CookieStorage.create(scope.request);
+        scope.session = this.constructor.SessionStorage.create(scope.request, { secret: this.#cx.env.entries.SESSION_KEY });
+        const sessionID = scope.session.sessionID;
+        if (!this.#globalMessagingRegistry.has(sessionID)) {
+            this.#globalMessagingRegistry.set(sessionID, new ClientMessagingRegistry(this, sessionID));
+        }
+        scope.clientMessagingRegistry = this.#globalMessagingRegistry.get(sessionID);
+        scope.clientMessaging = scope.clientMessagingRegistry.createPort();
+        scope.user = this.constructor.HttpUser.create(
+            scope.request, 
+            scope.session, 
+            scope.clientMessaging
+        );
+        scope.httpEvent = this.constructor.HttpEvent.create(scope.eventLifecycleHooks, {
+            request: scope.request,
+            detail: scope.detail,
+            cookies: scope.cookies,
+            session: scope.session,
+            user: scope.user,
+            client: scope.clientMessaging
         });
-        scope.initialResponseSeen = true;
-        scope.hasBackgroundActivity = !scope.finalResponseSeen || (scope.redirectMessage && !(scope.response instanceof Response && scope.response.headers.get('Location')));
+        // Restore session before dispatching
+        if (scope.request.method === 'GET' 
+        && (scope.redirectMessageID = scope.httpEvent.url.query['redirect-message'])
+        && (scope.redirectMessage = scope.session.get(`redirect-message:${scope.redirectMessageID}`))) {
+            scope.session.delete(`redirect-message:${scope.redirectMessageID}`);
+        }
+        // Dispatch for response
+        scope.response = await this.dispatch(scope.httpEvent, {}, async (event) => {
+            return await this.localFetch(event);
+        });
+        // ---------------
+        // Response processing
+        scope.hasBackgroundActivity = scope.eventLifecyclePromises.size || (scope.redirectMessage && !(scope.response instanceof Response && scope.response.headers.get('Location')));
         scope.response = await this.normalizeResponse(scope.httpEvent, scope.response, scope.hasBackgroundActivity);
         if (scope.hasBackgroundActivity) {
             scope.response.headers.set('X-Background-Messaging', `ws:${scope.clientMessaging.portID}`);
         }
         // Reponse handlers
-        if (scope.response instanceof Response && scope.response.headers.get('Location')) {
-            this.writeRedirectHeaders(scope.httpEvent, scope.response);
+        if (scope.response.headers.get('Location')) {
             if (scope.redirectMessage) {
                 scope.session.set(`redirect-message:${scope.redirectMessageID}`, scope.redirectMessage);
             }
+            this.writeRedirectHeaders(scope.httpEvent, scope.response);
         } else {
+            if (scope.redirectMessage) {
+                scope.eventLifecycleHooks.respondWith(scope.redirectMessage);
+            }
             this.writeAutoHeaders(scope.response.headers, scope.autoHeaders.filter((header) => header.type === 'response'));
             if (scope.httpEvent.request.method !== 'GET' && !scope.response.headers.get('Cache-Control')) {
                 scope.response.headers.set('Cache-Control', 'no-store');
             }
             scope.response.headers.set('Accept-Ranges', 'bytes');
             scope.response = await this.satisfyRequestFormat(scope.httpEvent, scope.response);
-            if (scope.redirectMessage) {
-                this.execPush(scope.clientMessaging, scope.redirectMessage);
-                if (scope.finalResponseSeen) {
-                    scope.clientMessaging.on('connected', () => {
-                        setTimeout(() => {
-                            scope.clientMessaging.close();
-                        }, 100);
-                    });
-                }
-            } else if (scope.finalResponseSeen) {
-                scope.clientMessaging.close();
-            }
         }
+        Promise.all([...scope.eventLifecyclePromises]).then(() => {
+            if (scope.clientMessaging.isMessaging()) {
+                scope.clientMessaging.on('connected', () => {
+                    setTimeout(() => {
+                        scope.clientMessaging.close();
+                    }, 100);
+                });
+            } else scope.clientMessaging.close();
+        });
         return scope.response;
     }
 
