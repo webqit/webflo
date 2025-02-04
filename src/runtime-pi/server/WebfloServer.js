@@ -487,8 +487,8 @@ export class WebfloServer extends WebfloRuntime {
                 scope.eventLifecyclePromises.dirty = true;
                 promise.then(() => scope.eventLifecyclePromises.delete(promise));
             },
-            respondWith: async (response) => {
-                if (scope.eventLifecyclePromises.dirty && !scope.eventLifecyclePromises.size) {
+            respondWith: async (response, isRedirectMessage = false) => {
+                if (!isRedirectMessage && scope.eventLifecyclePromises.dirty && !scope.eventLifecyclePromises.size) {
                     throw new Error('Final response already sent');
                 }
                 return await this.execPush(scope.clientMessaging, response);
@@ -546,7 +546,7 @@ export class WebfloServer extends WebfloRuntime {
             this.writeRedirectHeaders(scope.httpEvent, scope.response);
         } else {
             if (scope.redirectMessage) {
-                scope.eventLifecycleHooks.respondWith(scope.redirectMessage);
+                scope.eventLifecycleHooks.respondWith(scope.redirectMessage, true);
             }
             this.writeAutoHeaders(scope.response.headers, scope.autoHeaders.filter((header) => header.type === 'response'));
             if (scope.httpEvent.request.method !== 'GET' && !scope.response.headers.get('Cache-Control')) {
