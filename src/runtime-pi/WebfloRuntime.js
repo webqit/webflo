@@ -3,24 +3,27 @@ import { _isObject } from '@webqit/util/js/index.js';
 export class WebfloRuntime {
 
     async dispatch(httpEvent, context, crossLayerFetch) {
-        // Exec routing
-        const router = new this.constructor.Router(this.cx, httpEvent.url.pathname);
-        const route = async () => {
-            return await router.route([httpEvent.request.method, 'default'], httpEvent, context, async (event) => {
-                return crossLayerFetch(event);
-            }, (...args) => this.remoteFetch(...args));
-        };
-        try {
-            // Route for response
-            return await (this.cx.middlewares || []).concat(route).reverse().reduce((next, fn) => {
-                return () => fn.call(this.cx, httpEvent, router, next);
-            }, null)();
-            
-        } catch (e) {
-            console.error(e);
-            return new Response(null, { status: 500, statusText: e.message });
-        }
-    }
+        const requestLifecycle = {};
+        requestLifecycle.responsePromise = new Promise(async (res) => {
+            // Exec routing
+            const router = new this.constructor.Router(this.cx, httpEvent.url.pathname);
+            const route = async () => {
+                return await router.route([httpEvent.request.method, 'default'], httpEvent, context, async (event) => {
+                    return crossLayerFetch(event);
+                }, (...args) => this.remoteFetch(...args), requestLifecycle);
+            };
+            try {
+                // Route for response
+                res(await (this.cx.middlewares || []).concat(route).reverse().reduce((next, fn) => {
+                    return () => fn.call(this.cx, httpEvent, router, next);
+                }, null)());
+            } catch (e) {
+                console.error(e);
+                res(new Response(null, { status: 500, statusText: e.message }));
+            }
+        });
+        return await requestLifecycle.responsePromise;
+   }
 
     async normalizeResponse(httpEvent, response, forceCommit = false) {
         // Normalize response

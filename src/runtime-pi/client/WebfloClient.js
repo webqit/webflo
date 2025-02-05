@@ -369,7 +369,7 @@ export class WebfloClient extends WebfloRuntime {
         scope.context = {};
         if (window.webqit?.oohtml?.configs) {
             const { BINDINGS_API: { api: bindingsConfig } = {}, } = window.webqit.oohtml.configs;
-            scope.context = this.host[bindingsConfig.bindings].data || {};
+            scope.context = this.host[bindingsConfig.bindings] || {};
         }
         if (scope.request.method === 'GET' || (scope.request.method === 'POST' && scope.url.pathname !== this.location.pathname)) {
             // Ping existing background process
@@ -385,7 +385,7 @@ export class WebfloClient extends WebfloRuntime {
         });
         // ---------------
         // Response processing
-        scope.hasBackgroundActivity = scope.eventLifecyclePromises.size || (scope.redirectMessage && !(scope.response instanceof Response && scope.response.headers.get('Location')));
+        scope.hasBackgroundActivity = scope.clientMessaging.isMessaging() || scope.eventLifecyclePromises.size || (scope.redirectMessage && !(scope.response instanceof Response && scope.response.headers.get('Location')));
         scope.response = await this.normalizeResponse(scope.httpEvent, scope.response);
         if (scope.response.headers.get('Location')) {
             if (scope.redirectMessage) {
@@ -436,7 +436,7 @@ export class WebfloClient extends WebfloRuntime {
         // Only render now
         if ([202/*Accepted*/, 304/*Not Modified*/].includes(scope.response.status)) {
             if (scope.backgroundMessaging) {
-                scope.backgroundMessaging.addEventListener('response', () => {
+                scope.backgroundMessaging.addEventListener('response', (e) => {
                     scope.resetStates();
                 });
                 return;

@@ -8,7 +8,7 @@ export class WebfloRouter {
         this.path = _isArray(path) ? path : (path + '').split('/').filter(a => a);
     }
 
-    async route(method, event, arg, _default, remoteFetch = null) {
+    async route(method, event, arg, _default, remoteFetch = null, requestLifecycle = null) {
 
         const $this = this;
         const $runtime = this.cx.runtime;
@@ -74,9 +74,10 @@ export class WebfloRouter {
                         _next.stepname = nextPathname[0];
                         // -------------
                         return new Promise(async (res) => {
-                            thisTick.event.onRespondWith = (response) => {
+                            thisTick.event.onRespondWith = async (response) => {
                                 thisTick.event.onRespondWith = null;
                                 res(response);
+                                await requestLifecycle.responsePromise;
                             };
                             const $returnValue = Promise.resolve(handler.call(thisContext, thisTick.event, thisTick.arg, _next/*next*/, remoteFetch));
                             // This should listen first before waitUntil's listener

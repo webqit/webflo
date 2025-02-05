@@ -485,7 +485,9 @@ export class WebfloServer extends WebfloRuntime {
                 promise = Promise.resolve(promise);
                 scope.eventLifecyclePromises.add(promise);
                 scope.eventLifecyclePromises.dirty = true;
-                promise.then(() => scope.eventLifecyclePromises.delete(promise));
+                promise.then(() => {
+                    scope.eventLifecyclePromises.delete(promise);
+                });
             },
             respondWith: async (response, isRedirectMessage = false) => {
                 if (!isRedirectMessage && scope.eventLifecyclePromises.dirty && !scope.eventLifecyclePromises.size) {
@@ -533,7 +535,7 @@ export class WebfloServer extends WebfloRuntime {
         });
         // ---------------
         // Response processing
-        scope.hasBackgroundActivity = scope.eventLifecyclePromises.size || (scope.redirectMessage && !(scope.response instanceof Response && scope.response.headers.get('Location')));
+        scope.hasBackgroundActivity = scope.clientMessaging.isMessaging() || scope.eventLifecyclePromises.size || (scope.redirectMessage && !(scope.response instanceof Response && scope.response.headers.get('Location')));
         scope.response = await this.normalizeResponse(scope.httpEvent, scope.response, scope.hasBackgroundActivity);
         if (scope.hasBackgroundActivity) {
             scope.response.headers.set('X-Background-Messaging', `ws:${scope.clientMessaging.portID}`);
@@ -562,7 +564,9 @@ export class WebfloServer extends WebfloRuntime {
                         scope.clientMessaging.close();
                     }, 100);
                 });
-            } else scope.clientMessaging.close();
+            } else {
+                scope.clientMessaging.close();
+            }
         });
         return scope.response;
     }

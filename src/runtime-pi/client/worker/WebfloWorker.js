@@ -183,7 +183,7 @@ export class WebfloWorker extends WebfloRuntime {
 		});
 		// ---------------
         // Response processing
-        scope.hasBackgroundActivity = scope.eventLifecyclePromises.size || (scope.redirectMessage && !(scope.response instanceof Response && scope.response.headers.get('Location')));
+        scope.hasBackgroundActivity = scope.clientMessaging.isMessaging() || scope.eventLifecyclePromises.size || (scope.redirectMessage && !(scope.response instanceof Response && scope.response.headers.get('Location')));
         scope.response = await this.normalizeResponse(scope.httpEvent, scope.response, scope.hasBackgroundActivity);
 		if (scope.hasBackgroundActivity) {
 			scope.response.headers.set('X-Background-Messaging', `ch:${scope.clientMessaging.port.name}`);
