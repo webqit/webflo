@@ -371,9 +371,9 @@ export class WebfloClient extends WebfloRuntime {
             const { BINDINGS_API: { api: bindingsConfig } = {}, } = window.webqit.oohtml.configs;
             scope.context = this.host[bindingsConfig.bindings].data || {};
         }
-        if (scope.request.method === 'GET') {
-            // Ping any existing background process
-            this.#backgroundMessaging.postMessage('navigation');
+        if (scope.request.method === 'GET' || (scope.request.method === 'POST' && scope.url.pathname !== this.location.pathname)) {
+            // Ping existing background process
+            this.#backgroundMessaging.postMessage({ ...Url.copy(scope.url), method: scope.request.method }, { messageType: 'navigation' });
         }
         // Dispatch for response
         scope.response = await this.dispatch(scope.httpEvent, scope.context, async (event) => {

@@ -100,6 +100,50 @@ export class HttpEvent {
         return [301, 302, 303, 307, 308].includes(this.#response?.status);
     }
 
+    async stream(callback, { interval = 3000, maxClock = 30, crossNavigation = false } = {}) {
+        return new Promise((res) => {
+            const state = { connected: false, navigatedAway: false };
+            const start = () => {
+                const poll = async (maxClock) => {
+                    await new Promise(($res) => setTimeout($res, interval));
+                    if (maxClock === 0 || !state.connected || state.navigatedAway) {
+                        res(callback());
+                        return;
+                    }
+                    await callback(async (response, endOfStream = false) => {
+                        if (endOfStream) {
+                            res(response);
+                        } else {
+                            await this.client.postMessage(response, { messageType: 'response' });
+                        }
+                    });                    
+                    poll(typeof maxClock === 'number' && maxClock > 0 ? --maxClock : maxClock);
+                };
+                poll(maxClock);
+            };
+            // Life cycle management
+            this.client.on('connected', () => {
+                state.connected = true;
+                start();
+            });
+            this.client.on('empty', () => {
+                state.connected = false;
+            });
+            this.client.handleMessages('navigation', (e) => {
+                if (!crossNavigation
+                || (crossNavigation === -1 && e.data.pathname === this.url.pathname)
+                || (typeof crossNavigation === 'function' && !crossNavigation(e.data))) {
+                    state.navigatedAway = true;
+                }
+            });
+            setTimeout(() => {
+                if (!state.connected) {
+                    res();
+                }
+            }, 30000/*30sec*/);
+        });
+    }
+
     async with(url, init = {}) {
         if (!this.request) {
             return new HttpEvent(this, { ...this.#init, url });
