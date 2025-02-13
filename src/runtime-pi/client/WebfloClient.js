@@ -32,9 +32,6 @@ export class WebfloClient extends WebfloRuntime {
     #host;
     get host() { return this.#host; }
 
-    #network;
-    get network() { return this.#network; }
-
     #location;
     get location() { return this.#location; }
 
@@ -55,7 +52,6 @@ export class WebfloClient extends WebfloRuntime {
         super();
         this.#host = host;
         Object.defineProperty(this.host, 'webfloRuntime', { get: () => this });
-        this.#network = { status: window.navigator.onLine };
         this.#location = new Url/*NOT URL*/(this.host.location);
         this.#navigator = {
             requesting: null,
@@ -94,18 +90,8 @@ export class WebfloClient extends WebfloRuntime {
         };
         this.backgroundMessaging.handleMessages('response', responseHandler);
         this.backgroundMessaging.handleMessages('redirect', responseHandler);
-        // Bind network status handlers
-        const onlineHandler = () => Observer.set(this.network, 'status', window.navigator.onLine);
-        window.addEventListener('online', onlineHandler);
-        window.addEventListener('offline', onlineHandler);
         // Start controlling
-        const uncontrols = this.control();
-        return () => {
-            this.#backgroundMessaging.close();
-            window.removeEventListener('online', onlineHandler);
-            window.removeEventListener('offline', onlineHandler);
-            uncontrols();
-        };
+        return this.control();
     }
 
     controlClassic(locationCallback) {
@@ -128,7 +114,7 @@ export class WebfloClient extends WebfloRuntime {
         // -----------------------
         // Capture all link-clicks
         const clickHandler = (e) => {
-            if (!this._canIntercept(e)) return;
+            if (!this._canIntercept(e) || e.defaultPrevented) return;
             var anchorEl = e.target.closest('a');
             if (!anchorEl || !anchorEl.href || (anchorEl.target && !anchorEl.target.startsWith('_webflo:')) || anchorEl.download || !this.isSpaRoute(anchorEl)) return;
             const resolvedUrl = new URL(anchorEl.hasAttribute('href') ? anchorEl.getAttribute('href') : '', this.location.href);
@@ -176,7 +162,7 @@ export class WebfloClient extends WebfloRuntime {
         // -----------------------
         // Capture all form-submits
         const submitHandler = (e) => {
-            if (!this._canIntercept(e)) return;
+            if (!this._canIntercept(e) || e.defaultPrevented) return;
             // ---------------
             // Declare form submission modifyers
             const form = e.target.closest('form');
@@ -348,8 +334,10 @@ export class WebfloClient extends WebfloRuntime {
             cookies: scope.cookies,
             session: scope.session,
             user: scope.user,
-            client: scope.clientMessaging
+            client: scope.clientMessaging,
+            sdk: {}
         });
+        await this.setup(scope.httpEvent);
         scope.httpEvent.onRequestClone = () => this.createRequest(scope.url, scope.init);
         // Ste pre-request states
         Observer.set(this.navigator, {
@@ -385,11 +373,11 @@ export class WebfloClient extends WebfloRuntime {
         });
         // ---------------
         // Response processing
-        scope.hasBackgroundActivity = scope.clientMessaging.isMessaging() || scope.eventLifecyclePromises.size || (scope.redirectMessage && !(scope.response instanceof Response && scope.response.headers.get('Location')));
         scope.response = await this.normalizeResponse(scope.httpEvent, scope.response);
+        scope.hasBackgroundActivity = scope.clientMessaging.isMessaging() || scope.eventLifecyclePromises.size || (scope.redirectMessage && !scope.response.headers.get('Location'));
         if (scope.response.headers.get('Location')) {
             if (scope.redirectMessage) {
-                scope.session.set(`redirect-message:${scope.redirectMessageID}`, scope.redirectMessage);
+                await scope.session.set(`redirect-message:${scope.redirectMessageID}`, scope.redirectMessage);
             }
 		} else {
 			if (scope.redirectMessage) {
@@ -540,6 +528,7 @@ export class WebfloClient extends WebfloRuntime {
                     location: this.location,
                     network: this.network, // request, redirect, error, status, remote
                     transition: this.transition,
+                    permissions: this.permissions,
                     background: null
                 }, { diff: true, merge });
                 let overridenKeys;

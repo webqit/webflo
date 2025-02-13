@@ -19,20 +19,12 @@ export class HttpUser extends WebfloStorage {
     }
 
     get #dict() {
-        if (!this.#session.has('user')) {
-            this.#session.set('user', {});
-        }
-        return this.#session.get('user');
+        return this.#session.get('user') || {};
     }
 
     [ Symbol.iterator ]() { return this.entries()[ Symbol.iterator ](); }
 
     get size() { return Object.keys(this.#dict).length; }
-
-    set(key, value) {
-        Reflect.set(this.#dict, key, value);
-        return this;
-    }
 
     get(key) {
         return Reflect.get(this.#dict, key);
@@ -40,10 +32,6 @@ export class HttpUser extends WebfloStorage {
 
     has(key) {
         return Reflect.has(this.#dict, key);
-    }
-
-    delete(key) {
-        return Reflect.deleteProperty(this.#dict, key);
     }
 
     keys() {
@@ -58,24 +46,46 @@ export class HttpUser extends WebfloStorage {
         return Object.entries(this.#dict);
     }
 
-    clear() {
-        for (const key of this.keys()) {
-            Reflect.deleteProperty(this.#dict, key);
-        }
-    }
-
     forEach(callback) {
         this.entries().forEach(callback);
     }
 
-    json(arg = null) {
+    async set(key, value) {
+        if (!this.#session.has('user')) {
+            await this.#session.set('user', {});
+        }
+        Reflect.set(this.#dict, key, value);
+        await this.emit(key, value);
+        return this;
+    }
+
+    async delete(key) {
+        if (!this.#session.has('user')) {
+            await this.#session.set('user', {});
+        }
+        Reflect.deleteProperty(this.#dict, key);
+        await this.emit(key);
+        return this;
+    }
+
+    async clear() {
+        for (const key of this.keys()) {
+            Reflect.deleteProperty(this.#dict, key);
+        }
+        await this.emit();
+        return this;
+    }
+
+    async json(arg = null) {
         if (!arguments.length || typeof arg === 'boolean') {
             return {...this.#dict};
         }
         if (!_isObject(arg)) {
             throw new Error(`Argument must be a valid JSON object`);
         }
-        Object.assign(this.#dict, arg);
+        return await Promise.all(Object.entries(arg).map(([key, value]) => {
+            return this.set(key, value);
+        }));
     }
 
     isSignedIn() {
@@ -90,22 +100,11 @@ export class HttpUser extends WebfloStorage {
     }
 
     async signOut() {
-        const handler = this.getReverseHandlers().get('id')?.[0];
-        let response;
-        if (typeof handler === 'string') {
-            response = new Response(null, { status: 302, headers: {
-                Location: url
-            }});
-        }
-        if (typeof handler === 'function') {
-            response = await handler(this);
-        }
-        this.clear();
-        return response;
+        await this.clear();
     }
 
-    confirm(data, callback, options = {}) {
-        return new Promise((resolve) => {
+    async confirm(data, callback, options = {}) {
+        return await new Promise((resolve) => {
             this.#client.postRequest(
                 data,
                 (event) => resolve(callback ? callback(event) : event),
@@ -114,8 +113,8 @@ export class HttpUser extends WebfloStorage {
         });
     }
 
-    prompt(data, callback, options = {}) {
-        return new Promise((resolve) => {
+    async prompt(data, callback, options = {}) {
+        return await new Promise((resolve) => {
             this.#client.postRequest(
                 data,
                 (event) => resolve(callback ? callback(event) : event),

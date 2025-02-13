@@ -9,14 +9,14 @@ export class WebfloRootClient2 extends WebfloRootClient1 {
 		let navigationOrigins = [];
         // Capture all link-clicks
 		const clickHandler = (e) => {
-			if (!this._canIntercept(e)) return;
+			if (!this._canIntercept(e) || e.defaultPrevented) return;
 			let anchorEl = e.target.closest('a');
 			if (!anchorEl || !anchorEl.href || anchorEl.target) return;
 			navigationOrigins = [anchorEl, null, anchorEl.closest('[navigationcontext]')];
 		};
         // Capture all form-submits
 		const submitHandler = (e) => {
-			if (!this._canIntercept(e)) return;
+			if (!this._canIntercept(e) || e.defaultPrevented) return;
 			navigationOrigins = [e.submitter, e.target.closest('form'), e.target.closest('[navigationcontext]')];
 		};
 		// Handle navigation event which happens after the above

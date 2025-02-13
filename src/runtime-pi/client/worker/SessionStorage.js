@@ -10,6 +10,6 @@ export class SessionStorage extends WebfloStorage {
     }
 
     async commit(response) {
-        super.commit();
+        await super.commit();
     }
 }

@@ -17,6 +17,15 @@ export class WebfloRootClient1 extends WebfloClient {
 	#cx;
 	get cx() { return this.#cx; }
 
+    #network;
+    get network() { return this.#network; }
+
+    #workport;
+    get workport() { return this.#workport; }
+
+    #permissions;
+    get permissions() { return this.#permissions; }
+
 	constructor(host, cx) {
 		if (!(host instanceof Document)) {
 			throw new Error('Argument #1 must be a Document instance');
@@ -26,11 +35,34 @@ export class WebfloRootClient1 extends WebfloClient {
 			throw new Error('Argument #2 must be a Webflo Context instance');
 		}
 		this.#cx = cx;
+		this.#network = { status: window.navigator.onLine };
+		this.#workport = new this.constructor.Workport;
 	}
 
 	initialize() {
 		// Main initializations
-		let undoControl = super.initialize();
+		const undoControl = super.initialize();
+        // Bind network status handlers
+        const onlineHandler = () => Observer.set(this.network, 'status', window.navigator.onLine);
+        window.addEventListener('online', onlineHandler);
+        window.addEventListener('offline', onlineHandler);
+		let $undoControl = () => {
+            window.removeEventListener('online', onlineHandler);
+            window.removeEventListener('offline', onlineHandler);
+            undoControl();
+        };
+		// Window opener pinging
+		if (window.opener) {
+			const $$undoControl = $undoControl;
+			const beforeunloadHandler = () => {
+				window.opener.postMessage('close');
+			};
+			window.addEventListener('beforeunload', beforeunloadHandler);
+			$undoControl = () => {
+				window.removeEventListener('beforeunload', beforeunloadHandler);
+				$$undoControl();
+			};
+		}
 		// Bind global prompt handlers
         const promptsHandler = (e) => {
             e.stopPropagation();
@@ -51,6 +83,18 @@ export class WebfloRootClient1 extends WebfloClient {
         };
         this.backgroundMessaging.handleMessages('confirm', promptsHandler);
         this.backgroundMessaging.handleMessages('prompt', promptsHandler);
+		// Service Worker && COMM
+		if (this.cx.params.service_worker?.filename) {
+			const { public_base_url: base, service_worker: { filename, ...restServiceWorkerParams } } = this.cx.params;
+			const { webflo_public_webhook_url_variable, webflo_vapid_public_key_variable, ..._restServiceWorkerParams } = restServiceWorkerParams;
+			const swParams = {
+				..._restServiceWorkerParams,
+				WEBFLO_PUBLIC_WEBHOOK_URL: this.cx.params.env[webflo_public_webhook_url_variable],
+				WEBFLO_VAPID_PUBLIC_KEY: this.cx.params.env[webflo_vapid_public_key_variable],
+				startMessages: true
+			};
+			this.#workport.registerServiceWorker(base + filename, swParams);
+		}
 		// Respond to background activity request at pageload
 		const scope = {};
         if (scope.backgroundMessagingMeta = document.querySelector('meta[name="X-Background-Messaging"]')) {
@@ -66,32 +110,7 @@ export class WebfloRootClient1 extends WebfloClient {
 				});
 			} catch(e) {}
         }
-		// Service Worker && COMM
-		if (this.cx.params.service_worker?.filename) {
-			const { public_base_url: base, service_worker: { filename, ...restServiceWorkerParams } } = this.cx.params;
-			const { vapid_key_env, push_registration_url_env, ..._restServiceWorkerParams } = restServiceWorkerParams;
-			const swParams = {
-				..._restServiceWorkerParams,
-				VAPID_PUBLIC_KEY: this.cx.params.env[vapid_key_env],
-				PUSH_REGISTRATION_PUBLIC_URL: this.cx.params.env[push_registration_url_env],
-				startMessages: true
-			};
-			this.workport = new this.constructor.Workport;
-			this.workport.registerServiceWorker(base + filename, swParams);
-		}
-		if (window.opener) {
-			// Window opener pinging
-			const $undoControl = undoControl;
-			const beforeunloadHandler = () => {
-				window.opener.postMessage('close');
-			};
-			window.addEventListener('beforeunload', beforeunloadHandler);
-			undoControl = () => {
-				window.removeEventListener('beforeunload', beforeunloadHandler);
-				$undoControl();
-			};
-		}
-		return undoControl
+		return $undoControl;
 	}
 
 	/**

@@ -8,7 +8,7 @@ export class WebfloRouter {
         this.path = _isArray(path) ? path : (path + '').split('/').filter(a => a);
     }
 
-    async route(method, event, arg, _default, remoteFetch = null, requestLifecycle = null) {
+    async route(method, event, arg = null, _default = null, remoteFetch = null, requestLifecycle = null) {
 
         const $this = this;
         const $runtime = this.cx.runtime;

@@ -4,6 +4,7 @@ import Path from 'path';
 import Http from 'http';
 import Https from 'https';
 import WebSocket from 'ws';
+import webpush from 'web-push';
 import Mime from 'mime-types';
 import QueryString from 'querystring';
 import { _from as _arrFrom, _any } from '@webqit/util/arr/index.js';
@@ -208,7 +209,7 @@ export class WebfloServer extends WebfloRuntime {
         // Level 3 validation
         // and actual processing
         scope.request = this.createRequest(scope.url.href, requestInit);
-        scope.session = this.constructor.SessionStorage.create(scope.request, { secret: this.#cx.env.entries.SESSION_KEY });
+        scope.session = this.constructor.SessionStorage.create(scope.request, { secret: this.#cx.env.entries[this.#cx.server.webflo_session_key_variable] });
         if (!scope.error) {
             if (!(scope.clientMessagingRegistry = this.#globalMessagingRegistry.get(scope.session.sessionID))) {
                 scope.error = `Lost or invalid clientID`;
@@ -289,7 +290,9 @@ export class WebfloServer extends WebfloRuntime {
         if (!scope.response) {
             scope.response = await this.navigate(fullUrl, requestInit, {
                 request: nodeRequest,
-                response: nodeResponse
+                response: nodeResponse,
+                ipAddress: nodeRequest.headers['x-forwarded-for']?.split(',')[0]
+                    || nodeRequest.socket.remoteAddress
             });
         }
         // -----------------
@@ -503,7 +506,7 @@ export class WebfloServer extends WebfloRuntime {
             : [];
         scope.request = this.createRequest(scope.url.href, scope.init, scope.autoHeaders.filter((header) => header.type === 'request'));
         scope.cookies = this.constructor.CookieStorage.create(scope.request);
-        scope.session = this.constructor.SessionStorage.create(scope.request, { secret: this.#cx.env.entries.SESSION_KEY });
+        scope.session = this.constructor.SessionStorage.create(scope.request, { secret: this.#cx.env.entries[this.#cx.server.webflo_session_key_variable] });
         const sessionID = scope.session.sessionID;
         if (!this.#globalMessagingRegistry.has(sessionID)) {
             this.#globalMessagingRegistry.set(sessionID, new ClientMessagingRegistry(this, sessionID));
@@ -521,13 +524,23 @@ export class WebfloServer extends WebfloRuntime {
             cookies: scope.cookies,
             session: scope.session,
             user: scope.user,
-            client: scope.clientMessaging
+            client: scope.clientMessaging,
+            sdk: { webpush }
         });
+        if (this.#cx.env.entries[this.#cx.server.webflo_vapid_public_key_variable]
+        && this.#cx.env.entries[this.#cx.server.webflo_vapid_private_key_variable]) {
+            webpush.setVapidDetails(
+                scope.url.origin.replace(/^http:/i, 'https:'),
+                this.#cx.env.entries[this.#cx.server.webflo_vapid_public_key_variable],
+                this.#cx.env.entries[this.#cx.server.webflo_vapid_private_key_variable]
+            );
+        }
+        await this.setup(scope.httpEvent);
         // Restore session before dispatching
         if (scope.request.method === 'GET' 
         && (scope.redirectMessageID = scope.httpEvent.url.query['redirect-message'])
         && (scope.redirectMessage = scope.session.get(`redirect-message:${scope.redirectMessageID}`))) {
-            scope.session.delete(`redirect-message:${scope.redirectMessageID}`);
+            await scope.session.delete(`redirect-message:${scope.redirectMessageID}`);
         }
         // Dispatch for response
         scope.response = await this.dispatch(scope.httpEvent, {}, async (event) => {
@@ -535,15 +548,15 @@ export class WebfloServer extends WebfloRuntime {
         });
         // ---------------
         // Response processing
-        scope.hasBackgroundActivity = scope.clientMessaging.isMessaging() || scope.eventLifecyclePromises.size || (scope.redirectMessage && !(scope.response instanceof Response && scope.response.headers.get('Location')));
-        scope.response = await this.normalizeResponse(scope.httpEvent, scope.response, scope.hasBackgroundActivity);
+        scope.response = await this.normalizeResponse(scope.httpEvent, scope.response);
+        scope.hasBackgroundActivity = scope.clientMessaging.isMessaging() || scope.eventLifecyclePromises.size || (scope.redirectMessage && !scope.response.headers.get('Location'));
         if (scope.hasBackgroundActivity) {
             scope.response.headers.set('X-Background-Messaging', `ws:${scope.clientMessaging.portID}`);
         }
         // Reponse handlers
         if (scope.response.headers.get('Location')) {
             if (scope.redirectMessage) {
-                scope.session.set(`redirect-message:${scope.redirectMessageID}`, scope.redirectMessage);
+                await scope.session.set(`redirect-message:${scope.redirectMessageID}`, scope.redirectMessage);
             }
             this.writeRedirectHeaders(scope.httpEvent, scope.response);
         } else {

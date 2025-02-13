@@ -2,6 +2,11 @@ import { _isObject } from '@webqit/util/js/index.js';
 
 export class WebfloRuntime {
 
+    async setup(httpEvent) {
+        const router = new this.constructor.Router(this.cx, httpEvent.url.pathname);
+        return await router.route(['SETUP'], httpEvent);
+    }
+
     async dispatch(httpEvent, context, crossLayerFetch) {
         const requestLifecycle = {};
         requestLifecycle.responsePromise = new Promise(async (res) => {
@@ -25,7 +30,7 @@ export class WebfloRuntime {
         return await requestLifecycle.responsePromise;
    }
 
-    async normalizeResponse(httpEvent, response, forceCommit = false) {
+    async normalizeResponse(httpEvent, response) {
         // Normalize response
         if (!(response instanceof Response)) {
             response = typeof response === 'undefined'
@@ -34,7 +39,7 @@ export class WebfloRuntime {
         }
         // Commit data
         for (const storage of [httpEvent.cookies, httpEvent.session, httpEvent.storage]) {
-            await storage?.commit?.(response, forceCommit);
+            await storage?.commit?.(response);
         }
         return response;
     }

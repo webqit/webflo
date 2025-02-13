@@ -9,19 +9,19 @@ export class WebfloCookieStorage extends WebfloStorage {
         this.saveOriginals();
     }
 
-    render() {
-        return this.getAdded().map((key) => renderCookieObj({ name: key, ...this.get(key, true) })).concat(
-            this.getDeleted().map((key) => renderCookieObj({ name: key, value: '', maxAge: 0 }))
-        );
-    }
-
-    set(key, value) {
+    async set(key, value) {
         if (!_isObject(value)) { value = { name: key, value }; }
-        return super.set(key, value);
+        return await super.set(key, value);
     }
 
     get(key, withDetail = false) {
         if (!withDetail) return super.get(key)?.value;
         return super.get(key);
+    }
+
+    render() {
+        return this.getAdded().map((key) => renderCookieObj({ name: key, ...this.get(key, true) })).concat(
+            this.getDeleted().map((key) => renderCookieObj({ name: key, value: '', maxAge: 0 }))
+        );
     }
 }

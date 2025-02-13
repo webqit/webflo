@@ -165,13 +165,15 @@ export class WebfloWorker extends WebfloRuntime {
 			cookies: scope.cookies,
 			session: scope.session,
 			user: scope.user,
-			client: scope.clientMessaging
+			client: scope.clientMessaging,
+			sdk: {}
 		});
+		await this.setup(scope.httpEvent);
 		// Restore session before dispatching
 		if (scope.request.method === 'GET' 
 		&& (scope.redirectMessageID = scope.httpEvent.url.query['redirect-message'])
 		&& (scope.redirectMessage = scope.session.get(`redirect-message:${scope.redirectMessageID}`))) {
-			scope.session.delete(`redirect-message:${scope.redirectMessageID}`);
+			await scope.session.delete(`redirect-message:${scope.redirectMessageID}`);
 		}
 		// Dispatch for response
 		scope.response = await this.dispatch(scope.httpEvent, {}, async (event) => {
@@ -183,8 +185,8 @@ export class WebfloWorker extends WebfloRuntime {
 		});
 		// ---------------
         // Response processing
-        scope.hasBackgroundActivity = scope.clientMessaging.isMessaging() || scope.eventLifecyclePromises.size || (scope.redirectMessage && !(scope.response instanceof Response && scope.response.headers.get('Location')));
-        scope.response = await this.normalizeResponse(scope.httpEvent, scope.response, scope.hasBackgroundActivity);
+        scope.response = await this.normalizeResponse(scope.httpEvent, scope.response);
+		scope.hasBackgroundActivity = scope.clientMessaging.isMessaging() || scope.eventLifecyclePromises.size || (scope.redirectMessage && !scope.response.headers.get('Location'));
 		if (scope.hasBackgroundActivity) {
 			scope.response.headers.set('X-Background-Messaging', `ch:${scope.clientMessaging.port.name}`);
         }

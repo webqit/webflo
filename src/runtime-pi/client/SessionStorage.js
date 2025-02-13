@@ -20,7 +20,7 @@ export class SessionStorage extends WebfloStorage {
         super(request, true, iterable);
     }
 
-    commit() {
+    async commit() {
         const storeType = this.constructor.type === 'user' ? 'localStorage' : 'sessionStorage';
         for (const key of this.getAdded()) {
             window[storeType].setItem(key, this.get(key));
@@ -28,6 +28,6 @@ export class SessionStorage extends WebfloStorage {
         for (const key of this.getDeleted()) {
             window[storeType].removeItem(key);
         }
-        super.commit();
+        await super.commit();
     }
 }

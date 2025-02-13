@@ -26,8 +26,8 @@ export default class Client extends Dotfile {
                 filename: 'worker.js',
                 scope: '/',
                 support_push: false,
-                vapid_key_env: 'VAPID_PUBLIC_KEY',
-                push_registration_url_env: 'PUSH_REGISTRATION_PUBLIC_URL',
+                webflo_public_webhook_url_variable: 'WEBFLO_PUBLIC_WEBHOOK_URL',
+                webflo_vapid_public_key_variable: 'WEBFLO_VAPID_PUBLIC_KEY'
             },
             bundle_public_env: false,
         }, config, 'patch');
@@ -58,7 +58,7 @@ export default class Client extends Dotfile {
                 validation: ['important'],
             },
             {
-                name: 'bundle_public_env',
+                name: 'spa_routing',
                 type: 'toggle',
                 message: '[spa_routing]: Enable Single Page Routing Mode',
                 active: 'YES',
@@ -91,14 +91,14 @@ export default class Client extends Dotfile {
                         inactive: 'NO',
                     },
                     {
-                        name: 'vapid_key_env',
+                        name: 'webflo_public_webhook_url_variable',
                         type: (prev, answers) => answers.support_push ? 'text' : null,
-                        message: 'Enter the VAPID KEY env id for push notification subscription',
+                        message: 'Enter the webhook URL for push notification subscription',
                     },
                     {
-                        name: 'push_registration_url_env',
+                        name: 'webflo_vapid_public_key_variable',
                         type: (prev, answers) => answers.support_push ? 'text' : null,
-                        message: 'Enter the URL for push notification subscription',
+                        message: 'Enter the VAPID PUBLIC KEY variable for push notification subscription',
                     },
                 ],
             },

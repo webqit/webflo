@@ -29,7 +29,10 @@ export default class Server extends Dotfile {
                 force: false,
             },
             force_www: '',
-            oohtml_support: 'full',
+            webflo_session_key_variable: 'WEBFLO_SESSION_KEY',
+            support_push: false,
+            webflo_vapid_public_key_variable: 'WEBFLO_VAPID_PUBLIC_KEY',
+            webflo_vapid_private_key_variable: 'WEBFLO_VAPID_PRIVATE_KEY'
         }, config, 'patch');
     }
 
@@ -41,13 +44,6 @@ export default class Server extends Dotfile {
                 {value: '', title: 'do nothing'},
                 {value: 'add',},
                 {value: 'remove',},
-            ],
-            oohtml_support: [
-                {value: 'full', title: 'full'},
-                {value: 'namespacing', title: 'namespacing'},
-                {value: 'scripting', title: 'scripting'},
-                {value: 'templating', title: 'templating'},
-                {value: 'none', title: 'none'},
             ],
         }, choices, 'patch');
         // Questions
@@ -113,12 +109,26 @@ export default class Server extends Dotfile {
                 ],
             },
             {
-                name: 'oohtml_support',
-                type: 'select',
-                message: '[oohtml_support]: Specify OOHTML support level',
-                choices: CHOICES.oohtml_support,
-                initial: this.indexOfInitial(CHOICES.oohtml_support, config.oohtml_support),
-                validation: ['important'],
+                name: 'webflo_session_key_variable',
+                type: (prev, answers) => answers.support_push ? 'text' : null,
+                message: 'Enter the SESSION KEY variable for session ID encryption',
+            },
+            {
+                name: 'support_push',
+                type: 'toggle',
+                message: 'Support push-notifications?',
+                active: 'YES',
+                inactive: 'NO',
+            },
+            {
+                name: 'webflo_vapid_public_key_variable',
+                type: (prev, answers) => answers.support_push ? 'text' : null,
+                message: 'Enter the VAPID PUBLIC KEY variable for push notification setup',
+            },
+            {
+                name: 'webflo_vapid_private_key_variable',
+                type: (prev, answers) => answers.support_push ? 'text' : null,
+                message: 'Enter the VAPID PRIVATE KEY variable for push notification setup',
             },
         ];
     }

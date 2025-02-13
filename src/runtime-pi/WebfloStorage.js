@@ -7,9 +7,12 @@ export class WebfloStorage extends Map {
     #session;
 
     constructor(request, session, iterable = []) {
-        super(iterable);
+        super();
         this.#request = request;
         this.#session = session === true ? this : session;
+        for (const [k, v] of iterable) {
+            this.set(k, v);
+        }
     }
     
     #originals;
@@ -29,18 +32,52 @@ export class WebfloStorage extends Map {
         });
     }
 
-    commit() {
+    async commit() {
         this.saveOriginals();
     }
 
-    #handlers = new Map;
-    #reverseHandlers = new Map;
-    defineHandler(attr, ...handlers) {
-        let registry = this.#handlers;
-        if (handlers[0] === false) {
-            registry = this.#reverseHandlers;
-            handlers.shift();
+    #listeners = new Set;
+    observe(attr, handler) {
+        const args = { attr, handler };
+        this.#listeners.add(args);
+        return () => {
+            this.#listeners.delete(args);
         }
+    }
+
+    async emit(attr, value) {
+        const returnValues = [];
+        for (const { attr: $attr, handler } of this.#listeners) {
+            if (arguments.length && $attr !== attr) continue;
+            if (arguments.length > 1) {
+                returnValues.push(handler(value));
+            } else {
+                returnValues.push(handler());
+            }
+        }
+        return Promise.all(returnValues);
+    }
+
+    async set(attr, value) {
+        const returnValue = super.set(attr, value);
+        await this.emit(attr, value);
+        return returnValue;
+    }
+
+    async delete(attr) {
+        const returnValue = super.delete(attr);
+        await this.emit(attr);
+        return returnValue;
+    }
+
+    async clear() {
+        const returnValue = super.clear();
+        await this.emit();
+        return returnValue;
+    }
+
+    #handlers = new Map;
+    defineHandler(attr, ...handlers) {
         const $handlers = [];
         for (let handler of handlers) {
             if (typeof handler === 'function') {
@@ -52,16 +89,10 @@ export class WebfloStorage extends Map {
             }
             $handlers.push(handler);
         }
-        registry.set(attr, $handlers);
-    }
-
-    defineReverseHandler(attr, ...handlers) {
-        return this.defineHandler(attr, false, ...handlers);
+        this.#handlers.set(attr, $handlers);
     }
 
     getHandlers() { return this.#handlers; }
-
-    getReverseHandlers() { return this.#reverseHandlers; }
 
     async require(attrs, callback = null, noNulls = false) {
         const entries = [];
@@ -94,7 +125,7 @@ export class WebfloStorage extends Map {
                         }
                         const messageID = (0 | Math.random() * 9e6).toString(36);
                         urlRewrite.searchParams.set('redirect-message', messageID);
-                        this.#session.set(`redirect-message:${messageID}`, { status: { type: handler.type || 'info', message: handler.message }});
+                        await this.#session.set(`redirect-message:${messageID}`, { status: { type: handler.type || 'info', message: handler.message }});
                     }
                     return new Response(null, { status: 302, headers: {
                         Location: urlRewrite

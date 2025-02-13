@@ -70,7 +70,11 @@ export class WebfloSubClient extends WebfloClient {
 	
 	get cx() { return this.#superRuntime.cx; }
 
+    get network() { return this.#superRuntime.network; }
+
 	get workport() { return this.#superRuntime.workport; }
+
+    get permissions() { return this.#superRuntime.permissions; }
 
     get withViewTransitions() { return this.host.hasAttribute('viewtransitions'); }
 

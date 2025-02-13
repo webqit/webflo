@@ -31,6 +31,8 @@ export class HttpEvent {
 
     get client() { return this.#init.client; }
 
+    get sdk() { return this.#init.sdk; }
+
     #requestCloneCallback;
     set onRequestClone(callback) {
         this.#requestCloneCallback = callback;
@@ -92,7 +94,7 @@ export class HttpEvent {
         const messageID = (0 | Math.random() * 9e6).toString(36);
         const $url = new URL(url, this.request.url);
         $url.searchParams.set('redirect-message', messageID);
-        this.session.set(`redirect-message:${messageID}`, data);
+        await this.session.set(`redirect-message:${messageID}`, data);
         await this.redirect($url, ...args);
     }
 
