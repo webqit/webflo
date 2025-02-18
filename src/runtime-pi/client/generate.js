@@ -25,13 +25,14 @@ export async function generate() {
     if (!cx.config.deployment?.Layout) {
         throw new Error(`The Client configurator "config.deployment.Layout" is required in context.`);
     }
+    const env = {};
     const clientConfig = await (new cx.config.runtime.Client(cx)).read();
-    clientConfig.env = {};
-    if (clientConfig.service_worker?.filename && !cx.config.runtime.client?.Worker) {
+    clientConfig.env = env;
+    if (clientConfig.capabilities?.service_worker && !cx.config.runtime.client?.Worker) {
         throw new Error(`The Service Worker configurator "config.runtime.client.Worker" is required in context.`);
     }
     const workerConfig = await (new cx.config.runtime.client.Worker(cx)).read();
-    workerConfig.env = {};
+    workerConfig.env = env;
     // -----------
     if (!cx.config.deployment?.Layout) {
         throw new Error(`The Layout configurator "config.deployment.Layout" is required in context.`);
@@ -42,20 +43,15 @@ export async function generate() {
     const dirClient = Path.resolve(cx.CWD || '', layoutConfig.CLIENT_DIR);
     const dirWorker = Path.resolve(cx.CWD || '', layoutConfig.WORKER_DIR);
     const dirSelf = Path.dirname(Url.fileURLToPath(import.meta.url)).replace(/\\/g, '/');
-    if (clientConfig.bundle_public_env || workerConfig.bundle_public_env) {
+    if (clientConfig.copy_public_variables) {
         if (!cx.config.deployment?.Env) {
             throw new Error(`The Layout configurator "config.deployment.Env" is required in context to bundle public env.`);
         }
         const envConfig = await (new cx.config.deployment.Env(cx)).read();
-        const env = { ...envConfig.entries, ...process.env };
-        for (const key in env) {
+        const $env = { ...envConfig.entries, ...process.env };
+        for (const key in $env) {
             if (!key.includes('PUBLIC_') && !key.includes('_PUBLIC')) continue;
-            if (clientConfig.bundle_public_env) {
-                clientConfig.env[key] = env[key];
-            }
-            if (workerConfig.bundle_public_env) {
-                workerConfig.env[key] = env[key];
-            }
+            env[key] = $env[key];
         }
     }
     // -----------
@@ -114,7 +110,14 @@ export async function generate() {
         gen.code.push(`const { start } = webqit.Webflo`);
         // ------------------
         // Bundle
-        declareStart.call(cx, gen, dirClient, dirPublic, clientConfig, spaRouting);
+        const paramsObj = structuredClone(clientConfig);
+        if (paramsObj.capabilities?.service_worker) {
+            paramsObj.capabilities.service_worker = {
+                filename: workerConfig.filename,
+                scope: workerConfig.scope
+            };
+        }
+        declareStart.call(cx, gen, dirClient, dirPublic, paramsObj, spaRouting);
         await bundle.call(cx, gen, Path.join(dirPublic, outfileMain), true/* asModule */);
         // ------------------
         // Embed/unembed
@@ -192,8 +195,14 @@ export async function generate() {
                 }
             }
         }
-        declareStart.call(cx, gen, dirWorker, dirPublic, workerConfig, workerRouting);
-        await bundle.call(cx, gen, Path.join(dirPublic, workerroot, clientConfig.service_worker.filename));
+        const paramsObj = structuredClone(workerConfig);
+        if (clientConfig.capabilities?.webpush) {
+            paramsObj.capabilities = {
+                webpush: true
+            };
+        }
+        declareStart.call(cx, gen, dirWorker, dirPublic, paramsObj, workerRouting);
+        await bundle.call(cx, gen, Path.join(dirPublic, workerroot, workerConfig.filename));
         // ------------------
         // Recurse
         workerGraphCallback && workerGraphCallback(workerroot, subworkerroots);
@@ -214,7 +223,7 @@ export async function generate() {
         await generateClient();
         Fs.existsSync(sparootsFile) && Fs.unlinkSync(sparootsFile);
     }
-    if (clientConfig.service_worker.filename) {
+    if (clientConfig.capabilities?.service_worker) {
         await generateWorker('/');
     }
 }

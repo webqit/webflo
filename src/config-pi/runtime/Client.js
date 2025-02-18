@@ -19,31 +19,34 @@ export default class Client extends Dotfile {
     // Defaults merger
     withDefaults(config) {
         return this.merge({
+            spa_routing: true,
             bundle_filename: 'bundle.js',
             public_base_url: '/',
-            spa_routing: true,
-            service_worker: {
-                filename: 'worker.js',
-                scope: '/',
-                support_push: false,
-                webflo_public_webhook_url_variable: 'WEBFLO_PUBLIC_WEBHOOK_URL',
-                webflo_vapid_public_key_variable: 'WEBFLO_VAPID_PUBLIC_KEY'
+            copy_public_variables: true,
+            capabilities: {
+                service_worker: true,
+                webpush: false,
+                custom_install: false,
+                exposed: ['display-mode', 'notifications'],
+                app_vapid_public_key_variable: 'APP_VAPID_PUBLIC_KEY',
+                app_public_webhook_url_variable: 'APP_PUBLIC_WEBHOOK_URL',
             },
-            bundle_public_env: false,
         }, config, 'patch');
     }
 
     // Questions generator
     getSchema(config, choices = {}) {
-        // Choices
-        const CHOICES = this.merge({
-            webqit_dependencies: [
-                {value: 'externalize', title: 'Externalize'},
-                {value: 'internalize', title: 'Internalize'},
-            ],
-        }, choices, 'patch');
         // Questions
         return [
+            {
+                name: 'spa_routing',
+                type: 'toggle',
+                message: '[spa_routing]: Enable Single Page Routing Mode',
+                active: 'YES',
+                inactive: 'NO',
+                initial: config.spa_routing,
+                validation: ['important'],
+            },
             {
                 name: 'bundle_filename',
                 type: 'text',
@@ -58,59 +61,60 @@ export default class Client extends Dotfile {
                 validation: ['important'],
             },
             {
-                name: 'spa_routing',
+                name: 'copy_public_variables',
                 type: 'toggle',
-                message: '[spa_routing]: Enable Single Page Routing Mode',
+                message: '[copy_public_variables]: Bundle public ENV variables?',
                 active: 'YES',
                 inactive: 'NO',
-                initial: config.spa_routing,
+                initial: config.copy_public_variables,
                 validation: ['important'],
             },
             {
-                name: 'service_worker',
+                name: 'capabilities',
                 controls: {
-                    name: 'service_worker',
+                    name: 'capabilities',
                 },
-                initial: config.service_worker,
+                initial: config.capabilities,
                 schema: [
                     {
-                        name: 'filename',
-                        type: 'text',
-                        message: 'Specify the Service Worker filename',
+                        name: 'service_worker',
+                        type: 'toggle',
+                        message: 'Enable service worker?',
+                        active: 'YES',
+                        inactive: 'NO',
                     },
                     {
-                        name: 'scope',
-                        type: 'text',
-                        message: 'Specify the Service Worker scope',
-                    },
-                    {
-                        name: 'support_push',
+                        name: 'webpush',
                         type: 'toggle',
                         message: 'Support push-notifications?',
                         active: 'YES',
                         inactive: 'NO',
                     },
                     {
-                        name: 'webflo_public_webhook_url_variable',
-                        type: (prev, answers) => answers.support_push ? 'text' : null,
-                        message: 'Enter the webhook URL for push notification subscription',
+                        name: 'custom_install',
+                        type: 'toggle',
+                        message: 'Enable custom PWA install prompt?',
+                        active: 'YES',
+                        inactive: 'NO',
                     },
                     {
-                        name: 'webflo_vapid_public_key_variable',
-                        type: (prev, answers) => answers.support_push ? 'text' : null,
-                        message: 'Enter the VAPID PUBLIC KEY variable for push notification subscription',
+                        name: 'exposed',
+                        type: 'list',
+                        message: 'Specify features exposed on capabilities.exposed',
+                        initial: (config.exposed || []).join(', '),
                     },
-                ],
-            },
-            {
-                name: 'bundle_public_env',
-                type: 'toggle',
-                message: '[bundle_public_env]: Bundle public ENV variables?',
-                active: 'YES',
-                inactive: 'NO',
-                initial: config.bundle_public_env,
-                validation: ['important'],
-            },
+                    {
+                        name: 'app_vapid_public_key_variable',
+                        type: (prev, answers) => !answers.webpush ? null : 'text',
+                        message: 'Enter the environment variable name for APP_VAPID_PUBLIC_KEY if not as written',
+                    },
+                    {
+                        name: 'app_public_webhook_url_variable',
+                        type: 'text',
+                        message: 'Enter the environment variable name for APP_PUBLIC_WEBHOOK_URL if not as written',
+                    },
+                ]
+            }
         ];
     }
 }

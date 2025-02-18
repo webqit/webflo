@@ -1,6 +1,7 @@
 import { WebfloClient } from './WebfloClient.js';
 import { Context } from './Context.js';
 import { Workport } from './Workport.js';
+import { Capabilities } from './Capabilities.js';
 
 const { Observer } = webqit;
 
@@ -9,6 +10,8 @@ export class WebfloRootClient1 extends WebfloClient {
 	static get Context() { return Context; }
 
 	static get Workport() { return Workport; }
+
+	static get Capabilities() { return Capabilities; }
 
 	static create(host, cx = {}) {
         return new this(host, this.Context.create(cx));
@@ -23,8 +26,8 @@ export class WebfloRootClient1 extends WebfloClient {
     #workport;
     get workport() { return this.#workport; }
 
-    #permissions;
-    get permissions() { return this.#permissions; }
+    #capabilities;
+    get capabilities() { return this.#capabilities; }
 
 	constructor(host, cx) {
 		if (!(host instanceof Document)) {
@@ -36,33 +39,41 @@ export class WebfloRootClient1 extends WebfloClient {
 		}
 		this.#cx = cx;
 		this.#network = { status: window.navigator.onLine };
-		this.#workport = new this.constructor.Workport;
 	}
 
-	initialize() {
-		// Main initializations
-		const undoControl = super.initialize();
+	async initialize() {
+		// --------
+		// INITIALIZATIONS
+		const cleanups = [await super.initialize()];
+		// --------
+		// Service Worker && Capabilities
+		if (this.cx.params.capabilities?.service_worker?.filename) {
+			const { service_worker: { filename, ...restServiceWorkerParams } = {} } = this.cx.params.capabilities;
+			this.#workport = await this.constructor.Workport.initialize(null, (this.cx.params.public_base_url || '') + filename, restServiceWorkerParams);
+			cleanups.push(() => this.#workport.close());
+		}
+		this.#capabilities = await this.constructor.Capabilities.initialize({ ...this.cx.params.capabilities, env: this.cx.params.env });
+		cleanups.push(() => this.#capabilities.close());
+		// --------
         // Bind network status handlers
         const onlineHandler = () => Observer.set(this.network, 'status', window.navigator.onLine);
         window.addEventListener('online', onlineHandler);
         window.addEventListener('offline', onlineHandler);
-		let $undoControl = () => {
-            window.removeEventListener('online', onlineHandler);
+		cleanups.push(() => {
+			window.removeEventListener('online', onlineHandler);
             window.removeEventListener('offline', onlineHandler);
-            undoControl();
-        };
+		});
+		// --------
 		// Window opener pinging
+		let beforeunloadCleanup;
 		if (window.opener) {
-			const $$undoControl = $undoControl;
-			const beforeunloadHandler = () => {
-				window.opener.postMessage('close');
-			};
+			const beforeunloadHandler = () => window.opener.postMessage('close');
 			window.addEventListener('beforeunload', beforeunloadHandler);
-			$undoControl = () => {
+			cleanups.push(() => {
 				window.removeEventListener('beforeunload', beforeunloadHandler);
-				$$undoControl();
-			};
+			});
 		}
+		// --------
 		// Bind global prompt handlers
         const promptsHandler = (e) => {
             e.stopPropagation();
@@ -81,21 +92,10 @@ export class WebfloRootClient1 extends WebfloClient {
 				});
             }, 10);
         };
-        this.backgroundMessaging.handleMessages('confirm', promptsHandler);
-        this.backgroundMessaging.handleMessages('prompt', promptsHandler);
-		// Service Worker && COMM
-		if (this.cx.params.service_worker?.filename) {
-			const { public_base_url: base, service_worker: { filename, ...restServiceWorkerParams } } = this.cx.params;
-			const { webflo_public_webhook_url_variable, webflo_vapid_public_key_variable, ..._restServiceWorkerParams } = restServiceWorkerParams;
-			const swParams = {
-				..._restServiceWorkerParams,
-				WEBFLO_PUBLIC_WEBHOOK_URL: this.cx.params.env[webflo_public_webhook_url_variable],
-				WEBFLO_VAPID_PUBLIC_KEY: this.cx.params.env[webflo_vapid_public_key_variable],
-				startMessages: true
-			};
-			this.#workport.registerServiceWorker(base + filename, swParams);
-		}
-		// Respond to background activity request at pageload
+		cleanups.push(this.backgroundMessaging.handleMessages('confirm', promptsHandler));
+        cleanups.push(this.backgroundMessaging.handleMessages('prompt', promptsHandler));
+		// --------
+		// HYDRATION
 		const scope = {};
         if (scope.backgroundMessagingMeta = document.querySelector('meta[name="X-Background-Messaging"]')) {
 			scope.backgroundMessaging = this.$createBackgroundMessagingFrom(scope.backgroundMessagingMeta.content);
@@ -110,7 +110,9 @@ export class WebfloRootClient1 extends WebfloClient {
 				});
 			} catch(e) {}
         }
-		return $undoControl;
+		// --------
+		// CLEAN UP
+		return () => cleanups.forEach((c) => c());
 	}
 
 	/**
@@ -121,7 +123,7 @@ export class WebfloRootClient1 extends WebfloClient {
 
 	control() {
 		// IMPORTANT: we're calling super.controlClassic()
-		const undoControl = super.controlClassic((newHref) => {
+		const cleanupSuper = super.controlClassic((newHref) => {
             try {
                 // Save current scroll position
                 window.history.replaceState({
@@ -153,7 +155,7 @@ export class WebfloRootClient1 extends WebfloClient {
 		window.addEventListener('popstate', popstateHandler);
         return () => {
             this.host.removeEventListener('popstate', popstateHandler);
-            undoControl();
+            cleanupSuper();
         };
 	}
 

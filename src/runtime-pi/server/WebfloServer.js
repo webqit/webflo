@@ -197,7 +197,7 @@ export class WebfloServer extends WebfloRuntime {
         if (!scope.error) {
             if (!hosts.includes(scope.url.hostname) && !hosts.includes('*')) {
                 scope.error = 'Unrecognized host';
-            } else if (scope.url.protocol === 'ws:' && this.#cx.server.https.force) {
+            } else if (scope.url.protocol === 'ws:' && this.#cx.server.https.port && this.#cx.server.https.force) {
                 scope.error = `Only secure connections allowed (wss:)`;
             } else if (scope.url.hostname.startsWith('www.') && this.#cx.server.force_www === 'remove') {
                 scope.error = `Connections not allowed over the www subdomain`;
@@ -209,7 +209,7 @@ export class WebfloServer extends WebfloRuntime {
         // Level 3 validation
         // and actual processing
         scope.request = this.createRequest(scope.url.href, requestInit);
-        scope.session = this.constructor.SessionStorage.create(scope.request, { secret: this.#cx.env.entries[this.#cx.server.webflo_session_key_variable] });
+        scope.session = this.constructor.SessionStorage.create(scope.request, { secret: this.#cx.env.entries[this.#cx.server.session_key_variable] });
         if (!scope.error) {
             if (!(scope.clientMessagingRegistry = this.#globalMessagingRegistry.get(scope.session.sessionID))) {
                 scope.error = `Lost or invalid clientID`;
@@ -258,7 +258,7 @@ export class WebfloServer extends WebfloRuntime {
             if (!hosts.includes(scope.url.hostname) && !hosts.includes('*')) {
                 scope.exit = { status: 500 };
                 scope.exitMessage = 'Unrecognized host';
-            } else if (scope.url.protocol === 'http:' && this.#cx.server.https.force) {
+            } else if (scope.url.protocol === 'http:' && this.#cx.server.https.port && this.#cx.server.https.force) {
                 scope.exit = {
                     status: 302,
                     headers: { Location: (scope.url.protocol = 'https:', scope.url.href) }
@@ -494,7 +494,8 @@ export class WebfloServer extends WebfloRuntime {
             },
             respondWith: async (response, isRedirectMessage = false) => {
                 if (!isRedirectMessage && scope.eventLifecyclePromises.dirty && !scope.eventLifecyclePromises.size) {
-                    throw new Error('Final response already sent');
+                    console.error('Final response already sent');
+                    return;
                 }
                 return await this.execPush(scope.clientMessaging, response);
             },
@@ -506,7 +507,7 @@ export class WebfloServer extends WebfloRuntime {
             : [];
         scope.request = this.createRequest(scope.url.href, scope.init, scope.autoHeaders.filter((header) => header.type === 'request'));
         scope.cookies = this.constructor.CookieStorage.create(scope.request);
-        scope.session = this.constructor.SessionStorage.create(scope.request, { secret: this.#cx.env.entries[this.#cx.server.webflo_session_key_variable] });
+        scope.session = this.constructor.SessionStorage.create(scope.request, { secret: this.#cx.env.entries[this.#cx.server.session_key_variable] });
         const sessionID = scope.session.sessionID;
         if (!this.#globalMessagingRegistry.has(sessionID)) {
             this.#globalMessagingRegistry.set(sessionID, new ClientMessagingRegistry(this, sessionID));
@@ -525,14 +526,15 @@ export class WebfloServer extends WebfloRuntime {
             session: scope.session,
             user: scope.user,
             client: scope.clientMessaging,
-            sdk: { webpush }
+            sdk: { ...(this.#cx.server.capabilities?.webpush ? { webpush } : {}) }
         });
-        if (this.#cx.env.entries[this.#cx.server.webflo_vapid_public_key_variable]
-        && this.#cx.env.entries[this.#cx.server.webflo_vapid_private_key_variable]) {
+        if (this.#cx.server.capabilities?.webpush
+        && this.#cx.env.entries[this.#cx.server.capabilities.app_vapid_public_key_variable]
+        && this.#cx.env.entries[this.#cx.server.capabilities.app_vapid_private_key_variable]) {
             webpush.setVapidDetails(
                 scope.url.origin.replace(/^http:/i, 'https:'),
-                this.#cx.env.entries[this.#cx.server.webflo_vapid_public_key_variable],
-                this.#cx.env.entries[this.#cx.server.webflo_vapid_private_key_variable]
+                this.#cx.env.entries[this.#cx.server.capabilities.app_vapid_public_key_variable],
+                this.#cx.env.entries[this.#cx.server.capabilities.app_vapid_private_key_variable]
             );
         }
         await this.setup(scope.httpEvent);

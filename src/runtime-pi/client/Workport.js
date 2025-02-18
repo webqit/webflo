@@ -1,4 +1,6 @@
+import { _isObject } from '@webqit/util/js/index.js';
 import { WebfloMessagingAPI } from '../WebfloMessagingAPI.js';
+import { WebfloMessageEvent } from '../WebfloMessageEvent.js';
 
 export class Workport extends WebfloMessagingAPI {
 
@@ -11,12 +13,16 @@ export class Workport extends WebfloMessagingAPI {
     #ready;
     get ready() { return this.#ready; }
 
-    static async create(parentNode, file, params = {}) {
+    #active;
+    get active() { return this.#active; }
+
+    static async initialize(parentNode, file, params = {}) {
         const registration = (await navigator.serviceWorker.getRegistration())
             || (await navigator.serviceWorker.register(file, { scope: '/', ...params }));
         return new this(parentNode, registration, params);
     }
 
+    #messageHandler;
     constructor(parentNode, registration, params = {}) {
         super(parentNode, params);
         this.#registration = registration;
@@ -26,17 +32,20 @@ export class Workport extends WebfloMessagingAPI {
         const stateChange = (target) => {
             // target.state can be any of: "parsed", "installing", "installed", "activating", "activated", "redundant"
             if (target.state === 'redundant') {
-                //this.remove(target);
             } else if (target.state === 'activated') {
-                //this.add(target);
+                const existing = this.#active;
+                this.#active = target;
+                if (!existing) {
+                    this.$emit('connected');
+                }
             }
         }
         // We're always installing at first for a new service worker.
         // An existing service would immediately be active
-        const worker = this.#registration.active || this.#registration.waiting || this.#registration.installing;
-        if (worker)  {
-            stateChange(worker);
-            worker.addEventListener('statechange', (e) => stateChange(e.target));
+        const initial = this.#registration.active || this.#registration.waiting || this.#registration.installing;
+        if (initial)  {
+            stateChange(initial);
+            initial.addEventListener('statechange', (e) => stateChange(e.target));
             // "updatefound" event - a new worker that will control
             // this page is installing somewhere
             this.#registration.addEventListener('updatefound', () => {
@@ -46,33 +55,18 @@ export class Workport extends WebfloMessagingAPI {
                 this.#registration.installing.addEventListener('statechange', (e) => stateChange(e.target));
             });
         }
-
-
-
-
-
-        this.#worker.start?.();
-        const messageHandler = async (event) => {
-            if (this.isPrimary && event.data === 'connection') {
-                this.$emit('connected');
-            }
-            if (event.data === 'close') {
-                // Endpoint 2 is closed
-                this.#port.removeEventListener('message', messageHandler);
-                this.dispatchEvent(new Event('close'));
-                this.$destroy();
-            }
+        this.#messageHandler = async (event) => {
             if (!_isObject(event.data) || !['messageType', 'message'].every((k) => k in event.data)) {
                 return;
             }
-            this.dispatchEvent(new ChannelMessageEvent(
+            this.dispatchEvent(new WorkerMessageEvent(
                 this,
                 event.data.messageType,
                 event.data.message,
                 event.ports
             ));
         };
-        this.#worker.addEventListener('message', messageHandler);
+        navigator.serviceWorker.addEventListener('message', this.#messageHandler);
     }
 
     postMessage(message, transferOrOptions = []) {
@@ -81,83 +75,17 @@ export class Workport extends WebfloMessagingAPI {
                 transferOrOptions = { transfer: transferOrOptions };
             }
             const { messageType = 'message', ...options } = transferOrOptions;
-            return this.#port.postMessage({
+            return this.#active.postMessage({
                 messageType,
                 message
             }, options);
         });
         super.postMessage(message, transferOrOptions);
     }
-    
-    async getPushSubscription(autoPrompt = true) {
-        if (!this.#registration) {
-            throw new Error(`Service worker not registered`);
-        }
-        await this.#swReady;
-        const pushManager = (await this.#registration).pushManager;
-        let subscription = await pushManager.getSubscription();
-        if (!subscription && autoPrompt && this.#swParams.WEBFLO_VAPID_PUBLIC_KEY) {
-            subscription = await pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(this.#swParams.WEBFLO_VAPID_PUBLIC_KEY),
-            });
-            if (this.#swParams.WEBFLO_PUBLIC_WEBHOOK_URL) {
-                await fetch(this.#swParams.WEBFLO_PUBLIC_WEBHOOK_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        type: 'push.subscribe',
-                        data: subscription
-                    })
-                });
-            }
-        }
-        return {
-            ...subscription,
-            unsubscribe: async () => {
-                subscription.unsubscribe();
-                if (this.#swParams.WEBFLO_PUBLIC_WEBHOOK_URL) {
-                    await fetch(this.#swParams.WEBFLO_PUBLIC_WEBHOOK_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', },
-                        body: JSON.stringify({
-                            type: 'push.unsubscribe',
-                            data: subscription
-                        })
-                    });
-                }
-            }
-        };
-    }
 
-    async requestNotificationPermission() {
-        return await new Promise(async (resolve, reject) => {
-            const permissionResult = Notification.requestPermission(resolve);
-            if (permissionResult) {
-                permissionResult.then(resolve, reject);
-            }
-        });
-    }
-
-    async showNotification(title, params = {}) {
-        const registration = await navigator.serviceWorker.getRegistration();
-        if (registration) {
-            return registration.showNotification(title, params);
-        }
-        return new Notification(title, params);
+    close() {
+        navigator.serviceWorker.removeEventListener('message', this.#messageHandler);
     }
 }
 
-// Public base64 to Uint
-function urlBase64ToUint8Array(base64String) {
-    var padding = '='.repeat((4 - base64String.length % 4) % 4);
-    var base64 = (base64String + padding)
-        .replace(/\-/g, '+')
-        .replace(/_/g, '/');
-    var rawData = window.atob(base64);
-    var outputArray = new Uint8Array(rawData.length);
-    for (var i = 0; i < rawData.length; ++i) {
-        outputArray[i] = rawData.charCodeAt(i);
-    }
-    return outputArray;
-}
+export class WorkerMessageEvent extends WebfloMessageEvent {}

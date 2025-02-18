@@ -68,7 +68,7 @@ export class WebfloClient extends WebfloRuntime {
         };
     }
 
-    initialize() {
+    async initialize() {
 		this.#backgroundMessaging = new MultiportMessagingAPI(this, { runtime: this });
         // Bind response and redirect handlers
         const responseHandler = (e) => {
@@ -88,10 +88,14 @@ export class WebfloClient extends WebfloRuntime {
                 });
             }, 10);
         };
-        this.backgroundMessaging.handleMessages('response', responseHandler);
-        this.backgroundMessaging.handleMessages('redirect', responseHandler);
-        // Start controlling
-        return this.control();
+        const responseHandler1Cleanup = this.backgroundMessaging.handleMessages('response', responseHandler);
+        const responseHandler2Cleanup = this.backgroundMessaging.handleMessages('redirect', responseHandler);
+        const controlCleanup = this.control();
+        return () => {
+            responseHandler1Cleanup();
+            responseHandler2Cleanup();
+            controlCleanup();
+        };
     }
 
     controlClassic(locationCallback) {
@@ -527,9 +531,8 @@ export class WebfloClient extends WebfloRuntime {
                     navigator: this.navigator,
                     location: this.location,
                     network: this.network, // request, redirect, error, status, remote
+                    capabilities: this.capabilities,
                     transition: this.transition,
-                    permissions: this.permissions,
-                    background: null
                 }, { diff: true, merge });
                 let overridenKeys;
                 if (_isObject(data) && (overridenKeys = ['env', 'navigator', 'location', 'network', 'transition', 'background'].filter((k) => k in data)).length) {

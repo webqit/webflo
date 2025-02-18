@@ -61,7 +61,7 @@ export class HttpEvent {
         }
     }
 
-    #response = null;
+    #response = undefined;
     get response() { return this.#response; }
 
     async respondWith(response) {
@@ -116,7 +116,7 @@ export class HttpEvent {
                         if (endOfStream) {
                             res(response);
                         } else {
-                            await this.client.postMessage(response, { messageType: 'response' });
+                            await this.respondWith(response);
                         }
                     });                    
                     poll(typeof maxClock === 'number' && maxClock > 0 ? --maxClock : maxClock);
@@ -124,20 +124,32 @@ export class HttpEvent {
                 poll(maxClock);
             };
             // Life cycle management
-            this.client.on('connected', () => {
-                state.connected = true;
-                start();
-            });
-            this.client.on('empty', () => {
-                state.connected = false;
-            });
-            this.client.handleMessages('navigation', (e) => {
-                if (!crossNavigation
-                || (crossNavigation === -1 && e.data.pathname === this.url.pathname)
-                || (typeof crossNavigation === 'function' && !crossNavigation(e.data))) {
-                    state.navigatedAway = true;
-                }
-            });
+            if (this.#response === undefined) {
+                callback(async (response, endOfStream = false) => {
+                    if (endOfStream) {
+                        state.earlyTermination = true;
+                        res(response);
+                    } else {
+                        await this.respondWith(response);
+                    }
+                });
+            }
+            if (!state.earlyTermination) {
+                this.client.on('connected', () => {
+                    state.connected = true;
+                    start();
+                });
+                this.client.on('empty', () => {
+                    state.connected = false;
+                });
+                this.client.handleMessages('navigation', (e) => {
+                    if (!crossNavigation
+                    || (crossNavigation === -1 && e.data.pathname === this.url.pathname)
+                    || (typeof crossNavigation === 'function' && !crossNavigation(e.data))) {
+                        state.navigatedAway = true;
+                    }
+                });
+            }
             setTimeout(() => {
                 if (!state.connected) {
                     res();

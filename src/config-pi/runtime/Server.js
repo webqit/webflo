@@ -29,10 +29,12 @@ export default class Server extends Dotfile {
                 force: false,
             },
             force_www: '',
-            webflo_session_key_variable: 'WEBFLO_SESSION_KEY',
-            support_push: false,
-            webflo_vapid_public_key_variable: 'WEBFLO_VAPID_PUBLIC_KEY',
-            webflo_vapid_private_key_variable: 'WEBFLO_VAPID_PRIVATE_KEY'
+            session_key_variable: 'APP_SESSION_KEY',
+            capabilities: {
+                webpush: false,
+                app_vapid_public_key_variable: 'APP_VAPID_PUBLIC_KEY',
+                app_vapid_private_key_variable: 'APP_VAPID_PRIVATE_KEY'
+            },
         }, config, 'patch');
     }
 
@@ -59,6 +61,7 @@ export default class Server extends Dotfile {
                 name: 'domains',
                 type: 'list',
                 message: '[domains]: Enter a list of allowed domains if necessary (comma-separated)',
+                initial: (config.domains || []).join(', '),
                 validation: ['important'],
             },
             {
@@ -67,6 +70,12 @@ export default class Server extends Dotfile {
                 message: '[force_www]: Force add/remove "www" on hostname?',
                 choices: CHOICES.force_www,
                 initial: this.indexOfInitial(CHOICES.force_www, config.force_www),
+            },
+            {
+                name: 'session_key_variable',
+                type: 'text',
+                message: 'Enter the environment variable name for APP_SESSION_KEY if not as written',
+                initial: config.session_key_variable,
             },
             {
                 name: 'https',
@@ -109,26 +118,30 @@ export default class Server extends Dotfile {
                 ],
             },
             {
-                name: 'webflo_session_key_variable',
-                type: (prev, answers) => answers.support_push ? 'text' : null,
-                message: 'Enter the SESSION KEY variable for session ID encryption',
-            },
-            {
-                name: 'support_push',
-                type: 'toggle',
-                message: 'Support push-notifications?',
-                active: 'YES',
-                inactive: 'NO',
-            },
-            {
-                name: 'webflo_vapid_public_key_variable',
-                type: (prev, answers) => answers.support_push ? 'text' : null,
-                message: 'Enter the VAPID PUBLIC KEY variable for push notification setup',
-            },
-            {
-                name: 'webflo_vapid_private_key_variable',
-                type: (prev, answers) => answers.support_push ? 'text' : null,
-                message: 'Enter the VAPID PRIVATE KEY variable for push notification setup',
+                name: 'capabilities',
+                controls: {
+                    name: 'capabilities',
+                },
+                initial: config.capabilities,
+                schema: [
+                    {
+                        name: 'webpush',
+                        type: 'toggle',
+                        message: 'Support push-notifications?',
+                        active: 'YES',
+                        inactive: 'NO',
+                    },
+                    {
+                        name: 'app_vapid_public_key_variable',
+                        type: (prev, answers) => !answers.webpush ? null : 'text',
+                        message: 'Enter the environment variable name for APP_VAPID_PUBLIC_KEY if not as written',
+                    },
+                    {
+                        name: 'app_vapid_private_key_variable',
+                        type: (prev, answers) => !answers.webpush ? null : 'text',
+                        message: 'Enter the environment variable name for APP_VAPID_PRIVATE_KEY if not as written',
+                    },
+                ]
             },
         ];
     }

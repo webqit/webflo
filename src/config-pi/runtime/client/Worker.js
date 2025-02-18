@@ -21,14 +21,15 @@ export default class Worker extends Dotfile {
     // Defaults merger
     withDefaults(config) {
         return this.merge({
+            filename: 'worker.js',
+            scope: '/',
+            skip_waiting: true,
             cache_name: 'cache_v0',
             default_fetching_strategy: 'network-first',
             network_first_urls: [],
             cache_first_urls: [],
             network_only_urls: [],
             cache_only_urls: [],
-            skip_waiting: true,
-            bundle_public_env: false,
         }, config, 'patch');
     }
 
@@ -49,6 +50,24 @@ export default class Worker extends Dotfile {
         }, choices, 'patch');
         // Questions
         return [
+            {
+                name: 'filename',
+                type: 'text',
+                message: 'Specify the Service Worker filename',
+            },
+            {
+                name: 'scope',
+                type: 'text',
+                message: 'Specify the Service Worker scope',
+            },
+            {
+                name: 'skip_waiting',
+                type: 'toggle',
+                message: 'Choose whether to skip the "waiting" state for updated Service Workers',
+                active: 'YES',
+                inactive: 'NO',
+                initial: config.skip_waiting,
+            },
             {
                 name: 'cache_name',
                 type: 'text',
@@ -86,24 +105,7 @@ export default class Worker extends Dotfile {
                 type: (prev, answers) => answers.default_fetching_strategy === 'cache-only' ? null : 'list',
                 message: 'Specify URLs for a "cache-only" fetching strategy (comma-separated, globe supported)',
                 initial: (config.cache_only_urls || []).join(', '),
-            },
-            {
-                name: 'skip_waiting',
-                type: 'toggle',
-                message: 'Choose whether to skip the "waiting" state for updated Service Workers',
-                active: 'YES',
-                inactive: 'NO',
-                initial: config.skip_waiting,
-            },
-            {
-                name: 'bundle_public_env',
-                type: 'toggle',
-                message: '[bundle_public_env]: Bundle public ENV variables?',
-                active: 'YES',
-                inactive: 'NO',
-                initial: config.bundle_public_env,
-                validation: ['important'],
-            },
+            }
         ];
     }
 }

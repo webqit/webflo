@@ -1,8 +1,9 @@
 import { WebfloWorker } from './WebfloWorker.js';
 
-export function start() {
+export async function start() {
     const instance = WebfloWorker.create(this || {});
-    instance.initialize();
+    await instance.initialize();
+    return instance;
 }
 
 export {

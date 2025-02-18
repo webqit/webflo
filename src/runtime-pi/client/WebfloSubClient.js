@@ -50,9 +50,9 @@ export class WebfloSubClient extends WebfloClient {
 				this.location = newValue;
 			}
 	
-			connectedCallback() {
+			async connectedCallback() {
 				this.#superRuntime = (this.parentNode?.closest(embedTagNames) || document).webfloRuntime;
-				this.#webfloControllerUninitialize = WebfloSubClient.create(this, this.#superRuntime).initialize();
+				this.#webfloControllerUninitialize = await WebfloSubClient.create(this, this.#superRuntime).initialize();
 			}
 	
 			disconnectedCallback() {
@@ -74,7 +74,7 @@ export class WebfloSubClient extends WebfloClient {
 
 	get workport() { return this.#superRuntime.workport; }
 
-    get permissions() { return this.#superRuntime.permissions; }
+    get capabilities() { return this.#superRuntime.capabilities; }
 
     get withViewTransitions() { return this.host.hasAttribute('viewtransitions'); }
 
@@ -89,11 +89,11 @@ export class WebfloSubClient extends WebfloClient {
 		this.#superRuntime = superRuntime;
 	}
 
-	initialize() {
+	async initialize() {
 		if (this.host.location.origin !== window.location.origin) {
 			throw new Error(`Webflo embeddable origin violation in "${window.location}"`);
 		}
-		const uncontrols = super.initialize();
+		const cleanupSuper = await super.initialize();
 		this.backgroundMessaging.setParent(this.#superRuntime.backgroundMessaging);
 		if (this.host.getAttribute('location')) {
 			this.navigate(this.location.href);
@@ -102,7 +102,7 @@ export class WebfloSubClient extends WebfloClient {
 			if (this.backgroundMessaging.parentNode === this.#superRuntime.backgroundMessaging) {
 				this.backgroundMessaging.setParent(null);
 			}
-			uncontrols();
+			cleanupSuper();
 		};
 	}
 	

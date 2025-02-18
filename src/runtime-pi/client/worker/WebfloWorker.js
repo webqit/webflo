@@ -25,13 +25,13 @@ export class WebfloWorker extends WebfloRuntime {
 
 	static get SessionStorage() { return SessionStorage; }
 
-    static get HttpUser() { return HttpUser; }
+	static get HttpUser() { return HttpUser; }
 
 	static get Workport() { return Workport; }
 
 	static create(cx) {
-        return new this(this.Context.create(cx));
-    }
+		return new this(this.Context.create(cx));
+	}
 
 	#cx;
 	get cx() { return this.#cx; }
@@ -44,7 +44,7 @@ export class WebfloWorker extends WebfloRuntime {
 		this.#cx = cx;
 	}
 
-	initialize() {
+	async initialize() {
 		// ONINSTALL
 		const installHandler = (event) => {
 			if (this.cx.params.skip_waiting) self.skipWaiting();
@@ -53,7 +53,7 @@ export class WebfloWorker extends WebfloRuntime {
 				// Add files to cache
 				event.waitUntil(self.caches.open(this.cx.params.cache_name).then(async cache => {
 					if (this.cx.logger) { this.cx.logger.log('[ServiceWorker] Pre-caching resources.'); }
-					for (const urls of [ 'cache_first_urls', 'cache_only_urls' ]) {
+					for (const urls of ['cache_first_urls', 'cache_only_urls']) {
 						const _urls = (this.cx.params[urls] || []).map(c => c.trim()).filter(c => c && !pattern(c, self.origin).isPattern());
 						await cache.addAll(_urls);
 					}
@@ -74,7 +74,7 @@ export class WebfloWorker extends WebfloRuntime {
 								return self.caches.delete(key);
 							}
 						}));
-					}) 
+					})
 				}
 				resolve();
 			}));
@@ -82,11 +82,11 @@ export class WebfloWorker extends WebfloRuntime {
 		self.addEventListener('install', installHandler);
 		self.addEventListener('activate', activateHandler);
 		const uncontrols = this.control();
-        return () => {
-            self.removeEventListener('install', installHandler);
-            self.removeEventListener('activate', activateHandler);
+		return () => {
+			self.removeEventListener('install', installHandler);
+			self.removeEventListener('activate', activateHandler);
 			uncontrols();
-        };
+		};
 	}
 
 	control() {
@@ -112,42 +112,54 @@ export class WebfloWorker extends WebfloRuntime {
 				event.respondWith(this.navigate(event.request.url, event.request, { event }));
 			}
 		};
+		const webpushHandler = (event) => {
+			if (!(self.Notification && self.Notification.permission === 'granted')) return;
+			let data;
+			try {
+				data = event.data?.json() ?? {};
+			} catch(e) { return; }
+			const { type, title, ...params } = data;
+			if (type !== 'notification') return;
+			self.registration.showNotification(title, params);
+		};
 		self.addEventListener('fetch', fetchHandler);
-        return () => {
-            self.removeEventListener('fetch', fetchHandler);
-        };
+		self.addEventListener('push', webpushHandler);
+		return () => {
+			self.removeEventListener('fetch', fetchHandler);
+			self.removeEventListener('push', webpushHandler);
+		};
 	}
 
-    createRequest(href, init = {}) {
+	createRequest(href, init = {}) {
 		if (init instanceof Request && init.url === (href.href || href)) {
 			return init;
 		}
 		return new Request(href, init);
-    }
+	}
 
 	async navigate(url, init = {}, detail = {}) {
 		// Resolve inputs
-        const scope = { url, init, detail };
+		const scope = { url, init, detail };
 		if (typeof scope.url === 'string') {
 			scope.url = new URL(scope.url, self.location.origin);
 		}
 		// ---------------
-        // Event lifecycle
-        scope.eventLifecyclePromises = new Set;
-        scope.eventLifecycleHooks = {
-            waitUntil: (promise) => {
-                promise = Promise.resolve(promise);
-                scope.eventLifecyclePromises.add(promise);
-                scope.eventLifecyclePromises.dirty = true;
-                promise.then(() => scope.eventLifecyclePromises.delete(promise));
-            },
-            respondWith: async (response) => {
-                if (scope.eventLifecyclePromises.dirty && !scope.eventLifecyclePromises.size) {
-                    throw new Error('Final response already sent');
-                }
-                return await this.execPush(scope.clientMessaging, response);
-            },
-        };
+		// Event lifecycle
+		scope.eventLifecyclePromises = new Set;
+		scope.eventLifecycleHooks = {
+			waitUntil: (promise) => {
+				promise = Promise.resolve(promise);
+				scope.eventLifecyclePromises.add(promise);
+				scope.eventLifecyclePromises.dirty = true;
+				promise.then(() => scope.eventLifecyclePromises.delete(promise));
+			},
+			respondWith: async (response) => {
+				if (scope.eventLifecyclePromises.dirty && !scope.eventLifecyclePromises.size) {
+					throw new Error('Final response already sent');
+				}
+				return await this.execPush(scope.clientMessaging, response);
+			},
+		};
 		// Create and route request
 		scope.request = this.createRequest(scope.url, scope.init);
 		scope.cookies = this.constructor.CookieStorage.create(scope.request);
@@ -170,9 +182,9 @@ export class WebfloWorker extends WebfloRuntime {
 		});
 		await this.setup(scope.httpEvent);
 		// Restore session before dispatching
-		if (scope.request.method === 'GET' 
-		&& (scope.redirectMessageID = scope.httpEvent.url.query['redirect-message'])
-		&& (scope.redirectMessage = scope.session.get(`redirect-message:${scope.redirectMessageID}`))) {
+		if (scope.request.method === 'GET'
+			&& (scope.redirectMessageID = scope.httpEvent.url.query['redirect-message'])
+			&& (scope.redirectMessage = scope.session.get(`redirect-message:${scope.redirectMessageID}`))) {
 			await scope.session.delete(`redirect-message:${scope.redirectMessageID}`);
 		}
 		// Dispatch for response
@@ -184,30 +196,30 @@ export class WebfloWorker extends WebfloRuntime {
 			return await this.remoteFetch(event.request);
 		});
 		// ---------------
-        // Response processing
-        scope.response = await this.normalizeResponse(scope.httpEvent, scope.response);
+		// Response processing
+		scope.response = await this.normalizeResponse(scope.httpEvent, scope.response);
 		scope.hasBackgroundActivity = scope.clientMessaging.isMessaging() || scope.eventLifecyclePromises.size || (scope.redirectMessage && !scope.response.headers.get('Location'));
 		if (scope.hasBackgroundActivity) {
 			scope.response.headers.set('X-Background-Messaging', `ch:${scope.clientMessaging.port.name}`);
-        }
+		}
 		if (scope.response.headers.get('Location')) {
-            if (scope.redirectMessage) {
-                scope.session.set(`redirect-message:${scope.redirectMessageID}`, scope.redirectMessage);
-            }
+			if (scope.redirectMessage) {
+				scope.session.set(`redirect-message:${scope.redirectMessageID}`, scope.redirectMessage);
+			}
 		} else {
 			if (scope.redirectMessage) {
-                scope.eventLifecycleHooks.respondWith(scope.redirectMessage);
-            }
+				scope.eventLifecycleHooks.respondWith(scope.redirectMessage);
+			}
 		}
-        Promise.all([...scope.eventLifecyclePromises]).then(() => {
-            if (scope.clientMessaging.isMessaging()) {
-                scope.clientMessaging.on('connected', () => {
-                    setTimeout(() => {
-                        scope.clientMessaging.close();
-                    }, 100);
-                });
-            } else scope.clientMessaging.close();
-        });
+		Promise.all([...scope.eventLifecyclePromises]).then(() => {
+			if (scope.clientMessaging.isMessaging()) {
+				scope.clientMessaging.on('connected', () => {
+					setTimeout(() => {
+						scope.clientMessaging.close();
+					}, 100);
+				});
+			} else scope.clientMessaging.close();
+		});
 		return scope.response;
 	}
 
@@ -289,7 +301,7 @@ export class WebfloWorker extends WebfloRuntime {
 
 	async getRequestCache(request) {
 		const cacheName = request.headers.get('Accept') === 'application/json'
-			? this.cx.params.cache_name + '_json' 
+			? this.cx.params.cache_name + '_json'
 			: this.cx.params.cache_name;
 		return self.caches.open(cacheName);
 	}
