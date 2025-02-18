@@ -168,8 +168,9 @@ export class HttpEvent {
             request = !_isEmpty(init) ? new Request(url, init) : url;
         } else {
             url = new xURL(url, this.#url.origin);
-            init = await Request.copy(this.request, init);
-            request = new Request(url, { ...init, referrer: this.request.url });
+            const { url: _, ...$init } = await Request.copy(this.request, init);
+            init = $init;
+            request = Request.create(url, { ...init, referrer: this.request.url });
         }            
         return new HttpEvent(this, { ...this.#init, request });
     }

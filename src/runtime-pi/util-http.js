@@ -47,6 +47,9 @@ export function renderHttpMessageInit(httpMessageInit) {
 }
 
 export async function parseHttpMessage(httpMessage) {
+    if (httpMessage.meta && 'body' in httpMessage.meta && httpMessage.meta.type === 'json') {
+        return httpMessage.meta.body;
+    }
     let result;
     const contentType = httpMessage.headers.get('Content-Type') || '';
     if (contentType === 'application/x-www-form-urlencoded' || contentType.startsWith('multipart/form-data')) {
@@ -132,9 +135,19 @@ Object.defineProperties(Request, {
         value: async function (request, init = {}) {
             const requestInit = [
                 'method', 'headers', 'mode', 'credentials', 'cache', 'redirect', 'referrer', 'integrity',
-            ].reduce((init, prop) => ({ [prop]: request[prop], ...init }), {});
+            ].reduce(($init, prop) => (
+                { ...$init, [prop]: prop in init ? init[prop] : (prop === 'headers' ? new Headers(request[prop]) : request[prop]) }
+            ), {});
             if (!['GET', 'HEAD'].includes(init.method?.toUpperCase() || request.method)) {
-                requestInit.body = await request.clone().arrayBuffer();
+                if ('body' in init) {
+                    requestInit.body = init.body
+                    if (!('headers' in init)) {
+                        requestInit.headers.delete('Content-Type');
+                        requestInit.headers.delete('Content-Length');
+                    }
+                } else {
+                    requestInit.body = await request.clone().arrayBuffer();
+                }
             }
             if (requestInit.mode === 'navigate') {
                 requestInit.mode = 'cors';

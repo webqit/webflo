@@ -58,7 +58,7 @@ export class WebfloRouter {
                                     nextTick.event = await thisTick.event.with(newDestination, _request, requestInit);
                                 } else {
                                     nextTick.event = await thisTick.event.with(newDestination, requestInit);
-                                }
+                                 }
                                 nextTick.source = thisTick.destination.join('/');
                                 nextTick.destination = newDestination.split('?').shift().split('/').map(a => a.trim()).filter(a => a);
                                 nextTick.trail = _args[1].startsWith('/') ? [] : thisTick.trail.reduce((_commonRoot, _seg, i) => _commonRoot.length === i && _seg === nextTick.destination[i] ? _commonRoot.concat(_seg) : _commonRoot, []);
