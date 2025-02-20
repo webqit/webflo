@@ -49,7 +49,7 @@ export class WebfloServer extends WebfloRuntime {
     #cx;
     #servers = new Map;
     #proxies = new Map;
-    #capabilitiesPromise;
+    #capabilitiesSetup;
 
     // Typically for access by Router
     get cx() { return this.#cx; }
@@ -101,53 +101,6 @@ export class WebfloServer extends WebfloRuntime {
                 this.#proxies.set(hostnames.sort().join('|'), { cx, hostnames, port, proto });
             }));
         }
-        // ---------------
-        const setupCapabilities = async () => {
-            if (this.#cx.server.capabilities?.database) {
-                if (this.#cx.server.capabilities.database_dialect !== 'postgres') {
-                    throw new Error(`Only postgres supported for now for database dialect`);
-                }
-                if (this.#cx.env.entries[this.#cx.server.capabilities.database_url_variable]) {
-                    console.log('Database capabilities');
-                    const { SQLClient } = await import('@linked-db/linked-ql/sql');
-                    const { default: pg } = await import('pg');
-                    // Obtain pg client
-                    const pgClient = new pg.Pool({
-                        connectionString: this.#cx.env.entries[this.#cx.server.capabilities.database_url_variable],
-                        database: 'postgres',
-                    });
-                    // Connect
-                    await pgClient.connect();
-                    this.#sdk.db = new SQLClient(pgClient, { dialect: 'postgres' });
-                } else {
-                    console.log('No database capabilities');
-                    //const { ODBClient } = await import('@linked-db/linked-ql/odb');
-                    //this.#sdk.db = new ODBClient({ dialect: 'postgres' });
-                }
-            }
-            if (this.#cx.server.capabilities?.redis && this.#cx.env.entries[this.#cx.server.capabilities.redis_url_variable]) {
-                const { Redis } = await import('ioredis');
-                this.#sdk.redis = !this.#cx.env.entries[this.#cx.server.capabilities.redis_url_variable]
-                    ? new Redis : new Redis(this.#cx.env.entries[this.#cx.server.capabilities.redis_url_variable], {
-                        tls: { rejectUnauthorized: false }, // Required for Upstash
-                    });
-                console.log('Redis capabilities');
-            }
-            if (this.#cx.server.capabilities?.webpush) {
-                const { default: webpush } = await import('web-push');
-                console.log('Webpuah capabilities');
-                this.#sdk.webpush = webpush;
-                if (this.#cx.env.entries[this.#cx.server.capabilities.vapid_public_key_variable]
-                && this.#cx.env.entries[this.#cx.server.capabilities.vapid_private_key_variable]) {
-                    webpush.setVapidDetails(
-                        this.#cx.server.capabilities.vapid_subject,
-                        this.#cx.env.entries[this.#cx.server.capabilities.vapid_public_key_variable],
-                        this.#cx.env.entries[this.#cx.server.capabilities.vapid_private_key_variable]
-                    );
-                }
-            }
-        };
-        this.#capabilitiesPromise = setupCapabilities();
         // ---------------
         this.control();
         if (this.#cx.logger) {
@@ -222,13 +175,61 @@ export class WebfloServer extends WebfloRuntime {
         const wss = new WebSocket.Server({ noServer: true });
     }
 
+    async setupCapabilities() {
+        if (this.#capabilitiesSetup) return;
+        this.#capabilitiesSetup = true;
+        if (this.#cx.server.capabilities?.database) {
+            if (this.#cx.server.capabilities.database_dialect !== 'postgres') {
+                throw new Error(`Only postgres supported for now for database dialect`);
+            }
+            if (this.#cx.env.entries[this.#cx.server.capabilities.database_url_variable]) {
+                console.log('Database capabilities');
+                const { SQLClient } = await import('@linked-db/linked-ql/sql');
+                const { default: pg } = await import('pg');
+                // Obtain pg client
+                const pgClient = new pg.Pool({
+                    connectionString: this.#cx.env.entries[this.#cx.server.capabilities.database_url_variable],
+                    database: 'postgres',
+                });
+                // Connect
+                await pgClient.connect();
+                this.#sdk.db = new SQLClient(pgClient, { dialect: 'postgres' });
+            } else {
+                console.log('No database capabilities');
+                //const { ODBClient } = await import('@linked-db/linked-ql/odb');
+                //this.#sdk.db = new ODBClient({ dialect: 'postgres' });
+            }
+        }
+        if (this.#cx.server.capabilities?.redis && this.#cx.env.entries[this.#cx.server.capabilities.redis_url_variable]) {
+            const { Redis } = await import('ioredis');
+            this.#sdk.redis = !this.#cx.env.entries[this.#cx.server.capabilities.redis_url_variable]
+                ? new Redis : new Redis(this.#cx.env.entries[this.#cx.server.capabilities.redis_url_variable], {
+                    tls: { rejectUnauthorized: false }, // Required for Upstash
+                });
+            console.log('Redis capabilities');
+        }
+        if (this.#cx.server.capabilities?.webpush) {
+            const { default: webpush } = await import('web-push');
+            console.log('Webpuah capabilities');
+            this.#sdk.webpush = webpush;
+            if (this.#cx.env.entries[this.#cx.server.capabilities.vapid_public_key_variable]
+            && this.#cx.env.entries[this.#cx.server.capabilities.vapid_private_key_variable]) {
+                webpush.setVapidDetails(
+                    this.#cx.server.capabilities.vapid_subject,
+                    this.#cx.env.entries[this.#cx.server.capabilities.vapid_public_key_variable],
+                    this.#cx.env.entries[this.#cx.server.capabilities.vapid_private_key_variable]
+                );
+            }
+        }
+    }
+
     getRequestProto(nodeRequest) {
         return nodeRequest.connection.encrypted ? 'https' : (nodeRequest.headers['x-forwarded-proto'] || 'http');
     }
 
     #globalMessagingRegistry = new Map;
     async handleNodeWsRequest(wss, nodeRequest, socket, head) {
-        await this.#capabilitiesPromise;
+        await this.setupCapabilities();
         const proto = this.getRequestProto(nodeRequest).replace('http', 'ws');
         const [fullUrl, requestInit] = this.parseNodeRequest(proto, nodeRequest, false);
         const scope = {};
@@ -289,7 +290,7 @@ export class WebfloServer extends WebfloRuntime {
     }
 
     async handleNodeHttpRequest(nodeRequest, nodeResponse) {
-        await this.#capabilitiesPromise;
+        await this.setupCapabilities();
         const proto = this.getRequestProto(nodeRequest);
         const [fullUrl, requestInit] = this.parseNodeRequest(proto, nodeRequest);
         const scope = {};
