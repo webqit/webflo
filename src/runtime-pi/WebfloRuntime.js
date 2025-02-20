@@ -37,8 +37,8 @@ export class WebfloRuntime {
                 ? new Response(null, { status: 404 })
                 : Response.create(response);
         }
-        // Commit data
-        for (const storage of [httpEvent.cookies, httpEvent.session, httpEvent.storage]) {
+        // Commit data in the exact order. Reason: in how they depend on each other
+        for (const storage of [httpEvent.user, httpEvent.session, httpEvent.cookies]) {
             await storage?.commit?.(response);
         }
         return response;

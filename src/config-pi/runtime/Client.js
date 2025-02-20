@@ -28,8 +28,8 @@ export default class Client extends Dotfile {
                 webpush: false,
                 custom_install: false,
                 exposed: ['display-mode', 'notifications'],
-                app_vapid_public_key_variable: 'APP_VAPID_PUBLIC_KEY',
-                app_public_webhook_url_variable: 'APP_PUBLIC_WEBHOOK_URL',
+                vapid_public_key_variable: 'VAPID_PUBLIC_KEY',
+                generic_public_webhook_url_variable: 'GENERIC_PUBLIC_WEBHOOK_URL',
             },
         }, config, 'patch');
     }
@@ -104,14 +104,14 @@ export default class Client extends Dotfile {
                         initial: (config.exposed || []).join(', '),
                     },
                     {
-                        name: 'app_vapid_public_key_variable',
+                        name: 'vapid_public_key_variable',
                         type: (prev, answers) => !answers.webpush ? null : 'text',
                         message: 'Enter the environment variable name for APP_VAPID_PUBLIC_KEY if not as written',
                     },
                     {
-                        name: 'app_public_webhook_url_variable',
+                        name: 'generic_public_webhook_url_variable',
                         type: 'text',
-                        message: 'Enter the environment variable name for APP_PUBLIC_WEBHOOK_URL if not as written',
+                        message: 'Enter the environment variable name for GENERIC_PUBLIC_WEBHOOK_URL if not as written',
                     },
                 ]
             }

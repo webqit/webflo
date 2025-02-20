@@ -184,7 +184,7 @@ export class WebfloWorker extends WebfloRuntime {
 		// Restore session before dispatching
 		if (scope.request.method === 'GET'
 			&& (scope.redirectMessageID = scope.httpEvent.url.query['redirect-message'])
-			&& (scope.redirectMessage = scope.session.get(`redirect-message:${scope.redirectMessageID}`))) {
+			&& (scope.redirectMessage = await scope.session.get(`redirect-message:${scope.redirectMessageID}`))) {
 			await scope.session.delete(`redirect-message:${scope.redirectMessageID}`);
 		}
 		// Dispatch for response

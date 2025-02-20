@@ -1,7 +1,7 @@
 import { WebfloStorage } from '../WebfloStorage.js';
 import crypto from 'crypto';
 
-const sessionStorage = new Map;
+const inmemSessionRegistry = new Map;
 export class SessionStorage extends WebfloStorage {
 
     static create(request, params = {}) {
@@ -26,28 +26,26 @@ export class SessionStorage extends WebfloStorage {
                 sessionID = crypto.randomUUID();
             }
         }
-        if (sessionStorage.has(sessionID)) {
-            return sessionStorage.get(sessionID);
-        }
-        const instance = new this(request, sessionID);
-        sessionStorage.set(sessionID, instance);
-        return instance;
-    }
-
-    constructor(request, sessionID) {
-        super(request, true);
-        this.#sessionID = sessionID;
+        return new this(params.registry || inmemSessionRegistry, sessionID, request);
     }
 
     #sessionID;
-    get sessionID() {
-        return this.#sessionID;
+    get sessionID() { return this.#sessionID; }
+    
+    constructor(reqistry, sessionID, request) {
+        super(
+            reqistry,
+            `session:${sessionID}`,
+            request,
+            true
+        );
+        this.#sessionID = sessionID;
     }
 
-    async commit(response, force = false) {
-        if (response.headers.get('Set-Cookie', true).find((c) => c.name === '__sessid')) return;
-        //if (!force && !this.getAdded().length && !this.getDeleted().length) return;
-        response.headers.append('Set-Cookie', `__sessid=${this.#sessionID}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=31536000`);
+    async commit(response = null) {
+        if (response && !response.headers.get('Set-Cookie', true).find((c) => c.name === '__sessid')) {
+            response.headers.append('Set-Cookie', `__sessid=${this.#sessionID}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=31536000`);
+        }
         await super.commit();
     }
 }

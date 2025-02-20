@@ -29,11 +29,17 @@ export default class Server extends Dotfile {
                 force: false,
             },
             force_www: '',
-            session_key_variable: 'APP_SESSION_KEY',
+            session_key_variable: 'SESSION_KEY',
             capabilities: {
+                database: false,
+                database_dialect: 'postgres',
+                database_url_variable: 'DATABASE_URL',
+                redis: false,
+                redis_url_variable: 'REDIS_URL',
                 webpush: false,
-                app_vapid_public_key_variable: 'APP_VAPID_PUBLIC_KEY',
-                app_vapid_private_key_variable: 'APP_VAPID_PRIVATE_KEY'
+                vapid_subject: 'mailto:foo@example.com',
+                vapid_public_key_variable: 'VAPID_PUBLIC_KEY',
+                vapid_private_key_variable: 'VAPID_PRIVATE_KEY',
             },
         }, config, 'patch');
     }
@@ -74,7 +80,7 @@ export default class Server extends Dotfile {
             {
                 name: 'session_key_variable',
                 type: 'text',
-                message: 'Enter the environment variable name for APP_SESSION_KEY if not as written',
+                message: 'Enter the environment variable name for SESSION_KEY if not as written',
                 initial: config.session_key_variable,
             },
             {
@@ -125,21 +131,55 @@ export default class Server extends Dotfile {
                 initial: config.capabilities,
                 schema: [
                     {
-                        name: 'webpush',
+                        name: 'database',
                         type: 'toggle',
-                        message: 'Support push-notifications?',
+                        message: 'Add database integration?',
                         active: 'YES',
                         inactive: 'NO',
                     },
                     {
-                        name: 'app_vapid_public_key_variable',
-                        type: (prev, answers) => !answers.webpush ? null : 'text',
-                        message: 'Enter the environment variable name for APP_VAPID_PUBLIC_KEY if not as written',
+                        name: 'database_dialect',
+                        type: (prev, answers) => !answers.database ? null : 'text',
+                        message: 'Enter the database dialect (postgres for now)',
                     },
                     {
-                        name: 'app_vapid_private_key_variable',
+                        name: 'database_url_variable',
+                        type: (prev, answers) => !answers.database ? null : 'text',
+                        message: 'Enter the environment variable name for DATABASE_URL if not as written',
+                    },
+                    {
+                        name: 'redis',
+                        type: 'toggle',
+                        message: 'Add redis integration?',
+                        active: 'YES',
+                        inactive: 'NO',
+                    },
+                    {
+                        name: 'redis_url_variable',
+                        type: (prev, answers) => !answers.redis ? null : 'text',
+                        message: 'Enter the environment variable name for REDIS_URL if not as written',
+                    },
+                    {
+                        name: 'webpush',
+                        type: 'toggle',
+                        message: 'Add webpush integration?',
+                        active: 'YES',
+                        inactive: 'NO',
+                    },
+                    {
+                        name: 'vapid_subject',
                         type: (prev, answers) => !answers.webpush ? null : 'text',
-                        message: 'Enter the environment variable name for APP_VAPID_PRIVATE_KEY if not as written',
+                        message: 'Enter the vapid_subject URL',
+                    },
+                    {
+                        name: 'vapid_public_key_variable',
+                        type: (prev, answers) => !answers.webpush ? null : 'text',
+                        message: 'Enter the environment variable name for VAPID_PUBLIC_KEY if not as written',
+                    },
+                    {
+                        name: 'vapid_private_key_variable',
+                        type: (prev, answers) => !answers.webpush ? null : 'text',
+                        message: 'Enter the environment variable name for VAPID_PRIVATE_KEY if not as written',
                     },
                 ]
             },

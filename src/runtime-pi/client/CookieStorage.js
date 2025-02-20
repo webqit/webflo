@@ -9,7 +9,7 @@ export class CookieStorage extends WebfloCookieStorage {
     }
 
     async commit(response) {
-        for (const cookieStr of this.render()) {
+        for (const cookieStr of await this.render()) {
             document.cookie = cookieStr;
         }
         await super.commit();

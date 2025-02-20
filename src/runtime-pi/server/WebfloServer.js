@@ -4,7 +4,6 @@ import Path from 'path';
 import Http from 'http';
 import Https from 'https';
 import WebSocket from 'ws';
-import webpush from 'web-push';
 import Mime from 'mime-types';
 import QueryString from 'querystring';
 import { _from as _arrFrom, _any } from '@webqit/util/arr/index.js';
@@ -55,6 +54,9 @@ export class WebfloServer extends WebfloRuntime {
     // Typically for access by Router
     get cx() { return this.#cx; }
 
+    #sdk = {};
+    get sdk() { return this.#sdk; }
+
     constructor(cx) {
         super();
         if (!(cx instanceof this.constructor.Context)) {
@@ -98,6 +100,46 @@ export class WebfloServer extends WebfloRuntime {
                 hostnames.length || (hostnames = ['*']);
                 this.#proxies.set(hostnames.sort().join('|'), { cx, hostnames, port, proto });
             }));
+        }
+        // ---------------
+        if (this.#cx.server.capabilities?.database) {
+            if (this.#cx.server.capabilities.database_dialect !== 'postgres') {
+                throw new Error(`Only postgres supported for now for database dialect`);
+            }
+            if (this.#cx.env.entries[this.#cx.server.capabilities.database_url_variable]) {
+                const { SQLClient } = await import('@linked-db/linked-ql/sql');
+                const { default: pg } = await import('pg');
+                // Obtain pg client
+                const pgClient = new pg.Pool({
+                    connectionString: this.#cx.env.entries[this.#cx.server.capabilities.database_url_variable],
+                    database: 'postgres',
+                });
+                // Connect
+                await pgClient.connect();
+                this.#sdk.db = new SQLClient(pgClient, { dialect: 'postgres' });
+            } else {
+                //const { ODBClient } = await import('@linked-db/linked-ql/odb');
+                //this.#sdk.db = new ODBClient({ dialect: 'postgres' });
+            }
+        }
+        if (this.#cx.server.capabilities?.redis && this.#cx.env.entries[this.#cx.server.capabilities.redis_url_variable]) {
+            const { Redis } = await import('ioredis');
+            this.#sdk.redis = !this.#cx.env.entries[this.#cx.server.capabilities.redis_url_variable]
+                ? new Redis : new Redis(this.#cx.env.entries[this.#cx.server.capabilities.redis_url_variable], {
+                    tls: { rejectUnauthorized: false }, // Required for Upstash
+                });
+        }
+        if (this.#cx.server.capabilities?.webpush) {
+            const { default: webpush } = await import('web-push');
+            this.#sdk.webpush = webpush;
+            if (this.#cx.env.entries[this.#cx.server.capabilities.vapid_public_key_variable]
+            && this.#cx.env.entries[this.#cx.server.capabilities.vapid_private_key_variable]) {
+                webpush.setVapidDetails(
+                    this.#cx.server.capabilities.vapid_subject,
+                    this.#cx.env.entries[this.#cx.server.capabilities.vapid_public_key_variable],
+                    this.#cx.env.entries[this.#cx.server.capabilities.vapid_private_key_variable]
+                );
+            }
         }
         // ---------------
         this.control();
@@ -507,7 +549,13 @@ export class WebfloServer extends WebfloRuntime {
             : [];
         scope.request = this.createRequest(scope.url.href, scope.init, scope.autoHeaders.filter((header) => header.type === 'request'));
         scope.cookies = this.constructor.CookieStorage.create(scope.request);
-        scope.session = this.constructor.SessionStorage.create(scope.request, { secret: this.#cx.env.entries[this.#cx.server.session_key_variable] });
+        scope.session = this.constructor.SessionStorage.create(scope.request, {
+            secret: this.#cx.env.entries[this.#cx.server.session_key_variable],
+            registry: this.#sdk.redis && {
+                get: async (key) => { return await this.#sdk.redis.hgetall(key) },
+                set: async (key, value) => { return await this.#sdk.redis.hset(key, value) },
+            },
+        });
         const sessionID = scope.session.sessionID;
         if (!this.#globalMessagingRegistry.has(sessionID)) {
             this.#globalMessagingRegistry.set(sessionID, new ClientMessagingRegistry(this, sessionID));
@@ -526,22 +574,13 @@ export class WebfloServer extends WebfloRuntime {
             session: scope.session,
             user: scope.user,
             client: scope.clientMessaging,
-            sdk: { ...(this.#cx.server.capabilities?.webpush ? { webpush } : {}) }
+            sdk: this.#sdk
         });
-        if (this.#cx.server.capabilities?.webpush
-        && this.#cx.env.entries[this.#cx.server.capabilities.app_vapid_public_key_variable]
-        && this.#cx.env.entries[this.#cx.server.capabilities.app_vapid_private_key_variable]) {
-            webpush.setVapidDetails(
-                scope.url.origin.replace(/^http:/i, 'https:'),
-                this.#cx.env.entries[this.#cx.server.capabilities.app_vapid_public_key_variable],
-                this.#cx.env.entries[this.#cx.server.capabilities.app_vapid_private_key_variable]
-            );
-        }
         await this.setup(scope.httpEvent);
         // Restore session before dispatching
         if (scope.request.method === 'GET' 
         && (scope.redirectMessageID = scope.httpEvent.url.query['redirect-message'])
-        && (scope.redirectMessage = scope.session.get(`redirect-message:${scope.redirectMessageID}`))) {
+        && (scope.redirectMessage = await scope.session.get(`redirect-message:${scope.redirectMessageID}`))) {
             await scope.session.delete(`redirect-message:${scope.redirectMessageID}`);
         }
         // Dispatch for response

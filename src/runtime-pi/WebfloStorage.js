@@ -1,39 +1,83 @@
 import { _isObject } from '@webqit/util/js/index.js';
 import { _even } from '@webqit/util/obj/index.js';
 
-export class WebfloStorage extends Map {
+export class WebfloStorage {
     
     #request;
     #session;
+    #registry;
+    #key;
+    #store;
 
-    constructor(request, session, iterable = []) {
-        super();
+    constructor(registry, key, request, session = null) {
+        this.#registry = registry;
+        this.#key = key;
         this.#request = request;
         this.#session = session === true ? this : session;
-        for (const [k, v] of iterable) {
-            this.set(k, v);
-        }
     }
     
-    #originals;
-    saveOriginals() { this.#originals = new Map(this); }
-
-    getDeleted() {
-        if (!this.#originals) return [];
-        return [...this.#originals.keys()].filter((k) => {
-            return !this.has(k);
-        });
-    }
-
-    getAdded() {
-        if (!this.#originals) return [...this.keys()];
-        return [...new Set([...this.keys(), ...this.#originals.keys()])].filter((k) => {
-            return !this.#originals.has(k) || (this.has(k) && ((a, b) => _isObject(a) && _isObject(b) ? !_even(a, b) : a !== b)(this.get(k, true), this.#originals.get(k)));
-        });
+    async store() {
+        if (!this.#key) {
+            return this.#registry;
+        }
+        if (!this.#store && !(this.#store = await this.#registry.get(this.#key))) {
+            this.#store = {};
+            await this.#registry.set(this.#key, this.#store);
+        }
+        return this.#store;
     }
 
     async commit() {
-        this.saveOriginals();
+        if (!this.#store || !this.#key) return;
+        await this.#registry.set(this.#key, this.#store);
+    }
+
+    get size() { return this.store().then((store) => Object.keys(store).length); }
+
+    [ Symbol.iterator ]() { return this.entries().then((entries) => entries[ Symbol.iterator ]()); }
+
+    async json(arg = null) {
+        if (!arguments.length || typeof arg === 'boolean') {
+            return { ...(await this.store()) };
+        }
+        if (!_isObject(arg)) {
+            throw new Error(`Argument must be a valid JSON object`);
+        }
+        return await Promise.all(Object.entries(arg).map(([key, value]) => {
+            return this.set(key, value);
+        }));
+    }
+
+    async get(key) { return Reflect.get(await this.store(), key); }
+
+    async has(key) { return Reflect.has(await this.store(), key); }
+
+    async keys() { return Object.keys(await this.store()); }
+
+    async values() { return Object.values(await this.store()); }
+
+    async entries() { return Object.entries(await this.store()); }
+
+    async forEach(callback) { (await this.entries()).forEach(callback); }
+
+    async set(key, value) {
+        Reflect.set(await this.store(), key, value);
+        await this.emit(key, value);
+        return this;
+    }
+
+    async delete(key) {
+        Reflect.deleteProperty(await this.store(), key);
+        await this.emit(key);
+        return this;
+    }
+
+    async clear() {
+        for (const key of await this.keys()) {
+            Reflect.deleteProperty(await this.store(), key);
+        }
+        await this.emit();
+        return this;
     }
 
     #listeners = new Set;
@@ -58,24 +102,6 @@ export class WebfloStorage extends Map {
         return Promise.all(returnValues);
     }
 
-    async set(attr, value) {
-        const returnValue = super.set(attr, value);
-        await this.emit(attr, value);
-        return returnValue;
-    }
-
-    async delete(attr) {
-        const returnValue = super.delete(attr);
-        await this.emit(attr);
-        return returnValue;
-    }
-
-    async clear() {
-        const returnValue = super.clear();
-        await this.emit();
-        return returnValue;
-    }
-
     #handlers = new Map;
     defineHandler(attr, ...handlers) {
         const $handlers = [];
@@ -97,7 +123,7 @@ export class WebfloStorage extends Map {
     async require(attrs, callback = null, noNulls = false) {
         const entries = [];
         main: for await (const attr of [].concat(attrs)) {
-            if (!this.has(attr) || (noNulls && [undefined, null].includes(this.get(attr)))) {
+            if (!(await this.has(attr)) || (noNulls && [undefined, null].includes(await this.get(attr)))) {
                 const handlers = this.#handlers.get(attr);
                 if (!handlers) {
                     throw new Error(`No handler defined for the user attribute: ${attr}`);
@@ -132,7 +158,7 @@ export class WebfloStorage extends Map {
                     }});
                 }
             }
-            entries.push(this.get(attr));
+            entries.push(await this.get(attr));
         }
         if (callback) return await callback(...entries);
         return entries;
