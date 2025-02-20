@@ -182,13 +182,13 @@ export class WebfloServer extends WebfloRuntime {
             if (this.#cx.server.capabilities.database_dialect !== 'postgres') {
                 throw new Error(`Only postgres supported for now for database dialect`);
             }
-            if (this.#cx.env.entries[this.#cx.server.capabilities.database_url_variable]) {
+            if (process.env[this.#cx.server.capabilities.database_url_variable]) {
                 console.log('Database capabilities');
                 const { SQLClient } = await import('@linked-db/linked-ql/sql');
                 const { default: pg } = await import('pg');
                 // Obtain pg client
                 const pgClient = new pg.Pool({
-                    connectionString: this.#cx.env.entries[this.#cx.server.capabilities.database_url_variable],
+                    connectionString: process.env[this.#cx.server.capabilities.database_url_variable],
                     database: 'postgres',
                 });
                 // Connect
@@ -200,10 +200,10 @@ export class WebfloServer extends WebfloRuntime {
                 //this.#sdk.db = new ODBClient({ dialect: 'postgres' });
             }
         }
-        if (this.#cx.server.capabilities?.redis && this.#cx.env.entries[this.#cx.server.capabilities.redis_url_variable]) {
+        if (this.#cx.server.capabilities?.redis && process.env[this.#cx.server.capabilities.redis_url_variable]) {
             const { Redis } = await import('ioredis');
-            this.#sdk.redis = !this.#cx.env.entries[this.#cx.server.capabilities.redis_url_variable]
-                ? new Redis : new Redis(this.#cx.env.entries[this.#cx.server.capabilities.redis_url_variable], {
+            this.#sdk.redis = !process.env[this.#cx.server.capabilities.redis_url_variable]
+                ? new Redis : new Redis(process.env[this.#cx.server.capabilities.redis_url_variable], {
                     tls: { rejectUnauthorized: false }, // Required for Upstash
                 });
             console.log('Redis capabilities');
@@ -212,12 +212,12 @@ export class WebfloServer extends WebfloRuntime {
             const { default: webpush } = await import('web-push');
             console.log('Webpuah capabilities');
             this.#sdk.webpush = webpush;
-            if (this.#cx.env.entries[this.#cx.server.capabilities.vapid_public_key_variable]
-            && this.#cx.env.entries[this.#cx.server.capabilities.vapid_private_key_variable]) {
+            if (process.env[this.#cx.server.capabilities.vapid_public_key_variable]
+            && process.env[this.#cx.server.capabilities.vapid_private_key_variable]) {
                 webpush.setVapidDetails(
                     this.#cx.server.capabilities.vapid_subject,
-                    this.#cx.env.entries[this.#cx.server.capabilities.vapid_public_key_variable],
-                    this.#cx.env.entries[this.#cx.server.capabilities.vapid_private_key_variable]
+                    process.env[this.#cx.server.capabilities.vapid_public_key_variable],
+                    process.env[this.#cx.server.capabilities.vapid_private_key_variable]
                 );
             }
         }
@@ -260,7 +260,7 @@ export class WebfloServer extends WebfloRuntime {
         // Level 3 validation
         // and actual processing
         scope.request = this.createRequest(scope.url.href, requestInit);
-        scope.session = this.constructor.SessionStorage.create(scope.request, { secret: this.#cx.env.entries[this.#cx.server.session_key_variable] });
+        scope.session = this.constructor.SessionStorage.create(scope.request, { secret: process.env[this.#cx.server.session_key_variable] });
         if (!scope.error) {
             if (!(scope.clientMessagingRegistry = this.#globalMessagingRegistry.get(scope.session.sessionID))) {
                 scope.error = `Lost or invalid clientID`;
@@ -560,7 +560,7 @@ export class WebfloServer extends WebfloRuntime {
         scope.request = this.createRequest(scope.url.href, scope.init, scope.autoHeaders.filter((header) => header.type === 'request'));
         scope.cookies = this.constructor.CookieStorage.create(scope.request);
         scope.session = this.constructor.SessionStorage.create(scope.request, {
-            secret: this.#cx.env.entries[this.#cx.server.session_key_variable],
+            secret: process.env[this.#cx.server.session_key_variable],
             registry: this.#sdk.redis && {
                 get: async (key) => { return await this.#sdk.redis.hgetall(key) },
                 set: async (key, value) => { return await this.#sdk.redis.hset(key, value) },
