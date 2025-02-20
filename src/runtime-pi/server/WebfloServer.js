@@ -205,6 +205,7 @@ export class WebfloServer extends WebfloRuntime {
             this.#sdk.redis = !process.env[this.#cx.server.capabilities.redis_url_variable]
                 ? new Redis : new Redis(process.env[this.#cx.server.capabilities.redis_url_variable], {
                     tls: { rejectUnauthorized: false }, // Required for Upstash
+                    family: 6
                 });
             console.log('Redis capabilities');
         }
