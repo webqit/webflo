@@ -191,6 +191,8 @@ export class WebfloServer extends WebfloRuntime {
                 const pgClient = new pg.Pool({
                     connectionString: process.env[this.#cx.server.capabilities.database_url_variable],
                     database: 'postgres',
+                    idleTimeoutMillis: 30000, // 30 seconds,
+                    keepAlive: true
                 });
                 // Connect
                 await pgClient.connect();
