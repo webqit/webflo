@@ -6,7 +6,6 @@ export class SessionStorage extends WebfloStorage {
 
     static create(request, params = {}) {
         let sessionID = request.headers.get('Cookie', true).find((c) => c.name === '__sessid')?.value;
-        console.log({params});
         if (sessionID?.includes('.')) {
             if (params.secret) {
                 const [rand, signature] = sessionID.split('.');

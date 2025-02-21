@@ -121,6 +121,12 @@ export class WebfloServer extends WebfloRuntime {
             }
             this.#cx.logger.info(``);
         }
+        process.on('uncaughtException', (err) => {
+            console.error('Uncaught Exception:', err);
+        });
+        process.on('unhandledRejection', (reason, promise) => {
+            console.log('Unhandled Rejection', reason, promise);
+        });
     }
 
     control() {
@@ -191,11 +197,23 @@ export class WebfloServer extends WebfloRuntime {
                 const pgClient = new pg.Pool({
                     connectionString: process.env[this.#cx.server.capabilities.database_url_variable],
                     database: 'postgres',
-                    idleTimeoutMillis: 30000, // 30 seconds,
-                    keepAlive: true
+                    idle_in_transaction_session_timeout: 0
                 });
                 // Connect
-                await pgClient.connect();
+                await (async function connect() {
+                    /*
+                    pgClient.on('error', (e) => {
+                        console.log('____________error_', e);
+                    });
+                    pgClient.on('end', (e) => {
+                        console.log('____________end_', e);
+                    });
+                    pgClient.on('notice', (e) => {
+                        console.log('____________notice_', e);
+                    });
+                    */
+                    await pgClient.connect();
+                })();
                 this.#sdk.db = new SQLClient(pgClient, { dialect: 'postgres' });
             } else {
                 console.log('No database capabilities');

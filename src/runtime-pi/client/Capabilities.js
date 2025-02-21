@@ -134,6 +134,8 @@ export class Capabilities {
             if (this.#exposed.custom_install === 'granted') return;
             if (this.#exposed.custom_install) {
                 returnValue = await this.#exposed.custom_install.prompt?.();
+                const { outcome } = await this.#exposed.custom_install.userChoice;
+                if (outcome === 'dismissed') return;
             }
             Observer.set(this.#exposed, 'custom_install', 'granted');
             return returnValue;
