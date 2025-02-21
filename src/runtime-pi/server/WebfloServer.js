@@ -102,6 +102,7 @@ export class WebfloServer extends WebfloRuntime {
             }));
         }
         // ---------------
+        await this.setupCapabilities();
         this.control();
         if (this.#cx.logger) {
             if (this.#servers.size) {
@@ -228,7 +229,6 @@ export class WebfloServer extends WebfloRuntime {
 
     #globalMessagingRegistry = new Map;
     async handleNodeWsRequest(wss, nodeRequest, socket, head) {
-        await this.setupCapabilities();
         const proto = this.getRequestProto(nodeRequest).replace('http', 'ws');
         const [fullUrl, requestInit] = this.parseNodeRequest(proto, nodeRequest, false);
         const scope = {};
@@ -295,7 +295,6 @@ export class WebfloServer extends WebfloRuntime {
     }
 
     async handleNodeHttpRequest(nodeRequest, nodeResponse) {
-        await this.setupCapabilities();
         const proto = this.getRequestProto(nodeRequest);
         const [fullUrl, requestInit] = this.parseNodeRequest(proto, nodeRequest);
         const scope = {};
