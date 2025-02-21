@@ -8,6 +8,7 @@ export class WebfloStorage {
     #registry;
     #key;
     #store;
+    #modified = false;
 
     constructor(registry, key, request, session = null) {
         this.#registry = registry;
@@ -22,13 +23,12 @@ export class WebfloStorage {
         }
         if (!this.#store && !(this.#store = await this.#registry.get(this.#key))) {
             this.#store = {};
-            await this.#registry.set(this.#key, this.#store);
         }
         return this.#store;
     }
 
     async commit() {
-        if (!this.#store || !this.#key) return;
+        if (!this.#store || !this.#key || !this.#modified) return;
         await this.#registry.set(this.#key, this.#store);
     }
 
@@ -62,12 +62,14 @@ export class WebfloStorage {
 
     async set(key, value) {
         Reflect.set(await this.store(), key, value);
+        this.#modified = true;
         await this.emit(key, value);
         return this;
     }
 
     async delete(key) {
         Reflect.deleteProperty(await this.store(), key);
+        this.#modified = true;
         await this.emit(key);
         return this;
     }

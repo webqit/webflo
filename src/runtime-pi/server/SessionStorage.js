@@ -44,7 +44,8 @@ export class SessionStorage extends WebfloStorage {
 
     async commit(response = null) {
         if (response && !response.headers.get('Set-Cookie', true).find((c) => c.name === '__sessid')) {
-            response.headers.append('Set-Cookie', `__sessid=${this.#sessionID}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=31536000`);
+            // expires six months
+            response.headers.append('Set-Cookie', `__sessid=${this.#sessionID}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=15768000`);
         }
         await super.commit();
     }

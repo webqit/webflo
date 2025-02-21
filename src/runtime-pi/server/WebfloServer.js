@@ -102,6 +102,7 @@ export class WebfloServer extends WebfloRuntime {
             }));
         }
         // ---------------
+        await this.setupCapabilities();
         this.control();
         if (this.#cx.logger) {
             if (this.#servers.size) {
@@ -202,11 +203,9 @@ export class WebfloServer extends WebfloRuntime {
         }
         if (this.#cx.server.capabilities?.redis && process.env[this.#cx.server.capabilities.redis_url_variable]) {
             const { Redis } = await import('ioredis');
-            this.#sdk.redis = !process.env[this.#cx.server.capabilities.redis_url_variable]
-                ? new Redis : new Redis(process.env[this.#cx.server.capabilities.redis_url_variable], {
-                    tls: { rejectUnauthorized: false }, // Required for Upstash
-                    family: 6
-                });
+            this.#sdk.redis = process.env[this.#cx.server.capabilities.redis_url_variable]
+                ? new Redis(process.env[this.#cx.server.capabilities.redis_url_variable])
+                : new Redis;
             console.log('Redis capabilities');
         }
         if (this.#cx.server.capabilities?.webpush) {
@@ -230,7 +229,6 @@ export class WebfloServer extends WebfloRuntime {
 
     #globalMessagingRegistry = new Map;
     async handleNodeWsRequest(wss, nodeRequest, socket, head) {
-        await this.setupCapabilities();
         const proto = this.getRequestProto(nodeRequest).replace('http', 'ws');
         const [fullUrl, requestInit] = this.parseNodeRequest(proto, nodeRequest, false);
         const scope = {};
@@ -261,7 +259,13 @@ export class WebfloServer extends WebfloRuntime {
         // Level 3 validation
         // and actual processing
         scope.request = this.createRequest(scope.url.href, requestInit);
-        scope.session = this.constructor.SessionStorage.create(scope.request, { secret: process.env[this.#cx.server.session_key_variable] });
+        scope.session = this.constructor.SessionStorage.create(scope.request, {
+            secret: process.env[this.#cx.server.session_key_variable],
+            registry: this.#sdk.redis && {
+                get: async (key) => { return JSON.parse(await this.#sdk.redis.get(key) || null) },
+                set: async (key, value) => { return await this.#sdk.redis.set(key, JSON.stringify(value), 'EX', 15768000) },
+            },
+        });
         if (!scope.error) {
             if (!(scope.clientMessagingRegistry = this.#globalMessagingRegistry.get(scope.session.sessionID))) {
                 scope.error = `Lost or invalid clientID`;
@@ -291,7 +295,6 @@ export class WebfloServer extends WebfloRuntime {
     }
 
     async handleNodeHttpRequest(nodeRequest, nodeResponse) {
-        await this.setupCapabilities();
         const proto = this.getRequestProto(nodeRequest);
         const [fullUrl, requestInit] = this.parseNodeRequest(proto, nodeRequest);
         const scope = {};
@@ -563,8 +566,8 @@ export class WebfloServer extends WebfloRuntime {
         scope.session = this.constructor.SessionStorage.create(scope.request, {
             secret: process.env[this.#cx.server.session_key_variable],
             registry: this.#sdk.redis && {
-                get: async (key) => { return await this.#sdk.redis.hgetall(key) },
-                set: async (key, value) => { return await this.#sdk.redis.hset(key, value) },
+                get: async (key) => { return JSON.parse(await this.#sdk.redis.get(key) || null) },
+                set: async (key, value) => { return await this.#sdk.redis.set(key, JSON.stringify(value), 'EX', 15768000) },
             },
         });
         const sessionID = scope.session.sessionID;
