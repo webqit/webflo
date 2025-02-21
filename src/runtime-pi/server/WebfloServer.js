@@ -201,12 +201,12 @@ export class WebfloServer extends WebfloRuntime {
                 //this.#sdk.db = new ODBClient({ dialect: 'postgres' });
             }
         }
-        if (this.#cx.server.capabilities?.redis && process.env[this.#cx.server.capabilities.redis_url_variable]) {
+        if (this.#cx.server.capabilities?.redis) {
             const { Redis } = await import('ioredis');
             this.#sdk.redis = process.env[this.#cx.server.capabilities.redis_url_variable]
                 ? new Redis(process.env[this.#cx.server.capabilities.redis_url_variable])
                 : new Redis;
-            console.log('Redis capabilities');
+            console.log('Redis capabilities', process.env[this.#cx.server.capabilities.redis_url_variable] ? 'with url' : '');
         }
         if (this.#cx.server.capabilities?.webpush) {
             const { default: webpush } = await import('web-push');
