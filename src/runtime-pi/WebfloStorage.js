@@ -27,6 +27,12 @@ export class WebfloStorage {
         return this.#store;
     }
 
+    async refresh() {
+        let $store;
+        if (!this.#store || !($store = await this.#registry.get(this.#key))) return;
+        Object.assign(this.#store, $store);
+    }
+
     async commit() {
         if (this.#store && this.#key && this.#modified) {
             await this.#registry.set(this.#key, this.#store);
