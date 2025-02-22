@@ -30,7 +30,11 @@ export class WebfloStorage {
     async refresh() {
         let $store;
         if (!this.#store || !($store = await this.#registry.get(this.#key))) return;
-        Object.assign(this.#store, $store);
+        const { ['#user']: user, ...rest } = $store;
+        Object.assign(this.#store, rest);
+        if (this.#store['#user']) {
+            Object.assign(this.#store['#user'], user);
+        }
     }
 
     async commit() {
