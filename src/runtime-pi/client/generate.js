@@ -25,14 +25,11 @@ export async function generate() {
     if (!cx.config.deployment?.Layout) {
         throw new Error(`The Client configurator "config.deployment.Layout" is required in context.`);
     }
-    const env = {};
     const clientConfig = await (new cx.config.runtime.Client(cx)).read();
-    clientConfig.env = env;
     if (clientConfig.capabilities?.service_worker && !cx.config.runtime.client?.Worker) {
         throw new Error(`The Service Worker configurator "config.runtime.client.Worker" is required in context.`);
     }
     const workerConfig = await (new cx.config.runtime.client.Worker(cx)).read();
-    workerConfig.env = env;
     // -----------
     if (!cx.config.deployment?.Layout) {
         throw new Error(`The Layout configurator "config.deployment.Layout" is required in context.`);
@@ -43,17 +40,25 @@ export async function generate() {
     const dirClient = Path.resolve(cx.CWD || '', layoutConfig.CLIENT_DIR);
     const dirWorker = Path.resolve(cx.CWD || '', layoutConfig.WORKER_DIR);
     const dirSelf = Path.dirname(Url.fileURLToPath(import.meta.url)).replace(/\\/g, '/');
+    const env = {};
+    const envConfig = { mappings: {} };
+    // Copy vars
     if (clientConfig.copy_public_variables) {
-        if (!cx.config.deployment?.Env) {
-            throw new Error(`The Layout configurator "config.deployment.Env" is required in context to bundle public env.`);
-        }
-        const envConfig = await (new cx.config.deployment.Env(cx)).read();
-        const $env = { ...envConfig.entries, ...process.env };
+        const $env = { ...process.env };
         for (const key in $env) {
             if (!key.includes('PUBLIC_') && !key.includes('_PUBLIC')) continue;
             env[key] = $env[key];
         }
+        if (cx.config.deployment?.Env) {
+            const $envConfig = await (new cx.config.deployment.Env(cx)).read();
+            envConfig.mappings = $envConfig.mappings;
+        }
     }
+    // Expose these nodes
+    clientConfig.env = env;
+    workerConfig.env = env;
+    clientConfig.mappings = envConfig.mappings;
+    workerConfig.mappings = envConfig.mappings;
     // -----------
     // Scan Subdocuments
     const scanSubroots = (sparoot, rootFileName) => {
@@ -76,7 +81,7 @@ export async function generate() {
     const generateClient = async function(sparoot, spaGraphCallback = null) {
         let [ subsparoots, targets ] = (sparoot && scanSubroots(sparoot, 'index.html')) || [ [], false ];
         if (!sparoot) sparoot = '/';
-        let spaRouting = { root: sparoot, subroots: subsparoots, targets };
+        let spaRouting = { name: 'client', root: sparoot, subroots: subsparoots, targets };
         let codeSplitting = !!(sparoot !== '/' || subsparoots.length);
         let outfileMain = Path.join(sparoot, clientConfig.bundle_filename),
             outfileWebflo = _beforeLast(clientConfig.bundle_filename, '.js') + '.webflo.js';
@@ -151,7 +156,7 @@ export async function generate() {
     const generateWorker = async function(workerroot, workerGraphCallback = null) {
         let [ subworkerroots, targets ] = workerroot && scanSubroots(workerroot, 'workerroot') || [ [], false ];
         if (!workerroot) workerroot = '/';
-        let workerRouting = { root: workerroot, subroots: subworkerroots, targets };
+        let workerRouting = { name: 'worker', root: workerroot, subroots: subworkerroots, targets };
         let gen = { imports: {}, code: [], };
         if (cx.logger) {
             cx.logger.log(cx.logger.style.comment(`-----------------`));
@@ -273,17 +278,19 @@ function declareRoutesObj(gen, routesDir, targetDir, varName, routing) {
     let _routesDir = Path.join(routesDir, routing.root),
         _targetDir = Path.join(targetDir, routing.root);
     cx.logger && cx.logger.log(cx.logger.style.keyword(`> `) + `Declaring routes...`);
+    const routeFileEnding = new RegExp(`(?:\\/(?:${routing.name}|index)\\.js)$`);
     // ----------------
     // Directory walker
     const walk = (dir, callback) => {
         Fs.readdirSync(dir).forEach(f => {
             let resource = Path.join(dir, f);
             let _namespace = '/' + Path.relative(routesDir, resource).replace(/\\/g, '/');
-            let namespace = _beforeLast(_namespace, '/index.js') || '/';
             if (Fs.statSync(resource).isDirectory()) {
-                if (routing.subroots.includes(namespace)) return;
+                if (routing.subroots.includes(_namespace)) return;
                 walk(resource, callback);
             } else {
+                if (f === 'index.js' && Fs.existsSync(Path.join(dir, `${routing.name}.js`))) return;
+                let namespace = _namespace.replace(routeFileEnding, '') || '/';
                 let relativePath = Path.relative(_targetDir, resource).replace(/\\/g, '/');
                 callback(resource, namespace, relativePath);
             }
@@ -295,7 +302,7 @@ function declareRoutesObj(gen, routesDir, targetDir, varName, routing) {
     let indexCount = 0;
     if (Fs.existsSync(_routesDir)) {
         walk(_routesDir, (file, namespace, relativePath) => {
-            if (relativePath.endsWith('/index.js')) {
+            if (routeFileEnding.test(relativePath)) {
                 // Import code
                 let routeName = 'index' + (++ indexCount);
                 // IMPORTANT: we;re taking a step back here so that the parent-child relationship for 

@@ -13,18 +13,13 @@ export default class Env extends Dotfile {
 
     // @desc
     static get ['@desc']() {
-        return 'Environmental variables config.';
-    }
-
-    // isEnv
-    get isEnv() {
-        return true;
+        return 'Environmental variable mappings.';
     }
 
     // Defaults merger
     withDefaults(config) {
         return this.merge({
-            autoload: true,
+            mappings: {}
         }, config, 'patch');
     }
 
@@ -33,13 +28,13 @@ export default class Env extends Dotfile {
         // Questions
         return [
             {
-                name: 'entries',
+                name: 'mappings',
                 type: 'recursive',
                 controls: {
-                    name: 'variable',
+                    name: 'variable mappings',
                     combomode: true,
                 },
-                initial: config.entries,
+                initial: config.mappings,
                 schema: [
                     {
                         name: 'name',
@@ -54,15 +49,7 @@ export default class Env extends Dotfile {
                         validation: ['important'],
                     },
                 ],
-            },
-            {
-                name: 'autoload',
-                type: 'toggle',
-                message: 'Choose whether to autoload variables into "process.env"',
-                active: 'YES',
-                inactive: 'NO',
-                initial: config.autoload,
-            },
+            }
         ];
     }
 }

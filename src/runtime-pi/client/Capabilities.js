@@ -2,6 +2,7 @@ const { Observer } = webqit;
 
 export class Capabilities {
 
+    #runtime;
     #params;
 
     #exposed = {};
@@ -9,11 +10,10 @@ export class Capabilities {
 
     #cleanups = [];
 
-    static async initialize(params) {
+    static async initialize(runtime, params) {
         const instance = new this;
+        instance.#runtime = runtime;
         instance.#params = params;
-        instance.#params.generic_public_webhook_url = instance.#params.generic_public_webhook_url_variable && instance.#params.env[instance.#params.generic_public_webhook_url_variable];
-        instance.#params.vapid_public_key = instance.#params.vapid_public_key_variable && instance.#params.env[instance.#params.vapid_public_key_variable];
         // --------
         // Custom install
         const onbeforeinstallprompt = (e) => {
@@ -26,11 +26,11 @@ export class Capabilities {
         instance.#cleanups.push(() => window.removeEventListener('beforeinstallprompt', onbeforeinstallprompt));
         // --------
         // Webhooks
-        if (instance.#params.generic_public_webhook_url) {
+        if (instance.#runtime.env('GENERIC_PUBLIC_WEBHOOK_URL')) {
             // --------
             // app.installed
             const onappinstalled = () => {
-                fetch(instance.#params.generic_public_webhook_url, {
+                fetch(instance.#runtime.env('GENERIC_PUBLIC_WEBHOOK_URL'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ type: 'app.installed', data: true })
@@ -51,7 +51,7 @@ export class Capabilities {
                         if (eventPayload.type === 'push.subscribe' && !eventPayload.data) {
                             return window.queueMicrotask(pushPermissionStatusHandler);
                         }
-                        fetch(instance.#params.generic_public_webhook_url, {
+                        fetch(instance.#runtime.env('GENERIC_PUBLIC_WEBHOOK_URL'), {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(eventPayload)
@@ -186,8 +186,8 @@ export class Capabilities {
             if (!params.userVisibleOnly) {
                 params = { ...params, userVisibleOnly: true };
             }
-            if (!params.applicationServerKey && this.#params.vapid_public_key) {
-                params = { ...params, applicationServerKey: urlBase64ToUint8Array(this.#params.vapid_public_key) };
+            if (!params.applicationServerKey && this.#runtime.env('VAPID_PUBLIC_KEY')) {
+                params = { ...params, applicationServerKey: urlBase64ToUint8Array(this.#runtime.env('VAPID_PUBLIC_KEY')) };
             }
         }
         return params;

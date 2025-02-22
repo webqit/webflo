@@ -48,6 +48,12 @@ export class WebfloClient extends WebfloRuntime {
         return document.querySelector('meta[name="webflo-viewtransitions"]')?.value;
     }
 
+    env(key) {
+        return key in this.cx.params.mappings
+        ? this.cx.params.env[this.cx.params.mappings[key]]
+        : this.cx.params.env[key];
+    }
+
     constructor(host) {
         super();
         this.#host = host;
@@ -317,6 +323,7 @@ export class WebfloClient extends WebfloRuntime {
                 if (scope.eventLifecyclePromises.dirty && !scope.eventLifecyclePromises.size) {
                     throw new Error('Final response already sent');
                 }
+                await scope.httpEvent.session.commit();
                 return await this.execPush(scope.clientMessaging, response);
             },
         };

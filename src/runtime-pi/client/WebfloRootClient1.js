@@ -52,7 +52,7 @@ export class WebfloRootClient1 extends WebfloClient {
 			this.#workport = await this.constructor.Workport.initialize(null, (this.cx.params.public_base_url || '') + filename, restServiceWorkerParams);
 			cleanups.push(() => this.#workport.close());
 		}
-		this.#capabilities = await this.constructor.Capabilities.initialize({ ...this.cx.params.capabilities, env: this.cx.params.env });
+		this.#capabilities = await this.constructor.Capabilities.initialize(this, this.cx.params.capabilities);
 		cleanups.push(() => this.#capabilities.close());
 		// --------
         // Bind network status handlers

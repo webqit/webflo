@@ -13,9 +13,9 @@ export class Router extends WebfloRouter {
                 if (_segmentOnFile.index) return _segmentOnFile;
                 var _currentPath = thisTick.trailOnFile.concat(_seg).join('/'),
                     routeHandlerFile;
-                return Fs.existsSync(routeHandlerFile = Path.join(this.cx.CWD, this.cx.layout.SERVER_DIR, _currentPath, 'index.js')) ? { seg: _seg, index: routeHandlerFile } : (
-                    Fs.existsSync(Path.join(this.cx.CWD, this.cx.layout.SERVER_DIR, _currentPath)) ? { seg: _seg, dirExists: true } : _segmentOnFile
-                );
+                return Fs.existsSync(routeHandlerFile = Path.join(this.cx.CWD, this.cx.layout.SERVER_DIR, _currentPath, 'server.js')) || Fs.existsSync(routeHandlerFile = Path.join(this.cx.CWD, this.cx.layout.SERVER_DIR, _currentPath, 'index.js'))
+                    ? { seg: _seg, index: routeHandlerFile }
+                    : (Fs.existsSync(Path.join(this.cx.CWD, this.cx.layout.SERVER_DIR, _currentPath)) ? { seg: _seg, dirExists: true } : _segmentOnFile);
             }, { seg: null });
             thisTick.trail = thisTick.trail.concat(thisTick.currentSegment);
             thisTick.trailOnFile = thisTick.trailOnFile.concat(thisTick.currentSegmentOnFile.seg);
@@ -23,8 +23,11 @@ export class Router extends WebfloRouter {
         } else {
             thisTick.trail = [];
             thisTick.trailOnFile = [];
-            thisTick.currentSegmentOnFile = { index: Path.join(this.cx.CWD, this.cx.layout.SERVER_DIR, 'index.js') };
-            thisTick.exports = Fs.existsSync(thisTick.currentSegmentOnFile.index) 
+            let routeHandlerFile;
+            thisTick.currentSegmentOnFile = Fs.existsSync(routeHandlerFile = Path.join(this.cx.CWD, this.cx.layout.SERVER_DIR, 'server.js')) || Fs.existsSync(routeHandlerFile = Path.join(this.cx.CWD, this.cx.layout.SERVER_DIR, 'index.js'))
+                ? { index: routeHandlerFile }
+                : {};
+            thisTick.exports = thisTick.currentSegmentOnFile.index
                 ? await import(Url.pathToFileURL(thisTick.currentSegmentOnFile.index)) 
                 : null;
         }

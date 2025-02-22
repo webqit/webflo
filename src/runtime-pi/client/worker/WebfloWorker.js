@@ -157,6 +157,7 @@ export class WebfloWorker extends WebfloRuntime {
 				if (scope.eventLifecyclePromises.dirty && !scope.eventLifecyclePromises.size) {
 					throw new Error('Final response already sent');
 				}
+				await scope.httpEvent.session.commit();
 				return await this.execPush(scope.clientMessaging, response);
 			},
 		};

@@ -28,8 +28,10 @@ export class WebfloStorage {
     }
 
     async commit() {
-        if (!this.#store || !this.#key || !this.#modified) return;
-        await this.#registry.set(this.#key, this.#store);
+        if (this.#store && this.#key && this.#modified) {
+            await this.#registry.set(this.#key, this.#store);
+        }
+        this.#modified = false;
     }
 
     get size() { return this.store().then((store) => Object.keys(store).length); }
@@ -78,6 +80,7 @@ export class WebfloStorage {
         for (const key of await this.keys()) {
             Reflect.deleteProperty(await this.store(), key);
         }
+        this.#modified = true;
         await this.emit();
         return this;
     }

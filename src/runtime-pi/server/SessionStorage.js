@@ -30,26 +30,28 @@ export class SessionStorage extends WebfloStorage {
                 sessionID = crypto.randomUUID();
             }
         }
-        return new this(params.registry || inmemSessionRegistry, sessionID, request);
+        return new this(params.registry || inmemSessionRegistry, sessionID, request, params.ttl);
     }
 
     #sessionID;
     get sessionID() { return this.#sessionID; }
+    #ttl;
     
-    constructor(reqistry, sessionID, request) {
+    constructor(reqistry, sessionID, request, ttl) {
         super(
             reqistry,
-            `session:${sessionID}`,
+            `session/${sessionID}`,
             request,
             true
         );
         this.#sessionID = sessionID;
+        this.#ttl = ttl;
     }
 
     async commit(response = null) {
         if (response && !response.headers.get('Set-Cookie', true).find((c) => c.name === '__sessid')) {
             // expires six months
-            response.headers.append('Set-Cookie', `__sessid=${this.#sessionID}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=15768000`);
+            response.headers.append('Set-Cookie', `__sessid=${this.#sessionID}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=${this.#ttl}`);
         }
         await super.commit();
     }

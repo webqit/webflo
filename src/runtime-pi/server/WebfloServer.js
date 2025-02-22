@@ -5,6 +5,7 @@ import Http from 'http';
 import Https from 'https';
 import WebSocket from 'ws';
 import Mime from 'mime-types';
+import 'dotenv/config';
 import QueryString from 'querystring';
 import { _from as _arrFrom, _any } from '@webqit/util/arr/index.js';
 import { _isEmpty, _isObject } from '@webqit/util/js/index.js';
@@ -65,20 +66,25 @@ export class WebfloServer extends WebfloRuntime {
         this.#cx = cx;
     }
 
+    env(key) {
+        return key in this.#cx.env.mappings
+        ? process.env[this.#cx.env.mappings[key]]
+        : process.env[key];
+    }
+
     async initialize() {
+        process.on('uncaughtException', (err) => {
+            console.error('Uncaught- Exception:', err);
+        });
+        process.on('unhandledRejection', (reason, promise) => {
+            console.log('Unhandled -Rejection', reason, promise);
+        });
         const resolveContextObj = async (cx, force = false) => {
             if (_isEmpty(cx.layout) || force) { cx.layout = await (new cx.config.deployment.Layout(cx)).read(); }
             if (_isEmpty(cx.server) || force) { cx.server = await (new cx.config.runtime.Server(cx)).read(); }
             if (_isEmpty(cx.env) || force) { cx.env = await (new cx.config.deployment.Env(cx)).read(); }
         };
         await resolveContextObj(this.#cx);
-        if (this.#cx.env.autoload !== false) {
-            Object.keys(this.#cx.env.entries).forEach(key => {
-                if (!(key in process.env)) {
-                    process.env[key] = this.#cx.env.entries[key];
-                }
-            });
-        }
         // ---------------
         if (this.#cx.config.deployment.Proxy) {
             const proxied = await (new this.#cx.config.deployment.Proxy(this.#cx)).read();
@@ -115,18 +121,14 @@ export class WebfloServer extends WebfloRuntime {
             }
             if (this.#proxies.size) {
                 this.#cx.logger.info(`> Reverse proxy active.`);
-                for (let [id, def] of this.#proxies) {
+                for (const [id, def] of this.#proxies) {
                     this.#cx.logger.info(`> ${id} >>> ${def.port}`);
                 }
             }
             this.#cx.logger.info(``);
+            this.#cx.logger.info(`Capabilities: ${Object.keys(this.#sdk).join(', ')}`);
+            this.#cx.logger.info(``);
         }
-        process.on('uncaughtException', (err) => {
-            console.error('Uncaught Exception:', err);
-        });
-        process.on('unhandledRejection', (reason, promise) => {
-            console.log('Unhandled Rejection', reason, promise);
-        });
     }
 
     control() {
@@ -189,55 +191,45 @@ export class WebfloServer extends WebfloRuntime {
             if (this.#cx.server.capabilities.database_dialect !== 'postgres') {
                 throw new Error(`Only postgres supported for now for database dialect`);
             }
-            if (process.env[this.#cx.server.capabilities.database_url_variable]) {
-                console.log('Database capabilities');
+            if (this.env('DATABASE_URL')) {
                 const { SQLClient } = await import('@linked-db/linked-ql/sql');
                 const { default: pg } = await import('pg');
                 // Obtain pg client
                 const pgClient = new pg.Pool({
-                    connectionString: process.env[this.#cx.server.capabilities.database_url_variable],
-                    database: 'postgres',
-                    idle_in_transaction_session_timeout: 0
+                    connectionString: this.env('DATABASE_URL')
                 });
-                // Connect
                 await (async function connect() {
-                    /*
                     pgClient.on('error', (e) => {
-                        console.log('____________error_', e);
+                        console.log('PG Error', e);
                     });
                     pgClient.on('end', (e) => {
-                        console.log('____________end_', e);
+                        console.log('PG End', e);
                     });
                     pgClient.on('notice', (e) => {
-                        console.log('____________notice_', e);
+                        console.log('PG Notice', e);
                     });
-                    */
                     await pgClient.connect();
                 })();
                 this.#sdk.db = new SQLClient(pgClient, { dialect: 'postgres' });
             } else {
-                console.log('No database capabilities');
                 //const { ODBClient } = await import('@linked-db/linked-ql/odb');
                 //this.#sdk.db = new ODBClient({ dialect: 'postgres' });
             }
         }
         if (this.#cx.server.capabilities?.redis) {
             const { Redis } = await import('ioredis');
-            this.#sdk.redis = process.env[this.#cx.server.capabilities.redis_url_variable]
-                ? new Redis(process.env[this.#cx.server.capabilities.redis_url_variable])
+            this.#sdk.redis = this.env('REDIS_URL')
+                ? new Redis(this.env('REDIS_URL'))
                 : new Redis;
-            console.log('Redis capabilities', process.env[this.#cx.server.capabilities.redis_url_variable] ? 'with url' : '');
         }
         if (this.#cx.server.capabilities?.webpush) {
             const { default: webpush } = await import('web-push');
-            console.log('Webpuah capabilities');
             this.#sdk.webpush = webpush;
-            if (process.env[this.#cx.server.capabilities.vapid_public_key_variable]
-            && process.env[this.#cx.server.capabilities.vapid_private_key_variable]) {
+            if (this.env('VAPID_PUBLIC_KEY') && this.env('VAPID_PRIVATE_KEY')) {
                 webpush.setVapidDetails(
                     this.#cx.server.capabilities.vapid_subject,
-                    process.env[this.#cx.server.capabilities.vapid_public_key_variable],
-                    process.env[this.#cx.server.capabilities.vapid_private_key_variable]
+                    this.env('VAPID_PUBLIC_KEY'),
+                    this.env('VAPID_PRIVATE_KEY')
                 );
             }
         }
@@ -280,11 +272,12 @@ export class WebfloServer extends WebfloRuntime {
         // and actual processing
         scope.request = this.createRequest(scope.url.href, requestInit);
         scope.session = this.constructor.SessionStorage.create(scope.request, {
-            secret: process.env[this.#cx.server.session_key_variable],
+            secret: this.env('SESSION_KEY'),
             registry: this.#sdk.redis && {
-                get: async (key) => { return JSON.parse(await this.#sdk.redis.get(key) || null) },
-                set: async (key, value) => { return await this.#sdk.redis.set(key, JSON.stringify(value), 'EX', 15768000) },
+                get: async (key) => { return JSON.parse(await this.#sdk.redis.get(`${scope.url.host}/${key}`) || null) },
+                set: async (key, value) => { return await this.#sdk.redis.set(`${scope.url.host}/${key}`, JSON.stringify(value), 'EX', this.env('SESSION_TTL') || 2592000/*30days*/) },
             },
+            ttl: this.env('SESSION_TTL') || 2592000/*30days*/,
         });
         if (!scope.error) {
             if (!(scope.clientMessagingRegistry = this.#globalMessagingRegistry.get(scope.session.sessionID))) {
@@ -573,6 +566,7 @@ export class WebfloServer extends WebfloRuntime {
                     console.error('Final response already sent');
                     return;
                 }
+                await scope.httpEvent.session.commit();
                 return await this.execPush(scope.clientMessaging, response);
             },
         };
@@ -584,11 +578,12 @@ export class WebfloServer extends WebfloRuntime {
         scope.request = this.createRequest(scope.url.href, scope.init, scope.autoHeaders.filter((header) => header.type === 'request'));
         scope.cookies = this.constructor.CookieStorage.create(scope.request);
         scope.session = this.constructor.SessionStorage.create(scope.request, {
-            secret: process.env[this.#cx.server.session_key_variable],
+            secret: this.env('SESSION_KEY'),
             registry: this.#sdk.redis && {
-                get: async (key) => { return JSON.parse(await this.#sdk.redis.get(key) || null) },
-                set: async (key, value) => { return await this.#sdk.redis.set(key, JSON.stringify(value), 'EX', 15768000) },
+                get: async (key) => { return JSON.parse(await this.#sdk.redis.get(`${scope.url.host}/${key}`) || null) },
+                set: async (key, value) => { return await this.#sdk.redis.set(`${scope.url.host}/${key}`, JSON.stringify(value), 'EX', this.env('SESSION_TTL') || 2592000/*30days*/); },
             },
+            ttl: this.env('SESSION_TTL') || 2592000/*30days*/,
         });
         const sessionID = scope.session.sessionID;
         if (!this.#globalMessagingRegistry.has(sessionID)) {
