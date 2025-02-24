@@ -3,54 +3,51 @@ import { _even } from '@webqit/util/obj/index.js';
 
 export class WebfloStorage {
     
+    #store;
     #request;
     #session;
-    #registry;
-    #key;
-    #store;
     #modified = false;
 
-    constructor(registry, key, request, session = null) {
-        this.#registry = registry;
-        this.#key = key;
+    constructor(store, request, session = null) {
+        this.#store = store || new Map;
         this.#request = request;
         this.#session = session === true ? this : session;
     }
-    
-    async store() {
-        if (!this.#key) {
-            return this.#registry;
-        }
-        if (!this.#store && !(this.#store = await this.#registry.get(this.#key))) {
-            this.#store = {};
-        }
-        return this.#store;
+
+    async has(key) { return await this.#store.has(key); }
+
+    async get(key) { return await this.#store.get(key); }
+
+    async set(key, value) {
+        await this.#store.set(key, value);
+        this.#modified = true;
+        await this.emit(key, value);
+        return this;
     }
 
-    async refresh() {
-        let $store;
-        if (!this.#store || !($store = await this.#registry.get(this.#key))) return;
-        const { ['#user']: user, ...rest } = $store;
-        Object.assign(this.#store, rest);
-        if (this.#store['#user']) {
-            Object.assign(this.#store['#user'], user);
-        }
+    async delete(key) {
+        await this.#store.delete(key);
+        this.#modified = true;
+        await this.emit(key);
+        return this;
     }
 
-    async commit() {
-        if (this.#store && this.#key && this.#modified) {
-            await this.#registry.set(this.#key, this.#store);
-        }
-        this.#modified = false;
+    async clear() {
+        await this.#store.clear();
+        this.#modified = true;
+        await this.emit();
+        return this;
     }
 
-    get size() { return this.store().then((store) => Object.keys(store).length); }
+    async keys() { return [...await this.#store.keys()]; }
 
-    [ Symbol.iterator ]() { return this.entries().then((entries) => entries[ Symbol.iterator ]()); }
+    async values() { return [...await this.#store.values()]; }
+
+    async entries() { return [...await this.#store.entries()]; }
 
     async json(arg = null) {
         if (!arguments.length || typeof arg === 'boolean') {
-            return { ...(await this.store()) };
+            return Object.fromEntries(await this.#store.entries());
         }
         if (!_isObject(arg)) {
             throw new Error(`Argument must be a valid JSON object`);
@@ -60,39 +57,14 @@ export class WebfloStorage {
         }));
     }
 
-    async get(key) { return Reflect.get(await this.store(), key); }
+    async forEach(callback) { (await this.entries()).forEach(([key, value], i) => callback(value, key, i)); }
 
-    async has(key) { return Reflect.has(await this.store(), key); }
+    [ Symbol.iterator ]() { return this.entries().then((entries) => entries[ Symbol.iterator ]()); }
 
-    async keys() { return Object.keys(await this.store()); }
+    get size() { return this.#store.sizs; }
 
-    async values() { return Object.values(await this.store()); }
-
-    async entries() { return Object.entries(await this.store()); }
-
-    async forEach(callback) { (await this.entries()).forEach(callback); }
-
-    async set(key, value) {
-        Reflect.set(await this.store(), key, value);
-        this.#modified = true;
-        await this.emit(key, value);
-        return this;
-    }
-
-    async delete(key) {
-        Reflect.deleteProperty(await this.store(), key);
-        this.#modified = true;
-        await this.emit(key);
-        return this;
-    }
-
-    async clear() {
-        for (const key of await this.keys()) {
-            Reflect.deleteProperty(await this.store(), key);
-        }
-        this.#modified = true;
-        await this.emit();
-        return this;
+    async commit() {
+        this.#modified = false;
     }
 
     #listeners = new Set;

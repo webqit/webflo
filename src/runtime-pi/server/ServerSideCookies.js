@@ -1,6 +1,6 @@
-import { WebfloCookieStorage } from '../../WebfloCookieStorage.js';
+import { HttpCookies } from '../HttpCookies.js';
 
-export class CookieStorage extends WebfloCookieStorage {
+export class ServerSideCookies extends HttpCookies {
     static create(request) {
         return new this(
             request,

@@ -15,14 +15,14 @@ import { Readable as _ReadableStream } from 'stream';
 import { WebfloRuntime } from '../WebfloRuntime.js';
 import { createWindow } from '@webqit/oohtml-ssr';
 import { Context } from './Context.js';
-import { CookieStorage } from './CookieStorage.js';
-import { SessionStorage } from './SessionStorage.js';
 import { MessagingOverSocket } from '../MessagingOverSocket.js';
 import { ClientMessagingRegistry } from './ClientMessagingRegistry.js';
+import { ServerSideCookies } from './ServerSideCookies.js';
+import { ServerSideSession } from './ServerSideSession.js';
 import { HttpEvent } from '../HttpEvent.js';
 import { HttpUser } from '../HttpUser.js';
 import { Router } from './Router.js';
-import { params, pattern } from '../util-url.js';
+import { pattern } from '../util-url.js';
 import xfetch from '../xfetch.js';
 import '../util-http.js';
 
@@ -37,9 +37,9 @@ export class WebfloServer extends WebfloRuntime {
 
     static get HttpEvent() { return HttpEvent; }
 
-    static get CookieStorage() { return CookieStorage; }
+    static get HttpCookies() { return ServerSideCookies; }
 
-    static get SessionStorage() { return SessionStorage; }
+    static get HttpSession() { return ServerSideSession; }
 
     static get HttpUser() { return HttpUser; }
 
@@ -74,10 +74,10 @@ export class WebfloServer extends WebfloRuntime {
 
     async initialize() {
         process.on('uncaughtException', (err) => {
-            console.error('Uncaught- Exception:', err);
+            console.error('Uncaught Exception:', err);
         });
         process.on('unhandledRejection', (reason, promise) => {
-            console.log('Unhandled -Rejection', reason, promise);
+            console.log('Unhandled Rejection', reason, promise);
         });
         const resolveContextObj = async (cx, force = false) => {
             if (_isEmpty(cx.layout) || force) { cx.layout = await (new cx.config.deployment.Layout(cx)).read(); }
@@ -218,9 +218,39 @@ export class WebfloServer extends WebfloRuntime {
         }
         if (this.#cx.server.capabilities?.redis) {
             const { Redis } = await import('ioredis');
-            this.#sdk.redis = this.env('REDIS_URL')
+            const redis = this.env('REDIS_URL')
                 ? new Redis(this.env('REDIS_URL'))
                 : new Redis;
+            this.#sdk.redis = redis;
+            this.#sdk.storage = (namespace, ttl = null) => ({
+                async has(key) { return await redis.hexists(namespace, key); },
+                async get(key) {
+                    const value = await redis.hget(namespace, key);
+                    return typeof value === 'undefined' ? value : JSON.parse(value);
+                },
+                async set(key, value) {
+                    const returnValue = await redis.hset(namespace, key, JSON.stringify(value));
+                    if (!this.ttlApplied && ttl) {
+                        await redis.expire(namespace, ttl); 
+                        this.ttlApplied = true;
+                    }
+                    return returnValue;
+                },
+                async delete(key) { return await redis.hdel(namespace, key); },
+                async clear() { return await redis.del(namespace); },
+                async keys() { return await redis.hkeys(namespace); },
+                async values() { return await redis.hvals(namespace); },
+                async entries() { return Object.entries(await redis.hgetall(namespace) || {}); },
+                get size() { return redis.hlen(namespace); },
+            });
+        } else {
+            const inmemSessionRegistry = new Map;
+            this.#sdk.storage = (namespace) => {
+                if (!inmemSessionRegistry.has(namespace)) {
+                    inmemSessionRegistry.set(namespace, new Map);
+                }
+                return inmemSessionRegistry.get(namespace);
+            };
         }
         if (this.#cx.server.capabilities?.webpush) {
             const { default: webpush } = await import('web-push');
@@ -271,14 +301,15 @@ export class WebfloServer extends WebfloRuntime {
         // Level 3 validation
         // and actual processing
         scope.request = this.createRequest(scope.url.href, requestInit);
-        scope.session = this.constructor.SessionStorage.create(scope.request, {
-            secret: this.env('SESSION_KEY'),
-            registry: this.#sdk.redis && {
-                get: async (key) => { return JSON.parse(await this.#sdk.redis.get(`${scope.url.host}/${key}`) || null) },
-                set: async (key, value) => { return await this.#sdk.redis.set(`${scope.url.host}/${key}`, JSON.stringify(value), 'EX', this.env('SESSION_TTL') || 2592000/*30days*/) },
-            },
-            ttl: this.env('SESSION_TTL') || 2592000/*30days*/,
-        });
+        scope.sessionTTL = this.env('SESSION_TTL') || 2592000/*30days*/;
+        scope.session = this.constructor.HttpSession.create(
+            (sessionID) => this.#sdk.storage?.(`${scope.url.host}/session:${sessionID}`, scope.sessionTTL),
+            scope.request,
+            {
+                secret: this.env('SESSION_KEY'),
+                ttl: scope.sessionTTL,
+            }
+        );
         if (!scope.error) {
             if (!(scope.clientMessagingRegistry = this.#globalMessagingRegistry.get(scope.session.sessionID))) {
                 scope.error = `Lost or invalid clientID`;
@@ -576,15 +607,16 @@ export class WebfloServer extends WebfloRuntime {
             ? ((await (new this.#cx.config.runtime.server.Headers(this.#cx)).read()).entries || []).filter(entry => pattern(entry.url, url.origin).exec(url.href))
             : [];
         scope.request = this.createRequest(scope.url.href, scope.init, scope.autoHeaders.filter((header) => header.type === 'request'));
-        scope.cookies = this.constructor.CookieStorage.create(scope.request);
-        scope.session = this.constructor.SessionStorage.create(scope.request, {
-            secret: this.env('SESSION_KEY'),
-            registry: this.#sdk.redis && {
-                get: async (key) => { return JSON.parse(await this.#sdk.redis.get(`${scope.url.host}/${key}`) || null) },
-                set: async (key, value) => { return await this.#sdk.redis.set(`${scope.url.host}/${key}`, JSON.stringify(value), 'EX', this.env('SESSION_TTL') || 2592000/*30days*/); },
-            },
-            ttl: this.env('SESSION_TTL') || 2592000/*30days*/,
-        });
+        scope.cookies = this.constructor.HttpCookies.create(scope.request);
+        scope.sessionTTL = this.env('SESSION_TTL') || 2592000/*30days*/;
+        scope.session = this.constructor.HttpSession.create(
+            (sessionID) => this.#sdk.storage?.(`${scope.url.host}/session:${sessionID}`, scope.sessionTTL),
+            scope.request,
+            {
+                secret: this.env('SESSION_KEY'),
+                ttl: scope.sessionTTL,
+            }
+        );
         const sessionID = scope.session.sessionID;
         if (!this.#globalMessagingRegistry.has(sessionID)) {
             this.#globalMessagingRegistry.set(sessionID, new ClientMessagingRegistry(this, sessionID));
@@ -592,6 +624,7 @@ export class WebfloServer extends WebfloRuntime {
         scope.clientMessagingRegistry = this.#globalMessagingRegistry.get(sessionID);
         scope.clientMessaging = scope.clientMessagingRegistry.createPort();
         scope.user = this.constructor.HttpUser.create(
+            this.#sdk.storage?.(`${scope.url.host}/user:${scope.session.sessionID}`, scope.sessionTTL),
             scope.request, 
             scope.session, 
             scope.clientMessaging

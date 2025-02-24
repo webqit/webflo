@@ -6,8 +6,8 @@ import { MessagingOverBroadcast } from '../MessagingOverBroadcast.js';
 import { MessagingOverChannel } from '../MessagingOverChannel.js';
 import { MessagingOverSocket } from '../MessagingOverSocket.js';
 import { ClientMessaging } from './ClientMessaging.js';
-import { CookieStorage } from './CookieStorage.js';
-import { SessionStorage } from './SessionStorage.js';
+import { ClientSideCookies } from './ClientSideCookies.js';
+import { HttpSession } from '../HttpSession.js';
 import { HttpEvent } from '../HttpEvent.js';
 import { HttpUser } from '../HttpUser.js';
 import { Router } from './Router.js';
@@ -23,9 +23,9 @@ export class WebfloClient extends WebfloRuntime {
 
 	static get HttpEvent() { return HttpEvent; }
 
-	static get CookieStorage() { return CookieStorage; }
+	static get HttpCookies() { return ClientSideCookies; }
 
-	static get SessionStorage() { return SessionStorage; }
+	static get HttpSession() { return HttpSession; }
 
     static get HttpUser() { return HttpUser; }
 
@@ -48,11 +48,8 @@ export class WebfloClient extends WebfloRuntime {
         return document.querySelector('meta[name="webflo-viewtransitions"]')?.value;
     }
 
-    env(key) {
-        return key in this.cx.params.mappings
-        ? this.cx.params.env[this.cx.params.mappings[key]]
-        : this.cx.params.env[key];
-    }
+    #sdk = {};
+    get sdk() { return this.#sdk; }
 
     constructor(host) {
         super();
@@ -72,6 +69,12 @@ export class WebfloClient extends WebfloRuntime {
             rel: 'unrelated',
             phase: 0
         };
+    }
+
+    env(key) {
+        return key in this.cx.params.mappings
+        ? this.cx.params.env[this.cx.params.mappings[key]]
+        : this.cx.params.env[key];
     }
 
     async initialize() {
@@ -329,12 +332,16 @@ export class WebfloClient extends WebfloRuntime {
         };
         // Create and route request
         scope.request = this.createRequest(scope.url, scope.init);
-        scope.cookies = this.constructor.CookieStorage.create(scope.request);
-        scope.session = this.constructor.SessionStorage.create(scope.request);
+        scope.cookies = this.constructor.HttpCookies.create(scope.request);
+        scope.session = this.constructor.HttpSession.create(
+            this.#sdk.storage?.('session'),
+            scope.request
+        );
         const messageChannel = new MessageChannel;
         this.backgroundMessaging.add(new MessagingOverChannel(null, messageChannel.port1));
         scope.clientMessaging = new ClientMessaging(this, messageChannel.port2);
         scope.user = this.constructor.HttpUser.create(
+            this.#sdk.storage?.('user'),
             scope.request, 
             scope.session, 
             scope.clientMessaging
@@ -346,7 +353,7 @@ export class WebfloClient extends WebfloRuntime {
             session: scope.session,
             user: scope.user,
             client: scope.clientMessaging,
-            sdk: {}
+            sdk: this.#sdk
         });
         await this.setup(scope.httpEvent);
         scope.httpEvent.onRequestClone = () => this.createRequest(scope.url, scope.init);

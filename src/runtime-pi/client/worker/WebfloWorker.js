@@ -3,8 +3,8 @@ import { _isObject } from '@webqit/util/js/index.js';
 import { pattern } from '../../util-url.js';
 import { WebfloRuntime } from '../../WebfloRuntime.js';
 import { ClientMessaging } from './ClientMessaging.js';
-import { CookieStorage } from './CookieStorage.js';
-import { SessionStorage } from './SessionStorage.js';
+import { WorkerSideCookies } from './WorkerSideCookies.js';
+import { HttpSession } from '../../HttpSession.js';
 import { HttpEvent } from '../../HttpEvent.js';
 import { HttpUser } from '../../HttpUser.js';
 import { Workport } from './Workport.js';
@@ -21,9 +21,9 @@ export class WebfloWorker extends WebfloRuntime {
 
 	static get HttpEvent() { return HttpEvent; }
 
-	static get CookieStorage() { return CookieStorage; }
+	static get HttpCookies() { return WorkerSideCookies; }
 
-	static get SessionStorage() { return SessionStorage; }
+	static get HttpSession() { return HttpSession; }
 
 	static get HttpUser() { return HttpUser; }
 
@@ -35,6 +35,9 @@ export class WebfloWorker extends WebfloRuntime {
 
 	#cx;
 	get cx() { return this.#cx; }
+
+    #sdk = {};
+    get sdk() { return this.#sdk; }
 
 	constructor(cx) {
 		super();
@@ -163,11 +166,15 @@ export class WebfloWorker extends WebfloRuntime {
 		};
 		// Create and route request
 		scope.request = this.createRequest(scope.url, scope.init);
-		scope.cookies = this.constructor.CookieStorage.create(scope.request);
-		scope.session = this.constructor.SessionStorage.create(scope.request);
+		scope.cookies = this.constructor.HttpCookies.create(scope.request);
+		scope.session = this.constructor.HttpSession.create(
+			this.#sdk.storage?.('session'),
+			scope.request
+		);
 		const portID = crypto.randomUUID();
 		scope.clientMessaging = new ClientMessaging(this, portID, { isPrimary: true });
 		scope.user = this.constructor.HttpUser.create(
+			this.#sdk.storage?.('user'),
 			scope.request,
 			scope.session,
 			scope.clientMessaging
