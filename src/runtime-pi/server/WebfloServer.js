@@ -239,8 +239,8 @@ export class WebfloServer extends WebfloRuntime {
                 async delete(key) { return await redis.hdel(namespace, key); },
                 async clear() { return await redis.del(namespace); },
                 async keys() { return await redis.hkeys(namespace); },
-                async values() { return (await redis.hvals(namespace) || []).map((value) => JSON.parse(value)); },
-                async entries() { return Object.entries(await redis.hgetall(namespace) || {}).map(([key, value]) => [key, JSON.parse(value)]); },
+                async values() { return (await redis.hvals(namespace) || []).map((value) => typeof value === 'undefined' ? value : JSON.parse(value)); },
+                async entries() { return Object.entries(await redis.hgetall(namespace) || {}).map(([key, value]) => [key, typeof value === 'undefined' ? value : JSON.parse(value)]); },
                 get size() { return redis.hlen(namespace); },
             });
         } else {

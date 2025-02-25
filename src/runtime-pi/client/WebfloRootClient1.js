@@ -94,6 +94,44 @@ export class WebfloRootClient1 extends WebfloClient {
         };
 		cleanups.push(this.backgroundMessaging.handleMessages('confirm', promptsHandler));
         cleanups.push(this.backgroundMessaging.handleMessages('prompt', promptsHandler));
+        cleanups.push(this.backgroundMessaging.handleRequests('ua:query', async (e) => {
+			e.stopPropagation();
+			if (e.data?.query === 'push_registration') {
+				const pushManager = (await navigator.serviceWorker.getRegistration()).pushManager;
+				const r = await pushManager.getSubscription();
+				return r;
+			}
+		}));
+		cleanups.push(this.backgroundMessaging.handleRequests('storage:query', (e) => {
+			e.stopPropagation();
+			const { source, namespace, query, key, value } = e.data;
+			const storage = source === 'session' ? sessionStorage : (source === 'local' ? localStorage : null);
+			if (!storage) return;
+			const data = JSON.parse(storage.getItem(namespace) || (query === 'set' ? '{}' : 'null'));
+			switch (query) {
+				case 'has':
+					return !!data && Reflect.has(data, key);
+				case 'get':
+					return data && Reflect.get(data, key);
+				case 'set':
+					Reflect.set(data, key, value);
+					return storage.setItem(namespace, JSON.stringify(data))
+				case 'delete':
+					if (!data) return;
+					Reflect.deleteProperty(data, key);
+					return storage.setItem(namespace, JSON.stringify(data));
+				case 'clear':
+					return storage.removeItem(namespace);
+				case 'keys':
+					return data && Reflect.ownKeys(data) || [];
+				case 'values':
+					return data && Object.values(data) || [];
+				case 'entries':
+					return data && Object.entries(data) || [];
+				case 'size':
+					return data && Object.keys(data).length || 0;
+			}
+		}));
 		// --------
 		// HYDRATION
 		const scope = {};

@@ -9,6 +9,8 @@ export class WebfloMessagingAPI extends WebfloEventTarget {
     isMessaging() { return this.#isSending || !!this.length; }
 
     #hooks = new Set;
+    get $hooks() { return this.#hooks; }
+
     on(eventName, callback, { once = false } = {}) {
         if (eventName === 'connected' && this.#isConnected) {
             callback();

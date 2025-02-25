@@ -282,7 +282,9 @@ export class WebfloClient extends WebfloRuntime {
         location = typeof location === 'string' ? new URL(location, this.location.origin) : location;
         if (this.isSpaRoute(location)) {
             await this.navigate(location, {}, { navigationType: 'rdr' });
-        } else this.hardRedirect(location, backgroundMessaging);
+        } else {
+            this.hardRedirect(location, backgroundMessaging);
+        }
     }
 
     hardRedirect(location, backgroundMessaging) {

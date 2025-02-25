@@ -22,7 +22,7 @@ export class MessagingOverSocket extends WebfloMessagingAPI {
             this.dispatchEvent(new SocketMessageEvent(
                 this,
                 json.messageType,
-                json.message,
+                json.messageUndefined ? undefined : json.message,
                 json.messageID,
                 json.numPorts
             ));
@@ -61,7 +61,8 @@ export class MessagingOverSocket extends WebfloMessagingAPI {
             const messageID = (0 | Math.random() * 9e6).toString(36);
             this.#socket.send(JSON.stringify({
                 messageType,
-                message,
+                message: message === undefined ? null : message,
+                messageUndefined: message === undefined,
                 messageID,
                 numPorts: messagePorts.length
             }), options);
