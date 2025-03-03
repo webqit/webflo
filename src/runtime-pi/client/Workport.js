@@ -1,178 +1,91 @@
+import { _isObject } from '@webqit/util/js/index.js';
+import { WebfloMessagingAPI } from '../WebfloMessagingAPI.js';
+import { WebfloMessageEvent } from '../WebfloMessageEvent.js';
 
+export class Workport extends WebfloMessagingAPI {
 
-/**
- * @imports
- */
-import { _isFunction, _isObject } from '@webqit/util/js/index.js';
-import { Observer } from './Runtime.js';
+    #registration;
+    get registration() { return this.#registration; }
 
-export default class Workport {
+    #params;
+    get params() { return this.#params; }
 
-    constructor(file, params = {}) {
-        this.ready = navigator.serviceWorker ? navigator.serviceWorker.ready : new Promise(() => {});
+    #ready;
+    get ready() { return this.#ready; }
 
-        // --------
-        // Registration and lifecycle
-        // --------
-        this.registration = new Promise((resolve, reject) => {
-            if (!navigator.serviceWorker) return;
-            const register = () => {
-                navigator.serviceWorker.register(file, { scope: params.scope || '/' }).then(async registration => {
+    #active;
+    get active() { return this.#active; }
 
-                    // Helper that updates instance's state
-                    const state = target => {
-                        // instance2.state can be any of: "installing", "installed", "activating", "activated", "redundant"
-                        const equivState = target.state === 'installed' ? 'waiting' : 
-                            (target.state === 'activating' || target.state === 'activated' ? 'active' : target.state)
-                        Observer.set(this, equivState, target);
-                    }
+    static async initialize(parentNode, file, params = {}) {
+        const registration = (await navigator.serviceWorker.getRegistration())
+            || (await navigator.serviceWorker.register(file, { scope: '/', ...params }));
+        return new this(parentNode, registration, params);
+    }
 
-                    // We're always installing at first for a new service worker.
-                    // An existing service would immediately be active
-                    const worker = registration.active || registration.waiting || registration.installing;
-                    state(worker);
-                    worker.addEventListener('statechange', e => state(e.target));
-                    
-                    // "updatefound" event - a new worker that will control
-                    // this page is installing somewhere
-                    registration.addEventListener('updatefound', () => {
-                        // If updatefound is fired, it means that there's
-                        // a new service worker being installed.
-                        state(registration.installing);
-                        registration.installing.addEventListener('statechange', e => state(e.target));
-                    });
-                    
-                    resolve(registration);
-                }).catch(e => reject(e));
-            };
-            if (params.onWindowLoad) {
-                window.addEventListener('load', register);
-            } else {
-                register();
-            }
-            if (params.startMessages) {
-                navigator.serviceWorker.startMessages();
-            }
-        });
-
-        // --------
-        // Post messaging
-        // --------
-        const postSendCallback = (message, callback, onAvailability = 1) => {
-            if (this.active) {
-                if (_isFunction(message)) message = message();
-                callback(this.active, message);
-            } else if (onAvailability) {
-                // Availability Handling
-                const availabilityHandler = entry => {
-                    if (_isFunction(message)) message = message();
-                    callback(entry.value, message);
-                    if (onAvailability !== 2) {
-                        Observer.unobserve(this, 'active', availabilityHandler);
-                    }
-                };
-                Observer.observe(this, 'active', availabilityHandler);
-            }
-        };
-        this.messaging = {
-            post: (message, onAvailability = 1) => {
-                postSendCallback(message, (active, message) => {
-                    active.postMessage(message);
-                }, onAvailability);
-                return this.post;
-            },
-            listen: callback => {
-                if (navigator.serviceWorker) {
-                    navigator.serviceWorker.addEventListener('message', evt => {
-                        const response = callback(evt);
-                        let responsePort = evt.ports[0];
-                        if (responsePort) {
-                            if (response instanceof Promise) {
-                                response.then(data => {
-                                    responsePort.postMessage(data);
-                                });
-                            } else {
-                                responsePort.postMessage(response);
-                            }
-                        }
-                    });
+    #messageHandler;
+    constructor(parentNode, registration, params = {}) {
+        super(parentNode, params);
+        this.#registration = registration;
+        this.#params = params;
+        this.#ready = navigator.serviceWorker ? navigator.serviceWorker.ready : new Promise(() => {});
+        // Helper that updates instance's state
+        const stateChange = (target) => {
+            // target.state can be any of: "parsed", "installing", "installed", "activating", "activated", "redundant"
+            if (target.state === 'redundant') {
+            } else if (target.state === 'activated') {
+                const existing = this.#active;
+                this.#active = target;
+                if (!existing) {
+                    this.$emit('connected');
                 }
-                return this.post;
-            },
-            request: (message, onAvailability = 1) => {
-                return new Promise(res => {
-                    postSendCallback(message, (active, message) => {
-                        let messageChannel = new MessageChannel();
-                        active.postMessage(message, [ messageChannel.port2 ]);
-                        messageChannel.port1.onmessage = e => res(e.data);
-                    }, onAvailability);
-                });
-            },
-            channel(channelId) {
-                if (!this.channels.has(channelId)) { this.channels.set(channelId, new BroadcastChannel(channel)); }
-                let channel = this.channels.get(channelId);
-                return {
-                    broadcast: message => channel.postMessage(message),
-                    listen: callback => channel.addEventListener('message', callback),
-                };
-            },
-            channels: new Map,
+            }
+        }
+        // We're always installing at first for a new service worker.
+        // An existing service would immediately be active
+        const initial = this.#registration.active || this.#registration.waiting || this.#registration.installing;
+        if (initial)  {
+            stateChange(initial);
+            initial.addEventListener('statechange', (e) => stateChange(e.target));
+            // "updatefound" event - a new worker that will control
+            // this page is installing somewhere
+            this.#registration.addEventListener('updatefound', () => {
+                // If updatefound is fired, it means that there's
+                // a new service worker being installed.
+                stateChange(this.#registration.installing);
+                this.#registration.installing.addEventListener('statechange', (e) => stateChange(e.target));
+            });
+        }
+        this.#messageHandler = async (event) => {
+            if (!_isObject(event.data) || !['messageType', 'message'].every((k) => k in event.data)) {
+                return;
+            }
+            this.dispatchEvent(new WorkerMessageEvent(
+                this,
+                event.data.messageType,
+                event.data.message,
+                event.ports
+            ));
         };
-
-        // --------
-        // Notifications
-        // --------
-        this.notifications = {
-            fire: (title, params = {}) => {
-                return new Promise((res, rej) => {
-                    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
-                        return rej(typeof Notification !== 'undefined' && Notification && Notification.permission);
-                    }
-                    notification.addEventListener('error', rej);
-                    let notification = new Notification(title, params);
-                    notification.addEventListener('click', res);
-                    notification.addEventListener('close', res);
-                });
-            },
-        };
-
-        // --------
-        // Push notifications
-        // --------
-        this.push = {
-            getSubscription: async () => {
-                return (await this.registration).pushManager.getSubscription();
-            },
-            subscribe: async (publicKey, params = {}) => {
-                var subscription = await this.push.getSubscription();
-                return subscription ? subscription : (await this.registration).pushManager.subscribe(
-                    _isObject(publicKey) ? publicKey : {
-                        applicationServerKey: urlBase64ToUint8Array(publicKey),
-                        ...params,
-                    }
-                );
-            },
-            unsubscribe: async () => {
-                var subscription = await this.push.getSubscription();
-                return !subscription ? null : subscription.unsubscribe();
-            },
-        };
+        navigator.serviceWorker.addEventListener('message', this.#messageHandler);
     }
 
-}
-
-// Public base64 to Uint
-function urlBase64ToUint8Array(base64String) {
-    var padding = '='.repeat((4 - base64String.length % 4) % 4);
-    var base64 = (base64String + padding)
-        .replace(/\-/g, '+')
-        .replace(/_/g, '/');
-
-    var rawData = window.atob(base64);
-    var outputArray = new Uint8Array(rawData.length);
-
-    for (var i = 0; i < rawData.length; ++i) {
-        outputArray[i] = rawData.charCodeAt(i);
+    postMessage(message, transferOrOptions = []) {
+        this.on('connected', () => {
+            if (Array.isArray(transferOrOptions)) {
+                transferOrOptions = { transfer: transferOrOptions };
+            }
+            const { messageType = 'message', ...options } = transferOrOptions;
+            return this.#active.postMessage({
+                messageType,
+                message
+            }, options);
+        });
+        super.postMessage(message, transferOrOptions);
     }
-    return outputArray;
+
+    close() {
+        navigator.serviceWorker.removeEventListener('message', this.#messageHandler);
+    }
 }
+
+export class WorkerMessageEvent extends WebfloMessageEvent {}

@@ -1,21 +1,17 @@
+import { WebfloRootClient1 } from './WebfloRootClient1.js';
+import { WebfloRootClient2 } from './WebfloRootClient2.js';
+import { WebfloSubClient } from './WebfloSubClient.js';
 
-/**
- * @imports
- */
-import Context from './Context.js';
-import Application from './Application.js';
-import Runtime from './Runtime.js';
-
-/**
- * @start
- */
-export async function start(applicationInstance = null) {
-    const cx = this || {};
-    const defaultApplicationInstance = _cx => new Application(_cx);
-    return new Runtime(Context.create(cx), applicationInstance || defaultApplicationInstance);
+export async function start() {
+    const WebfloRootClient = window.navigation ? WebfloRootClient2 : WebfloRootClient1;
+    const instance = WebfloRootClient.create(document, this || {});
+    await instance.initialize();
+    WebfloSubClient.defineElement();
+    return instance;
 }
 
-/**
- * @APIS
- */
-export * as APIS from './Runtime.js';
+export { WebfloSubClient } from './WebfloSubClient.js';
+export {
+    WebfloRootClient1,
+    WebfloRootClient2
+}

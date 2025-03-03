@@ -19,43 +19,23 @@ export default class Client extends Dotfile {
     // Defaults merger
     withDefaults(config) {
         return this.merge({
+            spa_routing: true,
             bundle_filename: 'bundle.js',
             public_base_url: '/',
-            spa_routing: true,
-            oohtml_support: 'full',
-            service_worker_support: true,
-            worker_scope: '/',
-            worker_filename: 'worker.js',
+            copy_public_variables: true,
+            capabilities: {
+                service_worker: true,
+                webpush: false,
+                custom_install: false,
+                exposed: ['display-mode', 'notifications'],
+            },
         }, config, 'patch');
     }
 
     // Questions generator
     getSchema(config, choices = {}) {
-        // Choices
-        const CHOICES = this.merge({
-            oohtml_support: [
-                {value: 'full', title: 'Full'},
-                {value: 'namespacing', title: 'namespacing'},
-                {value: 'scripting', title: 'scripting'},
-                {value: 'templating', title: 'templating'},
-                {value: 'none', title: 'none'},
-            ],
-        }, choices, 'patch');
         // Questions
         return [
-            {
-                name: 'bundle_filename',
-                type: 'text',
-                message: 'Specify the bundle filename',
-                initial: config.bundle_filename,
-            },
-            {
-                name: 'public_base_url',
-                type: 'text',
-                message: '[public_base_url]: Enter the base-URL for public resource URLs',
-                initial: DATA.public_base_url,
-                validation: ['important'],
-            },
             {
                 name: 'spa_routing',
                 type: 'toggle',
@@ -66,33 +46,63 @@ export default class Client extends Dotfile {
                 validation: ['important'],
             },
             {
-                name: 'oohtml_support',
-                type: 'select',
-                message: '[oohtml_support]: (Adds OOHTML to your app\'s bundle.) Specify OOHTML support level',
-                choices: CHOICES.oohtml_support,
-                initial: this.indexOfInitial(CHOICES.oohtml_support, config.oohtml_support),
+                name: 'bundle_filename',
+                type: 'text',
+                message: 'Specify the bundle filename',
+                initial: config.bundle_filename,
+            },
+            {
+                name: 'public_base_url',
+                type: 'text',
+                message: '[public_base_url]: Enter the base-URL for public resource URLs',
+                initial: config.public_base_url,
                 validation: ['important'],
             },
             {
-                name: 'service_worker_support',
+                name: 'copy_public_variables',
                 type: 'toggle',
-                message: 'Support Service Worker?',
+                message: '[copy_public_variables]: Bundle public ENV variables?',
                 active: 'YES',
                 inactive: 'NO',
-                initial: config.service_worker_support,
+                initial: config.copy_public_variables,
+                validation: ['important'],
             },
             {
-                name: 'worker_scope',
-                type: (prev, answers) => answers.service_worker_support ? 'text' : null,
-                message: 'Specify the Service Worker scope',
-                initial: config.worker_scope,
-            },
-            {
-                name: 'worker_filename',
-                type: (prev, answers) => answers.service_worker_support ? 'text' : null,
-                message: 'Specify the Service Worker filename',
-                initial: config.worker_filename,
-            },
+                name: 'capabilities',
+                controls: {
+                    name: 'capabilities',
+                },
+                initial: config.capabilities,
+                schema: [
+                    {
+                        name: 'service_worker',
+                        type: 'toggle',
+                        message: 'Enable service worker?',
+                        active: 'YES',
+                        inactive: 'NO',
+                    },
+                    {
+                        name: 'webpush',
+                        type: 'toggle',
+                        message: 'Support push-notifications?',
+                        active: 'YES',
+                        inactive: 'NO',
+                    },
+                    {
+                        name: 'custom_install',
+                        type: 'toggle',
+                        message: 'Enable custom PWA install prompt?',
+                        active: 'YES',
+                        inactive: 'NO',
+                    },
+                    {
+                        name: 'exposed',
+                        type: 'list',
+                        message: 'Specify features exposed on capabilities.exposed',
+                        initial: (config.exposed || []).join(', '),
+                    }
+                ]
+            }
         ];
     }
 }

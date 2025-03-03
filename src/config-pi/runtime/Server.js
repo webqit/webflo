@@ -29,7 +29,13 @@ export default class Server extends Dotfile {
                 force: false,
             },
             force_www: '',
-            oohtml_support: 'full',
+            capabilities: {
+                database: false,
+                database_dialect: 'postgres',
+                redis: false,
+                webpush: false,
+                vapid_subject: 'mailto:foo@example.com',
+            },
         }, config, 'patch');
     }
 
@@ -41,13 +47,6 @@ export default class Server extends Dotfile {
                 {value: '', title: 'do nothing'},
                 {value: 'add',},
                 {value: 'remove',},
-            ],
-            oohtml_support: [
-                {value: 'full', title: 'full'},
-                {value: 'namespacing', title: 'namespacing'},
-                {value: 'scripting', title: 'scripting'},
-                {value: 'templating', title: 'templating'},
-                {value: 'none', title: 'none'},
             ],
         }, choices, 'patch');
         // Questions
@@ -63,6 +62,7 @@ export default class Server extends Dotfile {
                 name: 'domains',
                 type: 'list',
                 message: '[domains]: Enter a list of allowed domains if necessary (comma-separated)',
+                initial: (config.domains || []).join(', '),
                 validation: ['important'],
             },
             {
@@ -113,12 +113,44 @@ export default class Server extends Dotfile {
                 ],
             },
             {
-                name: 'oohtml_support',
-                type: 'select',
-                message: '[oohtml_support]: Specify OOHTML support level',
-                choices: CHOICES.oohtml_support,
-                initial: this.indexOfInitial(CHOICES.oohtml_support, config.oohtml_support),
-                validation: ['important'],
+                name: 'capabilities',
+                controls: {
+                    name: 'capabilities',
+                },
+                initial: config.capabilities,
+                schema: [
+                    {
+                        name: 'database',
+                        type: 'toggle',
+                        message: 'Add database integration?',
+                        active: 'YES',
+                        inactive: 'NO',
+                    },
+                    {
+                        name: 'database_dialect',
+                        type: (prev, answers) => !answers.database ? null : 'text',
+                        message: 'Enter the database dialect (postgres for now)',
+                    },
+                    {
+                        name: 'redis',
+                        type: 'toggle',
+                        message: 'Add redis integration?',
+                        active: 'YES',
+                        inactive: 'NO',
+                    },
+                    {
+                        name: 'webpush',
+                        type: 'toggle',
+                        message: 'Add webpush integration?',
+                        active: 'YES',
+                        inactive: 'NO',
+                    },
+                    {
+                        name: 'vapid_subject',
+                        type: (prev, answers) => !answers.webpush ? null : 'text',
+                        message: 'Enter the vapid_subject URL',
+                    }
+                ]
             },
         ];
     }

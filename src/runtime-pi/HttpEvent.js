@@ -1,107 +1,177 @@
-
-/**
- * @imports
- */
-import { _isEmpty } from '@webqit/util/js/index.js';
-import xRequest from "./xRequest.js";
-import xResponse from "./xResponse.js";
+import { _isEmpty, _isObject } from '@webqit/util/js/index.js';
 import xURL from "./xURL.js";
 
-/**
- * The xHttpEvent Mixin
- */
-export default class HttpEvent {
+export class HttpEvent {
 
-    /**
-     * Initializes a new HttpEvent instance.
-     * 
-     * @param Request       _request 
-     * @param Object        _detail
-     * @param Function      _sessionFactory
-     * @param Function      _storageFactory
-     */
-    constructor(_request, _detail, _sessionFactory, _storageFactory) {
-        this._request = _request;
-        this._detail = _detail || {};
-        this._sessionFactory = _sessionFactory;
-        this._storageFactory = _storageFactory;
-        // -------
-        this.Request = xRequest;
-        this.Response = xResponse;
-        this.URL = xURL;
-        // -------
-        this.port = {
-            listeners: [],
-            post(message) { 
-                const promises = this.listeners.map(listener => listener(message))
-                    .filter(returnValue => returnValue instanceof Promise);
-                if (process.length) return Promise.all(promises);
-            },
-            listen(listener) { this.listeners.push(listener); },
+    static create(parentEvent, init = {}) {
+        return new this(parentEvent, init);
+    }
+
+    #parentEvent;
+    #init;
+    #url;
+
+    constructor(parentEvent, init = {}) {
+        this.#parentEvent = parentEvent;
+        this.#init = init;
+        this.#url = new xURL(init.url || init.request.url);
+    }
+
+    get url() { return this.#url; }
+
+    get request() { return this.#init.request; }
+
+    get detail() { return this.#init.detail; }
+
+    get cookies() { return this.#init.cookies; }
+
+    get session() { return this.#init.session; }
+
+    get user() { return this.#init.user; }
+
+    get client() { return this.#init.client; }
+
+    get sdk() { return this.#init.sdk; }
+
+    #requestCloneCallback;
+    set onRequestClone(callback) {
+        this.#requestCloneCallback = callback;
+    }
+
+    #responseHandler;
+    set onRespondWith(callback) {
+        this.#responseHandler = callback;
+    }
+
+    get onRespondWith() {
+        return this.#responseHandler;
+    }
+
+    clone() {
+        const request = this.#requestCloneCallback?.() || this.request;
+        const init = { ...this.#init, request };
+        const instance = this.constructor.create(this.#parentEvent, init);
+        instance.#requestCloneCallback = this.#requestCloneCallback;
+        return instance;
+    }
+
+    waitUntil(promise) {
+        if (this.#parentEvent) {
+            this.#parentEvent.waitUntil(promise);
         }
     }
 
-    // url
-    get url() {
-        if (!this._url) {
-            this._url = new this.URL(this._request.url);
+    #response = undefined;
+    get response() { return this.#response; }
+
+    async respondWith(response) {
+        this.#response = response;
+        if (this.#responseHandler) {
+            await this.#responseHandler(this.#response);
+        } else if (this.#parentEvent) {
+            await this.#parentEvent.respondWith(this.#response);
         }
-        return this._url;
     }
 
-    // request
-    get request() {
-        return this._request;
+    async defer() {
+        await this.respondWith(new Response(null, { status: 202/*Accepted*/ }));
     }
 
-    // detail
-    get detail() {
-        return this._detail;
+    deferred() {
+        return this.#response?.status === 202;
     }
 
-    // Session
-    get session() {
-        if (!this._session) {
-            this._session = this.sessionFactory();
+    async redirect(url, status = 302) {
+        await this.respondWith(new Response(null, { status, headers: {
+            Location: url
+        } }));
+    }
+
+    async redirectWith(url, data, ...args) {
+        if (!_isObject(data)) {
+            throw new Error('Data must be a JSON object');
         }
-        return this._session;
+        const messageID = (0 | Math.random() * 9e6).toString(36);
+        const $url = new URL(url, this.request.url);
+        $url.searchParams.set('redirect-message', messageID);
+        await this.session.set(`redirect-message:${messageID}`, data);
+        await this.redirect($url, ...args);
     }
 
-    // Storage
-    get storage() {
-        if (!this._storage) {
-            this._storage = this.storageFactory();
-        }
-        return this._storage;
+    redirected() {
+        return [301, 302, 303, 307, 308].includes(this.#response?.status);
     }
 
-    // Session factory
-    sessionFactory(...args) {
-        return this._sessionFactory(...args);
-    }
-    
-    // storage factory
-    storageFactory(...args) {
-        return this._storageFactory(...args);
+    async stream(callback, { interval = 3000, maxClock = 30, crossNavigation = false } = {}) {
+        return new Promise((res) => {
+            const state = { connected: false, navigatedAway: false };
+            const start = () => {
+                const poll = async (maxClock) => {
+                    await new Promise(($res) => setTimeout($res, interval));
+                    if (maxClock === 0 || !state.connected || state.navigatedAway) {
+                        res(callback());
+                        return;
+                    }
+                    await callback(async (response, endOfStream = false) => {
+                        if (endOfStream) {
+                            res(response);
+                        } else {
+                            await this.respondWith(response);
+                        }
+                    });                    
+                    poll(typeof maxClock === 'number' && maxClock > 0 ? --maxClock : maxClock);
+                };
+                poll(maxClock);
+            };
+            // Life cycle management
+            if (this.#response === undefined) {
+                callback(async (response, endOfStream = false) => {
+                    if (endOfStream) {
+                        state.earlyTermination = true;
+                        res(response);
+                    } else {
+                        await this.respondWith(response);
+                    }
+                });
+            }
+            if (!state.earlyTermination) {
+                this.client.on('connected', () => {
+                    state.connected = true;
+                    start();
+                });
+                this.client.on('empty', () => {
+                    state.connected = false;
+                });
+                this.client.handleMessages('navigation', (e) => {
+                    if (!crossNavigation
+                    || (crossNavigation === -1 && e.data.pathname === this.url.pathname)
+                    || (typeof crossNavigation === 'function' && !crossNavigation(e.data))) {
+                        state.navigatedAway = true;
+                    }
+                });
+            }
+            setTimeout(() => {
+                if (!state.connected) {
+                    res();
+                }
+            }, 30000/*30sec*/);
+        });
     }
 
-    // Redirect Response
-    redirect(url, code = 302) {
-        return new this.Response(null, { status: code, headers: { Location: url } });
-    }
-
-    // "with()"
     async with(url, init = {}) {
-        let request;
+        if (!this.request) {
+            return new HttpEvent(this, { ...this.#init, url });
+        }
+        let request, _;
         if (url instanceof Request) {
-            if (init instanceof Request) { [ /*url*/, init ] = await xRequest.rip(init); }
-            request = !_isEmpty(init) ? new xRequest(url, init) : url;
+            if (init instanceof Request) { ({ url: _, ...init } = await Request.copy(init)); }
+            request = !_isEmpty(init) ? new Request(url, init) : url;
         } else {
-            url = new this.URL(url, this.url.origin);
-            [ /*url*/, init ] = await xRequest.rip(this._request);
-            request = new xRequest(url, { ...init, referrer: this.request.url });
+            url = new xURL(url, this.#url.origin);
+            const { url: _, ...$init } = await Request.copy(this.request, init);
+            init = $init;
+            request = Request.create(url, { ...init, referrer: this.request.url });
         }            
-        return new HttpEvent(request, this.detail, this._sessionFactory, this.storageFactory);
+        return new HttpEvent(this, { ...this.#init, request });
     }
-
 }

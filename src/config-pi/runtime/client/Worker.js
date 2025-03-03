@@ -21,18 +21,15 @@ export default class Worker extends Dotfile {
     // Defaults merger
     withDefaults(config) {
         return this.merge({
+            filename: 'worker.js',
+            scope: '/',
+            skip_waiting: true,
             cache_name: 'cache_v0',
             default_fetching_strategy: 'network-first',
             network_first_urls: [],
             cache_first_urls: [],
             network_only_urls: [],
             cache_only_urls: [],
-            skip_waiting: true,
-            // -----------------
-            support_push: false,
-            push_registration_url: '',
-            push_deregistration_url: '',
-            push_public_key: '',
         }, config, 'patch');
     }
 
@@ -53,6 +50,24 @@ export default class Worker extends Dotfile {
         }, choices, 'patch');
         // Questions
         return [
+            {
+                name: 'filename',
+                type: 'text',
+                message: 'Specify the Service Worker filename',
+            },
+            {
+                name: 'scope',
+                type: 'text',
+                message: 'Specify the Service Worker scope',
+            },
+            {
+                name: 'skip_waiting',
+                type: 'toggle',
+                message: 'Choose whether to skip the "waiting" state for updated Service Workers',
+                active: 'YES',
+                inactive: 'NO',
+                initial: config.skip_waiting,
+            },
             {
                 name: 'cache_name',
                 type: 'text',
@@ -90,45 +105,7 @@ export default class Worker extends Dotfile {
                 type: (prev, answers) => answers.default_fetching_strategy === 'cache-only' ? null : 'list',
                 message: 'Specify URLs for a "cache-only" fetching strategy (comma-separated, globe supported)',
                 initial: (config.cache_only_urls || []).join(', '),
-            },
-            {
-                name: 'skip_waiting',
-                type: 'toggle',
-                message: 'Choose whether to skip the "waiting" state for updated Service Workers',
-                active: 'YES',
-                inactive: 'NO',
-                initial: config.skip_waiting,
-            },
-            // ------------- notification --------------
-            {
-                name: 'support_push',
-                type: 'toggle',
-                message: 'Support push-notifications?',
-                active: 'YES',
-                inactive: 'NO',
-                initial: config.support_push,
-            },
-            {
-                name: 'push_registration_url',
-                type: (prev, answers) => answers.support_push ? 'text' : null,
-                message: 'Enter the URL for push notification subscription',
-                initial: config.push_registration_url,
-                validation: ['important'],
-            },
-            {
-                name: 'push_deregistration_url',
-                type: (prev, answers) => answers.support_push ? 'text' : null,
-                message: 'Enter the URL for push notification unsubscription',
-                initial: config.push_deregistration_url,
-                validation: ['important'],
-            },
-            {
-                name: 'push_key',
-                type: (prev, answers) => answers.support_push ? 'text' : null,
-                message: 'Enter the Public Key for push notification subscription',
-                initial: config.push_key,
-                validation: ['important'],
-            },
+            }
         ];
     }
 }

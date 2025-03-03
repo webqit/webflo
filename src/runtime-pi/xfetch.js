@@ -2,14 +2,15 @@
 /**
  * @imports
  */
-import { formatMessage } from './util-http.js';
+import { renderHttpMessageInit } from './util-http.js';
 
 /**
  * The xfetch Mixin
  */
 const xfetch = async (url, init = {}) => {
+    return await fetch(url);
     if (init.body) {
-        const [ body, headers ] = formatMessage(init);
+        const { body, headers } = renderHttpMessageInit(init);
         init = { ...init, body, headers, };
     }
     let response = await fetch(url, init), encoding;

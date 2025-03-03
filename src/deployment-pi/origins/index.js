@@ -198,7 +198,7 @@ export async function webhook(httpEvent, router, next) {
                     }, _isNumeric(deployParams.ondeploy_autoexit) ? parseInt(deployParams.ondeploy_autoexit) : 0);
                 }
                 resolve(
-                    new httpEvent.Response(`Deployment ${  exitCode === 0 ? 'success' : 'error: ' + exitCode }!`, { status: exitCode === 0 ? 200 : 500 })
+                    new Response(`Deployment ${  exitCode === 0 ? 'success' : 'error: ' + exitCode }!`, { status: exitCode === 0 ? 200 : 500 })
                 );
                 if (cx.logger) {
                     cx.logger.log('');

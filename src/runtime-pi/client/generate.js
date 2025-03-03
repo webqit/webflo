@@ -26,7 +26,7 @@ export async function generate() {
         throw new Error(`The Client configurator "config.deployment.Layout" is required in context.`);
     }
     const clientConfig = await (new cx.config.runtime.Client(cx)).read();
-    if (clientConfig.support_service_worker && !cx.config.runtime.client?.Worker) {
+    if (clientConfig.capabilities?.service_worker && !cx.config.runtime.client?.Worker) {
         throw new Error(`The Service Worker configurator "config.runtime.client.Worker" is required in context.`);
     }
     const workerConfig = await (new cx.config.runtime.client.Worker(cx)).read();
@@ -40,6 +40,25 @@ export async function generate() {
     const dirClient = Path.resolve(cx.CWD || '', layoutConfig.CLIENT_DIR);
     const dirWorker = Path.resolve(cx.CWD || '', layoutConfig.WORKER_DIR);
     const dirSelf = Path.dirname(Url.fileURLToPath(import.meta.url)).replace(/\\/g, '/');
+    const env = {};
+    const envConfig = { mappings: {} };
+    // Copy vars
+    if (clientConfig.copy_public_variables) {
+        const $env = { ...process.env };
+        for (const key in $env) {
+            if (!key.includes('PUBLIC_') && !key.includes('_PUBLIC')) continue;
+            env[key] = $env[key];
+        }
+        if (cx.config.deployment?.Env) {
+            const $envConfig = await (new cx.config.deployment.Env(cx)).read();
+            envConfig.mappings = $envConfig.mappings;
+        }
+    }
+    // Expose these nodes
+    clientConfig.env = env;
+    workerConfig.env = env;
+    clientConfig.mappings = envConfig.mappings;
+    workerConfig.mappings = envConfig.mappings;
     // -----------
     // Scan Subdocuments
     const scanSubroots = (sparoot, rootFileName) => {
@@ -62,28 +81,17 @@ export async function generate() {
     const generateClient = async function(sparoot, spaGraphCallback = null) {
         let [ subsparoots, targets ] = (sparoot && scanSubroots(sparoot, 'index.html')) || [ [], false ];
         if (!sparoot) sparoot = '/';
-        let spaRouting = { root: sparoot, subroots: subsparoots, targets };
+        let spaRouting = { name: 'client', root: sparoot, subroots: subsparoots, targets };
         let codeSplitting = !!(sparoot !== '/' || subsparoots.length);
         let outfileMain = Path.join(sparoot, clientConfig.bundle_filename),
             outfileWebflo = _beforeLast(clientConfig.bundle_filename, '.js') + '.webflo.js';
         let gen = { imports: {}, code: [], };
         // ------------------
         const initWebflo = gen => {
-            if (clientConfig.oohtml_support === 'namespacing') {
-                gen.imports[`${dirSelf}/oohtml/namespacing.js`] = null;
-            } else if (clientConfig.oohtml_support === 'scripting') {
-                gen.imports[`${dirSelf}/oohtml/scripting.js`] = null;
-            } else if (clientConfig.oohtml_support === 'templating') {
-                gen.imports[`${dirSelf}/oohtml/templating.js`] = null;
-            } else if (clientConfig.oohtml_support !== 'none') {
-                gen.imports[`${dirSelf}/oohtml/full.js`] = null;
-            }
             gen.imports[`${dirSelf}/index.js`] = `* as Webflo`;
             gen.code.push(``);
-            gen.code.push(`if (!globalThis.WebQit) {`);
-            gen.code.push(`    globalThis.WebQit = {}`);
-            gen.code.push(`}`);
-            gen.code.push(`WebQit.Webflo = Webflo`);
+            gen.code.push(`if (!self.webqit) {self.webqit = {};}`);
+            gen.code.push(`webqit.Webflo = Webflo`);
             return gen;
         };
         // ------------------
@@ -104,10 +112,17 @@ export async function generate() {
             cx.logger.log(`Client Build ` + cx.logger.style.comment(`(sparoot:${sparoot}; is-split:${codeSplitting})`));
             cx.logger.log(cx.logger.style.keyword(`-----------------`));
         }
-        gen.code.push(`const { start } = WebQit.Webflo`);
+        gen.code.push(`const { start } = webqit.Webflo`);
         // ------------------
         // Bundle
-        declareStart.call(cx, gen, dirClient, dirPublic, clientConfig, spaRouting);
+        const paramsObj = structuredClone(clientConfig);
+        if (paramsObj.capabilities?.service_worker) {
+            paramsObj.capabilities.service_worker = {
+                filename: workerConfig.filename,
+                scope: workerConfig.scope
+            };
+        }
+        declareStart.call(cx, gen, dirClient, dirPublic, paramsObj, spaRouting);
         await bundle.call(cx, gen, Path.join(dirPublic, outfileMain), true/* asModule */);
         // ------------------
         // Embed/unembed
@@ -138,10 +153,10 @@ export async function generate() {
     };
     // -----------
     // Generate worker build
-    const generateWorker = async function(workerroot, workerGraphCallbak = null) {
+    const generateWorker = async function(workerroot, workerGraphCallback = null) {
         let [ subworkerroots, targets ] = workerroot && scanSubroots(workerroot, 'workerroot') || [ [], false ];
         if (!workerroot) workerroot = '/';
-        let workerRouting = { root: workerroot, subroots: subworkerroots, targets };
+        let workerRouting = { name: 'worker', root: workerroot, subroots: subworkerroots, targets };
         let gen = { imports: {}, code: [], };
         if (cx.logger) {
             cx.logger.log(cx.logger.style.comment(`-----------------`));
@@ -152,41 +167,50 @@ export async function generate() {
         // >> Modules import
         gen.imports[`${dirSelf}/worker/index.js`] = `{ start }`;
         gen.code.push(``);
-        gen.code.push(`self.WebQit = {}`);
+        gen.code.push(`self.webqit = {}`);
         gen.code.push(``);
         // ------------------
         // Bundle
-        if (workerConfig.cache_only_urls.length) {
-            // Separate URLs from patterns
-            let [ urls, patterns ] = workerConfig.cache_only_urls.reduce(([ urls, patterns ], url) => {
-                let patternInstance = pattern(url, 'http://localhost'),
-                    isPattern = patternInstance.isPattern();
-                if (isPattern && (patternInstance.pattern.pattern.hostname !== 'localhost' || patternInstance.pattern.pattern.port)) {
-                    throw new Error(`Pattern URLs must have no origin part. Recieved "${url}".`);
+        for (const strategy of [ 'cache_first_urls', 'cache_only_urls' ]) {
+            if (workerConfig[strategy].length) {
+                // Separate URLs from patterns
+                let [ urls, patterns ] = workerConfig[strategy].reduce(([ urls, patterns ], url) => {
+                    let patternInstance = pattern(url, 'http://localhost'),
+                        isPattern = patternInstance.isPattern();
+                    if (isPattern && (patternInstance.pattern.pattern.hostname !== 'localhost' || patternInstance.pattern.pattern.port)) {
+                        throw new Error(`Pattern URLs must have no origin part. Recieved "${url}".`);
+                    }
+                    return isPattern ? [ urls, patterns.concat(patternInstance) ] : [ urls.concat(url), patterns ];
+                }, [ [], [] ]);
+                // Resolve patterns
+                if (patterns.length) {
+                    // List all files
+                    let scan = dir => Fs.readdirSync(dir).reduce((result, f) => {
+                        let resource = Path.join(dir, f);
+                        if (f.startsWith('.')) return result;
+                        return result.concat(Fs.statSync(resource).isDirectory() ? scan(resource) : '/' + Path.relative(dirPublic, resource));
+                    }, []);
+                    let files = scan(dirPublic);
+                    // Resolve patterns from files
+                    workerConfig[strategy] = patterns.reduce((all, pattern) => {
+                        let matchedFiles = files.filter(file => pattern.test(file, 'http://localhost'));
+                        if (matchedFiles.length) return all.concat(matchedFiles);
+                        throw new Error(`The pattern "${pattern.pattern.pattern.pathname}" didn't match any files.`);
+                    }, urls);
                 }
-                return isPattern ? [ urls, patterns.concat(patternInstance) ] : [ urls.concat(url), patterns ];
-            }, [ [], [] ]);
-            // Resolve patterns
-            if (patterns.length) {
-                // List all files
-                let scan = dir => Fs.readdirSync(dir).reduce((result, f) => {
-                    let resource = Path.join(dir, f);
-                    return result.concat(Fs.statSync(resource).isDirectory() ? scan(resource) : '/' + Path.relative(dirPublic, resource));
-                }, []);
-                let files = scan(dirPublic);
-                // Resolve patterns from files
-                workerConfig.cache_only_urls = patterns.reduce((all, pattern) => {
-                    let matchedFiles = files.filter(file => pattern.test(file, 'http://localhost'));
-                    if (matchedFiles.length) return all.concat(matchedFiles);
-                    throw new Error(`The pattern "${pattern.pattern.pattern.pathname}" didn't match any files.`);
-                }, urls);
             }
         }
-        declareStart.call(cx, gen, dirWorker, dirPublic, workerConfig, workerRouting);
-        await bundle.call(cx, gen, Path.join(dirPublic, workerroot, clientConfig.worker_filename));
+        const paramsObj = structuredClone(workerConfig);
+        if (clientConfig.capabilities?.webpush) {
+            paramsObj.capabilities = {
+                webpush: true
+            };
+        }
+        declareStart.call(cx, gen, dirWorker, dirPublic, paramsObj, workerRouting);
+        await bundle.call(cx, gen, Path.join(dirPublic, workerroot, workerConfig.filename));
         // ------------------
         // Recurse
-        workerGraphCallbak && workerGraphCallbak(workerroot, subworkerroots);
+        workerGraphCallback && workerGraphCallback(workerroot, subworkerroots);
         if (cx.flags.recursive) {
             while (subworkerroots.length) {
                 await generateWorker(subworkerroots.shift());
@@ -204,7 +228,7 @@ export async function generate() {
         await generateClient();
         Fs.existsSync(sparootsFile) && Fs.unlinkSync(sparootsFile);
     }
-    if (clientConfig.service_worker_support) {
+    if (clientConfig.capabilities?.service_worker) {
         await generateWorker('/');
     }
 }
@@ -235,7 +259,7 @@ function declareStart(gen, routesDir, targetDir, paramsObj, routing) {
     // ------------------
     // >> Startup
     gen.code.push(`// >> Startup`);
-    gen.code.push(`WebQit.app = await start.call({ layout, params })`);
+    gen.code.push(`webqit.app = await start.call({ layout, params })`);
 }
 
 /**
@@ -254,17 +278,19 @@ function declareRoutesObj(gen, routesDir, targetDir, varName, routing) {
     let _routesDir = Path.join(routesDir, routing.root),
         _targetDir = Path.join(targetDir, routing.root);
     cx.logger && cx.logger.log(cx.logger.style.keyword(`> `) + `Declaring routes...`);
+    const routeFileEnding = new RegExp(`(?:\\/(?:${routing.name}|index)\\.js)$`);
     // ----------------
     // Directory walker
     const walk = (dir, callback) => {
         Fs.readdirSync(dir).forEach(f => {
             let resource = Path.join(dir, f);
             let _namespace = '/' + Path.relative(routesDir, resource).replace(/\\/g, '/');
-            let namespace = _beforeLast(_namespace, '/index.js') || '/';
             if (Fs.statSync(resource).isDirectory()) {
-                if (routing.subroots.includes(namespace)) return;
+                if (routing.subroots.includes(_namespace)) return;
                 walk(resource, callback);
             } else {
+                if (f === 'index.js' && Fs.existsSync(Path.join(dir, `${routing.name}.js`))) return;
+                let namespace = _namespace.replace(routeFileEnding, '') || '/';
                 let relativePath = Path.relative(_targetDir, resource).replace(/\\/g, '/');
                 callback(resource, namespace, relativePath);
             }
@@ -276,7 +302,7 @@ function declareRoutesObj(gen, routesDir, targetDir, varName, routing) {
     let indexCount = 0;
     if (Fs.existsSync(_routesDir)) {
         walk(_routesDir, (file, namespace, relativePath) => {
-            if (relativePath.endsWith('/index.js')) {
+            if (routeFileEnding.test(relativePath)) {
                 // Import code
                 let routeName = 'index' + (++ indexCount);
                 // IMPORTANT: we;re taking a step back here so that the parent-child relationship for 
@@ -431,7 +457,7 @@ function handleEmbeds(targetDocumentFile, embedList, unembedList) {
     if (Fs.existsSync(targetDocumentFile) && (targetDocument = Fs.readFileSync(targetDocumentFile).toString()) && targetDocument.trim().startsWith('<!DOCTYPE html')) {
         successLevel = 1;
         let dom = new Jsdom.JSDOM(targetDocument), by = 'webflo', touched;
-        let embed = (src, before) => {
+        let embed = (src, after) => {
             src = src.replace(/\\/g, '/');
             let embedded = dom.window.document.querySelector(`script[src="${src}"]`);
             if (!embedded) {
@@ -439,8 +465,8 @@ function handleEmbeds(targetDocumentFile, embedList, unembedList) {
                 embedded.setAttribute('type', 'module');
                 embedded.setAttribute('src', src);
                 embedded.setAttribute('by', by);
-                if (before) {
-                    before.before(embedded, `\n\t\t`);
+                if (after) {
+                    after.after(embedded, `\n\t\t`);
                 } else {
                     dom.window.document.head.appendChild(embedded);
                 }
@@ -457,9 +483,9 @@ function handleEmbeds(targetDocumentFile, embedList, unembedList) {
                 touched = true;
             }
         };
-        embedList.reverse().reduce((prev, src) => {
+        embedList.reduce((prev, src) => {
             return embed(src, prev);
-        }, dom.window.document.querySelector(`script[src]`) || dom.window.document.querySelector(`script`));
+        }, [ ...dom.window.document.head.querySelectorAll(`script[src]`) ].pop() || dom.window.document.querySelector(`script`));
         unembedList.forEach(src => {
             unembed(src);
         });

@@ -1,28 +1,11 @@
-
-/**
- * @imports
- */
 import { _with } from '@webqit/util/obj/index.js';
 import { _isArray, _isObject, _isTypeObject, _isString, _isEmpty } from '@webqit/util/js/index.js';
-import { Observer } from './Runtime.js';
 import { params } from '../util-url.js';
 
-/**
- * ---------------------------
- * The Url class
- * ---------------------------
- */
+const { Observer } = webqit;
 
-export default class Url {
+export class Url {
 
-	/**
-	 * Constructs a new Url instance.
-	 *
-     * @param object input
-     * @param object pathMappingScheme
-     * 
-	 * @return void
-	 */
 	constructor(input) {
         const Self = this.constructor;
 		// -----------------------
@@ -39,11 +22,10 @@ export default class Url {
 			return a === b;
 		};
 		Observer.intercept(this, 'set', (e, prev, next) => {
-			if (e.name === 'hash' && e.value && !e.value.startsWith('#')) {
-				return next('#' + e.value);
-			}
-			if (e.name === 'search' && e.value && !e.value.startsWith('?')) {
-				return next('?' + e.value);
+			if (e.key === 'hash' && e.value && !e.value.startsWith('#')) {
+				e.value = '#' + e.value;
+			} else if (e.key === 'search' && e.value && !e.value.startsWith('?')) {
+				e.value = '?' + e.value;
 			}
 			return next();
 		});
@@ -55,25 +37,42 @@ export default class Url {
 			var onlyHrefChanged;
 			for (var e of changes) {
 				// ----------
-				if (e.name === 'href' && e.related.length === 1) {
+				if (e.key === 'href' && e.related.length === 1) {
 					var urlObj = Self.parseUrl(e.value);
+					if (urlObj.pathname) {
+						urlObj.pathname = '/' + urlObj.pathname.split('/').filter(s => s.trim()).join('/');
+					}
 					delete urlObj.query;
 					delete urlObj.href;
 					onlyHrefChanged = true;
 				}
 				// ----------
-				if (e.name === 'query' && (e.path.length > 1 || !e.related.includes('search'))) {
+				if (e.key === 'query' && !e.related.includes('search')) {
 					// "query" was updated. So we update "search"
 					var search = Self.toSearch(this.query); // Not e.value, as that might be a subtree value
 					if (search !== this.search) {
 						urlObj.search = search;
 					}
 				}
-				if (e.name === 'search') {
+				if (e.key === 'search' && !e.related.includes('query')) {
 					// "search" was updated. So we update "query"
 					var query = Self.toQuery(urlObj.search || this.search); // Not e.value, as that might be a href value
 					if (!_strictEven(query, this.query)) {
 						urlObj.query = query;
+					}
+				}
+				if (e.key === 'pathname' && !e.related.includes('ancestorPathname')) {
+					// "pathname" was updated. So we update "ancestorPathname"
+					var ancestorPathname = (urlObj.pathname || this.pathname).replace(new RegExp('/[^/]+(?:/)?$'), '');
+					if (ancestorPathname !== this.ancestorPathname) {
+						urlObj.ancestorPathname = ancestorPathname;
+					}
+				}
+				if (e.key === 'ancestorPathname' && !e.related.includes('pathname')) {
+					// "ancestorPathname" was updated. So we update "pathname"
+					var pathname = '/' + (urlObj.ancestorPathname || this.ancestorPathname).split('/').filter(s => s).concat((urlObj.pathname || this.pathname).split('/').filter(s => s).pop()).join('/');
+					if (pathname !== this.pathname) {
+						urlObj.pathname = pathname;
 					}
 				}
 			}
@@ -83,7 +82,7 @@ export default class Url {
 				if (usernamePassword.length === 2) {
 					fullOrigin = `${this.protocol}//${usernamePassword.join(':')}@${this.hostname}${(this.port ? `:${this.port}` : '')}`;
 				}
-				var href = [ fullOrigin, urlObj.pathname || this.pathname, urlObj.search || this.search, this.hash ].join('');
+				var href = [ fullOrigin, urlObj.pathname || this.pathname, urlObj.search || this.search || (this.href.includes('?') ? '?' : ''), this.hash || (this.href.includes('#') ? '#' : '') ].join('');
 				if (href !== this.href) {
 					urlObj.href = href;
 				}
@@ -91,7 +90,7 @@ export default class Url {
 			if (!_isEmpty(urlObj)) {
 				return Observer.set(this, urlObj);
 			}
-		}, { subtree:true/*for pathmap/pathsplit/query updates*/, diff: true });
+		}, { diff: true });
 		// -----------------------
 		// Validate e.detail
 		Observer.observe(this, changes => {
@@ -105,91 +104,43 @@ export default class Url {
 					}
 				}
 			});
-		}, {diff: true});
+		}, { diff: true });
 		// -----------------------
 		// Startup properties
         Observer.set(this, _isString(input) ? Self.parseUrl(input) : Url.copy(input));
 	}
 
-	/**
-	 * Converts the instance to string.
-	 *
-	 * @return string
-	 */
 	toString() {
         return this.href;
     }
     
-	/**
-	 * Creates an instance from parsing an URL string
-     * or from a regular object.
-	 *
-	 * @param string|object 	href
-	 *
-	 * @return Url
-	 */
 	static from(href) {
         return new this(_isObject(href) ? href : this.parseUrl(href));
 	}
 
-	/**
-	 * Copies URL properties off
-	 * the given object.
-	 *
-	 * @param object 			urlObj
-	 *
-	 * @return object
-	 */
 	static copy(urlObj) {
-		var url = urlProperties.reduce((obj, prop) => _with(obj, prop, urlObj[prop]), {});
+		var url = urlProperties.reduce((obj, prop) => _with(obj, prop, urlObj[prop] || ''), {});
 		if (!('query' in urlObj)) {
 			delete url.query;
 		}
 		return url;
 	}
 
-	/**
-	 * Parses an URL and returns its properties
-	 *
-	 * @param string			href
-	 *
-	 * @return object
-	 */
 	static parseUrl(href) {
-		var a = document.createElement('a');
-		a.href = href;
+		var a = new URL(href);
 		return this.copy(a);
 	}
 
-	/**
-	 * Parses the input search string into a named map
-	 *
-	 * @param string			search
-	 *
-	 * @return object
-	 */
 	static toQuery(search) {
 		return params.parse(search);
 	}
 
-	/**
-	 * Stringifies the input query to search string.
-	 *
-	 * @param object			query
-	 *
-	 * @return string
-	 */
 	static toSearch(query) {
 		var search = params.stringify(query);
 		return search ? '?' + search : '';
-	}}
+	}
+}
 
-/**
- * These are standard
- * and shouldnt'/can't be modified
- *
- * @array
- */
 const urlProperties = [
 	'protocol', 
 	'username',

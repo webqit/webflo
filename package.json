@@ -12,7 +12,7 @@
     "vanila-javascript"
   ],
   "homepage": "https://webqit.io/tooling/webflo",
-  "version": "0.11.61-0",
+  "version": "1.0.38",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -26,7 +26,7 @@
   "scripts": {
     "test": "mocha --extension .test.js --exit",
     "test:coverage": "c8 --reporter=text-lcov npm run test | coveralls",
-    "postversion": "npm publish",
+    "postversion": "npm publish --tag next",
     "postpublish": "git push && git push --tags"
   },
   "bin": {
@@ -35,19 +35,22 @@
     "webflo-certbot-http-cleanup-hook": "src/services-pi/cert/http-cleanup-hook.js"
   },
   "dependencies": {
+    "@linked-db/linked-ql": "^0.30.13",
     "@octokit/webhooks": "^7.15.1",
-    "@webqit/backpack": "^0.1.6",
-    "@webqit/oohtml-ssr": "^1.1.5",
-    "@webqit/util": "^0.8.9",
-    "client-sessions": "^0.8.0",
+    "@webqit/backpack": "^0.1.8",
+    "@webqit/observer": "^2.0.7",
+    "@webqit/oohtml-ssr": "^2.1.1",
+    "@webqit/util": "^0.8.11",
+    "dotenv": "^16.4.7",
     "esbuild": "^0.14.38",
-    "form-data-encoder": "^1.6.0",
-    "formdata-node": "^4.3.0",
-    "formidable": "^2.0.1",
+    "ioredis": "^5.5.0",
+    "jsdom": "^21.1.1",
     "mime-types": "^2.1.33",
+    "pg": "^8.13.3",
     "simple-git": "^2.20.1",
     "stream-slice": "^0.1.2",
-    "urlpattern-polyfill": "^4.0.3"
+    "urlpattern-polyfill": "^4.0.3",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "chai": "^4.3.6",
