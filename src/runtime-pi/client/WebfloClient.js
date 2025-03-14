@@ -384,7 +384,7 @@ export class WebfloClient extends WebfloRuntime {
             this.#backgroundMessaging.postMessage({ ...Url.copy(scope.url), method: scope.request.method }, { messageType: 'navigation' });
         }
         // Dispatch for response
-        scope.response = await this.dispatch(scope.httpEvent, scope.context, async (event) => {
+        scope.response = await this.dispatch(scope.httpEvent, async (event) => {
             // Was this nexted()? Tell the next layer we're in JSON mode by default
             if (event !== scope.httpEvent && !event.request.headers.has('Accept')) {
                 event.request.headers.set('Accept', 'application/json');
@@ -480,8 +480,8 @@ export class WebfloClient extends WebfloRuntime {
         });
     }
 
-    async dispatch(httpEvent, context, crossLayerFetch, processObj = {}) {
-        const response = await super.dispatch(httpEvent, context, crossLayerFetch);
+    async dispatch(httpEvent, crossLayerFetch, processObj = {}) {
+        const response = await super.dispatch(httpEvent, crossLayerFetch);
         // Handle "retry" directives
         if (response.headers.has('Retry-After')) {
             if (!processObj.recurseController) {
@@ -492,7 +492,7 @@ export class WebfloClient extends WebfloRuntime {
             if (!processObj.recurseController.signal.aborted) {
                 await new Promise((res) => setTimeout(res, parseInt(response.headers.get('Retry-After')) * 1000));
                 const eventClone = httpEvent.clone();
-                return await this.dispatch(eventClone, context, crossLayerFetch, processObj);
+                return await this.dispatch(eventClone, crossLayerFetch, processObj);
             }
         } else if (processObj.recurseController) {
             // Abort the signal. This is the end of the process
@@ -530,7 +530,7 @@ export class WebfloClient extends WebfloRuntime {
 
     async render(httpEvent, data, merge = false) {
         const router = new this.constructor.Router(this.cx, this.location.pathname);
-        await router.route('render', httpEvent, data, async (httpEvent, data) => {
+        await router.route('render', httpEvent, async (httpEvent) => {
             if (!window.webqit?.oohtml?.configs) return;
             if (window.webqit?.dom) {
                 await new Promise(res => window.webqit.dom.ready(res));

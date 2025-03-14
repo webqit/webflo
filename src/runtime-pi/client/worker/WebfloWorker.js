@@ -196,7 +196,7 @@ export class WebfloWorker extends WebfloRuntime {
 			await scope.session.delete(`redirect-message:${scope.redirectMessageID}`);
 		}
 		// Dispatch for response
-		scope.response = await this.dispatch(scope.httpEvent, {}, async (event) => {
+		scope.response = await this.dispatch(scope.httpEvent, async (event) => {
 			// Was this nexted()? Tell the next layer we're in JSON mode by default
 			if (event !== scope.httpEvent && !event.request.headers.has('Accept')) {
 				event.request.headers.set('Accept', 'application/json');

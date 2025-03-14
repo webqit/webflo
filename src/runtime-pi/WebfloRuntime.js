@@ -7,13 +7,13 @@ export class WebfloRuntime {
         return await router.route(['SETUP'], httpEvent);
     }
 
-    async dispatch(httpEvent, context, crossLayerFetch) {
+    async dispatch(httpEvent, crossLayerFetch) {
         const requestLifecycle = {};
         requestLifecycle.responsePromise = new Promise(async (res) => {
             // Exec routing
             const router = new this.constructor.Router(this.cx, httpEvent.url.pathname);
             const route = async () => {
-                return await router.route([httpEvent.request.method, 'default'], httpEvent, context, async (event) => {
+                return await router.route([httpEvent.request.method, 'default'], httpEvent, async (event) => {
                     return crossLayerFetch(event);
                 }, (...args) => this.remoteFetch(...args), requestLifecycle);
             };

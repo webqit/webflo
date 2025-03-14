@@ -646,7 +646,7 @@ export class WebfloServer extends WebfloRuntime {
             await scope.session.delete(`redirect-message:${scope.redirectMessageID}`);
         }
         // Dispatch for response
-        scope.response = await this.dispatch(scope.httpEvent, {}, async (event) => {
+        scope.response = await this.dispatch(scope.httpEvent, async (event) => {
             return await this.localFetch(event);
         });
         // ---------------
@@ -754,7 +754,7 @@ export class WebfloServer extends WebfloRuntime {
     async render(httpEvent, data, response) {
         const scope = {};
         scope.router = new this.constructor.Router(this.#cx, httpEvent.url.pathname);
-        scope.rendering = await scope.router.route('render', httpEvent, data, async (httpEvent, data) => {
+        scope.rendering = await scope.router.route('render', httpEvent, async (httpEvent) => {
             let renderFile, pathnameSplit = httpEvent.url.pathname.split('/');
             while ((renderFile = Path.join(this.#cx.CWD, this.#cx.layout.PUBLIC_DIR, './' + pathnameSplit.join('/'), 'index.html'))
                 && (this.#renderFileCache.get(renderFile) === false/* false on previous runs */ || !Fs.existsSync(renderFile))) {
