@@ -380,7 +380,7 @@ export class WebfloClient extends WebfloRuntime {
             scope.context = this.host[bindingsConfig.bindings] || {};
         }
         if (scope.request.method === 'GET' || (scope.request.method === 'POST' && scope.url.pathname !== this.location.pathname)) {
-            // Ping existing background process
+            // Ping existing background processes
             this.#backgroundMessaging.postMessage({ ...Url.copy(scope.url), method: scope.request.method }, { messageType: 'navigation' });
         }
         // Dispatch for response

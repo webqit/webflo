@@ -278,10 +278,12 @@ function declareRoutesObj(gen, routesDir, targetDir, varName, routing) {
     let _routesDir = Path.join(routesDir, routing.root),
         _targetDir = Path.join(targetDir, routing.root);
     cx.logger && cx.logger.log(cx.logger.style.keyword(`> `) + `Declaring routes...`);
-    const routeFileEnding = new RegExp(`(?:\\/(?:${routing.name}|index)\\.js)$`);
+    const routeFileEnding = new RegExp(`(?:\\/(?:handler\\.${routing.name}|handler)\\.js)$`);
     // ----------------
     // Directory walker
     const walk = (dir, callback) => {
+        const dedicatedRouteFileName = `handler.${routing.name}.js`;
+        const hasDedicatedRouteFile = Fs.existsSync(Path.join(dir, dedicatedRouteFileName));
         Fs.readdirSync(dir).forEach(f => {
             let resource = Path.join(dir, f);
             let _namespace = '/' + Path.relative(routesDir, resource).replace(/\\/g, '/');
@@ -289,7 +291,7 @@ function declareRoutesObj(gen, routesDir, targetDir, varName, routing) {
                 if (routing.subroots.includes(_namespace)) return;
                 walk(resource, callback);
             } else {
-                if (f === 'index.js' && Fs.existsSync(Path.join(dir, `${routing.name}.js`))) return;
+                if (hasDedicatedRouteFile && f !== dedicatedRouteFileName) return;
                 let namespace = _namespace.replace(routeFileEnding, '') || '/';
                 let relativePath = Path.relative(_targetDir, resource).replace(/\\/g, '/');
                 callback(resource, namespace, relativePath);
@@ -299,12 +301,12 @@ function declareRoutesObj(gen, routesDir, targetDir, varName, routing) {
     // ----------------
     // >> Routes mapping
     gen.code.push(`const ${varName} = {};`);
-    let indexCount = 0;
+    let handlerCount = 0;
     if (Fs.existsSync(_routesDir)) {
         walk(_routesDir, (file, namespace, relativePath) => {
             if (routeFileEnding.test(relativePath)) {
                 // Import code
-                let routeName = 'index' + (++ indexCount);
+                let routeName = 'handler' + (++ handlerCount);
                 // IMPORTANT: we;re taking a step back here so that the parent-child relationship for 
                 // the directories be involved
                 gen.imports[relativePath] = '* as ' + routeName;
@@ -315,7 +317,7 @@ function declareRoutesObj(gen, routesDir, targetDir, varName, routing) {
             }
         });
     }
-    if (!indexCount) {
+    if (!handlerCount) {
         cx.logger && cx.logger.log(cx.logger.style.comment(`  (none)`));
     }
 }

@@ -34,15 +34,25 @@ export class WebfloRouter {
                         // -------------
                         // Dynamic response
                         // -------------
-                        const _next = async (..._args) => {
-                            const nextTick = { ...thisTick, arg: _args[0] };
-                            if (_args.length > 1) {
-                                let _url = _args[1], _request, requestInit = { ...(_args[2] || {}) };
-                                if (_args[1] instanceof Request) {
-                                    _request = _args[1];
+                        const go = async (isFetch, ..._args) => {
+                            const nextTick = { ...thisTick };
+                            if (_args.length) {
+                                let _url = _args[0], _request, requestInit = { ...(_args[1] || {}) };
+                                if (_args[0] instanceof Request) {
+                                    _request = _args[0];
                                     _url = _request.url;
-                                } else if (!_isString(_url)) {
+                                } else if (isFetch) {
+                                    // Fetch doesn't inherit the ongoing request
+                                    requestInit = { method: 'GET', body: null, headers: {}, ...requestInit };
+                                }
+                                if (!_isString(_url)) {
                                     throw new Error('Router redirect url must be a string!');
+                                }
+                                if (/^http(s)?\:/i.test(_url)) {
+                                    if (!isFetch) {
+                                        throw new Error('The next() function doesn\'t accept remote URLs!');
+                                    }
+                                    return await remoteFetch(..._args);
                                 }
                                 let newDestination = _url.startsWith('/') ? _url : $this.pathJoin(`/${thisTick.trail.join('/')}`, _url);
                                 if (newDestination.startsWith('../')) {
@@ -53,6 +63,8 @@ export class WebfloRouter {
                                     if (_isArray(requestInit.method)) {
                                         requestInit.method = requestInit.method[0];
                                     }
+                                } else if (_request) {
+                                    nextTick.method = _request.method;
                                 }
                                 if (_request) {
                                     nextTick.event = await thisTick.event.with(newDestination, _request, requestInit);
@@ -61,17 +73,23 @@ export class WebfloRouter {
                                  }
                                 nextTick.source = thisTick.destination.join('/');
                                 nextTick.destination = newDestination.split('?').shift().split('/').map(a => a.trim()).filter(a => a);
-                                nextTick.trail = _args[1].startsWith('/') ? [] : thisTick.trail.reduce((_commonRoot, _seg, i) => _commonRoot.length === i && _seg === nextTick.destination[i] ? _commonRoot.concat(_seg) : _commonRoot, []);
+                                nextTick.trail = _url.startsWith('/') ? [] : thisTick.trail.reduce((_commonRoot, _seg, i) => _commonRoot.length === i && _seg === nextTick.destination[i] ? _commonRoot.concat(_seg) : _commonRoot, []);
                                 nextTick.trailOnFile = thisTick.trailOnFile.slice(0, nextTick.trail.length);
                             } else {
+                                if (isFetch) {
+                                    throw new Error('fetch() cannot be called without arguments!');
+                                }
                                 nextTick.event = thisTick.event.clone();
                             }
                             return next(nextTick);
                         };
                         // -------------
+                        const _next = async (...args) => await go(false, ...args);
                         const nextPathname = thisTick.destination.slice(thisTick.trail.length);
                         _next.pathname = nextPathname.join('/');
                         _next.stepname = nextPathname[0];
+                        // -------------
+                        const _fetch = async (...args) => await go(true, ...args);
                         // -------------
                         return new Promise(async (res) => {
                             thisTick.event.onRespondWith = async (response) => {
@@ -79,7 +97,7 @@ export class WebfloRouter {
                                 res(response);
                                 await requestLifecycle.responsePromise;
                             };
-                            const $returnValue = Promise.resolve(handler.call(thisContext, thisTick.event, thisTick.arg, _next/*next*/, remoteFetch));
+                            const $returnValue = Promise.resolve(handler.call(thisContext, thisTick.event, _next/*next*/, _fetch/*fetch*/));
                             // This should listen first before waitUntil's listener
                             $returnValue.then(async (returnValue) => {
                                 if (thisTick.event.onRespondWith) {
@@ -103,15 +121,14 @@ export class WebfloRouter {
             // Local file
             // -------------
             if (_default) {
-                return await _default.call(thisContext, thisTick.event, thisTick.arg, remoteFetch);
+                return await _default.call(thisContext, thisTick.event, remoteFetch);
             }
         };
         
         return next({
             destination: this.path,
             event,
-            method,
-            arg,
+            method
          });
 
     }

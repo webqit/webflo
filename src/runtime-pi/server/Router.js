@@ -10,33 +10,33 @@ export class Router extends WebfloRouter {
         if (thisTick.trail) {
             thisTick.currentSegment = thisTick.destination[thisTick.trail.length];
             thisTick.currentSegmentOnFile = [ thisTick.currentSegment, '-' ].reduce((_segmentOnFile, _seg) => {
-                if (_segmentOnFile.index) return _segmentOnFile;
+                if (_segmentOnFile.handler) return _segmentOnFile;
                 var _currentPath = thisTick.trailOnFile.concat(_seg).join('/'),
                     routeHandlerFile;
-                return Fs.existsSync(routeHandlerFile = Path.join(this.cx.CWD, this.cx.layout.SERVER_DIR, _currentPath, 'server.js')) || Fs.existsSync(routeHandlerFile = Path.join(this.cx.CWD, this.cx.layout.SERVER_DIR, _currentPath, 'index.js'))
-                    ? { seg: _seg, index: routeHandlerFile }
+                return Fs.existsSync(routeHandlerFile = Path.join(this.cx.CWD, this.cx.layout.SERVER_DIR, _currentPath, 'handler.server.js')) || Fs.existsSync(routeHandlerFile = Path.join(this.cx.CWD, this.cx.layout.SERVER_DIR, _currentPath, 'handler.js'))
+                    ? { seg: _seg, handler: routeHandlerFile }
                     : (Fs.existsSync(Path.join(this.cx.CWD, this.cx.layout.SERVER_DIR, _currentPath)) ? { seg: _seg, dirExists: true } : _segmentOnFile);
             }, { seg: null });
             thisTick.trail = thisTick.trail.concat(thisTick.currentSegment);
             thisTick.trailOnFile = thisTick.trailOnFile.concat(thisTick.currentSegmentOnFile.seg);
-            thisTick.exports = thisTick.currentSegmentOnFile.index ? await import(Url.pathToFileURL(thisTick.currentSegmentOnFile.index)) : undefined;
+            thisTick.exports = thisTick.currentSegmentOnFile.handler ? await import(Url.pathToFileURL(thisTick.currentSegmentOnFile.handler)) : undefined;
         } else {
             thisTick.trail = [];
             thisTick.trailOnFile = [];
             let routeHandlerFile;
-            thisTick.currentSegmentOnFile = Fs.existsSync(routeHandlerFile = Path.join(this.cx.CWD, this.cx.layout.SERVER_DIR, 'server.js')) || Fs.existsSync(routeHandlerFile = Path.join(this.cx.CWD, this.cx.layout.SERVER_DIR, 'index.js'))
-                ? { index: routeHandlerFile }
+            thisTick.currentSegmentOnFile = Fs.existsSync(routeHandlerFile = Path.join(this.cx.CWD, this.cx.layout.SERVER_DIR, 'handler.server.js')) || Fs.existsSync(routeHandlerFile = Path.join(this.cx.CWD, this.cx.layout.SERVER_DIR, 'handler.js'))
+                ? { handler: routeHandlerFile }
                 : {};
-            thisTick.exports = thisTick.currentSegmentOnFile.index
-                ? await import(Url.pathToFileURL(thisTick.currentSegmentOnFile.index)) 
+            thisTick.exports = thisTick.currentSegmentOnFile.handler
+                ? await import(Url.pathToFileURL(thisTick.currentSegmentOnFile.handler)) 
                 : null;
         }
         return thisTick;
     }
 
     finalizeHandlerContext(context, thisTick) {
-        if (thisTick.currentSegmentOnFile.index) {
-            context.dirname = Path.dirname(thisTick.currentSegmentOnFile.index);
+        if (thisTick.currentSegmentOnFile.handler) {
+            context.dirname = Path.dirname(thisTick.currentSegmentOnFile.handler);
         }
     }
 
