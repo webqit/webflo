@@ -1,4 +1,4 @@
-import { MultiportMessagingAPI } from '../MultiportMessagingAPI.js';
+import { MultiportMessagingAPI } from '../messaging-apis/MultiportMessagingAPI.js';
 
 export class ClientMessaging extends MultiportMessagingAPI {
 

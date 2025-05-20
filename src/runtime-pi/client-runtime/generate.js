@@ -7,11 +7,11 @@ import Url from 'url';
 import Path from 'path';
 import Jsdom from 'jsdom';
 import EsBuild from 'esbuild';
+import { gzipSync, brotliCompressSync } from 'zlib';
 import { _afterLast, _beforeLast } from '@webqit/util/str/index.js';
 import { _isObject, _isArray } from '@webqit/util/js/index.js';
 import { jsFile } from '@webqit/backpack/src/dotfile/index.js';
-import { gzipSync, brotliCompressSync } from 'zlib';
-import { pattern } from '../util-url.js';
+import { pattern } from '../extension-apis/util-url.js';
 
 /**
  * @generate
@@ -165,7 +165,7 @@ export async function generate() {
         }
         // ------------------
         // >> Modules import
-        gen.imports[`${dirSelf}/worker/index.js`] = `{ start }`;
+        gen.imports[`${dirSelf}/worker-runtime/index.js`] = `{ start }`;
         gen.code.push(``);
         gen.code.push(`self.webqit = {}`);
         gen.code.push(``);

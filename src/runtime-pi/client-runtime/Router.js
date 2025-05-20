@@ -1,5 +1,5 @@
-import { path as Path } from '../util-url.js';
-import { WebfloRouter } from '../WebfloRouter.js';
+import { path as Path } from '../extension-apis/util-url.js';
+import { WebfloRouter } from '../routing-apis/WebfloRouter.js';
 			
 export class Router extends WebfloRouter {
 

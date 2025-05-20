@@ -1,6 +1,6 @@
 import { _isObject } from '@webqit/util/js/index.js';
-import { WebfloMessagingAPI } from '../WebfloMessagingAPI.js';
-import { WebfloMessageEvent } from '../WebfloMessageEvent.js';
+import { WebfloMessagingAPI } from '../messaging-apis/WebfloMessagingAPI.js';
+import { WebfloMessageEvent } from '../messaging-apis/WebfloMessageEvent.js';
 
 export class Workport extends WebfloMessagingAPI {
 

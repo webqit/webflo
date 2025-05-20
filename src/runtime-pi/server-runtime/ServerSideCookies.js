@@ -1,4 +1,4 @@
-import { HttpCookies } from '../HttpCookies.js';
+import { HttpCookies } from '../routing-apis/HttpCookies.js';
 
 export class ServerSideCookies extends HttpCookies {
     static create(request) {

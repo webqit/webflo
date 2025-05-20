@@ -1,5 +1,5 @@
-import * as server from './server/index.js';
-import * as client from './client/generate.js';
+import * as server from './server-runtime/index.js';
+import * as client from './client-runtime/generate.js';
 
 export {
     server,

@@ -8,7 +8,7 @@ export class WebfloRouter {
         this.path = _isArray(path) ? path : (path + '').split('/').filter(a => a);
     }
 
-    async route(method, event, arg = null, _default = null, remoteFetch = null, requestLifecycle = null) {
+    async route(method, event, _default = null, remoteFetch = null, requestLifecycle = null) {
 
         const $this = this;
         const $runtime = this.cx.runtime;
@@ -37,7 +37,9 @@ export class WebfloRouter {
                         const go = async (isFetch, ..._args) => {
                             const nextTick = { ...thisTick };
                             if (_args.length) {
-                                let _url = _args[0], _request, requestInit = { ...(_args[1] || {}) };
+                                let _request,
+                                _url = _args[0],
+                                requestInit = { ...(_args[1] || {}) };
                                 if (_args[0] instanceof Request) {
                                     _request = _args[0];
                                     _url = _request.url;

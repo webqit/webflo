@@ -7,6 +7,7 @@ import WebSocket from 'ws';
 import Mime from 'mime-types';
 import 'dotenv/config';
 import QueryString from 'querystring';
+import Observer from '@webqit/observer';
 import { _from as _arrFrom, _any } from '@webqit/util/arr/index.js';
 import { _isEmpty, _isObject } from '@webqit/util/js/index.js';
 import { _each } from '@webqit/util/obj/index.js';
@@ -15,16 +16,16 @@ import { Readable as _ReadableStream } from 'stream';
 import { WebfloRuntime } from '../WebfloRuntime.js';
 import { createWindow } from '@webqit/oohtml-ssr';
 import { Context } from './Context.js';
-import { MessagingOverSocket } from '../MessagingOverSocket.js';
+import { MessagingOverSocket } from '../messaging-apis/MessagingOverSocket.js';
 import { ClientMessagingRegistry } from './ClientMessagingRegistry.js';
 import { ServerSideCookies } from './ServerSideCookies.js';
 import { ServerSideSession } from './ServerSideSession.js';
-import { HttpEvent } from '../HttpEvent.js';
-import { HttpUser } from '../HttpUser.js';
+import { HttpEvent } from '../routing-apis/HttpEvent.js';
+import { HttpUser } from '../routing-apis/HttpUser.js';
 import { Router } from './Router.js';
-import { pattern } from '../util-url.js';
-import xfetch from '../xfetch.js';
-import '../util-http.js';
+import { pattern } from '../extension-apis/util-url.js';
+import xfetch from '../extension-apis/xfetch.js';
+import '../extension-apis/util-http.js';
 
 const parseDomains = (domains) => _arrFrom(domains).reduce((arr, str) => arr.concat(str.split(',')), []).map(str => str.trim()).filter(str => str);
 const selectDomains = (serverDefs, matchingPort = null) => serverDefs.reduce((doms, def) => doms.length ? doms : (((!matchingPort || def.port === matchingPort) && parseDomains(def.domains || def.hostnames)) || []), []);
@@ -187,6 +188,7 @@ export class WebfloServer extends WebfloRuntime {
     async setupCapabilities() {
         if (this.#capabilitiesSetup) return;
         this.#capabilitiesSetup = true;
+        this.#sdk.Observer = Observer;
         if (this.#cx.server.capabilities?.database) {
             if (this.#cx.server.capabilities.database_dialect !== 'postgres') {
                 throw new Error(`Only postgres supported for now for database dialect`);
@@ -651,6 +653,7 @@ export class WebfloServer extends WebfloRuntime {
         });
         // ---------------
         // Response processing
+        scope.responseDataByReference = scope.response;
         scope.response = await this.normalizeResponse(scope.httpEvent, scope.response);
         scope.hasBackgroundActivity = scope.clientMessaging.isMessaging() || scope.eventLifecyclePromises.size || (scope.redirectMessage && !scope.response.headers.get('Location'));
         if (scope.hasBackgroundActivity) {
@@ -663,17 +666,40 @@ export class WebfloServer extends WebfloRuntime {
             }
             this.writeRedirectHeaders(scope.httpEvent, scope.response);
         } else {
-            if (scope.redirectMessage) {
-                scope.eventLifecycleHooks.respondWith(scope.redirectMessage, true);
-            }
             this.writeAutoHeaders(scope.response.headers, scope.autoHeaders.filter((header) => header.type === 'response'));
             if (scope.httpEvent.request.method !== 'GET' && !scope.response.headers.get('Cache-Control')) {
                 scope.response.headers.set('Cache-Control', 'no-store');
             }
             scope.response.headers.set('Accept-Ranges', 'bytes');
             scope.response = await this.satisfyRequestFormat(scope.httpEvent, scope.response);
+            // -----------------
+            // Enter live mode
+            // -----------------
+            if (scope.redirectMessage) {
+                scope.eventLifecycleHooks.respondWith(scope.redirectMessage, true);
+            }
+            if ((
+                !(scope.responseDataByReference instanceof Response) || !scope.responseDataByReference.meta.static && scope.responseDataByReference.meta.type === 'json' && (scope.responseDataByReference = scope.responseDataByReference.meta.body)
+            ) && _isObject(scope.responseDataByReference) && scope.responseDataByReference.live) {
+                const withArrayMethodDescriptors = true;
+                scope.liveStreamController = Observer.observe(scope.responseDataByReference, Observer.subtree(), (mutations) => {
+                    // Ignore individual mutations made by array operations
+                    if (withArrayMethodDescriptors && Array.isArray(mutations[0].target) && !mutations[0].argumentsList && !['set', 'defineProperty', 'deleteProperty'].includes(mutations[0].operation)) {
+                        return;
+                    }
+                    // Push events. Exclude the reference to target
+                    scope.clientMessaging.postMessage(mutations.map((m) => ({ ...m, target: undefined })), { messageType: 'mutations' });
+                    if (!scope.responseDataByReference.live) {
+                        scope.liveStreamController.abort();
+                    }
+                }, { withArrayMethodDescriptors });
+            }
         }
         Promise.all([...scope.eventLifecyclePromises]).then(() => {
+            // -----------------
+            // Exit live mode
+            // -----------------
+            scope.liveStreamController?.abort();
             if (scope.clientMessaging.isMessaging()) {
                 scope.clientMessaging.on('connected', () => {
                     setTimeout(() => {

@@ -1,17 +1,17 @@
 import { _any } from '@webqit/util/arr/index.js';
 import { _isObject } from '@webqit/util/js/index.js';
-import { pattern } from '../../util-url.js';
+import { pattern } from '../../extension-apis/util-url.js';
+import xfetch from '../../extension-apis/xfetch.js';
+import '../../extension-apis/util-http.js';
 import { WebfloRuntime } from '../../WebfloRuntime.js';
 import { ClientMessaging } from './ClientMessaging.js';
 import { WorkerSideCookies } from './WorkerSideCookies.js';
-import { HttpSession } from '../../HttpSession.js';
-import { HttpEvent } from '../../HttpEvent.js';
-import { HttpUser } from '../../HttpUser.js';
+import { HttpSession } from '../../routing-apis/HttpSession.js';
+import { HttpEvent } from '../../routing-apis/HttpEvent.js';
+import { HttpUser } from '../../routing-apis/HttpUser.js';
 import { Workport } from './Workport.js';
 import { Context } from './Context.js';
 import { Router } from '../Router.js';
-import xfetch from '../../xfetch.js';
-import '../../util-http.js';
 
 export class WebfloWorker extends WebfloRuntime {
 

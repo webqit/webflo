@@ -1,7 +1,7 @@
 import Fs from 'fs';
 import Url from 'url';
 import Path from 'path';
-import { WebfloRouter } from '../WebfloRouter.js';
+import { WebfloRouter } from '../routing-apis/WebfloRouter.js';
 			
 export class Router extends WebfloRouter {
 

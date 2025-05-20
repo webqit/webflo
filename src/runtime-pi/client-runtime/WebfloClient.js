@@ -1,19 +1,17 @@
 import { _before, _toTitle } from '@webqit/util/str/index.js';
 import { _isObject } from '@webqit/util/js/index.js';
 import { WebfloRuntime } from '../WebfloRuntime.js';
-import { MultiportMessagingAPI } from '../MultiportMessagingAPI.js';
-import { MessagingOverBroadcast } from '../MessagingOverBroadcast.js';
-import { MessagingOverChannel } from '../MessagingOverChannel.js';
-import { MessagingOverSocket } from '../MessagingOverSocket.js';
+import { MultiportMessagingAPI } from '../messaging-apis/MultiportMessagingAPI.js';
+import { MessagingOverChannel } from '../messaging-apis/MessagingOverChannel.js';
 import { ClientMessaging } from './ClientMessaging.js';
 import { ClientSideCookies } from './ClientSideCookies.js';
-import { HttpSession } from '../HttpSession.js';
-import { HttpEvent } from '../HttpEvent.js';
-import { HttpUser } from '../HttpUser.js';
+import { HttpSession } from '../routing-apis/HttpSession.js';
+import { HttpEvent } from '../routing-apis/HttpEvent.js';
+import { HttpUser } from '../routing-apis/HttpUser.js';
+import xfetch from '../extension-apis/xfetch.js';
+import '../extension-apis/util-http.js';
 import { Router } from './Router.js';
 import { Url } from './Url.js';
-import xfetch from '../xfetch.js';
-import '../util-http.js';
 
 const { Observer } = webqit;
 
@@ -417,11 +415,8 @@ export class WebfloClient extends WebfloRuntime {
             const stateData = { ...(this.currentEntry()?.getState() || {}), redirected: true, };
             await this.updateCurrentEntry({ state: stateData }, scope.finalUrl);    
         }
-        if (scope.response.headers.has('X-Background-Messaging')) {
-            scope.backgroundMessaging = this.$createBackgroundMessagingFrom(
-                scope.response.headers.get('X-Background-Messaging')
-            );
-            this.backgroundMessaging.add(scope.backgroundMessaging);
+        if (scope.response.backgroundMessaging) {
+            this.backgroundMessaging.add(scope.response.backgroundMessaging);
         }
         if (scope.response.headers.has('Location')) {
             // Normalize redirect
@@ -499,17 +494,6 @@ export class WebfloClient extends WebfloRuntime {
             processObj.recurseController.abort();
         }
         return response;
-    }
-
-    $createBackgroundMessagingFrom(uri) {
-        const [proto, portID] = uri.split(':');
-        let instance;
-        if (proto === 'ch') {
-            instance = new MessagingOverBroadcast(null, portID);
-        } else {
-            instance = new MessagingOverSocket(null, portID);
-        }
-        return instance;
     }
 
     async transitionUI(updateCallback) {

@@ -1,5 +1,5 @@
 import { _isEmpty, _isObject } from '@webqit/util/js/index.js';
-import xURL from "./xURL.js";
+import xURL from "../extension-apis/xURL.js";
 
 export class HttpEvent {
 
@@ -102,8 +102,22 @@ export class HttpEvent {
         return [301, 302, 303, 307, 308].includes(this.#response?.status);
     }
 
+    async live(data, callback) {
+        if (!_isObject(data)) {
+            throw new Error(`Data must be an object`);
+        }
+        if (!data.live) {
+            data.live = true;
+        }
+        const returnValue = Promise.resolve(
+            callback(this.sdk.Observer.proxy(data, { chainable: true, membrane: data }))
+        );
+        this.waitUntil(returnValue);
+        return data;
+    }
+
     async stream(callback, { interval = 3000, maxClock = 30, crossNavigation = false } = {}) {
-        return new Promise((res) => {
+        return await new Promise((res) => {
             const state = { connected: false, navigatedAway: false };
             const start = () => {
                 const poll = async (maxClock) => {

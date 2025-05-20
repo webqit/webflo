@@ -1,6 +1,9 @@
 import { _isString, _isNumeric, _isObject, _isPlainObject, _isArray, _isPlainArray, _isTypeObject, _isNumber, _isBoolean } from '@webqit/util/js/index.js';
 import { _after, _before } from '@webqit/util/str/index.js';
 import { _from as _arrFrom } from '@webqit/util/arr/index.js';
+import { MessagingOverBroadcast } from '../messaging-apis/MessagingOverBroadcast.js';
+import { MessagingOverSocket } from '../messaging-apis/MessagingOverSocket.js';
+import Observer from '@webqit/observer';
 import { params } from './util-url.js';
 
 export function dataType(value) {
@@ -112,6 +115,39 @@ export function renderCookieObj(cookieObj) {
     return attrsArr.join(';');
 }
 
+export function createBackgroundMessagingPort(url) {
+    const [proto, portID] = url.split(':');
+    if (proto === 'ch') {
+        return new MessagingOverBroadcast(null, portID);
+    }
+    return new MessagingOverSocket(null, portID);
+}
+
+export function bindDataToBackgroundMessagingPort(data, backgroundMessagingPort) {
+    if (!data?.live || !backgroundMessagingPort) return;
+    const endLiveStream = backgroundMessagingPort.handleMessages('mutations', (e) => {
+        const mutations = [].concat(e.data);
+        Observer.batch(data, () => {
+            for (const mutation of mutations) {
+                if (mutation.argumentsList) {
+                    const target = !mutation.path.length ? data : Observer.get(data, Observer.path(...mutation.path));
+                    Observer.proxy(target)[mutation.operation](...mutation.argumentsList);
+                } else if (mutation.key !== 'length' || ['set', 'defineProperty', 'deleteProperty'].includes(mutation.operation)) {
+                    const target = mutation.path.length === 1 ? data : Observer.get(data, Observer.path(...mutation.path.slice(0, -1)));
+                    if (mutation.type === 'delete') {
+                        Observer.deleteProperty(target, mutation.key);
+                    } else {
+                        Observer.set(target, mutation.key, mutation.value);
+                    }
+                }
+            }
+        });
+        if (!data.live) {
+            endLiveStream();
+        }
+    });
+}
+
 /* Request */
 
 Object.defineProperties(Request, {
@@ -184,9 +220,23 @@ Object.defineProperties(Response, {
 
 const statusGet = Object.getOwnPropertyDescriptor(Response.prototype, 'status');
 Object.defineProperties(Response.prototype, {
-    parse: { value: function() { return parseHttpMessage(this); } },
     meta: { get: function() { if (!this._meta) this._meta = {}; return this._meta; } },
-    status: { get: function() { return this.meta.status || statusGet.get.call(this); } }
+    status: { get: function() { return this.meta.status || statusGet.get.call(this); } },
+    backgroundMessaging: { get function() {
+        if (this._backgroundMessaging === undefined && this.headers.has('X-Background-Messaging')) {
+            this._backgroundMessaging = createBackgroundMessagingPort(this.headers.get('X-Background-Messaging'));
+        } else if (this._backgroundMessaging === undefined) {
+            this._backgroundMessaging = null;
+        }
+        return this._backgroundMessaging;
+    } },
+    parse: { value: async function(live = false) {
+        const data = await parseHttpMessage(this);
+        if (live && data?.live && this.backgroundMessaging) {
+            bindDataToBackgroundMessagingPort(data, this.backgroundMessaging);
+        }
+        return data;
+    } },
 });
 
 /* Headers */

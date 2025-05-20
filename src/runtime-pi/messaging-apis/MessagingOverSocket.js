@@ -3,12 +3,14 @@ import { WebfloMessagingAPI } from './WebfloMessagingAPI.js';
 
 export class MessagingOverSocket extends WebfloMessagingAPI {
 
+    static WebSocket = typeof WebSocket !== 'undefined' ? WebSocket : null;
+
     #socket;
     get socket() { return this.#socket; }
 
     constructor(parentNode, instanceOrConnectionID, params = {}) {
         super(parentNode, params);
-        this.#socket = typeof instanceOrConnectionID === 'string' ? new WebSocket(`/${instanceOrConnectionID}`) : instanceOrConnectionID;
+        this.#socket = typeof instanceOrConnectionID === 'string' ? new this.constructor.WebSocket(`/${instanceOrConnectionID}`) : instanceOrConnectionID;
         const messageHandler = async (event) => {
             let json;
             try {

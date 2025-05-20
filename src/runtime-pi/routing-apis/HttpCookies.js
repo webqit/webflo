@@ -1,5 +1,5 @@
 import { _isObject } from '@webqit/util/js/index.js';
-import { renderCookieObj } from './util-http.js';
+import { renderCookieObj } from '../extension-apis/util-http.js';
 import { WebfloStorage } from './WebfloStorage.js';
 
 export class HttpCookies extends WebfloStorage {

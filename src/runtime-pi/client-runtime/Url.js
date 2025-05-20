@@ -1,6 +1,6 @@
 import { _with } from '@webqit/util/obj/index.js';
 import { _isArray, _isObject, _isTypeObject, _isString, _isEmpty } from '@webqit/util/js/index.js';
-import { params } from '../util-url.js';
+import { params } from '../extension-apis/util-url.js';
 
 const { Observer } = webqit;
 

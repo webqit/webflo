@@ -1,3 +1,4 @@
+import { createBackgroundMessagingPort, bindDataToBackgroundMessagingPort } from '../extension-apis/util-http.js';
 import { WebfloClient } from './WebfloClient.js';
 import { Context } from './Context.js';
 import { Workport } from './Workport.js';
@@ -136,12 +137,15 @@ export class WebfloRootClient1 extends WebfloClient {
 		// HYDRATION
 		const scope = {};
         if (scope.backgroundMessagingMeta = document.querySelector('meta[name="X-Background-Messaging"]')) {
-			scope.backgroundMessaging = this.$createBackgroundMessagingFrom(scope.backgroundMessagingMeta.content);
+			scope.backgroundMessaging = createBackgroundMessagingPort(scope.backgroundMessagingMeta.content);
 			this.backgroundMessaging.add(scope.backgroundMessaging);
         }
         if (scope.hydrationData = document.querySelector('script[rel="hydration"][type="application/json"]')) {
 			try {
 				const hydrationDataJson = JSON.parse((scope.hydrationData.textContent + '').trim());
+				if (hydrationDataJson.live && scope.backgroundMessaging) {
+					bindDataToBackgroundMessagingPort(hydrationDataJson, scope.backgroundMessaging);
+				}
 				const httpEvent = this.constructor.HttpEvent.create(null, { url: this.location.href});
 				window.queueMicrotask(() => {
 					this.render(httpEvent, hydrationDataJson);

@@ -1,4 +1,4 @@
-import { HttpSession } from '../HttpSession.js';
+import { HttpSession } from '../routing-apis/HttpSession.js';
 import crypto from 'crypto';
 
 export class ServerSideSession extends HttpSession {
