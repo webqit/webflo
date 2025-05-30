@@ -57,7 +57,10 @@ export class WebfloRootClient2 extends WebfloRootClient1 {
 			e.intercept({
 				scroll: 'after-transition',
 				focusReset: 'after-transition',
-				async handler() { await runtime.navigate(url, init, detail); },
+				async handler() {
+					if (navigationType === 'replace') return;
+					await runtime.navigate(url, init, detail);
+				},
 			});
 		};
 		window.addEventListener('click', clickHandler, { signal: instanceController.signal });
@@ -100,6 +103,8 @@ export class WebfloRootClient2 extends WebfloRootClient1 {
 	async updateCurrentEntry(params, url = null) {
 		if (!url || url === window.navigation.currentEntry.url) {
 			window.navigation.updateCurrentEntry(params);
-		} else { await window.navigation.navigate(url, { ...params, history: 'replace' }).committed; }
+		} else {
+			await window.navigation.navigate(url, { ...params, history: 'replace' }).committed;
+		}
 	}
 }

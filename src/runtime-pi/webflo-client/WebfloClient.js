@@ -348,8 +348,8 @@ export class WebfloClient extends WebfloRuntime {
             backgroundMessagingPort: backgroundMessagingPortCallback,
             originalRequestInit: scopeObj.init
         });
-        if (response.backgroundMessagingPort) {
-            this.backgroundMessagingPorts.add(response.backgroundMessagingPort);
+        if (scopeObj.response.backgroundMessagingPort) {
+            this.backgroundMessagingPorts.add(scopeObj.response.backgroundMessagingPort);
         }
         // ---------------
         // Decode response
@@ -492,7 +492,7 @@ export class WebfloClient extends WebfloRuntime {
                     transition: this.transition,
                 }, { diff: true, merge });
                 if (response instanceof LiveResponse) {
-                    response.addEventListener('replace', () => {
+                    response.addEventListener('replace', (e) => {
                         if (response.headers.get('Location') && this.processRedirect(response)) return;
                         this.host[bindingsConfig.bindings].data = response.body;
                     }, { signal: httpEvent.signal });
