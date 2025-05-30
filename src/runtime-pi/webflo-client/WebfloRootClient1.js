@@ -113,7 +113,7 @@ export class WebfloRootClient1 extends WebfloClient {
 			const normalResponse = new Response.create(body, { headers: { 'Content-Type': 'application/json' }});
 			normalResponse.headers.set('X-Background-Messaging-Port', backgroundMessagingPort || '');
 			normalResponse.headers.set('X-Live-Response-Generator-Done', liveResponseGeneratorDone || '');
-			normalResponse.headers.set('X-Live-Response-Frame-Tag', liveResponseFrameTag || '');
+			normalResponse.headers.set('X-Live-Response-Frame-Tag', liveResponseFrameTag || '');			
 			const liveResponse = await LiveResponse.fromResponse(normalResponse);
 			this.backgroundMessagingPorts.add(liveResponse.backgroundMessagingPort);
 			const httpEvent = this.createHttpEvent({ request: this.createRequest(this.location.href) }, true);

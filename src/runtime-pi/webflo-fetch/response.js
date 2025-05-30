@@ -16,8 +16,11 @@ export function createBackgroundMessagingPort(url) {
 }
 
 export function backgroundMessagingPort() {
-    if (!this[meta].backgroundMessagingPort && this.headers.get('X-Background-Messaging-Port')?.trim()) {
-        this[meta].backgroundMessagingPort = createBackgroundMessagingPort(this.headers.get('X-Background-Messaging-Port'));
+    if (!this[meta].backgroundMessagingPort) {
+        const value = this.headers.get('X-Background-Messaging-Port')?.trim();
+        if (value) {
+            this[meta].backgroundMessagingPort = createBackgroundMessagingPort(value);
+        }
     } else if (typeof this[meta].backgroundMessagingPort === 'function') {
         const backgroundMessagingPort = this[meta].backgroundMessagingPort.call(this);
         if (!(backgroundMessagingPort instanceof MessagePort)) {
@@ -42,7 +45,7 @@ const responseMethods = {
         }
     },
     backgroundMessagingPort: {
-        get function() {
+        get: function() {
             return backgroundMessagingPort.call(this);
         }
     },

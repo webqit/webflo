@@ -11,7 +11,21 @@ export class MessagingOverSocket extends WebfloMessagingAPI {
     constructor(parentNode, instanceOrConnectionID, params = {}) {
         super(parentNode, params);
         this.#socket = typeof instanceOrConnectionID === 'string' ? new this.constructor.WebSocket(`/${instanceOrConnectionID}`) : instanceOrConnectionID;
-        const messageHandler = async (event) => {
+        const fireOpen = (e) => {
+            this.dispatchEvent(new Event('open'));
+            this.$emit('open');
+        };
+        const fireClose = (e) => {
+            this.dispatchEvent(new Event('close'));
+            this.$emit('close');
+        };
+        const fireError = (e) => {
+            this.dispatchEvent(new Event('error'));
+        };
+        if (this.#socket.readyState === this.#socket.constructor.OPEN) {
+            fireOpen();
+        }
+        const handleMessage = async (event) => {
             let json;
             try {
                 if (!(json = JSON.parse(event.data)) 
@@ -26,29 +40,18 @@ export class MessagingOverSocket extends WebfloMessagingAPI {
                 this, { ...$json, data: dataUndefined ? undefined : data },
             ));
         };
-        const openHandler = (e) => {
-            this.$emit('connected');
-            this.dispatchEvent(new Event('open'));
-        };
-        const errorHandler = (e) => {
-            this.dispatchEvent(new Event('error'));
-        };
-        const closeHandler = (e) => {
-            this.#socket.removeEventListener('message', messageHandler);
-            this.#socket.removeEventListener('open', openHandler);
-            this.#socket.removeEventListener('error', errorHandler);
-            this.#socket.removeEventListener('close', closeHandler);
-            this.dispatchEvent(new Event('close'));
+        const handleClose = (e) => {
+            this.#socket.removeEventListener('message', handleMessage);
+            this.#socket.removeEventListener('open', fireOpen);
+            this.#socket.removeEventListener('error', fireError);
+            this.#socket.removeEventListener('close', handleClose);
+            fireClose();
             this.$destroy();
-            this.$emit('disconnected');
         };
-        this.#socket.addEventListener('message', messageHandler);
-        this.#socket.addEventListener('open', openHandler);
-        this.#socket.addEventListener('error', errorHandler);
-        this.#socket.addEventListener('close', closeHandler);
-        if (this.#socket.readyState === this.#socket.constructor.OPEN) {
-            this.$emit('connected');
-        }
+        this.#socket.addEventListener('message', handleMessage);
+        this.#socket.addEventListener('open', fireOpen);
+        this.#socket.addEventListener('error', fireError);
+        this.#socket.addEventListener('close', handleClose);
     }
 
     postMessage(data, transferOrOptions = []) {

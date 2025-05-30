@@ -36,7 +36,8 @@ export class ClientSideWorkport extends WebfloMessagingAPI {
                 const existing = this.#active;
                 this.#active = target;
                 if (!existing) {
-                    this.$emit('connected');
+                    this.dispatchEvent(new Event('open'));
+                    this.$emit('open');
                 }
             }
         }
@@ -70,7 +71,7 @@ export class ClientSideWorkport extends WebfloMessagingAPI {
     }
 
     postMessage(message, transferOrOptions = []) {
-        this.on('connected', () => {
+        this.on('open', () => {
             if (Array.isArray(transferOrOptions)) {
                 transferOrOptions = { transfer: transferOrOptions };
             }

@@ -9,21 +9,21 @@ export class WebfloMessagingAPI extends WebfloEventTarget {
     #hooks = new Set;
     get $hooks() { return this.#hooks; }
 
-    #isConnected = false;
-    isConnected() { return this.#isConnected; }
+    #isOpen = undefined/*!IMPORTANT*/;
+    isOpen() { return this.#isOpen; }
 
     #isMessaging = false;
     isMessaging() { return this.#isMessaging; }
 
     get ready() {
         return new Promise((resolve) => {
-            this.on('connected', resolve, { once: true });
+            this.on('open', resolve, { once: true });
         });
     }
 
     on(eventName, callback, { once = false } = {}) {
-        if ((eventName === 'connected' && this.#isConnected) ||
-            (eventName === 'disconnected' && !this.#isConnected) ||
+        if ((eventName === 'open' && this.#isOpen) ||
+            (eventName === 'close' && this.#isOpen === false) ||
             (eventName === 'messaging' && this.#isMessaging)) {
             callback();
             if (once) {
@@ -36,10 +36,10 @@ export class WebfloMessagingAPI extends WebfloEventTarget {
     }
 
     $emit(eventName, arg) {
-        if (eventName === 'connected') {
-            this.#isConnected = true;
-        } else if (eventName === 'disconnected') {
-            this.#isConnected = false;
+        if (eventName === 'open') {
+            this.#isOpen = true;
+        } else if (eventName === 'close') {
+            this.#isOpen = false;
         } else if (eventName === 'messaging') {
             this.#isMessaging = true;
         }
@@ -90,7 +90,7 @@ export class WebfloMessagingAPI extends WebfloEventTarget {
         // Live messages would already have been handled if this is a child port of MultiportMessagingAPI,
         // so we don't need to handle them here. The parent port will handle them.
         if (this.parentNode?.ports?.size && this.parentNode.ports.has(this)) {
-            this.on('connected', () => {
+            this.on('open', () => {
                 callback(transferOrOptions);
             });
             return;
@@ -99,7 +99,7 @@ export class WebfloMessagingAPI extends WebfloEventTarget {
         if (!eventOptions.eventID) {
             eventOptions = { ...eventOptions, eventID: this.nextEventID };
         }
-        this.on('connected', () => callback({ ..._options, eventOptions }));
+        this.on('open', () => callback({ ..._options, eventOptions }));
         if (_isTypeObject(data) && eventOptions.live && !eventOptions.type?.startsWith('mutations:')) {
             return this.publishMutations(data, eventOptions.eventID, liveOptions);
         }

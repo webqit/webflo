@@ -16,8 +16,9 @@ export class MultiportMessagingAPI extends WebfloMessagingAPI {
         port.setParent(this, true);
         this.#ports.add(port);
         this.$emit('add', port);
-        if (!this.isConnected()) {
-            this.$emit('connected');
+        if (!this.isOpen()) {
+            this.dispatchEvent(new Event('open'));
+            this.$emit('open');
         }
         port.addEventListener('close', () => {
             this.remove(port);
@@ -31,7 +32,8 @@ export class MultiportMessagingAPI extends WebfloMessagingAPI {
         this.#ports.delete(port);
         this.$emit('remove', port);
         if (!this.#isReplaceAction && this.#ports.size === 0) {
-            this.$emit('disconnected');
+            this.dispatchEvent(new Event('close'));
+            this.$emit('close');
         }
     }
 

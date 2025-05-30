@@ -66,15 +66,15 @@ export class HttpEvent {
 
     async * poll(...args) {
         const callback = typeof args[0] === 'function' ? args.shift() : () => null;
-        let { interval = 3000, maxClock = -1, whileConnected = 1, cleanupCall = false } = args[0] || {};
-        if (whileConnected) {
+        let { interval = 3000, maxClock = -1, whileOpen = 1, cleanupCall = false } = args[0] || {};
+        if (whileOpen) {
             await this.client.ready;
         }
         while (true) {
             const termination = maxClock === 0
-                || (whileConnected && !this.client.isConnected()) 
-                || (whileConnected === 2 && this.client.navigatedIn()) 
-                || (whileConnected && whileConnected !== 2 && this.client.navigatedAway());
+                || (whileOpen && !this.client.isOpen()) 
+                || (whileOpen === 2 && this.client.navigatedIn()) 
+                || (whileOpen && whileOpen !== 2 && this.client.navigatedAway());
             const returnValue = (!termination || cleanupCall) && await callback(termination) || { done: true };
             if (returnValue !== undefined && (!_isObject(returnValue) || _difference(Object.keys(returnValue || {}), ['value', 'done']).length)) {
                 throw new Error('Callback must return an object with only "value" and "done" properties');

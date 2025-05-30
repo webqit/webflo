@@ -44,14 +44,14 @@ export class LiveResponse extends EventTarget {
         }
         return response.parse().then((body) => {
             // Frame binding
-            let frameClosure;
+            let frameClosure, frameTag;
             if (response.backgroundMessagingPort/* Typically when on the client side */
                 && _isTypeObject(body)
-                && response.headers.get('X-Live-Response-Frame-Tag')?.trim()) {
+                && (frameTag = response.headers.get('X-Live-Response-Frame-Tag')?.trim())) {
                 frameClosure = async function () {
                     await response.backgroundMessagingPort.applyMutations(
                         body,
-                        response.headers.get('X-Live-Response-Frame-Tag'),
+                        frameTag,
                         { signal: this.#abortController.signal }
                     );
                 };
@@ -188,6 +188,23 @@ export class LiveResponse extends EventTarget {
 
     close() {
         this.#abortController.abort();
+    }
+
+    clone(init = {}) {
+        const clonedResponse = new this.constructor(this.body, {
+            status: this.#status,
+            statusText: this.#statusText,
+            headers: this.#headers,
+            ...init
+        });
+        clonedResponse.#type = this.#type;
+        clonedResponse.#redirected = this.#redirected;
+        clonedResponse.#url = this.#url;
+        clonedResponse.#generatorType = this.#generatorType;
+        clonedResponse.#frameDone = this.#frameDone;
+        clonedResponse.#generatorDone = this.#generatorDone;
+        Object.assign(clonedResponse[meta], this[meta]);
+        return clonedResponse;
     }
 
     #replaceWith(body, ...args) {

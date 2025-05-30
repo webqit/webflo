@@ -15,16 +15,29 @@ export class MessagingOverChannel extends WebfloMessagingAPI {
         this.#port = port;
         this.#isPrimary = isPrimary;
         this.#port.start?.();
-        const messageHandler = async (event) => {
+        const fireOpen = () => {
+            this.dispatchEvent(new Event('open'));
+            this.$emit('open');
+        };
+        const fireClose = () => {
+            this.dispatchEvent(new Event('close'));
+            this.$emit('close');
+        };
+        if (!this.isPrimary) {
+            // We are client
+            this.#port.postMessage('connection'); // Goes first
+            fireOpen();
+        }
+        // Message handling
+        const handleMessage = async (event) => {
             if (this.isPrimary && event.data === 'connection') {
-                this.$emit('connected');
+                fireOpen();
             }
-            if (event.data === 'close') {
+            if (event.data === 'disconnection') {
                 // Endpoint 2 is closed
-                this.#port.removeEventListener('message', messageHandler);
-                this.dispatchEvent(new Event('close'));
+                this.#port.removeEventListener('message', handleMessage);
+                fireClose();
                 this.$destroy();
-                this.$emit('disconnected');
             }
             if (!_isObject(event.data) || !['eventID', 'data'].every((k) => k in event.data)) {
                 return;
@@ -33,27 +46,26 @@ export class MessagingOverChannel extends WebfloMessagingAPI {
                 this, { ...event.data, ports: event.ports, }
             ));
         };
-        this.#port.addEventListener('message', messageHandler);
+        this.#port.addEventListener('message', handleMessage);
+        // Special close handling
+        const handleClose = () => {
+            // This endpoint is closed
+            this.#port.removeEventListener('message', handleMessage);
+            fireClose()
+            this.$destroy();
+            // Then post to the other end
+            this.#port.postMessage('disconnection'); // Goes last, i think
+        };
         const nativeCloseMethod = this.#port.close;
         Object.defineProperty(this.#port, 'close', {
-            value: () => {
-                // This endpoint is closed
-                this.#port.removeEventListener('message', messageHandler);
-                this.dispatchEvent(new Event('close'));
-                this.$destroy();
-                this.$emit('disconnected');
-                // Then post to the other end
-                this.#port.postMessage('close');
-                // Then restore nativeCloseMethod and execute normally
-                Object.defineProperty(this.#port, 'close', { value: nativeCloseMethod, configurable: true });
-                this.#port.close();
-            }, configurable: true
+            value: function () {
+                handleClose();
+                // Then execute normally and restore nativeCloseMethod 
+                nativeCloseMethod.call(this);
+                Object.defineProperty(this, 'close', { value: nativeCloseMethod, configurable: true });
+            },
+            configurable: true
         });
-        if (!this.isPrimary) {
-            // We are client
-            this.#port.postMessage('connection');
-            this.$emit('connected');
-        }
     }
 
     postMessage(data, transferOrOptions = []) {

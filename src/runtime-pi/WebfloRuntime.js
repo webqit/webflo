@@ -139,7 +139,7 @@ export class WebfloRuntime {
         // so that httpEvent.eventLifecyclePromises.size can capture the httpEvent.waitUntil()
         Promise.all([...httpEvent.eventLifecyclePromises]).then(() => {
             if (httpEvent.client.isMessaging()) {
-                httpEvent.client.on('connected', () => {
+                httpEvent.client.on('open', () => {
                     setTimeout(() => {
                         httpEvent.client.close();
                     }, 100);

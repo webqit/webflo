@@ -25,12 +25,16 @@ export class ClientMessagingRegistry extends Map {
         const portID = crypto.randomUUID();
         const portInstance = new ClientMessagingPort(this, portID, { ...this.#params, url, honourDoneMutationFlags });
         this.set(portID, portInstance);
-        portInstance.on('disconnected', () => {
+        const deletePort = () => {
             this.delete(portID);
-        });
+            if (!this.size) {
+                this.#parentNode?.delete(this.#sessionID);
+            }
+        };
+        portInstance.on('close', deletePort);
         setTimeout(() => {
             if (portInstance.ports.size || !this.has(portID)) return;
-            this.delete(portID);
+            deletePort();
         }, 30000/*30sec*/);
         return portInstance;
     }

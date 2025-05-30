@@ -39,7 +39,7 @@
     "@octokit/webhooks": "^7.15.1",
     "@webqit/backpack": "^0.1.8",
     "@webqit/oohtml-ssr": "^2.1.1",
-    "@webqit/quantum-js": "^4.6.1",
+    "@webqit/quantum-js": "^4.6.2",
     "@webqit/util": "^0.8.11",
     "dotenv": "^16.4.7",
     "esbuild": "^0.14.38",

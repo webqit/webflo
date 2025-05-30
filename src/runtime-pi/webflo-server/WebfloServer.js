@@ -305,6 +305,7 @@ export class WebfloServer extends WebfloRuntime {
         // Level 3 validation
         // and actual processing
         scopeObj.request = this.createRequest(scopeObj.url.href, requestInit);
+
         scopeObj.sessionTTL = this.env('SESSION_TTL') || 2592000/*30days*/;
         scopeObj.session = this.createHttpSession({
             store: (sessionID) => this.#sdk.storage?.(`${scopeObj.url.host}/session:${sessionID}`, scopeObj.sessionTTL),
@@ -320,7 +321,7 @@ export class WebfloServer extends WebfloRuntime {
             } else {
                 wss.handleUpgrade(nodeRequest, socket, head, (ws) => {
                     wss.emit('connection', ws, nodeRequest);
-                    const wsw = new MessagingOverSocket(null, ws);
+                    const wsw = new MessagingOverSocket(null, ws, { honourDoneMutationFlags: true });
                     scopeObj.clientMessagingPort.add(wsw);
                 });
             }
@@ -611,7 +612,7 @@ export class WebfloServer extends WebfloRuntime {
         });
         const sessionID = scopeObj.session.sessionID;
         if (!this.#globalMessagingRegistry.has(sessionID)) {
-            this.#globalMessagingRegistry.set(sessionID, new ClientMessagingRegistry(this, sessionID));
+            this.#globalMessagingRegistry.set(sessionID, new ClientMessagingRegistry(this.#globalMessagingRegistry, sessionID));
         }
         scopeObj.clientMessagingRegistry = this.#globalMessagingRegistry.get(sessionID);
         scopeObj.clientMessagingPort = scopeObj.clientMessagingRegistry.createPort({ url: scopeObj.request.url, honourDoneMutationFlags: true });
@@ -661,7 +662,6 @@ export class WebfloServer extends WebfloRuntime {
         if (requestAccept && asHTML >= asIs && !response[meta].static) {
             response = await this.render(httpEvent, response);
         } else if (requestAccept && response.headers.get('Content-Type') && !asIs) {
-            console.log(response.headers.get('Content-Type'), requestAccept);
             return new Response(response.body, { status: 406, headers: response.headers });
         }
         // Satisfy "Range" header
