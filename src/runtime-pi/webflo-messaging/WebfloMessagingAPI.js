@@ -155,6 +155,7 @@ export class WebfloMessagingAPI extends WebfloEventTarget {
             throw new TypeError('originalEventID must be a non-empty string');
         }
         const liveStreamController = Observer.observe(data, Observer.subtree(), (mutations) => {
+            console.log('\n\n\n\n\n\n-------------mutations',  mutations);
             // Ignore individual mutations made by array operations
             if (withArrayMethodDescriptors && Array.isArray(mutations[0].target) && !mutations[0].argumentsList && !['set', 'defineProperty', 'deleteProperty'].includes(mutations[0].operation)) {
                 return;
@@ -185,6 +186,7 @@ export class WebfloMessagingAPI extends WebfloEventTarget {
         }
         return new Promise((resolve) => {
             const liveStreamController = this.handleMessages(`mutations:${originalEventID}`, (e) => {
+                console.log('\n\n\n\n\n\ne.data',  e.data);
                 if (!e.data?.length) return;
                 let mutationsDone;
                 Observer.batch(data, () => {
