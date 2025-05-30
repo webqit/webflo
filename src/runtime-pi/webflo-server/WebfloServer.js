@@ -564,11 +564,14 @@ export class WebfloServer extends WebfloRuntime {
             }
         }
         scopeObj.stats.etag = `W/"${scopeObj.stats.size}-${scopeObj.stats.mtimeMs}"`;
+        scopeObj.stats.mime = scopeObj.ext && Mime.lookup(scopeObj.ext)?.replace('application/javascript', 'text/javascript') || 'application/octet-stream';
         const ifNoneMatch = httpEvent.request.headers.get('If-None-Match');
         if (scopeObj.stats.etag && ifNoneMatch === scopeObj.stats.etag) {
-            return finalizeResponse(new Response(null, { status: 304 }));
+            const response = new Response(null, { status: 304 });
+            response.headers.set('Content-Type', scopeObj.stats.mime);
+            response.headers.set('Content-Length', scopeObj.stats.size);
+            return finalizeResponse(response);
         }
-        scopeObj.stats.mime = scopeObj.ext && Mime.lookup(scopeObj.ext)?.replace('application/javascript', 'text/javascript') || 'application/octet-stream';
         // Range support
         const readStream = (params = {}) => Fs.createReadStream(scopeObj.filename, { ...params });
         scopeObj.response = this.createStreamingResponse(httpEvent, readStream, scopeObj.stats);
@@ -781,9 +784,9 @@ export class WebfloServer extends WebfloRuntime {
         let log = [];
         // ---------------
         const style = this.#cx.logger.style || { keyword: str => str, comment: str => str, url: str => str, val: str => str, err: str => str, };
-        const errorCode = [404, 500].includes(response.status) ? response.status : 0;
+        const errorCode = response.status >= 400 && response.status < 500 ? response.status : 0;
         const xRedirectCode = response.headers.get('X-Redirect-Code');
-        const isRedirect = xRedirectCode || (response.status + '').startsWith('3');
+        const isRedirect = (xRedirectCode || response.status + '').startsWith('3') && (xRedirectCode || response.status) !== 304;
         const statusCode = xRedirectCode && `${xRedirectCode} (${response.status})` || response.status;
         // ---------------
         log.push(`[${style.comment((new Date).toUTCString())}]`);
