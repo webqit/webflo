@@ -1,0 +1,50 @@
+export function defineElement(WebfloSubClient, embedTagNames = 'webflo-embedded') {
+    window.customElements.define(embedTagNames, class extends HTMLElement {
+
+        #superRuntime;
+        #lifecycleController;
+        #location;
+        #reflectAction;
+
+        static get observedAttributes() { return ['location']; }
+
+        get location() {
+            if (!this.#location) {
+                this.#location = new URL(this.getAttribute('location') || '', window.location.origin);
+            }
+            return this.#location;
+        }
+
+        set location(value) {
+            if (!(value instanceof URL)) {
+                value = new URL(value, window.location.origin);
+            }
+            if (value.href === this.location.href) return;
+            this.#location = value;
+            this.setAttribute('location', value.href.replace(value.origin, ''));
+            if (!this.#reflectAction) {
+                this.webfloRuntime.navigate(value);
+            }
+        }
+
+        reflectLocation(location) {
+            this.#reflectAction = true;
+            this.location = location;
+            this.#reflectAction = false;
+        }
+
+        attributeChangedCallback(name, oldValue, newValue) {
+            if (oldValue === newValue) return;
+            this.location = newValue;
+        }
+
+        async connectedCallback() {
+            this.#superRuntime = (this.parentNode?.closest(embedTagNames) || document).webfloRuntime;
+            this.#lifecycleController = await WebfloSubClient.create(this, this.#superRuntime).initialize();
+        }
+
+        disconnectedCallback() {
+            this.#lifecycleController.abort();
+        }
+    });
+}

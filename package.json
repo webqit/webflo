@@ -38,8 +38,8 @@
     "@linked-db/linked-ql": "^0.30.13",
     "@octokit/webhooks": "^7.15.1",
     "@webqit/backpack": "^0.1.8",
-    "@webqit/observer": "^3.8.1",
     "@webqit/oohtml-ssr": "^2.1.1",
+    "@webqit/quantum-js": "^4.6.1",
     "@webqit/util": "^0.8.11",
     "dotenv": "^16.4.7",
     "esbuild": "^0.14.38",
@@ -50,7 +50,6 @@
     "npm": "^11.4.0",
     "pg": "^8.13.3",
     "simple-git": "^2.20.1",
-    "stream-slice": "^0.1.2",
     "urlpattern-polyfill": "^4.0.3",
     "web-push": "^3.6.7"
   },
