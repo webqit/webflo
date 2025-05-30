@@ -16,7 +16,7 @@ export function renderHttpMessageInit(httpMessageInit) {
         !headers['content-length'] && (headers['content-length'] = body.size);
     } else if (['Uint8Array', 'Uint16Array', 'Uint32Array', 'ArrayBuffer'].includes(type)) {
         !headers['content-length'] && (headers['content-length'] = body.byteLength);
-    } else if (type === 'json' && _isTypeObject(body)) {
+    } else if (type === 'json' && _isTypeObject(body)/*JSON object*/) {
         if (!headers['content-type']) {
             const [_body, isJsonfiable] = createFormDataFromJson(body, true/*jsonfy*/, true/*getIsJsonfiable*/);
             if (isJsonfiable) {
@@ -28,16 +28,13 @@ export function renderHttpMessageInit(httpMessageInit) {
                 type = 'FormData';
             }
         }
-    } else if (type === 'json') {
-        !headers['content-length'] && (headers['content-length'] = (body + '').length);
+    } else if (type === 'json'/*JSON string*/ && !headers['content-length']) {
+        (headers['content-length'] = (body + '').length);
     }
     return { body, headers, $type: type };
 }
 
 export async function parseHttpMessage(httpMessage) {
-    if (httpMessage[meta] && 'body' in httpMessage[meta] && httpMessage[meta].type === 'json') {
-        //return httpMessage[meta].body;
-    }
     let result;
     const contentType = httpMessage.headers.get('Content-Type') || '';
     if (contentType === 'application/x-www-form-urlencoded' || contentType.startsWith('multipart/form-data')) {
@@ -46,7 +43,7 @@ export async function parseHttpMessage(httpMessage) {
     } else if (contentType.startsWith('application/json')/*can include charset*/) {
         result = await httpMessage.json();
     } else /*if (contentType === 'text/plain')*/ {
-        result = await httpMessage.text();
+        result = httpMessage.body;
     }
     return result;
 }

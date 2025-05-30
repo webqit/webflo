@@ -1,8 +1,7 @@
-
 import { State, Observer } from '@webqit/quantum-js';
 import { _isObject, _isTypeObject } from '@webqit/util/js/index.js';
 import { backgroundMessagingPort } from './response.js';
-import { meta } from './util.js';
+import { isTypeStream, meta } from './util.js';
 
 function _await(value, callback) {
     if (value instanceof Promise) {
@@ -11,8 +10,11 @@ function _await(value, callback) {
     return callback(value);
 }
 
-const Generator = Object.getPrototypeOf(function* () { }).constructor;
-const AsyncGenerator = Object.getPrototypeOf(async function* () { }).constructor;
+const isGenerator = (obj) => {
+    return typeof obj?.next === 'function' &&
+        typeof obj?.throw === 'function' &&
+        typeof obj?.return === 'function';
+};
 class StateX extends State {
     constructor() { }
     dispose() { }
@@ -29,7 +31,7 @@ export class LiveResponse extends EventTarget {
         if (data instanceof Response) {
             return this.fromResponse(data);
         }
-        if (data instanceof Generator || data instanceof AsyncGenerator) {
+        if (isGenerator(data)) {
             return this.fromGenerator(data);
         }
         if (data instanceof State) {
@@ -46,7 +48,7 @@ export class LiveResponse extends EventTarget {
             // Frame binding
             let frameClosure, frameTag;
             if (response.backgroundMessagingPort/* Typically when on the client side */
-                && _isTypeObject(body)
+                && _isTypeObject(body) && !isTypeStream(body)
                 && (frameTag = response.headers.get('X-Live-Response-Frame-Tag')?.trim())) {
                 frameClosure = async function () {
                     await response.backgroundMessagingPort.applyMutations(
@@ -62,10 +64,10 @@ export class LiveResponse extends EventTarget {
                 statusText: response.statusText,
                 headers: response.headers,
             }, frameClosure);
+            Object.assign(instance[meta], response[meta]);
             // Generator binding
             let generatorDone = true;
             if (response.backgroundMessagingPort/* Typically when on the client side */) {
-                instance[meta].backgroundMessagingPort = response.backgroundMessagingPort;
                 // Capture subsequent frames?
                 if (response.headers.get('X-Live-Response-Generator-Done')?.trim() !== 'true') {
                     generatorDone = false;
@@ -94,21 +96,27 @@ export class LiveResponse extends EventTarget {
     }
 
     static fromGenerator(gen) {
-        if (!(gen instanceof Generator) && !(gen instanceof AsyncGenerator)) {
+        if (!isGenerator(gen)) {
             throw new Error('Argument must be a generator or async generator.');
         }
         const $firstFrame = gen.next();
-        return _await($firstFrame, (frame) => {
-            const instance = this.create/*important*/(frame.value, { done: frame.done });
-            instance.#generatorType = 'Generator';
-            (async function () {
-                while (!frame.done && !instance.#abortController.signal.aborted) {
-                    frame = await gen.next();
-                    instance.replaceWith(frame.value, { done: frame.done });
-                }
-            })();
-            return instance;
+        const instance = _await($firstFrame, (frame) => {
+            return _await(frame.value, (value) => {
+                const instance = this.create/*important*/(value, { done: frame.done });
+                return _await(instance, (instance) => {
+                    instance.#generatorType = 'Generator';
+                    (async function () {
+                        while (!frame.done && !instance.#abortController.signal.aborted) {
+                            frame = await gen.next();
+                            value = await frame.value;
+                            await instance.replaceWith(value, { done: frame.done });
+                        }
+                    })();
+                    return instance;
+                });
+            });
         });
+        return instance;
     }
 
     static fromQuantum(state) {
@@ -175,11 +183,11 @@ export class LiveResponse extends EventTarget {
     #generatorType = 'Default';
     get generatorType() { return this.#generatorType; }
 
+    #frameClosurePromise = null;
+    get frameClosurePromise() { return this.#frameClosurePromise; }
+
     #frameDone = false;
     get frameDone() { return this.#frameDone; }
-
-    #hasFrameClosure = false;
-    get hasFrameClosure() { return this.#hasFrameClosure; }
 
     #generatorDone = false;
     get generatorDone() { return this.#generatorDone; }
@@ -201,6 +209,7 @@ export class LiveResponse extends EventTarget {
         clonedResponse.#redirected = this.#redirected;
         clonedResponse.#url = this.#url;
         clonedResponse.#generatorType = this.#generatorType;
+        clonedResponse.#frameClosurePromise = this.#frameClosurePromise;
         clonedResponse.#frameDone = this.#frameDone;
         clonedResponse.#generatorDone = this.#generatorDone;
         Object.assign(clonedResponse[meta], this[meta]);
@@ -220,16 +229,15 @@ export class LiveResponse extends EventTarget {
             this.#headers = new Headers(options.headers);
         }
         // frameClosure
-        this.#hasFrameClosure = false;
+        this.#frameClosurePromise = null;
         if (frameClosure) {
-            this.#hasFrameClosure = true;
-            Promise.resolve(frameClosure.call(this, _isTypeObject(body) ? Observer.proxy(body, { chainable: true, membrane: body }) : body)).then(() => {
+            this.#frameClosurePromise = Promise.resolve(frameClosure.call(this, _isTypeObject(body) && !isTypeStream(body) ? Observer.proxy(body, { chainable: true, membrane: body }) : body)).then(() => {
                 this.#frameDone = true;
                 this.dispatchEvent(new Event('framedone'));
             });
         }
         // False for a new frame
-        this.#frameDone = !_isTypeObject(body) && !frameClosure/*This is still honoured*/;
+        this.#frameDone = (!_isTypeObject(body) || isTypeStream(body)) && !frameClosure/*This is still honoured*/;
         // Even if done before, we resume
         this.#generatorDone = !!options.done;
         // Must come all property assignments above
@@ -272,8 +280,9 @@ export class LiveResponse extends EventTarget {
             statusText: this.statusText,
             headers: this.headers,
         });
+        Object.assign(response[meta], this[meta]);
         if (clientMessagingPort/* Typically when on the server side */) {
-            if (_isTypeObject(this.body) && !this.frameDone) { // Only ever done when type isn't object-like or when frameClosure says done
+            if (_isTypeObject(this.body) && !isTypeStream(this.body) && !this.frameDone) { // Only ever done when type isn't object-like or when frameClosure says done
                 response.headers.set('X-Live-Response-Frame-Tag', 'frame0');
                 clientMessagingPort.publishMutations(this.body, 'frame0', { signal: this.#abortController.signal/* stop observing mutations on body when we abort */ });
             }
@@ -298,8 +307,6 @@ export class LiveResponse extends EventTarget {
                 };
                 this.addEventListener('replace', replaceHandler, { signal: this.#abortController.signal/* stop listening when we abort */ });
             }
-        } else if (this.backgroundMessagingPort/* Typically when on the client side */) {
-            response[meta].backgroundMessagingPort = this.backgroundMessagingPort;
         }
         return response;
     }

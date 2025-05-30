@@ -63,18 +63,18 @@ export class WebfloMessagingAPI extends WebfloEventTarget {
     /**
      * transferOrOptions has the following structure:
      * {
-     *    eventOptions: {
-    *       eventID: String, // Optional, this is the ID of the event
-     *      type: String, // The type of the event, e.g. 'message', 'request', 'mutations'
-    *       live: Boolean, // If true, the data is to be transmitted as a live object
-     *      bubbles: Boolean, // If true, the message bubbles up through the event system
-     *    },
-    *     liveOptions: {
-    *       signal: AbortSignal, // Optional signal to abort the live object
-    *       withArrayMethodDescriptors: Boolean, // If true, array method descriptors are included in mutations
-    *     },
-     *    ...portOptions // Any other options that should be passed to the postMessage method
-     *       transfer: Array<Transferable>,
+     *   eventOptions: {
+     *     eventID: String,         // Optional, this is the ID of the event
+     *     type: String,            // The type of the event, e.g. 'message', 'request', 'mutations'
+     *     live: Boolean,           // If true, the data is to be transmitted as a live object
+     *     bubbles: Boolean,        // If true, the message bubbles up through the event system
+     *   },
+     *   liveOptions: {
+     *     signal: AbortSignal,     // Optional signal to abort the live object
+     *     withArrayMethodDescriptors: Boolean, // If true, array method descriptors are included in mutations
+     *   },
+     *   ...portOptions             // Any other options that should be passed to the postMessage method
+     *   transfer: Array<Transferable>,
      * }
      */
 
@@ -147,7 +147,7 @@ export class WebfloMessagingAPI extends WebfloEventTarget {
     #mutationListeners = new Set;
     get mutationListeners() { return this.#mutationListeners; }
 
-    publishMutations(data, originalEventID, { signal = null, withArrayMethodDescriptors = true } = {}) {
+    publishMutations(data, originalEventID, { signal, withArrayMethodDescriptors = true } = {}) {
         if (isTypeStream(data) || !_isTypeObject(data)) {
             throw new TypeError('data must be a plain object and not a stream');
         }
@@ -176,7 +176,7 @@ export class WebfloMessagingAPI extends WebfloEventTarget {
         return liveStreamController;
     }
 
-    applyMutations(data, originalEventID, { signal = null } = {}) {
+    applyMutations(data, originalEventID, { signal } = {}) {
         if (isTypeStream(data) || !_isTypeObject(data)) {
             throw new TypeError('data must be a plain object and not a stream');
         }

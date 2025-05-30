@@ -80,14 +80,15 @@ export class WebfloRuntime {
             }
             // Wait until generator done
             if (scopeObj.response instanceof LiveResponse && !scopeObj.response.generatorDone) {
-                httpEvent.waitUntil(new Promise((resolve) => {
+                const done = new Promise((resolve) => {
                     httpEvent.client.addEventListener('close', resolve);
-                    scopeObj.response.addEventListener('generatordone', () => {
+                    scopeObj.response.addEventListener('generatordone', (e) => {
                         if (!scopeObj.response.frameDone/*Closures AREN'T required on the client to indicate live frames*/) {
                             scopeObj.response.addEventListener('framedone', resolve, { once: true });
-                        } else resolve();
+                        } else resolve(e);
                     }, { once: true });
-                }));
+                });
+                httpEvent.waitUntil(done);
             }
         } else {
             // Only normal Response (with streaming) supported
@@ -101,14 +102,15 @@ export class WebfloRuntime {
             }
             // Wait until generator done
             if (isStreamingResponse && !liveResponse.generatorDone) {
-                httpEvent.waitUntil(new Promise((resolve) => {
+                const done = new Promise((resolve) => {
                     httpEvent.client.addEventListener('close', resolve);
-                    liveResponse.addEventListener('generatordone', () => {
-                        if (!liveResponse.frameDone && liveResponse.hasFrameClosure/*Closures are required on the server to indicate live frames*/) {
+                    liveResponse.addEventListener('generatordone', (e) => {
+                        if (!liveResponse.frameDone && liveResponse.frameClosurePromise/*Closures are required on the server to indicate live frames*/) {
                             liveResponse.addEventListener('framedone', resolve, { once: true });
-                        } else resolve();
+                        } else resolve(e);
                     }, { once: true });
-                }));
+                });
+                httpEvent.waitUntil(done);
             }
         }
         // ----------------------
