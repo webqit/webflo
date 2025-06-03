@@ -128,7 +128,7 @@ export class WebfloServer extends WebfloRuntime {
                 if (event.effect === 'unlink' && event.realm === 'server') {
                     delete this.routes[event.affectedRoute];
                 } else if (event.realm === 'server') {
-                    this.routes[event.affectedRoute] = await import(`${Path.join(process.cwd(), event.affectedHandler)}?$hmr$hash=${Date.now()}`);
+                    this.routes[event.affectedRoute] = await import(`${Path.join(process.cwd(), event.affectedHandler)}?_webflohmrhash=${Date.now()}`);
                 }
             }
             // Broadcast to clients
@@ -850,7 +850,7 @@ export class WebfloServer extends WebfloRuntime {
     }
 
     formatBytes(bytes, decimals = 2, locale = 'en', withSpace = true) {
-        if (bytes === 0) return `0${withSpace ? ' ' : ''}B`;
+        if (bytes + '' === '0') return `0${withSpace ? ' ' : ''}B`;
         const k = 1024;
         const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));

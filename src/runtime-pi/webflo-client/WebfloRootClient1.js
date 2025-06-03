@@ -136,32 +136,32 @@ export class WebfloRootClient1 extends WebfloClient {
 				if (event.effect === 'unlink' && event.realm === 'client') {
 					delete this.routes[event.affectedRoute];
 				} else if (event.realm === 'client') {
-					this.routes[event.affectedRoute] = await import(`${event.affectedHandler}?$hmr$hash=${Date.now()}`);
+					this.routes[event.affectedRoute] = await import(`${event.affectedHandler}?_webflohmrhash=${Date.now()}`);
 				}
 				if (event.affectedRoute === this.location.pathname) {
 					await this.navigate(this.location.href);
 				}
 			} else if (event.fileType === 'css') {
-				refreshCSS();
+				refreshCSS(event);
 			} else if (event.fileType === 'html') {
 				window.location.reload();
 			}
 		};
-		function refreshCSS() {
-			var sheets = [].slice.call(document.getElementsByTagName('link'));
-			var head = document.getElementsByTagName('head')[0];
-			for (var i = 0; i < sheets.length; ++i) {
-				var elem = sheets[i];
-				var parent = elem.parentElement || head;
-				parent.removeChild(elem);
-				var rel = elem.rel;
-				if (elem.href && typeof rel != 'string' || rel.length === 0 || rel.toLowerCase() === 'stylesheet') {
-					var url = elem.href.replace(/(&|\?)\$hmr\$hash=\d+/, '');
-					elem.href = url + (url.indexOf('?') >= 0 ? '&' : '?') + '$hmr$hash=' + (new Date().valueOf());
+		const refreshCSS = (event) => {
+			const href = new URL(event.changedFile, this.location.origin);
+			const sheets = document.querySelectorAll('link[rel="stylesheet"]');
+			for (const sheet of sheets) {
+				const $href = new URL(sheet.href);
+				if ($href.pathname !== href.pathname) continue;
+				if (event.type === 'unlink') {
+					sheet.remove();
+				} else {
+					const [path] = sheet.getAttribute('href').split('?');
+					$href.searchParams.set('_webflohmrhash', Date.now());
+					sheet.setAttribute('href', `${path}?${$href.searchParams}`);
 				}
-				parent.appendChild(elem);
 			}
-		}
+		};
 	}
 
 	control() {

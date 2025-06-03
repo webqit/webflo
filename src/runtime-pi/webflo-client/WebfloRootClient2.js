@@ -21,7 +21,10 @@ export class WebfloRootClient2 extends WebfloRootClient1 {
 		};
 		// Handle navigation event which happens after the above
 		const navigateHandler = (e) => {
-			if (!e.canIntercept || e.downloadRequest !== null || !this.isSpaRoute(e.destination.url)) return;
+			if (!e.canIntercept 
+				|| e.downloadRequest !== null 
+				|| !this.isSpaRoute(e.destination.url)
+				|| e.navigationType === 'reload') return;
 			if (e.hashChange) {
 				Observer.set(this.location, 'href', e.destination.url);
 				return;
