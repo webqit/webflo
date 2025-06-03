@@ -51,11 +51,7 @@ const responseMethods = {
     },
     parse: {
         value: async function () {
-            const data = await parseHttpMessage(this);
-            if (this.headers.has('X-Live-Object-ID') && this.backgroundMessagingPort) {
-                this.backgroundMessagingPort.applyMutations(data, this.headers.get('X-Live-Object-ID'));
-            }
-            return data;
+            return await parseHttpMessage(this);
         }
     }
 };

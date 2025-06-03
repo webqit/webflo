@@ -1,5 +1,4 @@
 import Fs from 'fs';
-import Url from 'url';
 import Path from 'path';
 import Jsdom from 'jsdom';
 import EsBuild from 'esbuild';
@@ -7,379 +6,125 @@ import { gzipSync, brotliCompressSync } from 'zlib';
 import { _afterLast, _beforeLast } from '@webqit/util/str/index.js';
 import { _isObject, _isArray } from '@webqit/util/js/index.js';
 import { jsFile } from '@webqit/backpack/src/dotfile/index.js';
+import { AbstractContext } from '../../AbstractContext.js';
+import {
+    readClientConfig,
+    readWorkerConfig,
+    readLayoutConfig,
+    readEnvConfig,
+    scanRoots,
+    scanRouteHandlers,
+} from '../../deployment-pi/util.js';
 import '../webflo-url/urlpattern.js';
 
-export async function generate() {
-    const cx = this || {};
-    // -----------
-    if (!cx.config.runtime?.Client) {
-        throw new Error(`The Client configurator "config.runtime.Client" is required in context.`);
+function declareConfig({ $source, configExport, indentation = 0 }) {
+    const varName = 'config';
+    if (!indentation) {
+        $source.code.push(`const ${varName} = {`);
     }
-    if (!cx.config.deployment?.Layout) {
-        throw new Error(`The Client configurator "config.deployment.Layout" is required in context.`);
-    }
-    const clientConfig = await (new cx.config.runtime.Client(cx)).read();
-    if (clientConfig.capabilities?.service_worker && !cx.config.runtime.client?.Worker) {
-        throw new Error(`The Service Worker configurator "config.runtime.client.Worker" is required in context.`);
-    }
-    const workerConfig = await (new cx.config.runtime.client.Worker(cx)).read();
-    // -----------
-    if (!cx.config.deployment?.Layout) {
-        throw new Error(`The Layout configurator "config.deployment.Layout" is required in context.`);
-    }
-    const layoutConfig = await (new cx.config.deployment.Layout(cx)).read();
-    // -----------
-    const dirPublic = Path.resolve(cx.CWD || '', layoutConfig.PUBLIC_DIR);
-    const dirClient = Path.resolve(cx.CWD || '', layoutConfig.CLIENT_DIR);
-    const dirWorker = Path.resolve(cx.CWD || '', layoutConfig.WORKER_DIR);
-    const dirSelf = Path.dirname(Url.fileURLToPath(import.meta.url)).replace(/\\/g, '/');
-    const env = {};
-    const envConfig = { mappings: {} };
-    // Copy vars
-    if (clientConfig.copy_public_variables) {
-        const $env = { ...process.env };
-        for (const key in $env) {
-            if (!key.includes('PUBLIC_') && !key.includes('_PUBLIC')) continue;
-            env[key] = $env[key];
-        }
-        if (cx.config.deployment?.Env) {
-            const $envConfig = await (new cx.config.deployment.Env(cx)).read();
-            envConfig.mappings = $envConfig.mappings;
-        }
-    }
-    // Expose these nodes
-    clientConfig.env = env;
-    workerConfig.env = env;
-    clientConfig.mappings = envConfig.mappings;
-    workerConfig.mappings = envConfig.mappings;
-    // -----------
-    // Scan Subdocuments
-    const scanSubroots = (sparoot, rootFileName) => {
-        let dir = Path.join(dirPublic, sparoot), passes = 0;
-        return [ Fs.readdirSync(dir).reduce((sparoots, f) => {
-            let resource = Path.join(dir, f);
-            if (Fs.statSync(resource).isDirectory()) {
-                let subsparoot = Path.join(sparoot, f);
-                if (Fs.existsSync(Path.join(resource, rootFileName))) {
-                    return sparoots.concat(subsparoot);
-                }
-                passes ++;
-                return sparoots.concat(scanSubroots(subsparoot, rootFileName)[ 0 ]);
-            }
-            return sparoots;
-        }, []), passes ];
-    };
-    // -----------
-    // Generate client build
-    const generateClient = async function(sparoot, spaGraphCallback = null) {
-        let [ subsparoots, targets ] = (sparoot && scanSubroots(sparoot, 'index.html')) || [ [], false ];
-        if (!sparoot) sparoot = '/';
-        let spaRouting = { name: 'client', root: sparoot, subroots: subsparoots, targets };
-        let codeSplitting = !!(sparoot !== '/' || subsparoots.length);
-        let outfileMain = Path.join(sparoot, clientConfig.bundle_filename),
-            outfileWebflo = _beforeLast(clientConfig.bundle_filename, '.js') + '.webflo.js';
-        let gen = { imports: {}, code: [], };
-        // ------------------
-        const initWebflo = gen => {
-            gen.imports[`${dirSelf}/index.js`] = `* as Webflo`;
-            gen.code.push(``);
-            gen.code.push(`if (!self.webqit) {self.webqit = {};}`);
-            gen.code.push(`webqit.Webflo = Webflo`);
-            return gen;
-        };
-        // ------------------
-        if (!codeSplitting) {
-            initWebflo(gen);
-        } else if (sparoot === '/') {
-            if (cx.logger) {
-                cx.logger.log(cx.logger.style.keyword(`-----------------`));
-                cx.logger.log(`Base Build`);
-                cx.logger.log(cx.logger.style.keyword(`-----------------`));
-            }
-            let gen1 = initWebflo({ imports: {}, code: [], });
-            await bundle.call(cx, gen1, Path.join(dirPublic, outfileWebflo), true/* asModule */);
-        }
-        // ------------------
-        if (cx.logger) {
-            cx.logger.log(cx.logger.style.keyword(`-----------------`));
-            cx.logger.log(`Client Build ` + cx.logger.style.comment(`(sparoot:${sparoot}; is-split:${codeSplitting})`));
-            cx.logger.log(cx.logger.style.keyword(`-----------------`));
-        }
-        gen.code.push(`const { start } = webqit.Webflo`);
-        // ------------------
-        // Bundle
-        const paramsObj = structuredClone(clientConfig);
-        if (paramsObj.capabilities?.service_worker) {
-            paramsObj.capabilities.service_worker = {
-                filename: workerConfig.filename,
-                scope: workerConfig.scope
-            };
-        }
-        declareStart.call(cx, gen, dirClient, dirPublic, paramsObj, spaRouting);
-        await bundle.call(cx, gen, Path.join(dirPublic, outfileMain), true/* asModule */);
-        // ------------------
-        // Embed/unembed
-        let targetDocumentFile = Path.join(dirPublic, sparoot, 'index.html'),
-            outfileWebfloPublic = Path.join(clientConfig.public_base_url, outfileWebflo),
-            outfileMainPublic = Path.join(clientConfig.public_base_url, outfileMain),
-            embedList = [],
-            unembedList = [];
-        if (cx.flags['auto-embed']) {
-            if (codeSplitting) {
-                embedList.push(outfileWebfloPublic);
-            } else {
-                unembedList.push(outfileWebfloPublic);
-            }
-            embedList.push(outfileMainPublic);
+    Object.keys(configExport).forEach((name) => {
+        const $name = `    ${'    '.repeat(indentation)}${(_isArray(configExport) ? '' : (name.includes(' ') ? `'${name}'` : name) + ': ')}`;
+        if (['boolean', 'number'].includes(typeof configExport[name])) {
+            $source.code.push(`${$name}${configExport[name]},`);
+        } else if (_isArray(configExport[name])) {
+            $source.code.push(`${$name}[`);
+            declareConfig({
+                $source,
+                configExport: configExport[name],
+                indentation: indentation + 1
+            });
+            $source.code.push(`    ${'    '.repeat(indentation)}],`);
+        } else if (_isObject(configExport[name])) {
+            $source.code.push(`${$name}{`);
+            declareConfig({
+                $source,
+                configExport: configExport[name],
+                indentation: indentation + 1
+            });
+            $source.code.push(`    ${'    '.repeat(indentation)}},`);
         } else {
-            unembedList.push(outfileWebfloPublic, outfileMainPublic);
-        }
-        handleEmbeds(targetDocumentFile, embedList, unembedList);
-        // ------------------
-        // Recurse
-        spaGraphCallback && spaGraphCallback(sparoot, subsparoots);
-        if (cx.flags.recursive) {
-            while (subsparoots.length) {
-                await generateClient(subsparoots.shift(), spaGraphCallback);
-            }
-        }
-    };
-    // -----------
-    // Generate worker build
-    const generateWorker = async function(workerroot, workerGraphCallback = null) {
-        let [ subworkerroots, targets ] = workerroot && scanSubroots(workerroot, 'workerroot') || [ [], false ];
-        if (!workerroot) workerroot = '/';
-        let workerRouting = { name: 'worker', root: workerroot, subroots: subworkerroots, targets };
-        let gen = { imports: {}, code: [], };
-        if (cx.logger) {
-            cx.logger.log(cx.logger.style.comment(`-----------------`));
-            cx.logger.log(`Worker Build - workerroot:${workerroot}`);
-            cx.logger.log(cx.logger.style.comment(`-----------------`));
-        }
-        // ------------------
-        // >> Modules import
-        gen.imports[`${dirSelf}/../webflo-worker/index.js`] = `{ start }`;
-        gen.code.push(``);
-        gen.code.push(`self.webqit = {}`);
-        gen.code.push(``);
-        // ------------------
-        // Bundle
-        for (const strategy of [ 'cache_first_urls', 'cache_only_urls' ]) {
-            if (workerConfig[strategy].length) {
-                // Separate URLs from patterns
-                let [ urls, patterns ] = workerConfig[strategy].reduce(([ urls, patterns ], url) => {
-                    let patternInstance = new URLPattern(url, 'http://localhost'),
-                        isPattern = patternInstance.isPattern();
-                    if (isPattern && (patternInstance.pattern.hostname !== 'localhost' || patternInstance.pattern.port)) {
-                        throw new Error(`Pattern URLs must have no origin part. Recieved "${url}".`);
-                    }
-                    return isPattern ? [ urls, patterns.concat(patternInstance) ] : [ urls.concat(url), patterns ];
-                }, [ [], [] ]);
-                // Resolve patterns
-                if (patterns.length) {
-                    // List all files
-                    let scan = dir => Fs.readdirSync(dir).reduce((result, f) => {
-                        let resource = Path.join(dir, f);
-                        if (f.startsWith('.')) return result;
-                        return result.concat(Fs.statSync(resource).isDirectory() ? scan(resource) : '/' + Path.relative(dirPublic, resource));
-                    }, []);
-                    let files = scan(dirPublic);
-                    // Resolve patterns from files
-                    workerConfig[strategy] = patterns.reduce((all, pattern) => {
-                        let matchedFiles = files.filter(file => pattern.test(file, 'http://localhost'));
-                        if (matchedFiles.length) return all.concat(matchedFiles);
-                        throw new Error(`The pattern "${pattern.pattern.pathname}" didn't match any files.`);
-                    }, urls);
-                }
-            }
-        }
-        const paramsObj = structuredClone(workerConfig);
-        if (clientConfig.capabilities?.webpush) {
-            paramsObj.capabilities = {
-                webpush: true
-            };
-        }
-        declareStart.call(cx, gen, dirWorker, dirPublic, paramsObj, workerRouting);
-        await bundle.call(cx, gen, Path.join(dirPublic, workerroot, workerConfig.filename));
-        // ------------------
-        // Recurse
-        workerGraphCallback && workerGraphCallback(workerroot, subworkerroots);
-        if (cx.flags.recursive) {
-            while (subworkerroots.length) {
-                await generateWorker(subworkerroots.shift());
-            }
-        }
-    };
-    // -----------
-    // Generate now...
-    let sparootsFile = Path.join(dirPublic, 'sparoots.json');
-    if (clientConfig.spa_routing !== false) {
-        const sparoots = [];
-        await generateClient('/', root => sparoots.push(root));
-        Fs.writeFileSync(sparootsFile, JSON.stringify(sparoots, null, 4));
-    } else {
-        await generateClient();
-        Fs.existsSync(sparootsFile) && Fs.unlinkSync(sparootsFile);
-    }
-    if (clientConfig.capabilities?.service_worker) {
-        await generateWorker('/');
-    }
-}
-
-/**
- * Compile routes.
- * 
- * @param object    gen
- * @param string    routesDir
- * @param string    targetPublic
- * @param object    paramsObj
- * @param object    routing
- * 
- * @return Object
- */
-function declareStart(gen, routesDir, targetDir, paramsObj, routing) {
-    const cx = this || {};
-    // ------------------
-    // >> Routes mapping
-    gen.code.push(`// >> Routes`);
-    declareRoutesObj.call(cx, gen, routesDir, targetDir, 'layout', routing);
-    gen.code.push(``);
-    // ------------------
-    // >> Params
-    gen.code.push(`// >> Params`);
-    declareParamsObj.call(cx, gen, { ...paramsObj, routing }, 'params');
-    gen.code.push(``);
-    // ------------------
-    // >> Startup
-    gen.code.push(`// >> Startup`);
-    gen.code.push(`webqit.app = await start.call({ layout, params })`);
-}
-
-/**
- * Compile routes.
- * 
- * @param object    gen
- * @param string    routesDir
- * @param string    targetDir
- * @param string    varName
- * @param object    routing
- * 
- * @return void
- */
-function declareRoutesObj(gen, routesDir, targetDir, varName, routing) {
-    const cx = this || {};
-    let _routesDir = Path.join(routesDir, routing.root),
-        _targetDir = Path.join(targetDir, routing.root);
-    cx.logger && cx.logger.log(cx.logger.style.keyword(`> `) + `Declaring routes...`);
-    const routeFileEnding = new RegExp(`(?:\\/(?:handler\\.${routing.name}|handler)\\.js)$`);
-    // ----------------
-    // Directory walker
-    const walk = (dir, callback) => {
-        const dedicatedRouteFileName = `handler.${routing.name}.js`;
-        const hasDedicatedRouteFile = Fs.existsSync(Path.join(dir, dedicatedRouteFileName));
-        Fs.readdirSync(dir).forEach(f => {
-            let resource = Path.join(dir, f);
-            let _namespace = '/' + Path.relative(routesDir, resource).replace(/\\/g, '/');
-            if (Fs.statSync(resource).isDirectory()) {
-                if (routing.subroots.includes(_namespace)) return;
-                walk(resource, callback);
-            } else {
-                if (hasDedicatedRouteFile && f !== dedicatedRouteFileName) return;
-                let namespace = _namespace.replace(routeFileEnding, '') || '/';
-                let relativePath = Path.relative(_targetDir, resource).replace(/\\/g, '/');
-                callback(resource, namespace, relativePath);
-            }
-        });
-    };
-    // ----------------
-    // >> Routes mapping
-    gen.code.push(`const ${varName} = {};`);
-    let handlerCount = 0;
-    if (Fs.existsSync(_routesDir)) {
-        walk(_routesDir, (file, namespace, relativePath) => {
-            if (routeFileEnding.test(relativePath)) {
-                // Import code
-                let routeName = 'handler' + (++ handlerCount);
-                // IMPORTANT: we;re taking a step back here so that the parent-child relationship for 
-                // the directories be involved
-                gen.imports[relativePath] = '* as ' + routeName;
-                // Definition code
-                gen.code.push(`${varName}['${namespace}'] = ${routeName};`);
-                // Show
-                cx.logger && cx.logger.log(cx.logger.style.comment(`  [${namespace}]:   `) + cx.logger.style.url(relativePath) + cx.logger.style.comment(` (${Fs.statSync(file).size / 1024} KB)`));
-            }
-        });
-    }
-    if (!handlerCount) {
-        cx.logger && cx.logger.log(cx.logger.style.comment(`  (none)`));
-    }
-}
-
-/**
- * Compile params.
- * 
- * @param object    gen
- * @param object    paramsObj
- * @param string    varName
- * 
- * @return void
- */
-function declareParamsObj(gen, paramsObj, varName = null, indentation = 0) {
-    const cx = this || {};
-    // ----------------
-    // Params compilation
-    if (varName) gen.code.push(`const ${varName} = {`);
-    _isArray(paramsObj)
-    Object.keys(paramsObj).forEach(name => {
-        let _name = `    ${'    '.repeat(indentation)}${(_isArray(paramsObj) ? '' : (name.includes(' ') ? `'${name}'` : name) + ': ')}`;
-        if ([ 'boolean', 'number' ].includes(typeof paramsObj[name])) {
-            gen.code.push(`${_name}${paramsObj[name]},`);
-        } else if (_isArray(paramsObj[name])) {
-            gen.code.push(`${_name}[`);
-            declareParamsObj.call(cx, gen, paramsObj[name], null, indentation + 1);
-            gen.code.push(`    ${'    '.repeat(indentation)}],`);
-        } else if (_isObject(paramsObj[name])) {
-            gen.code.push(`${_name}{`);
-            declareParamsObj.call(cx, gen, paramsObj[name], null, indentation + 1);
-            gen.code.push(`    ${'    '.repeat(indentation)}},`);
-        } else {
-            gen.code.push(`${_name}'${paramsObj[name]}',`);
+            $source.code.push(`${$name}'${configExport[name]}',`);
         }
     });
-    if (varName) gen.code.push(`};`);
+    if (!indentation) {
+        $source.code.push(`};`);
+    }
 }
 
-/**
- * Bundle generated file
- * 
- * @param object    gen
- * @param String    outfile
- * @param boolean   asModule
- * 
- * @return Promise
- */
-async function bundle(gen, outfile, asModule = false) {
-    const cx = this || {};
-    const compression = !cx.flags.compression ? false : (
-        cx.flags.compression === true ? ['gz'] : cx.flags.compression.split(',').map(s => s.trim())
+function declareRoutes({ $context, $config, $source, which, offset, roots = [] }) {
+    const { logger: LOGGER } = $context;
+    LOGGER?.log(LOGGER.style.keyword(`> `) + `Declaring routes...`);
+    // Define vars
+    const varName = 'routes';
+    const targetDir = Path.join($config.LAYOUT.PUBLIC_DIR, offset);
+    // >> Routes mapping
+    $source.code.push(`const ${varName} = {};`);
+    // Route entries
+    let routeCount = 0;
+    scanRouteHandlers($config.LAYOUT, which, (file, route, filename, fstat) => {
+        // The "import" code
+        const routeId = 'route' + (++routeCount);
+        const importPath = Path.relative(targetDir, file);
+        $source.imports[importPath] = '* as ' + routeId;
+        // The route def
+        $source.code.push(`${varName}['${route}'] = ${routeId};`);
+        // Show
+        LOGGER?.log(
+            LOGGER.style.comment(`  [${route}]:   `) + LOGGER.style.url(importPath) + LOGGER.style.comment(` (${fstat.size / 1024} KB)`)
+        );
+    }, offset, roots);
+    // >> Specials
+    $source.code.push(`${varName}.$root = '${offset}';`);
+    $source.code.push(`${varName}.$subroots = ${JSON.stringify(roots)};`);
+    if (!routeCount) {
+        LOGGER?.log(LOGGER.style.comment(`  (none)`));
+    }
+}
+
+function writeImportWebflo($source, which) {
+    $source.imports[`@webqit/webflo/src/runtime-pi/webflo-${which}/index.js`] = `{ start }`;
+}
+
+function writeScriptBody({ $context, $config, $source, which, offset, roots, configExport }) {
+    // >> Config
+    $source.code.push(`// >> Config export`);
+    declareConfig({ $source, configExport });
+    $source.code.push(``);
+    // >> Routes mapping
+    $source.code.push(`// >> Routes`);
+    declareRoutes({ $context, $config, $source, which, offset, roots });
+    $source.code.push(``);
+    // >> Startup
+    $source.code.push(`// >> Startup`);
+    $source.code.push(`self.webqit = self.webqit || {};`);
+    $source.code.push(`self.webqit.app = await start.call({ config, routes })`);
+}
+
+async function bundleScript({ $context, $source, which, outfile, asModule = false }) {
+    const { flags: FLAGS, logger: LOGGER } = $context;
+    // >> Show banner...
+    LOGGER?.log(LOGGER.style.keyword(`---`));
+    LOGGER?.log(`Bundling ${which} build`);
+    LOGGER?.log(LOGGER.style.keyword(`---`));
+    // Apply compression?
+    const compression = !FLAGS.compression ? false : (
+        FLAGS.compression === true ? ['gz'] : FLAGS.compression.split(',').map(s => s.trim())
     );
     const moduleFile = `${_beforeLast(outfile, '.')}.esm.js`;
-
-    // ------------------
     // >> Show waiting...
-    if (cx.logger) {
-        let waiting = cx.logger.waiting(cx.logger.f`Writing the ES module file: ${moduleFile}`);
+    if (LOGGER) {
+        const waiting = LOGGER.waiting(
+            LOGGER.f`Writing the ES module file: ${moduleFile}`
+        );
         waiting.start();
-        jsFile.write(gen, moduleFile, 'ES Module file');
+        jsFile.write($source, moduleFile, 'ES Module file');
         waiting.stop();
     } else {
-        jsFile.write(gen, moduleFile, 'ES Module file');
+        jsFile.write($source, moduleFile, 'ES Module file');
     }
-
-    // ----------------
-    // >> Webpack config
+    // >> esbuild config
     const bundlingConfig = {
-        entryPoints: [ moduleFile ],
+        entryPoints: [moduleFile],
         outfile,
         bundle: true,
         minify: true,
@@ -393,19 +138,20 @@ async function bundle(gen, outfile, asModule = false) {
         bundlingConfig.banner.js += '(async () => {';
         bundlingConfig.footer.js += '})();';
     }
-
-    // ----------------
     // The bundling process
     let waiting;
-    if (cx.logger) {
-        waiting = cx.logger.waiting(`Bundling...`);
-        cx.logger.log(cx.logger.style.keyword(`> `) + 'Bundling...');
+    if (LOGGER) {
+        waiting = LOGGER.waiting(`Bundling...`);
+        LOGGER.log(
+            LOGGER.style.keyword(`> `) + 'Bundling...'
+        );
         waiting.start();
     }
     // Main
     await EsBuild.build(bundlingConfig);
     // Compress...
-    let compressedFiles = [], removals = [];
+    const compressedFiles = [];
+    const removals = [];
     if (compression) {
         const contents = Fs.readFileSync(bundlingConfig.outfile);
         if (compression.includes('gz')) {
@@ -425,69 +171,266 @@ async function bundle(gen, outfile, asModule = false) {
     }
     // Remove moduleFile build
     Fs.unlinkSync(bundlingConfig.entryPoints[0]);
-    removals.forEach(file => Fs.existsSync(file) && Fs.unlinkSync(file));
+    removals.forEach((file) => Fs.existsSync(file) && Fs.unlinkSync(file));
     if (waiting) waiting.stop();
     // ----------------
     // Stats
-    if (cx.logger) {
-        [bundlingConfig.outfile].concat(compressedFiles).forEach(file => {
+    if (LOGGER) {
+        [bundlingConfig.outfile].concat(compressedFiles).forEach((file) => {
             let ext = '.' + _afterLast(file, '.');
-            cx.logger.info(cx.logger.style.comment(`  [${ext}]: `) + cx.logger.style.url(file) + cx.logger.style.comment(` (${Fs.statSync(file).size / 1024} KB)`));
+            LOGGER.info(LOGGER.style.comment(`  [${ext}]: `) + LOGGER.style.url(file) + LOGGER.style.comment(` (${Fs.statSync(file).size / 1024} KB)`));
         });
-        cx.logger.log('');
+        LOGGER.log('');
     }
 }
 
-/**
- * Handles auto-embeds
- * 
- * @param String    targetDocumentFile
- * @param Array     embedList
- * @param Array     unembedList
- * 
- * @return Void
- */
-function handleEmbeds(targetDocumentFile, embedList, unembedList) {
-    let targetDocument, successLevel = 0;
-    if (Fs.existsSync(targetDocumentFile) && (targetDocument = Fs.readFileSync(targetDocumentFile).toString()) && targetDocument.trim().startsWith('<!DOCTYPE html')) {
-        successLevel = 1;
-        let dom = new Jsdom.JSDOM(targetDocument), by = 'webflo', touched;
-        let embed = (src, after) => {
-            src = src.replace(/\\/g, '/');
-            let embedded = dom.window.document.querySelector(`script[src="${src}"]`);
-            if (!embedded) {
-                embedded = dom.window.document.createElement('script');
-                embedded.setAttribute('type', 'module');
-                embedded.setAttribute('src', src);
-                embedded.setAttribute('by', by);
-                if (after) {
-                    after.after(embedded, `\n\t\t`);
-                } else {
-                    dom.window.document.head.appendChild(embedded);
-                }
-                touched = true;
+function handleEmbeds(embeds, targetDocumentFile) {
+    if (!Fs.existsSync(targetDocumentFile)) return 0;
+    const targetDocument = Fs.readFileSync(targetDocumentFile).toString();
+    if (targetDocument.trim().startsWith('<!DOCTYPE html')) return 0;
+    const { logger: LOGGER } = $context;
+    let successLevel = 1, touched;
+    // >> Show banner...
+    LOGGER?.log(LOGGER.style.keyword(`---`));
+    LOGGER?.log(`Embedding client build`);
+    LOGGER?.log(LOGGER.style.keyword(`---`));
+    // Embed...
+    const dom = new Jsdom.JSDOM(targetDocument);
+    const by = 'webflo';
+    function embed(src, after) {
+        src = src.replace(/\\/g, '/');
+        let embedded = dom.window.document.querySelector(`script[src="${src}"]`);
+        if (!embedded) {
+            embedded = dom.window.document.createElement('script');
+            embedded.setAttribute('type', 'module');
+            embedded.setAttribute('src', src);
+            embedded.setAttribute('by', by);
+            if (after) {
+                after.after(embedded, `\n\t\t`);
+            } else {
+                dom.window.document.head.appendChild(embedded);
             }
-            return embedded;
-        };
-        let unembed = src => {
-            src = Path.join('/', src);
-            src = src.replace(/\\/g, '/');
-            let embedded = dom.window.document.querySelector(`script[src="${src}"][by="${by}"]`);
-            if (embedded) {
-                embedded.remove();
-                touched = true;
-            }
-        };
-        embedList.reduce((prev, src) => {
-            return embed(src, prev);
-        }, [ ...dom.window.document.head.querySelectorAll(`script[src]`) ].pop() || dom.window.document.querySelector(`script`));
-        unembedList.forEach(src => {
-            unembed(src);
-        });
-        if (touched) {
-            Fs.writeFileSync(targetDocumentFile, dom.serialize());
-            successLevel = 2;
+            touched = true;
         }
+        return embedded;
+    };
+    function unembed(src) {
+        src = Path.join('/', src);
+        src = src.replace(/\\/g, '/');
+        let embedded = dom.window.document.querySelector(`script[src="${src}"][by="${by}"]`);
+        if (embedded) {
+            embedded.remove();
+            touched = true;
+        }
+    };
+    embeds.all.forEach((src) => {
+        if (embeds.current.includes(src)) return;
+        unembed(src);
+    });
+    embeds.current.reduce((prev, src) => {
+        return embed(src, prev);
+    }, [...dom.window.document.head.querySelectorAll(`script[src]`)].pop() || dom.window.document.querySelector(`script`));
+    if (touched) {
+        Fs.writeFileSync(targetDocumentFile, dom.serialize());
+        successLevel = 2;
     }
     return successLevel;
+}
+
+// -------------
+
+async function generateClientScript({ $context, $config, offset = '', roots = [] }) {
+    const { flags: FLAGS, logger: LOGGER } = $context;
+    // -----------
+    const inSplitMode = !!roots.length || !!offset;
+    const targetDocumentFile = Path.join($config.LAYOUT.PUBLIC_DIR, offset, 'index.html');
+    // For when we're in split mode
+    const outfile_theWebfloClient = $config.CLIENT.filename.replace(/\.js$/, '.webflo.js');
+    const outfile_theWebfloClientPublic = Path.join($config.CLIENT.public_base_url, outfile_theWebfloClient);
+    // For when we're monolith mode
+    const outfile_mainBuild = Path.join(offset, $config.CLIENT.filename);
+    const outfile_mainBuildPublic = Path.join($config.CLIENT.public_base_url, outfile_mainBuild);
+    // The source code
+    const $source = { imports: {}, code: [] };
+    const embeds = { all: [], current: [] };
+    // -----------
+    // 1. Derive params
+    const configExport = structuredClone({ CLIENT: $config.CLIENT, ENV: $config.ENV });
+    if ($config.CLIENT.capabilities?.service_worker === true) {
+        configExport.CLIENT.capabilities.service_worker = {
+            filename: $config.WORKER.filename,
+            scope: $config.WORKER.scope
+        };
+    }
+    // 2. Add the Webflo Runtime
+    if (inSplitMode) {
+        if (!offset) {
+            // We're building the Webflo client as a standalone script
+            LOGGER?.log(LOGGER.style.keyword(`---`));
+            LOGGER?.log(`[SPLIT_MODE] Base Build`);
+            LOGGER?.log(LOGGER.style.keyword(`---`));
+            // Write the import code and bundle
+            const $$source = { imports: {}, code: [], };
+            writeImportWebflo($$source, 'client');
+            await bundleScript({
+                $context,
+                $source: $$source,
+                which: 'client',
+                outfile: Path.join($config.LAYOUT.PUBLIC_DIR, outfile_theWebfloClient),
+                asModule: true
+            });
+        }
+        if (FLAGS['auto-embed']) {
+            embeds.current.push(outfile_theWebfloClientPublic);
+            embeds.current.push(outfile_mainBuildPublic);
+        }
+    } else {
+        // We're building the Webflo client as part of the main script
+        writeImportWebflo($source, 'client');
+        if (FLAGS['auto-embed']) {
+            embeds.current.push(outfile_mainBuildPublic);
+        }
+    }
+    // 3. Write the body and bundle
+    writeScriptBody({
+        $context,
+        $config,
+        $source,
+        which: 'client',
+        offset,
+        roots,
+        configExport,
+    });
+    // 4. Bundle
+    await bundleScript({
+        $context,
+        $source,
+        which: 'client',
+        outfile: Path.join($config.LAYOUT.PUBLIC_DIR, outfile_mainBuild),
+        asModule: true
+    });
+    // 4. Embed/unembed
+    embeds.all.push(outfile_theWebfloClientPublic);
+    embeds.all.push(outfile_mainBuildPublic);
+    handleEmbeds(embeds, targetDocumentFile);
+    // -----------
+    if (FLAGS.recursive && roots.length) {
+        const $roots = roots.slice(0);
+        await generateClientScript({
+            $context,
+            $config,
+            offset: $roots.shift(),
+            roots: $roots
+        });
+    }
+}
+
+async function generateWorkerScript({ $context, $config, offset = '', roots = [] }) {
+    const { flags: FLAGS } = $context;
+    // -----------
+    const outfile_mainBuild = Path.join(offset, $config.WORKER.filename);
+    const $source = { imports: {}, code: [] };
+    // -----------
+    // 1. Derive params
+    const configExport = structuredClone({ WORKER: $config.WORKER, ENV: $config.ENV });
+    if ($config.CLIENT.capabilities?.webpush === true) {
+        configExport.WORKER.capabilities = {
+            webpush: true
+        };
+    }
+    // Fetching strategies
+    for (const strategy of ['cache_first_urls', 'cache_only_urls']) {
+        if (configExport.WORKER[strategy].length) {
+            // Separate URLs from patterns
+            const [urls, patterns] = configExport.WORKER[strategy].reduce(([urls, patterns], url) => {
+                const patternInstance = new URLPattern(url, 'http://localhost');
+                const isPattern = patternInstance.isPattern();
+                if (isPattern && (patternInstance.pattern.hostname !== 'localhost' || patternInstance.pattern.port)) {
+                    throw new Error(`Pattern URLs must have no origin part. Recieved "${url}".`);
+                }
+                return isPattern ? [urls, patterns.concat(patternInstance)] : [urls.concat(url), patterns];
+            }, [[], []]);
+            // Resolve patterns
+            if (patterns.length) {
+                // List all files
+                function scanDir(dir) {
+                    Fs.readdirSync(dir).reduce((result, f) => {
+                        const resource = Path.join(dir, f);
+                        if (f.startsWith('.')) return result;
+                        return result.concat(
+                            Fs.statSync(resource).isDirectory() ? scanDir(resource) : '/' + Path.relative($config.LAYOUT.PUBLIC_DIR, resource)
+                        );
+                    }, []);
+                }
+                const files = scanDir($config.LAYOUT.PUBLIC_DIR);
+                // Resolve patterns from files
+                configExport.WORKER[strategy] = patterns.reduce((all, pattern) => {
+                    const matchedFiles = files.filter((file) => pattern.test(file, 'http://localhost'));
+                    if (matchedFiles.length) return all.concat(matchedFiles);
+                    throw new Error(`The pattern "${pattern.pattern.pathname}" didn't match any files.`);
+                }, urls);
+            }
+        }
+    }
+    // 2. Add the Webflo Runtime
+    writeImportWebflo($source, 'worker');
+    // 3. Write the body and bundle
+    writeScriptBody({
+        $context,
+        $config,
+        $source,
+        which: 'worker',
+        offset,
+        roots,
+        configExport,
+    });
+    // 4. Bundle
+    await bundleScript({
+        $context,
+        $source,
+        which: 'worker',
+        outfile: Path.join($config.LAYOUT.PUBLIC_DIR, outfile_mainBuild),
+        asModule: false
+    });
+    // -----------
+    if (FLAGS.recursive && roots.length) {
+        const $roots = roots.slice(0);
+        await generateWorkerScript({
+            $context,
+            $config,
+            offset: $roots.shift(),
+            roots: $roots
+        });
+    }
+}
+
+export async function generate(which = null) {
+    const $context = this;
+    if (!($context instanceof AbstractContext)) {
+        throw new Error(`The "this" context must be a Webflo Context object.`);
+    }
+    // Resolve common details
+    const $config = {
+        LAYOUT: await readLayoutConfig($context),
+        ENV: { ...await readEnvConfig($context), data: {} },
+        CLIENT: await readClientConfig($context),
+        WORKER: await readWorkerConfig($context),
+    };
+    if ($config.CLIENT.copy_public_variables) {
+        const publicEnvPattern = /(?:^|_)PUBLIC(?:_|$)/;
+        for (const key in process.env) {
+            if (publicEnvPattern.test(key)) {
+                $config.ENV.data[key] = process.env[key];
+            }
+        }
+    }
+    // Build
+    if (!which || which === 'client') {
+        const documentRoots = scanRoots($config.LAYOUT.PUBLIC_DIR, 'index.html');
+        await generateClientScript({ $context, $config, roots: documentRoots });
+    }
+    if (!which || which === 'worker') {
+        const applicationRoots = scanRoots($config.LAYOUT.PUBLIC_DIR, 'manifest.json');
+        await generateWorkerScript({ $context, $config, roots: applicationRoots });
+    }
 }

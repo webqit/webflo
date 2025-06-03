@@ -12,12 +12,9 @@ export class WebfloRootClient1 extends WebfloClient {
 
 	static get Capabilities() { return Capabilities; }
 
-	static create(host, cx = {}) {
-		return new this(host, this.Context.create(cx));
+	static create(cx, host) {
+		return new this(this.Context.create(cx), host);
 	}
-
-	#cx;
-	get cx() { return this.#cx; }
 
 	#network;
 	get network() { return this.#network; }
@@ -28,15 +25,15 @@ export class WebfloRootClient1 extends WebfloClient {
 	#capabilities;
 	get capabilities() { return this.#capabilities; }
 
-	constructor(host, cx) {
+    get withViewTransitions() {
+        return document.querySelector('meta[name="webflo:viewtransitions"]')?.value;
+    }
+
+	constructor(cx, host) {
 		if (!(host instanceof Document)) {
 			throw new Error('Argument #1 must be a Document instance');
 		}
-		super(host);
-		if (!(cx instanceof this.constructor.Context)) {
-			throw new Error('Argument #2 must be a Webflo Context instance');
-		}
-		this.#cx = cx;
+		super(cx, host);
 		this.#network = { status: window.navigator.onLine };
 	}
 
@@ -46,11 +43,11 @@ export class WebfloRootClient1 extends WebfloClient {
 		// Service Worker && Capabilities
 		const cleanups = [];
 		instanceController.signal.addEventListener('abort', () => cleanups.forEach((c) => c()), { once: true });
-		this.#capabilities = await this.constructor.Capabilities.initialize(this, this.cx.params.capabilities);
+		this.#capabilities = await this.constructor.Capabilities.initialize(this, this.config.CLIENT.capabilities);
 		cleanups.push(() => this.#capabilities.close());
-		if (this.cx.params.capabilities?.service_worker?.filename) {
-			const { service_worker: { filename, ...restServiceWorkerParams } = {} } = this.cx.params.capabilities;
-			this.#workport = await this.constructor.Workport.initialize(null, (this.cx.params.public_base_url || '') + filename, restServiceWorkerParams);
+		if (this.config.CLIENT.capabilities?.service_worker?.filename) {
+			const { service_worker: { filename, ...restServiceWorkerParams } = {} } = this.config.CLIENT.capabilities;
+			this.#workport = await this.constructor.Workport.initialize(null, (this.config.CLIENT.public_base_url || '') + filename, restServiceWorkerParams);
 			cleanups.push(() => this.#workport.close());
 		}
 		// Bind network status handlers
@@ -100,6 +97,9 @@ export class WebfloRootClient1 extends WebfloClient {
 					return data && Object.keys(data).length || 0;
 			}
 		}, { signal: instanceController.signal });
+		// Bind top-level HMR events
+		this.backgroundMessagingPorts.handleRequests('hmr:update', (e) => {
+		});
 		return instanceController;
 	}
 
@@ -108,12 +108,12 @@ export class WebfloRootClient1 extends WebfloClient {
 		const body = this.host.querySelector('script[rel="hydration"][type="application/json"]')?.textContent?.trim();
 		const backgroundMessagingPort = this.host.querySelector('meta[name="X-Background-Messaging-Port"]')?.content?.trim();
 		const liveResponseGeneratorDone = this.host.querySelector('meta[name="X-Live-Response-Generator-Done"]')?.content?.trim();
-		const liveResponseFrameTag = this.host.querySelector('meta[name="X-Live-Response-Frame-Tag"]')?.content?.trim();
+		const liveResponseMessageID = this.host.querySelector('meta[name="X-Live-Response-Message-ID"]')?.content?.trim();
 		if (body || backgroundMessagingPort) {
 			const normalResponse = new Response.create(body, { headers: { 'Content-Type': 'application/json' }});
 			normalResponse.headers.set('X-Background-Messaging-Port', backgroundMessagingPort || '');
 			normalResponse.headers.set('X-Live-Response-Generator-Done', liveResponseGeneratorDone || '');
-			normalResponse.headers.set('X-Live-Response-Frame-Tag', liveResponseFrameTag || '');			
+			normalResponse.headers.set('X-Live-Response-Message-ID', liveResponseMessageID || '');			
 			const liveResponse = await LiveResponse.fromResponse(normalResponse);
 			this.backgroundMessagingPorts.add(liveResponse.backgroundMessagingPort);
 			const httpEvent = this.createHttpEvent({ request: this.createRequest(this.location.href) }, true);

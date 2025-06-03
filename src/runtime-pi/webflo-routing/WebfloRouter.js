@@ -1,22 +1,26 @@
 import { _isFunction, _isArray, _isObject } from '@webqit/util/js/index.js';
 import { _from as _arrFrom } from '@webqit/util/arr/index.js';
+import { path as Path } from '../webflo-url/util.js';
 
 export class WebfloRouter {
 
-	constructor(cx, path = []) {
-        this.cx = cx;
-        this.path = _isArray(path) ? path : (path + '').split('/').filter(a => a);
+    #runtime;
+    #path;
+
+    constructor(runtime, path = []) {
+        this.#runtime = runtime;
+        this.#path = _isArray(path) ? path : (path + '').split('/').filter(a => a);
     }
 
     async route(method, event, _default = null, remoteFetch = null) {
 
         const $this = this;
-        const $runtime = this.cx.runtime;
+        const $runtime = this.#runtime;
 
         // ----------------
         // The loop
         // ----------------
-        const next = async function(thisTick) {
+        const next = async function (thisTick) {
             const thisContext = { runtime: $runtime };
             if (!thisTick.trail || thisTick.trail.length < thisTick.destination.length) {
                 thisTick = await $this.readTick(thisTick);
@@ -119,12 +123,48 @@ export class WebfloRouter {
                 return await _default.call(thisContext, thisTick.event, remoteFetch);
             }
         };
-        
+
         return next({
-            destination: this.path,
+            destination: this.#path,
             event,
             method
-         });
+        });
 
+    }
+
+    async readTick(thisTick) {
+        thisTick = { ...thisTick };
+        var routeTree = this.#runtime.routes;
+        var routePaths = Object.keys(this.#runtime.routes);
+        if (thisTick.trail) {
+            thisTick.currentSegment = thisTick.destination[thisTick.trail.length];
+            thisTick.currentSegmentOnFile = [thisTick.currentSegment, '-'].reduce((_segmentOnFile, _seg) => {
+                if (_segmentOnFile.handler) return _segmentOnFile;
+                var _currentPath = `/${thisTick.trailOnFile.concat(_seg).join('/')}`;
+                return routeTree[_currentPath] ? { seg: _seg, handler: _currentPath } : (
+                    routePaths.filter(p => p.startsWith(`${_currentPath}/`)).length ? { seg: _seg, dirExists: true } : _segmentOnFile
+                );
+            }, { seg: null });
+            thisTick.trail = thisTick.trail.concat(thisTick.currentSegment);
+            thisTick.trailOnFile = thisTick.trailOnFile.concat(thisTick.currentSegmentOnFile.seg);
+            thisTick.exports = routeTree[thisTick.currentSegmentOnFile.handler];
+        } else {
+            thisTick.trail = [];
+            thisTick.trailOnFile = [];
+            thisTick.currentSegmentOnFile = { handler: '/' };
+            thisTick.exports = routeTree['/'];
+        }
+        if (typeof thisTick.exports === 'string') {
+            thisTick.exports = await import(thisTick.exports);
+        }
+        return thisTick;
+    }
+
+    finalizeHandlerContext(context, thisTick) {
+        return context.dirname = thisTick.currentSegmentOnFile.handler;
+    }
+
+    pathJoin(...args) {
+        return Path.join(...args);
     }
 }

@@ -40,7 +40,7 @@ export function defineElement(WebfloSubClient, embedTagNames = 'webflo-embedded'
 
         async connectedCallback() {
             this.#superRuntime = (this.parentNode?.closest(embedTagNames) || document).webfloRuntime;
-            this.#lifecycleController = await WebfloSubClient.create(this, this.#superRuntime).initialize();
+            this.#lifecycleController = await WebfloSubClient.create(this.#superRuntime, this).initialize();
         }
 
         disconnectedCallback() {

@@ -5,7 +5,6 @@ import { WebfloRuntime } from '../WebfloRuntime.js';
 import { ClientMessagingPort } from './ClientMessagingPort.js';
 import { WorkerSideCookies } from './WorkerSideCookies.js';
 import { WorkerSideWorkport } from './WorkerSideWorkport.js';
-import { ClientSideRouter } from '../webflo-client/ClientSideRouter.js';
 import { HttpSession } from '../webflo-routing/HttpSession.js';
 import { HttpEvent } from '../webflo-routing/HttpEvent.js';
 import { HttpUser } from '../webflo-routing/HttpUser.js';
@@ -15,8 +14,6 @@ import '../webflo-url/index.js';
 export class WebfloWorker extends WebfloRuntime {
 
 	static get Context() { return Context; }
-
-	static get Router() { return ClientSideRouter; }
 
 	static get HttpEvent() { return HttpEvent; }
 
@@ -32,32 +29,21 @@ export class WebfloWorker extends WebfloRuntime {
 		return new this(this.Context.create(cx));
 	}
 
-	#cx;
-	get cx() { return this.#cx; }
-
     #sdk = {};
     get sdk() { return this.#sdk; }
-
-	constructor(cx) {
-		super();
-		if (!(cx instanceof this.constructor.Context)) {
-			throw new Error('Argument #1 must be a Webflo Context instance');
-		}
-		this.#cx = cx;
-	}
 
 	async initialize() {
 		const instanceController = super.initialize();
 		// ONINSTALL
 		const installHandler = (event) => {
-			if (this.cx.params.skip_waiting) self.skipWaiting();
+			if (this.config.WORKER.skip_waiting) self.skipWaiting();
 			// Manage CACHE
-			if (this.cx.params.cache_name && (this.cx.params.cache_only_urls || []).length) {
+			if (this.config.WORKER.cache_name && (this.config.WORKER.cache_only_urls || []).length) {
 				// Add files to cache
-				event.waitUntil(self.caches.open(this.cx.params.cache_name).then(async cache => {
+				event.waitUntil(self.caches.open(this.config.WORKER.cache_name).then(async cache => {
 					if (this.cx.logger) { this.cx.logger.log('[ServiceWorker] Pre-caching resources.'); }
 					for (const urls of ['cache_first_urls', 'cache_only_urls']) {
-						const _urls = (this.cx.params[urls] || []).map(c => c.trim()).filter(c => c && !(new URLPattern(c, self.origin)).isPattern());
+						const _urls = (this.config.WORKER[urls] || []).map(c => c.trim()).filter(c => c && !(new URLPattern(c, self.origin)).isPattern());
 						await cache.addAll(_urls);
 					}
 				}));
@@ -66,13 +52,13 @@ export class WebfloWorker extends WebfloRuntime {
 		// ONACTIVATE
 		const activateHandler = (event) => {
 			event.waitUntil(new Promise(async resolve => {
-				if (this.cx.params.skip_waiting) { await self.clients.claim(); }
+				if (this.config.WORKER.skip_waiting) { await self.clients.claim(); }
 				// Manage CACHE
-				if (this.cx.params.cache_name) {
+				if (this.config.WORKER.cache_name) {
 					// Clear outdated CACHES
 					await self.caches.keys().then(keyList => {
 						return Promise.all(keyList.map(key => {
-							if (key !== this.cx.params.cache_name && key !== this.cx.params.cache_name + '_json') {
+							if (key !== this.config.WORKER.cache_name && key !== this.config.WORKER.cache_name + '_json') {
 								if (this.cx.logger) { this.cx.logger.log('[ServiceWorker] Removing old cache:', key); }
 								return self.caches.delete(key);
 							}
@@ -183,21 +169,21 @@ export class WebfloWorker extends WebfloRuntime {
 		}
 		const scopeObj = {};
 		const matchUrl = (patterns, url) => _any((patterns || []).map(p => p.trim()).filter(p => p), p => (new URLPattern(p, self.origin)).test(url));
-		if (matchUrl(this.cx.params.cache_only_urls, request.url)) {
+		if (matchUrl(this.config.WORKER.cache_only_urls, request.url)) {
 			scopeObj.strategy = 'cache-only';
 			scopeObj.response = this.cacheFetch(request, { networkFallback: false, cacheRefresh: false });
-		} else if (matchUrl(this.cx.params.network_only_urls, request.url)) {
+		} else if (matchUrl(this.config.WORKER.network_only_urls, request.url)) {
 			scopeObj.strategy = 'network-only';
 			scopeObj.response = this.networkFetch(request, { cacheFallback: false, cacheRefresh: false });
-		} else if (matchUrl(this.cx.params.cache_first_urls, request.url)) {
+		} else if (matchUrl(this.config.WORKER.cache_first_urls, request.url)) {
 			scopeObj.strategy = 'cache-first';
 			scopeObj.response = this.cacheFetch(request, { networkFallback: true, cacheRefresh: true });
-		} else if (matchUrl(this.cx.params.network_first_urls, request.url) || !this.cx.params.default_fetching_strategy) {
+		} else if (matchUrl(this.config.WORKER.network_first_urls, request.url) || !this.config.WORKER.default_fetching_strategy) {
 			scopeObj.strategy = 'network-first';
 			scopeObj.response = this.networkFetch(request, { cacheFallback: true, cacheRefresh: true });
 		} else {
-			scopeObj.strategy = this.cx.params.default_fetching_strategy;
-			switch (this.cx.params.default_fetching_strategy) {
+			scopeObj.strategy = this.config.WORKER.default_fetching_strategy;
+			switch (this.config.WORKER.default_fetching_strategy) {
 				case 'cache-only':
 					scopeObj.response = this.cacheFetch(request, { networkFallback: false, cacheRefresh: false });
 					break;
@@ -255,8 +241,8 @@ export class WebfloWorker extends WebfloRuntime {
 
 	async getRequestCache(request) {
 		const cacheName = request.headers.get('Accept') === 'application/json'
-			? this.cx.params.cache_name + '_json'
-			: this.cx.params.cache_name;
+			? this.config.WORKER.cache_name + '_json'
+			: this.config.WORKER.cache_name;
 		return self.caches.open(cacheName);
 	}
 }

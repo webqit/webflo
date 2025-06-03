@@ -4,7 +4,7 @@ import { WebfloSubClient } from './WebfloSubClient.js';
 
 export async function start() {
     const WebfloRootClient = window.navigation ? WebfloRootClient2 : WebfloRootClient1;
-    const instance = WebfloRootClient.create(document, this || {});
+    const instance = WebfloRootClient.create(this || {}, document);
     await instance.initialize();
     WebfloSubClient.defineElement();
     return instance;

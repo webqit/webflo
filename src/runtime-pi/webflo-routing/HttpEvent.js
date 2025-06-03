@@ -17,7 +17,7 @@ export class HttpEvent {
         this.#parentEvent = parentEvent;
         this.#init = { request, cookies, session, user, client, sdk, detail, signal, state, ...rest };
         this.#url = new xURL(this.#init.request.url);
-        this.#init.signal?.addEventListener('abort', () => this.#abortController.abort(), { once: true });
+        this.#init.request.signal?.addEventListener('abort', () => this.#abortController.abort(), { once: true });
     }
 
     get url() { return this.#url; }

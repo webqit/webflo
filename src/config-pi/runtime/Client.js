@@ -19,10 +19,10 @@ export default class Client extends Dotfile {
     // Defaults merger
     withDefaults(config) {
         return this.merge({
-            spa_routing: true,
-            bundle_filename: 'bundle.js',
+            filename: 'app.js',
             public_base_url: '/',
             copy_public_variables: true,
+            spa_routing: true,
             capabilities: {
                 service_worker: true,
                 webpush: false,
@@ -37,19 +37,10 @@ export default class Client extends Dotfile {
         // Questions
         return [
             {
-                name: 'spa_routing',
-                type: 'toggle',
-                message: '[spa_routing]: Enable Single Page Routing Mode',
-                active: 'YES',
-                inactive: 'NO',
-                initial: config.spa_routing,
-                validation: ['important'],
-            },
-            {
-                name: 'bundle_filename',
+                name: 'filename',
                 type: 'text',
                 message: 'Specify the bundle filename',
-                initial: config.bundle_filename,
+                initial: config.filename,
             },
             {
                 name: 'public_base_url',
@@ -65,6 +56,15 @@ export default class Client extends Dotfile {
                 active: 'YES',
                 inactive: 'NO',
                 initial: config.copy_public_variables,
+                validation: ['important'],
+            },
+            {
+                name: 'spa_routing',
+                type: 'toggle',
+                message: '[spa_routing]: Enable Single Page Routing Mode',
+                active: 'YES',
+                inactive: 'NO',
+                initial: config.spa_routing,
                 validation: ['important'],
             },
             {

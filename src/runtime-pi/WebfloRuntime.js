@@ -1,10 +1,46 @@
 import { _isTypeObject } from '@webqit/util/js/index.js';
 import { meta } from './webflo-fetch/util.js';
+import { WebfloRouter } from './webflo-routing/WebfloRouter.js';
 
 export class WebfloRuntime {
 
     #instanceController = new AbortController;
     get $instanceController() { return this.#instanceController; }
+
+    static get Router() { return WebfloRouter; }
+
+    #cx;
+    get cx() { return this.#cx; }
+
+    #config;
+    get config() { return this.#config; }
+
+    #routes;
+    get routes() { return this.#routes; }
+
+    constructor(cx) {
+        if (!(cx instanceof this.constructor.Context)) {
+            throw new Error('Argument #1 must be a Webflo Context instance');
+        }
+        this.#cx = cx;
+        this.#config = this.#cx.config;
+        this.#routes = this.#cx.routes;
+    }
+
+    env(key) {
+        const { ENV } = this.config;
+        return key in ENV.mappings
+            ? ENV.data[ENV.mappings[key]]
+            : ENV.data[key];
+    }
+
+    async hmr(route, moduleUrl = null) {
+        if (moduleUrl) {
+            this.routes[route] = `${moduleUrl}?$$$hmr=${Date.now()}`;
+        } else {
+            delete this.routes[route];
+        }
+    }
 
     async initialize() {
         // Do init work
@@ -25,34 +61,32 @@ export class WebfloRuntime {
         return new Request(href, init);
     }
 
-	createHttpCookies({ request, ...rest }) {
-		return this.constructor.HttpCookies.create({ request, ...rest });
-	}
+    createHttpCookies({ request, ...rest }) {
+        return this.constructor.HttpCookies.create({ request, ...rest });
+    }
 
-	createHttpSession({ store, request, ...rest }) {
-		return this.constructor.HttpSession.create({ store, request, ...rest });
-	}
+    createHttpSession({ store, request, ...rest }) {
+        return this.constructor.HttpSession.create({ store, request, ...rest });
+    }
 
-	createHttpUser({ store, request, session, client, ...rest }) {
-		return this.constructor.HttpUser.create({ store, request, session, client, ...rest });
-	}
+    createHttpUser({ store, request, session, client, ...rest }) {
+        return this.constructor.HttpUser.create({ store, request, session, client, ...rest });
+    }
 
-	createHttpEvent({ request, cookies, session, user, client, sdk, detail, signal, state, ...rest }) {
-		return this.constructor.HttpEvent.create(null, { request, cookies, session, user, client, sdk, detail, signal, state, ...rest });
-	}
+    createHttpEvent({ request, cookies, session, user, client, sdk, detail, signal, state, ...rest }) {
+        return this.constructor.HttpEvent.create(null, { request, cookies, session, user, client, sdk, detail, signal, state, ...rest });
+    }
 
     async dispatchNavigationEvent({ httpEvent, crossLayerFetch, backgroundMessagingPort }) {
         const scopeObj = {};
-        // ---------------------
         // Resolve rid before dispatching
         if (httpEvent.request.method === 'GET'
             && (httpEvent.request[meta].redirectID = httpEvent.url.query['_rid'])
             && (httpEvent.request[meta].carries = [].concat(await httpEvent.session.get(`carry-store:${httpEvent.request[meta].redirectID}`) || []))) {
             await httpEvent.session.delete(`carry-store:${httpEvent.request[meta].redirectID}`);
         }
-        // ---------------------
         // Dispatch event
-        const router = new this.constructor.Router(this.cx, httpEvent.url.pathname);
+        const router = new this.constructor.Router(this, httpEvent.url.pathname);
         await router.route(['SETUP'], httpEvent);
         const route = async () => {
             return await router.route(
@@ -71,7 +105,6 @@ export class WebfloRuntime {
             scopeObj.returnValue = new Response(null, { status: 500, statusText: e.message });
         }
         scopeObj.response = scopeObj.returnValue;
-        // ---------------------
         // Resolve return value
         if (this.isClientSide) {
             // Both LiveResponse and Response are supported
@@ -113,10 +146,8 @@ export class WebfloRuntime {
                 httpEvent.waitUntil(done);
             }
         }
-        // ----------------------
         // Any carryon data?
         await this.handleCarries(httpEvent, scopeObj.response);
-        // ----------------------
         // Send the X-Background-Messaging-Port header?
         // !ORDER: Must after the live data-binding logic above
         // so that httpEvent.eventLifecyclePromises.size can capture the httpEvent.waitUntil()
@@ -135,7 +166,6 @@ export class WebfloRuntime {
                 scopeObj.response[meta].backgroundMessagingPort = backgroundMessagingPort;
             }
         }
-        // ----------------------
         // Terminate live objects listeners
         // !ORDER: Must after the live data-binding logic above
         // so that httpEvent.eventLifecyclePromises.size can capture the httpEvent.waitUntil()
@@ -150,12 +180,17 @@ export class WebfloRuntime {
                 httpEvent.client.close();
             }
         });
-        // ----------------------
+        httpEvent.client.addEventListener('navigation', (e) => {
+            if (e.defaultPrevented) {
+                console.log(`Client Messaging Port on ${httpEvent.request.url} not auto-closed on user navigation.`);
+                return;
+            }
+            httpEvent.client.close();
+        });
         // Commit data in the exact order. Reason: in how they depend on each other
         for (const storage of [httpEvent.user, httpEvent.session, httpEvent.cookies]) {
             await storage?.commit?.(scopeObj.response);
         }
-        // ----------------------
         // Return normalized response
         return scopeObj.response;
     }
@@ -288,11 +323,13 @@ export class WebfloRuntime {
 
     createStreamingResponse(httpEvent, readStream, stats) {
         let response;
-        const rangeRequest = httpEvent.request.headers.get('Range', true); // Parses the Range header
-        if (rangeRequest.length) {
-            const streams = rangeRequest.reduce((streams, range) => {
-                if (!streams || !range.isValid(stats.size)) return;
-                const [start, end] = range.clamp(stats.size);
+        const requestRange = httpEvent.request.headers.get('Range', true); // Parses the Range header
+        if (requestRange.length) {
+            const streams = requestRange.reduce((streams, range) => {
+                if (!streams) return;
+                const [start, end] = range.render(stats.size); // Resolve offsets
+                const currentStart = (streams[streams.length - 1]?.end || -1) + 1;
+                if (!range.isValid(currentStart, stats.size)) return; // Only after rendering()
                 return streams.concat({ start, end, stream: readStream({ start, end }) });
             }, []);
             if (!streams) {

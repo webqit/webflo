@@ -79,9 +79,7 @@ export class MessagingOverChannel extends WebfloMessagingAPI {
     }
 
     dispatchLocal(eventOptions = {}) {
-        this.dispatchEvent(new ChannelMessageEvent(
-            this, eventOptions
-        ));
+        this.dispatchEvent(new ChannelMessageEvent(this, eventOptions));
     }
 
     close() {
@@ -89,4 +87,4 @@ export class MessagingOverChannel extends WebfloMessagingAPI {
     }
 }
 
-export class ChannelMessageEvent extends WebfloMessageEvent { }
+export class ChannelMessageEvent extends WebfloMessageEvent {}

@@ -91,23 +91,22 @@ Object.defineProperties(Headers.prototype, {
             // Parse "Range" request header?
             if (/^Range$/i.test(name) && parsed) {
                 value = !value ? [] : _after(value, 'bytes=').split(',').map((rangeStr) => {
-                    const range = rangeStr.trim().split('-');
-                    range[0] = range[0] ? parseInt(range[0], 10) : undefined;
-                    if (range[1]) {
-                        range[1] = parseInt(range[1], 10);
-                    }
-                    range.clamp = (totalLength) => {
-                        if (range[1] > totalLength - 1 || range[1] === undefined) {
+                    const range = rangeStr.trim().split('-').map((s) => s ? parseInt(s, 10) : null);
+                    range.render = (totalLength) => {
+                        if (range[1] === null) {
                             range[1] = totalLength - 1;
                         }
-                        if (range[0] === undefined) {
+                        if (range[0] === null) {
                             range[0] = range[1] ? totalLength - range[1] - 1 : 0;
                         }
                         return range
                     };
-                    range.isValid = (totalLength = 0) => {
-                        return !(range[0] < 0 || (totalLength && range[0] > totalLength)
-                            || (range[1] > -1 && (range[1] <= range[0] || (totalLength && range[1] >= totalLength))));
+                    range.isValid = (currentStart, totalLength) => {
+                        // Start higher than end or vice versa?
+                        if (range[0] > range[1] || range[1] < range[0]) return false;
+                        // Stretching beyond valid start/end?
+                        if (range[0] < currentStart || range[1] > totalLength) return false;
+                        return true;
                     };
                     return range;
                 });

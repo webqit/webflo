@@ -9,14 +9,12 @@ export class WebfloSubClient extends WebfloClient {
 		defineElement(this);
 	}
 
-	static create(host, superRuntime) {
-		return new this(host, superRuntime);
+	static create(superRuntime, host) {
+		return new this(superRuntime, host);
 	}
 
 	#superRuntime;
 	get superRuntime() { return this.#superRuntime; }
-
-	get cx() { return this.#superRuntime.cx; }
 
 	get network() { return this.#superRuntime.network; }
 
@@ -26,14 +24,14 @@ export class WebfloSubClient extends WebfloClient {
 
 	get withViewTransitions() { return this.host.hasAttribute('viewtransitions'); }
 
-	constructor(host, superRuntime) {
-		if (!(host instanceof HTMLElement)) {
-			throw new Error('Argument #1 must be a HTMLElement instance');
-		}
-		super(host);
+	constructor(superRuntime, host) {
 		if (!(superRuntime instanceof WebfloClient)) {
 			throw new Error('Argument #2 must be a Webflo Client instance');
 		}
+		if (!(host instanceof HTMLElement)) {
+			throw new Error('Argument #1 must be a HTMLElement instance');
+		}
+		super(superRuntime.cx, host);
 		this.#superRuntime = superRuntime;
 	}
 

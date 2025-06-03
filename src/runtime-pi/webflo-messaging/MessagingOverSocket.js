@@ -65,7 +65,13 @@ export class MessagingOverSocket extends WebfloMessagingAPI {
                 numPorts: messagePorts.length,
             }), portOptions);
             for (let i = 0; i < messagePorts.length; i ++) {
-                this.addEventListener(`${eventOptions.type || 'message'}:${eventOptions.eventID}:${i}`, (event) => {
+                messagePorts[i].addEventListener('message', (event) => {
+                    this.postMessage(event.data, {
+                        eventOptions: { type: `[${eventOptions.type || 'message'}:${eventOptions.eventID}].reply(${i})` },
+                        transfer: event.ports,
+                    });
+                });
+                this.addEventListener(`[${eventOptions.type || 'message'}:${eventOptions.eventID}].reply(${i})`, (event) => {
                     messagePorts[i].postMessage(event.data, event.ports);
                 });
             }
@@ -94,9 +100,12 @@ export class SocketMessageEvent extends WebfloMessageEvent {
         eventOptions.ports = [];
         for (let i = 0; i < numPorts; i ++) {
             const channel = new MessageChannel;
+            originalTarget.addEventListener(`[${eventOptions.type || 'message'}:${eventOptions.eventID}].reply(${i})`, (event) => {
+                channel.port1.postMessage(event.data, event.ports);
+            });
             channel.port1.addEventListener('message', (event) => {
-                this.originalTarget.postMessage(event.data, {
-                    eventOptions: { type: `${eventOptions.type || 'message'}:${eventOptions.eventID}:${i}` },
+                originalTarget.postMessage(event.data, {
+                    eventOptions: { type: `[${eventOptions.type || 'message'}:${eventOptions.eventID}].reply(${i})` },
                     transfer: event.ports,
                 });
             });

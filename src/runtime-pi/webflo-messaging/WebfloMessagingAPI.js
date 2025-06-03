@@ -100,7 +100,7 @@ export class WebfloMessagingAPI extends WebfloEventTarget {
             eventOptions = { ...eventOptions, eventID: this.nextEventID };
         }
         this.on('open', () => callback({ ..._options, eventOptions }));
-        if (_isTypeObject(data) && eventOptions.live && !eventOptions.type?.startsWith('mutations:')) {
+        if (_isTypeObject(data) && eventOptions.live && !eventOptions.type?.endsWith('.mutate')) {
             return this.publishMutations(data, eventOptions.eventID, liveOptions);
         }
     }
@@ -166,7 +166,7 @@ export class WebfloMessagingAPI extends WebfloEventTarget {
                     mutationsDone = this.params.honourDoneMutationFlags && !mutationsDone && m.detail?.done;
                     return { ...m, target: undefined };
                 }),
-                { eventOptions: { type: `mutations:${originalEventID}` } }
+                { eventOptions: { type: `[message:${originalEventID}].mutate` } }
             );
             if (mutationsDone) {
                 liveStreamController.abort();
@@ -184,7 +184,7 @@ export class WebfloMessagingAPI extends WebfloEventTarget {
             throw new TypeError('originalEventID must be a non-empty string');
         }
         return new Promise((resolve) => {
-            const liveStreamController = this.handleMessages(`mutations:${originalEventID}`, (e) => {
+            const liveStreamController = this.handleMessages(`[message:${originalEventID}].mutate`, (e) => {
                 if (!e.data?.length) return;
                 let mutationsDone;
                 Observer.batch(data, () => {

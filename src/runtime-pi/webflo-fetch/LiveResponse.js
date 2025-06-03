@@ -46,14 +46,14 @@ export class LiveResponse extends EventTarget {
         }
         return response.parse().then((body) => {
             // Frame binding
-            let frameClosure, frameTag;
+            let frameClosure, messageID;
             if (response.backgroundMessagingPort/* Typically when on the client side */
                 && _isTypeObject(body) && !isTypeStream(body)
-                && (frameTag = response.headers.get('X-Live-Response-Frame-Tag')?.trim())) {
+                && (messageID = response.headers.get('X-Live-Response-Message-ID')?.trim())) {
                 frameClosure = async function () {
                     await response.backgroundMessagingPort.applyMutations(
                         body,
-                        frameTag,
+                        messageID,
                         { signal: this.#abortController.signal }
                     );
                 };
@@ -71,7 +71,7 @@ export class LiveResponse extends EventTarget {
                 // Capture subsequent frames?
                 if (response.headers.get('X-Live-Response-Generator-Done')?.trim() !== 'true') {
                     generatorDone = false;
-                    response.backgroundMessagingPort.addEventListener('response', (e) => {
+                    response.backgroundMessagingPort.addEventListener('response.replace', (e) => {
                         const { body, ...options } = e.data;
                         instance.replaceWith(body, options);
                     }, { signal: instance.#abortController.signal });
@@ -283,7 +283,7 @@ export class LiveResponse extends EventTarget {
         Object.assign(response[meta], this[meta]);
         if (clientMessagingPort/* Typically when on the server side */) {
             if (_isTypeObject(this.body) && !isTypeStream(this.body) && !this.frameDone) { // Only ever done when type isn't object-like or when frameClosure says done
-                response.headers.set('X-Live-Response-Frame-Tag', 'frame0');
+                response.headers.set('X-Live-Response-Message-ID', 'frame0');
                 clientMessagingPort.publishMutations(this.body, 'frame0', { signal: this.#abortController.signal/* stop observing mutations on body when we abort */ });
             }
             // Publish replacements?
@@ -303,7 +303,7 @@ export class LiveResponse extends EventTarget {
                         statusText: this.statusText,
                         headers,
                         done: this.generatorDone,
-                    }, { eventOptions: { type: 'response', live: true/*gracefully ignored if not an object*/ }, liveOptions: { signal: this.#abortController.signal/* stop observing mutations on body when we abort */ } });
+                    }, { eventOptions: { type: 'response.replace', live: true/*gracefully ignored if not an object*/ }, liveOptions: { signal: this.#abortController.signal/* stop observing mutations on body when we abort */ } });
                 };
                 this.addEventListener('replace', replaceHandler, { signal: this.#abortController.signal/* stop listening when we abort */ });
             }

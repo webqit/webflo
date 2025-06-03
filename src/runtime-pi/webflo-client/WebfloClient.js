@@ -6,7 +6,6 @@ import { meta, createBackgroundMessagingPort } from '../webflo-fetch/util.js';
 import { MultiportMessagingAPI } from '../webflo-messaging/MultiportMessagingAPI.js';
 import { MessagingOverChannel } from '../webflo-messaging/MessagingOverChannel.js';
 import { ClientMessagingPort } from './ClientMessagingPort.js';
-import { ClientSideRouter } from './ClientSideRouter.js';
 import { ClientSideCookies } from './ClientSideCookies.js';
 import { HttpSession } from '../webflo-routing/HttpSession.js';
 import { HttpEvent } from '../webflo-routing/HttpEvent.js';
@@ -16,8 +15,6 @@ import '../webflo-fetch/index.js';
 import '../webflo-url/index.js';
 
 export class WebfloClient extends WebfloRuntime {
-
-    static get Router() { return ClientSideRouter; }
 
     static get HttpEvent() { return HttpEvent; }
 
@@ -39,23 +36,16 @@ export class WebfloClient extends WebfloRuntime {
     #transition;
     get transition() { return this.#transition; }
 
-    #navigationController = new AbortController;
-    get navigationController() { return this.#navigationController; }
-
     #backgroundMessagingPorts;
     get backgroundMessagingPorts() { return this.#backgroundMessagingPorts; }
-
-    get withViewTransitions() {
-        return document.querySelector('meta[name="webflo-viewtransitions"]')?.value;
-    }
 
     #sdk = {};
     get sdk() { return this.#sdk; }
 
     get isClientSide() { return true; }
 
-    constructor(host) {
-        super();
+    constructor(cx, host) {
+        super(cx);
         this.#host = host;
         Object.defineProperty(this.host, 'webfloRuntime', { get: () => this });
         this.#location = new Url/*NOT URL*/(this.host.location);
@@ -73,12 +63,6 @@ export class WebfloClient extends WebfloRuntime {
             phase: 0
         };
         this.#backgroundMessagingPorts = new MultiportMessagingAPI(this, { runtime: this });
-    }
-
-    env(key) {
-        return key in this.cx.params.mappings
-            ? this.cx.params.env[this.cx.params.mappings[key]]
-            : this.cx.params.env[key];
     }
 
     async initialize() {
@@ -246,14 +230,12 @@ export class WebfloClient extends WebfloRuntime {
     isSpaRoute(urlObj) {
         urlObj = typeof urlObj === 'string' ? new URL(urlObj, this.location.origin) : urlObj;
         if (urlObj.origin && urlObj.origin !== this.location.origin) return false;
-        if (!this.cx.params.routing) return true;
-        if (this.cx.params.routing.targets === false/** explicit false means disabled */) return false;
         let b = urlObj.pathname.split('/').filter(s => s);
         const match = a => {
             a = a.split('/').filter(s => s);
             return a.reduce((prev, s, i) => prev && (s === b[i] || [s, b[i]].includes('-')), true);
         };
-        return match(this.cx.params.routing.root) && this.cx.params.routing.subroots.reduce((prev, subroot) => {
+        return match(this.routes.$root) && this.routes.$subroots.reduce((prev, subroot) => {
             return prev && !match(subroot);
         }, true);
     }
@@ -362,14 +344,14 @@ export class WebfloClient extends WebfloRuntime {
         if ([202, 304].includes(scopeObj.response.status)) {
             scopeObj.notModified = true;
             if (scopeObj.response.backgroundMessagingPort) {
-                scopeObj.response.backgroundMessagingPort.addEventListener('response', () => scopeObj.resetStates(), { once: true, signal: httpEvent.signal });
+                scopeObj.response.backgroundMessagingPort.addEventListener('response.replace', () => scopeObj.resetStates(), { once: true, signal: httpEvent.signal });
                 return;
             }
         }
         // Handle no-render scenarios 1
         if (scopeObj.response.headers.get('Location') && this.processRedirect(scopeObj.response)) {
             if (scopeObj.response.backgroundMessagingPort) {
-                scopeObj.response.backgroundMessagingPort.addEventListener('response', () => scopeObj.resetStates(), { once: true, signal: httpEvent.signal });
+                scopeObj.response.backgroundMessagingPort.addEventListener('response.replace', () => scopeObj.resetStates(), { once: true, signal: httpEvent.signal });
             }
             return;
         }
@@ -469,7 +451,7 @@ export class WebfloClient extends WebfloRuntime {
     }
 
     async render(httpEvent, response, merge = false) {
-        const router = new this.constructor.Router(this.cx, this.location.pathname);
+        const router = new this.constructor.Router(this, this.location.pathname);
         await router.route('render', httpEvent, async (httpEvent) => {
             if (!window.webqit?.oohtml?.configs) return;
             if (window.webqit?.dom) {
