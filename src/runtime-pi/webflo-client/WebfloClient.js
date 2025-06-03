@@ -344,14 +344,22 @@ export class WebfloClient extends WebfloRuntime {
         if ([202, 304].includes(scopeObj.response.status)) {
             scopeObj.notModified = true;
             if (scopeObj.response.backgroundMessagingPort) {
-                scopeObj.response.backgroundMessagingPort.addEventListener('response.replace', () => scopeObj.resetStates(), { once: true, signal: httpEvent.signal });
+                scopeObj.response.backgroundMessagingPort.addEventListener(
+                    'response.replace', 
+                    () => scopeObj.resetStates(), 
+                    { once: true, signal: httpEvent.signal }
+                );
                 return;
             }
         }
         // Handle no-render scenarios 1
         if (scopeObj.response.headers.get('Location') && this.processRedirect(scopeObj.response)) {
             if (scopeObj.response.backgroundMessagingPort) {
-                scopeObj.response.backgroundMessagingPort.addEventListener('response.replace', () => scopeObj.resetStates(), { once: true, signal: httpEvent.signal });
+                scopeObj.response.backgroundMessagingPort.addEventListener(
+                    'response.replace', 
+                    () => scopeObj.resetStates(), 
+                    { once: true, signal: httpEvent.signal }
+                );
             }
             return;
         }
@@ -475,9 +483,10 @@ export class WebfloClient extends WebfloRuntime {
                 }, { diff: true, merge });
                 if (response instanceof LiveResponse) {
                     response.addEventListener('replace', (e) => {
+                        console.log('___________', response.body);
                         if (response.headers.get('Location') && this.processRedirect(response)) return;
                         this.host[bindingsConfig.bindings].data = response.body;
-                    }, { signal: httpEvent.signal });
+                    });
                 }
             }
             if (modulesContextAttrs) {

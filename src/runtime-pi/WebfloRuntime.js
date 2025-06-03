@@ -1,6 +1,6 @@
 import { _isTypeObject } from '@webqit/util/js/index.js';
-import { meta } from './webflo-fetch/util.js';
 import { WebfloRouter } from './webflo-routing/WebfloRouter.js';
+import { meta } from './webflo-fetch/util.js';
 
 export class WebfloRuntime {
 
