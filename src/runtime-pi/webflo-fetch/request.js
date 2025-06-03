@@ -17,7 +17,7 @@ const requestMethods = {
 };
 
 const staticRequestMethods = {
-    create: {
+    from: {
         value: function (url, init = {}) {
             if (url instanceof Request) return url;
             let $$type, $$body = init.body;

@@ -60,6 +60,7 @@ export class WebfloServer extends WebfloRuntime {
 
     #capabilitiesSetup;
     #servers = new Map;
+    #mhrConnections = new Set;
 
     #sdk = {};
     get sdk() { return this.#sdk; }
@@ -94,16 +95,6 @@ export class WebfloServer extends WebfloRuntime {
         await this.setupCapabilities();
         this.control();
         // -----------------
-        if (FLAGS['dev']) {
-            const { WebfloHMR } = await import('./WebfloHMR.js');
-            await WebfloHMR(this, (payload) => {
-                for (const [/*sessionID*/, clientMessagingRegistry] of this.#globalMessagingRegistry) {
-                    for (const [/*portID*/, clientMessagingPort] of clientMessagingRegistry) {
-                        clientMessagingPort.postMessage(payload, { eventOptions: { type: 'hmr' } });
-                    }
-                }
-            });
-        }
         if (LOGGER) {
             if (this.#servers.size) {
                 LOGGER.info(`> Server running! (${APP.title || ''})`);
@@ -123,7 +114,34 @@ export class WebfloServer extends WebfloRuntime {
             LOGGER.info(`Capabilities: ${Object.keys(this.#sdk).join(', ')}`);
             LOGGER.info(``);
         }
+        if (FLAGS['dev']) {
+            await this.enterDevMode();
+        }
         return instanceController;
+    }
+
+    async enterDevMode() {
+        const { WebfloHMR } = await import('./WebfloHMR.js');
+        await WebfloHMR(this, async (event) => {
+            // Execute server HMR?
+            if (event.affectedRoute) {
+                if (event.effect === 'unlink' && event.realm === 'server') {
+                    delete this.routes[event.affectedRoute];
+                } else if (event.realm === 'server') {
+                    this.routes[event.affectedRoute] = await import(`${Path.join(process.cwd(), event.affectedHandler)}?$hmr$hash=${Date.now()}`);
+                }
+            }
+            // Broadcast to clients
+            const PUBLIC_DIR = Path.relative(process.cwd(), this.config.LAYOUT.PUBLIC_DIR);
+            const $event = { ...event };
+            $event.changedFile = Path.relative(PUBLIC_DIR, event.changedFile);
+            if (event.affectedHandler) {
+                $event.affectedHandler = Path.relative(PUBLIC_DIR, event.affectedHandler);
+            }
+            for (const connection of this.#mhrConnections) {
+                connection.send(JSON.stringify($event));
+            }
+        });
     }
 
     control() {
@@ -277,6 +295,21 @@ export class WebfloServer extends WebfloRuntime {
         return nodeRequest.connection.encrypted ? 'https' : (nodeRequest.headers['x-forwarded-proto'] || 'http');
     }
 
+    parseNodeRequest(proto, nodeRequest, withBody = true) {
+        // Detected when using manual proxy setting in a browser
+        if (nodeRequest.url.startsWith(`${proto}://${nodeRequest.headers.host}`)) {
+            nodeRequest.url = nodeRequest.url.split(nodeRequest.headers.host)[1];
+        }
+        const fullUrl = proto + '://' + nodeRequest.headers.host + nodeRequest.url;
+        const requestInit = { method: nodeRequest.method, headers: nodeRequest.headers };
+        if (withBody && !['GET', 'HEAD'].includes(nodeRequest.method)) {
+            nodeRequest[Symbol.toStringTag] = 'ReadableStream'; // Not necessary, but fun
+            requestInit.body = nodeRequest;
+            requestInit.duplex = 'half'; // See https://github.com/nodejs/node/issues/46221
+        }
+        return [fullUrl, requestInit];
+    }
+
     #globalMessagingRegistry = new Map;
     async handleNodeWsRequest(wss, nodeRequest, socket, head) {
         const { SERVER, PROXY } = this.config;
@@ -309,15 +342,21 @@ export class WebfloServer extends WebfloRuntime {
         // -----------------
         // Level 3 validation
         // and actual processing
-        scopeObj.request = this.createRequest(scopeObj.url.href, requestInit);
-        scopeObj.sessionTTL = this.env('SESSION_TTL') || 2592000/*30days*/;
-        scopeObj.session = this.createHttpSession({
-            store: (sessionID) => this.#sdk.storage?.(`${scopeObj.url.host}/session:${sessionID}`, scopeObj.sessionTTL),
-            request: scopeObj.request,
-            secret: this.env('SESSION_KEY'),
-            ttl: scopeObj.sessionTTL,
-        });
-        if (!scopeObj.error) {
+        if (!scopeObj.error && scopeObj.url.searchParams.get('rel') === 'hmr') {
+            wss.handleUpgrade(nodeRequest, socket, head, (ws) => {
+                wss.emit('connection', ws, nodeRequest);
+                this.#mhrConnections.add(ws);
+            });
+        }
+        if (!scopeObj.error && scopeObj.url.searchParams.get('rel') === 'background-messaging') {
+            scopeObj.request = this.createRequest(scopeObj.url.href, requestInit);
+            scopeObj.sessionTTL = this.env('SESSION_TTL') || 2592000/*30days*/;
+            scopeObj.session = this.createHttpSession({
+                store: (sessionID) => this.#sdk.storage?.(`${scopeObj.url.host}/session:${sessionID}`, scopeObj.sessionTTL),
+                request: scopeObj.request,
+                secret: this.env('SESSION_KEY'),
+                ttl: scopeObj.sessionTTL,
+            });
             if (!(scopeObj.clientMessagingRegistry = this.#globalMessagingRegistry.get(scopeObj.session.sessionID))) {
                 scopeObj.error = `Lost or invalid clientID`;
             } else if (!(scopeObj.clientMessagingPort = scopeObj.clientMessagingRegistry.get(scopeObj.url.pathname.split('/').pop()))) {
@@ -435,21 +474,6 @@ export class WebfloServer extends WebfloRuntime {
                 LOGGER.log(log);
             }
         }
-    }
-
-    parseNodeRequest(proto, nodeRequest, withBody = true) {
-        // Detected when using manual proxy setting in a browser
-        if (nodeRequest.url.startsWith(`${proto}://${nodeRequest.headers.host}`)) {
-            nodeRequest.url = nodeRequest.url.split(nodeRequest.headers.host)[1];
-        }
-        const fullUrl = proto + '://' + nodeRequest.headers.host + nodeRequest.url;
-        const requestInit = { method: nodeRequest.method, headers: nodeRequest.headers };
-        if (withBody && !['GET', 'HEAD'].includes(nodeRequest.method)) {
-            nodeRequest[Symbol.toStringTag] = 'ReadableStream'; // Not necessary, but fun
-            requestInit.body = nodeRequest;
-            requestInit.duplex = 'half'; // See https://github.com/nodejs/node/issues/46221
-        }
-        return [fullUrl, requestInit];
     }
 
     writeAutoHeaders(headers, autoHeaders) {
@@ -612,11 +636,11 @@ export class WebfloServer extends WebfloRuntime {
 
     async navigate(url, init = {}, detail = {}) {
         const { HEADERS } = this.config;
+        const { flags: FLAGS } = this.cx;
         const scopeObj = { url, init, detail };
         if (typeof scopeObj.url === 'string') {
             scopeObj.url = new URL(scopeObj.url, 'http://localhost');
         }
-        // ---------------
         // Request processing
         scopeObj.autoHeaders = HEADERS.entries.filter((entry) => (new URLPattern(entry.url, url.origin)).exec(url.href)) || [];
         scopeObj.request = this.createRequest(scopeObj.url.href, scopeObj.init, scopeObj.autoHeaders.filter((header) => header.type === 'request'));
@@ -654,8 +678,11 @@ export class WebfloServer extends WebfloRuntime {
         scopeObj.response = await this.dispatchNavigationEvent({
             httpEvent: scopeObj.httpEvent,
             crossLayerFetch: (event) => this.localFetch(event),
-            backgroundMessagingPort: `ws:${scopeObj.httpEvent.client.portID}`
+            backgroundMessagingPort: `ws:${scopeObj.httpEvent.client.portID}?rel=background-messaging`
         });
+        if (FLAGS['dev']) {
+            scopeObj.response.headers.set('X-Dev-Mode', 'true'); // Must come before satisfyRequestFormat() sp as to be rendered
+        }
         // Reponse handlers
         if (scopeObj.response.headers.get('Location')) {
             this.writeRedirectHeaders(scopeObj.httpEvent, scopeObj.response);
@@ -759,7 +786,7 @@ export class WebfloServer extends WebfloRuntime {
                 }
                 await new Promise(res => setTimeout(res, 300));
             }
-            for (const name of ['X-Background-Messaging-Port', 'X-Live-Response-Message-ID', 'X-Live-Response-Generator-Done']) {
+            for (const name of ['X-Background-Messaging-Port', 'X-Live-Response-Message-ID', 'X-Live-Response-Generator-Done', 'X-Dev-Mode']) {
                 document.querySelector(`meta[name="${name}"]`)?.remove();
                 if (!response.headers.get(name)) continue;
                 const metaElement = document.createElement('meta');

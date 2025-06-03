@@ -24,7 +24,7 @@ export class LiveResponse extends EventTarget {
 
     /* STATIC */
 
-    static create(data, ...args) {
+    static from(data, ...args) {
         if (data instanceof this) {
             return data;
         }
@@ -102,7 +102,7 @@ export class LiveResponse extends EventTarget {
         const $firstFrame = gen.next();
         const instance = _await($firstFrame, (frame) => {
             return _await(frame.value, (value) => {
-                const instance = this.create/*important*/(value, { done: frame.done });
+                const instance = this.from/*important*/(value, { done: frame.done });
                 return _await(instance, (instance) => {
                     instance.#generatorType = 'Generator';
                     (async function () {
@@ -176,6 +176,10 @@ export class LiveResponse extends EventTarget {
 
     get backgroundMessagingPort() {
         return backgroundMessagingPort.call(this);
+    }
+
+    isLive() {
+        return this.headers.has('X-Background-Messaging-Port') || !!this[meta].backgroundMessagingPort;
     }
 
     /* Lifecycle props */
@@ -275,7 +279,7 @@ export class LiveResponse extends EventTarget {
     }
 
     toResponse({ clientMessagingPort } = {}) {
-        const response = Response.create(this.body, {
+        const response = Response.from(this.body, {
             status: this.status,
             statusText: this.statusText,
             headers: this.headers,

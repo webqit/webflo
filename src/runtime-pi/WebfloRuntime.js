@@ -105,88 +105,87 @@ export class WebfloRuntime {
             scopeObj.returnValue = new Response(null, { status: 500, statusText: e.message });
         }
         scopeObj.response = scopeObj.returnValue;
-        // Resolve return value
-        if (this.isClientSide) {
-            // Both LiveResponse and Response are supported
-            if (!(scopeObj.response instanceof LiveResponse) && !(scopeObj.response instanceof Response)) {
-                scopeObj.response = await LiveResponse.create(scopeObj.response);
-            }
-            // Wait until generator done
-            if (scopeObj.response instanceof LiveResponse && !scopeObj.response.generatorDone) {
-                const done = new Promise((resolve) => {
-                    httpEvent.client.addEventListener('close', resolve);
-                    scopeObj.response.addEventListener('generatordone', (e) => {
-                        if (!scopeObj.response.frameDone/*Closures AREN'T required on the client to indicate live frames*/) {
-                            scopeObj.response.addEventListener('framedone', resolve, { once: true });
-                        } else resolve(e);
-                    }, { once: true });
-                });
-                httpEvent.waitUntil(done);
-            }
-        } else {
-            // Only normal Response (with streaming) supported
-            let liveResponse, isStreamingResponse;
-            if (!(scopeObj.response instanceof Response)) {
-                liveResponse = await LiveResponse.create(scopeObj.response);
-                // isStreamingResponse if originally a LiveResponse or is initialized from Generator|Quantum
-                isStreamingResponse = scopeObj.returnValue/*ORIGINAL*/ instanceof LiveResponse || liveResponse.generatorType !== 'Default';
-                // Convert to normal response with streaming enabled and streaming details applied
-                scopeObj.response = liveResponse.toResponse({ clientMessagingPort: isStreamingResponse && httpEvent.client || null });
-            }
-            // Wait until generator done
-            if (isStreamingResponse && !liveResponse.generatorDone) {
-                const done = new Promise((resolve) => {
-                    httpEvent.client.addEventListener('close', resolve);
-                    liveResponse.addEventListener('generatordone', (e) => {
-                        if (!liveResponse.frameDone && liveResponse.frameClosurePromise/*Closures are required on the server to indicate live frames*/) {
-                            liveResponse.addEventListener('framedone', resolve, { once: true });
-                        } else resolve(e);
-                    }, { once: true });
-                });
-                httpEvent.waitUntil(done);
-            }
-        }
-        // Any carryon data?
-        await this.handleCarries(httpEvent, scopeObj.response);
-        // Send the X-Background-Messaging-Port header?
-        // !ORDER: Must after the live data-binding logic above
-        // so that httpEvent.eventLifecyclePromises.size can capture the httpEvent.waitUntil()
-        // !ORDER: Must come after having called this.handleCarries()
-        // so that httpEvent.client.isMessaging() can capture any postMessage() there
-        if (httpEvent.eventLifecyclePromises.size || httpEvent.client.isMessaging()) {
-            if (typeof backgroundMessagingPort === 'string') {
-                scopeObj.response.headers.set(
-                    'X-Background-Messaging-Port',
-                    backgroundMessagingPort
-                );
-            } else if (backgroundMessagingPort) {
-                if (typeof backgroundMessagingPort !== 'function') {
-                    throw new Error('backgroundMessagingPort must be a callback when not a string.');
+        // A live response from the server? The logic in this block assumes that this is rather from this realm
+        // we need to skip that
+        if (!(scopeObj.response instanceof Response && scopeObj.response.headers.get('X-Background-Messaging-Port'))) {
+            // Resolve return value
+            if (this.isClientSide) {
+                // Both LiveResponse and Response are supported
+                if (!(scopeObj.response instanceof LiveResponse) && !(scopeObj.response instanceof Response)) {
+                    scopeObj.response = await LiveResponse.from(scopeObj.response);
                 }
-                scopeObj.response[meta].backgroundMessagingPort = backgroundMessagingPort;
-            }
-        }
-        // Terminate live objects listeners
-        // !ORDER: Must after the live data-binding logic above
-        // so that httpEvent.eventLifecyclePromises.size can capture the httpEvent.waitUntil()
-        Promise.all([...httpEvent.eventLifecyclePromises]).then(() => {
-            if (httpEvent.client.isMessaging()) {
-                httpEvent.client.on('open', () => {
-                    setTimeout(() => {
-                        httpEvent.client.close();
-                    }, 100);
-                });
+                // Wait until generator done
+                if (scopeObj.response instanceof LiveResponse && !scopeObj.response.generatorDone) {
+                    const done = new Promise((resolve) => {
+                        scopeObj.response.addEventListener('generatordone', (e) => {
+                            if (!scopeObj.response.frameDone/*Closures AREN'T required on the client to indicate live frames*/) {
+                                scopeObj.response.addEventListener('framedone', resolve, { once: true });
+                            } else resolve(e);
+                        }, { once: true });
+                    });
+                    httpEvent.waitUntil(done);
+                }
             } else {
+                // Only normal Response (with streaming) supported
+                let liveResponse, isStreamingResponse;
+                if (!(scopeObj.response instanceof Response)) {
+                    liveResponse = await LiveResponse.from(scopeObj.response);
+                    // isStreamingResponse if originally a LiveResponse or is initialized from Generator|Quantum
+                    isStreamingResponse = scopeObj.returnValue/*ORIGINAL*/ instanceof LiveResponse || liveResponse.generatorType !== 'Default';
+                    // Convert to normal response with streaming enabled and streaming details applied
+                    scopeObj.response = liveResponse.toResponse({ clientMessagingPort: isStreamingResponse && httpEvent.client || null });
+                }
+                // Wait until generator done
+                if (isStreamingResponse && !liveResponse.generatorDone) {
+                    const done = new Promise((resolve) => {
+                        liveResponse.addEventListener('generatordone', (e) => {
+                            if (!liveResponse.frameDone && liveResponse.frameClosurePromise/*Closures are required on the server to indicate live frames*/) {
+                                liveResponse.addEventListener('framedone', resolve, { once: true });
+                            } else resolve(e);
+                        }, { once: true });
+                    });
+                    httpEvent.waitUntil(done);
+                }
+            }
+            // Any carryon data?
+            await this.handleCarries(httpEvent, scopeObj.response);
+            // Send the X-Background-Messaging-Port header?
+            // !ORDER: Must after the live data-binding logic above
+            // so that httpEvent.eventLifecyclePromises.size can capture the httpEvent.waitUntil()
+            // !ORDER: Must come after having called this.handleCarries()
+            // so that httpEvent.client.isMessaging() can capture any postMessage() there
+            if (httpEvent.eventLifecyclePromises.size || httpEvent.client.isMessaging()) {
+                if (this.isClientSide) {
+                    scopeObj.response[meta].backgroundMessagingPort = backgroundMessagingPort;
+                } else {
+                    scopeObj.response.headers.set(
+                        'X-Background-Messaging-Port',
+                        backgroundMessagingPort
+                    );
+                }
+            }
+            // Terminate live objects listeners
+            // !ORDER: Must after the live data-binding logic above
+            // so that httpEvent.eventLifecyclePromises.size can capture the httpEvent.waitUntil()
+            Promise.all([...httpEvent.eventLifecyclePromises]).then(() => {
+                if (httpEvent.client.isMessaging()) {
+                    httpEvent.client.on('open', () => {
+                        setTimeout(() => {
+                            httpEvent.client.close();
+                        }, 100);
+                    }, { once: true });
+                } else {
+                    httpEvent.client.close();
+                }
+            });
+            httpEvent.client.addEventListener('navigation', (e) => {
+                if (e.defaultPrevented) {
+                    console.log(`Client Messaging Port on ${httpEvent.request.url} not auto-closed on user navigation.`);
+                    return;
+                }
                 httpEvent.client.close();
-            }
-        });
-        httpEvent.client.addEventListener('navigation', (e) => {
-            if (e.defaultPrevented) {
-                console.log(`Client Messaging Port on ${httpEvent.request.url} not auto-closed on user navigation.`);
-                return;
-            }
-            httpEvent.client.close();
-        });
+            });
+        }
         // Commit data in the exact order. Reason: in how they depend on each other
         for (const storage of [httpEvent.user, httpEvent.session, httpEvent.cookies]) {
             await storage?.commit?.(scopeObj.response);

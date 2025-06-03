@@ -25,9 +25,9 @@ export class WebfloRootClient1 extends WebfloClient {
 	#capabilities;
 	get capabilities() { return this.#capabilities; }
 
-    get withViewTransitions() {
-        return document.querySelector('meta[name="webflo:viewtransitions"]')?.value;
-    }
+	get withViewTransitions() {
+		return document.querySelector('meta[name="webflo:viewtransitions"]')?.value;
+	}
 
 	constructor(cx, host) {
 		if (!(host instanceof Document)) {
@@ -105,23 +105,63 @@ export class WebfloRootClient1 extends WebfloClient {
 
 	async hydrate() {
 		const instanceController = await super.hydrate();
-		const body = this.host.querySelector('script[rel="hydration"][type="application/json"]')?.textContent?.trim();
-		const backgroundMessagingPort = this.host.querySelector('meta[name="X-Background-Messaging-Port"]')?.content?.trim();
-		const liveResponseGeneratorDone = this.host.querySelector('meta[name="X-Live-Response-Generator-Done"]')?.content?.trim();
-		const liveResponseMessageID = this.host.querySelector('meta[name="X-Live-Response-Message-ID"]')?.content?.trim();
-		if (body || backgroundMessagingPort) {
-			const normalResponse = new Response.create(body, { headers: { 'Content-Type': 'application/json' }});
-			normalResponse.headers.set('X-Background-Messaging-Port', backgroundMessagingPort || '');
-			normalResponse.headers.set('X-Live-Response-Generator-Done', liveResponseGeneratorDone || '');
-			normalResponse.headers.set('X-Live-Response-Message-ID', liveResponseMessageID || '');			
-			const liveResponse = await LiveResponse.fromResponse(normalResponse);
-			this.backgroundMessagingPorts.add(liveResponse.backgroundMessagingPort);
+		const scopeObj = {};
+		scopeObj.data = this.host.querySelector(`script[rel="hydration"][type="application/json"]`)?.textContent?.trim() || null;
+		scopeObj.response = new Response.from(scopeObj.data, { headers: { 'Content-Type': 'application/json' } });
+		for (const name of ['X-Background-Messaging-Port', 'X-Live-Response-Message-ID', 'X-Live-Response-Generator-Done', 'X-Dev-Mode']) {
+			const metaElement = this.host.querySelector(`meta[name="${name}"]`);
+			if (!metaElement) continue;
+			scopeObj.response.headers.set(name, metaElement.content?.trim() || '');
+		}
+		if (scopeObj.response.isLive()) {
+			this.backgroundMessagingPorts.add(scopeObj.response.backgroundMessagingPort);
+		}
+		if (scopeObj.response.body || scopeObj.response.isLive()) {
 			const httpEvent = this.createHttpEvent({ request: this.createRequest(this.location.href) }, true);
-			await this.render(httpEvent, liveResponse);
-		} else if (this.canDoStartupFlight()) {
+			await this.render(httpEvent, scopeObj.response);
+		} else {
 			await this.navigate(this.location.href);
 		}
+		if (scopeObj.response.headers.get('X-Dev-Mode') === 'true') {
+			this.enterDevMode();
+		}
 		return instanceController;
+	}
+
+	async enterDevMode() {
+		const socket = new WebSocket('/?rel=hmr');
+		socket.onmessage = async (msg) => {
+			const event = JSON.parse(msg.data);
+			if (event.affectedRoute) {
+				if (event.effect === 'unlink' && event.realm === 'client') {
+					delete this.routes[event.affectedRoute];
+				} else if (event.realm === 'client') {
+					this.routes[event.affectedRoute] = await import(`${event.affectedHandler}?$hmr$hash=${Date.now()}`);
+				}
+				if (event.affectedRoute === this.location.pathname) {
+					await this.navigate(this.location.href);
+				}
+			} else if (event.fileType === 'css') {
+				refreshCSS();
+			} else if (event.fileType === 'html') {
+				window.location.reload();
+			}
+		};
+		function refreshCSS() {
+			var sheets = [].slice.call(document.getElementsByTagName('link'));
+			var head = document.getElementsByTagName('head')[0];
+			for (var i = 0; i < sheets.length; ++i) {
+				var elem = sheets[i];
+				var parent = elem.parentElement || head;
+				parent.removeChild(elem);
+				var rel = elem.rel;
+				if (elem.href && typeof rel != 'string' || rel.length === 0 || rel.toLowerCase() === 'stylesheet') {
+					var url = elem.href.replace(/(&|\?)\$hmr\$hash=\d+/, '');
+					elem.href = url + (url.indexOf('?') >= 0 ? '&' : '?') + '$hmr$hash=' + (new Date().valueOf());
+				}
+				parent.appendChild(elem);
+			}
+		}
 	}
 
 	control() {

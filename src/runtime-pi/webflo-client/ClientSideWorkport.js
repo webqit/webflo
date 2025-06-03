@@ -80,7 +80,7 @@ export class ClientSideWorkport extends WebfloMessagingAPI {
                 messageType,
                 message
             }, options);
-        });
+        }, { once: true });
         super.postMessage(message, transferOrOptions);
     }
 

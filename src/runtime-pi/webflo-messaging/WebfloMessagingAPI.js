@@ -22,9 +22,9 @@ export class WebfloMessagingAPI extends WebfloEventTarget {
     }
 
     on(eventName, callback, { once = false } = {}) {
-        if ((eventName === 'open' && this.#isOpen) ||
-            (eventName === 'close' && this.#isOpen === false) ||
-            (eventName === 'messaging' && this.#isMessaging)) {
+        if ((eventName === 'open' && this.isOpen()) ||
+            (eventName === 'close' && this.isOpen() === false) ||
+            (eventName === 'messaging' && this.isMessaging())) {
             callback();
             if (once) {
                 return;
@@ -79,7 +79,7 @@ export class WebfloMessagingAPI extends WebfloEventTarget {
      */
 
     postMessageCallback(data, transferOrOptions, callback) {
-        if (!this.#isMessaging) {
+        if (!this.isMessaging()) {
             this.$emit('messaging');
         }
         if (Array.isArray(transferOrOptions)) {
@@ -92,14 +92,14 @@ export class WebfloMessagingAPI extends WebfloEventTarget {
         if (this.parentNode?.ports?.size && this.parentNode.ports.has(this)) {
             this.on('open', () => {
                 callback(transferOrOptions);
-            });
+            }, { once: true });
             return;
         }
         let { eventOptions = {}, liveOptions = {}, ..._options } = transferOrOptions;
         if (!eventOptions.eventID) {
             eventOptions = { ...eventOptions, eventID: this.nextEventID };
         }
-        this.on('open', () => callback({ ..._options, eventOptions }));
+        this.on('open', () => callback({ ..._options, eventOptions }), { once: true });
         if (_isTypeObject(data) && eventOptions.live && !eventOptions.type?.endsWith('.mutate')) {
             return this.publishMutations(data, eventOptions.eventID, liveOptions);
         }
@@ -120,7 +120,7 @@ export class WebfloMessagingAPI extends WebfloEventTarget {
     /* ----------------- */
 
     addEventListener(...args) {
-        if (!this.#isMessaging) {
+        if (!this.isMessaging()) {
             this.$emit('messaging');
         }
         return super.addEventListener(...args);

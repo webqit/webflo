@@ -1,7 +1,9 @@
 
 import { _isObject } from '@webqit/util/js/index.js';
 import { parseHttpMessage, renderHttpMessageInit } from './message.js';
+import { MessagingOverBroadcast } from '../webflo-messaging/MessagingOverBroadcast.js';
 import { MessagingOverSocket } from '../webflo-messaging/MessagingOverSocket.js';
+import { WebfloMessagingAPI } from '../webflo-messaging/WebfloMessagingAPI.js';
 import { meta } from './util.js';
 
 export function createBackgroundMessagingPort(url) {
@@ -23,8 +25,8 @@ export function backgroundMessagingPort() {
         }
     } else if (typeof this[meta].backgroundMessagingPort === 'function') {
         const backgroundMessagingPort = this[meta].backgroundMessagingPort.call(this);
-        if (!(backgroundMessagingPort instanceof MessagePort)) {
-            throw new Error('backgroundMessagingPort callbacks must return a MessagePort instance.');
+        if (!(backgroundMessagingPort instanceof WebfloMessagingAPI)) {
+            throw new Error('backgroundMessagingPort callbacks must return a WebfloMessagingAPI.');
         }
         this[meta].backgroundMessagingPort = backgroundMessagingPort;
     }
@@ -44,8 +46,13 @@ const responseMethods = {
             return clonedResponse;
         }
     },
+    isLive: {
+        value: function () {
+            return this.headers.has('X-Background-Messaging-Port') || !!this[meta].backgroundMessagingPort;
+        }
+    },
     backgroundMessagingPort: {
-        get: function() {
+        get: function () {
             return backgroundMessagingPort.call(this);
         }
     },
@@ -58,7 +65,7 @@ const responseMethods = {
 
 const { json: jsonMethod } = Response;
 const staticResponseMethods = {
-    create: {
+    from: {
         value: function (body, init = {}) {
             if (body instanceof Response) return body;
             let $type, $body = body;

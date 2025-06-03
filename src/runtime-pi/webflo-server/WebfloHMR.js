@@ -1,62 +1,66 @@
 import EsBuild from 'esbuild';
 import chokidar from 'chokidar';
-import Glob from 'fast-glob';
+import $glob from 'fast-glob';
 import Path from 'path';
 
-export async function WebfloHMR(app, broadcast) {
-    async function hmr(payload) {
-        if (payload.kind === 'handler') {
-            if (payload.type === 'server') {
-                await import(`${payload.changedFile}?t=${Date.now()}`);
-                return;
-            }
-            broadcast(payload);
-        }
-    }
+export async function WebfloHMR(app, fire) {
     // Filesytem matching
-    const layoutDirPattern = (dirs) => `^(${[...dirs].map((d) => d.replace(/^\.\//g, '').replace(/\./g, '\\.').replace(/\//g, '\\/')).join('|')})`;
+    const layoutDirPattern = (dirs) => `^(${[...dirs].map((d) => Path.relative(process.cwd(), d).replace(/^\.\//g, '').replace(/\./g, '\\.').replace(/\//g, '\\/')).join('|')})`;
     const layoutDirsMatchMap = Object.fromEntries(['CLIENT_DIR', 'WORKER_DIR', 'SERVER_DIR', 'PUBLIC_DIR'].map((name) => {
-        return [name, new RegExp(layoutDirPattern([app.cx.layout[name]]))];
+        return [name, new RegExp(layoutDirPattern([app.config.LAYOUT[name]]))];
     }));
-    const routeDirs = new Set([app.cx.layout.CLIENT_DIR, app.cx.layout.WORKER_DIR, app.cx.layout.SERVER_DIR]);
+    const routeDirs = new Set([app.config.LAYOUT.CLIENT_DIR, app.config.LAYOUT.WORKER_DIR, app.config.LAYOUT.SERVER_DIR]);
     const handlerMatch = new RegExp(`${layoutDirPattern(routeDirs)}(\\/.+)?\\/handler(?:\\.(client|worker|server))?\\.js$`);
-    // Watcher
-    const watcher = chokidar.watch([...routeDirs, app.cx.layout.PUBLIC_DIR], { ignoreInitial: true });
-    // Initial JS build
-    let hmrDependenciesMap = await generateHMRDependenciesGraph(routeDirs, handlerMatch);
-    let lastUnlinkButPossibleRename = null;
-    watcher.on('all', async (event, changedFile) => {
-        if (!['add', 'change', 'unlink', 'rename'].includes(event)) return;
+    // Initial graph state
+    const graphCache = {
+        hmrDependenciesMap: {},
+        lastUnlinkButPossibleRename: null,
+        mustRevalidate: true
+    };
+    // The watch logic
+    const watcher = chokidar.watch([...routeDirs, app.config.LAYOUT.PUBLIC_DIR], { ignoreInitial: true });
+    watcher.on('all', async (type, $changedFile) => {
+        if (!['unlink', 'add', 'change', 'rename'].includes(type)) return;
+        const changedFile = Path.relative(process.cwd(), $changedFile);
         if (changedFile.endsWith('.js')) {
             // Is JS asset?
             if (layoutDirsMatchMap.PUBLIC_DIR.test(changedFile)) {
-                hmr({ event, kind: 'asset', type: 'js', changedFile });
+                fire({ type, changedFile, fileType: 'js', kind: 'asset' });
                 return;
             }
             // Trigger deps rebuild?
-            if ((event === 'add' && changedFile !== lastUnlinkButPossibleRename)/*on a real add*/
-                || event === 'rename'/*just in case fired*/) {
-                hmrDependenciesMap = await generateHMRDependenciesGraph(routeDirs, handlerMatch, true);
+            if ((type === 'add' && changedFile !== graphCache.lastUnlinkButPossibleRename)/*on a real add*/
+                || type === 'rename'/*just in case fired*/) {
+                graphCache.mustRevalidate = true; // Invalidate entire
             }
-            const affectedRoutes = hmrDependenciesMap[changedFile] || [];
-            for (const routeFile of affectedRoutes) {
-                const [, dir, route = '/', type] = handlerMatch.exec(routeFile) || [];
-                if (type === 'client' ||/*generic handler*/ (layoutDirsMatchMap.CLIENT_DIR.test(dir) && !(changedFile.replace(/\.js$/, '.client.js') in scopeObj.hmrDependenciesMap)/*no dedicated handler exists*/)) {
-                    hmr({ event, kind: 'handler', type: 'client', route, changedFile });
-                } else if (type === 'worker' ||/*generic handler*/ (layoutDirsMatchMap.WORKER_DIR.test(dir) && !(changedFile.replace(/\.js$/, '.worker.js') in scopeObj.hmrDependenciesMap)/*no dedicated handler exists*/)) {
-                    hmr({ event, kind: 'handler', type: 'worker', route, changedFile });
-                } else if (type === 'server' ||/*generic handler*/ (layoutDirsMatchMap.SERVER_DIR.test(dir) && !(changedFile.replace(/\.js$/, '.server.js') in scopeObj.hmrDependenciesMap)/*no dedicated handler exists*/)) {
-                    hmr({ event, kind: 'handler', type: 'server', route, changedFile });
+            if (graphCache.mustRevalidate) {
+                const hmrDependenciesMap = await generateHMRDependenciesGraph(routeDirs, handlerMatch, true/*fullBuild*/);
+                if (hmrDependenciesMap) {
+                    graphCache.hmrDependenciesMap = hmrDependenciesMap;
+                    graphCache.mustRevalidate = false;
                 }
             }
-            if (event === 'unlink') {
-                hmrDependenciesMap = await generateHMRDependenciesGraph(routeDirs, handlerMatch, true);
-                lastUnlinkButPossibleRename = changedFile;
-            } else lastUnlinkButPossibleRename = null;
-        } else if (routeFile.endsWith('.html')) {
-            //hmr({ event, kind: 'asset', type: 'css', changedFile });
-        } else if (routeFile.endsWith('.css')) {
-            hmr({ event, kind: 'asset', type: 'css', changedFile });
+            const affectedHandlers = graphCache.hmrDependenciesMap[changedFile] || [];
+            for (const affectedHandler of affectedHandlers) {
+                const [, dir, affectedRoute = '/', realm] = handlerMatch.exec(affectedHandler) || [];
+                for (const r of ['client', 'worker', 'server']) {
+                    if (realm === r || !realm/*generic handler*/ && (
+                        layoutDirsMatchMap[`${r.toUpperCase()}_DIR`].test(dir) && !(changedFile.replace(/\.js$/, `.${r}.js`) in graphCache.hmrDependenciesMap)/*no dedicated handler exists*/
+                    )) {
+                        fire({ type, changedFile, fileType: 'js', affectedRoute, affectedHandler, realm: r, effect: changedFile === affectedHandler ? type : 'change' });
+                    }
+                }
+            }
+            if (type === 'unlink') {
+                graphCache.lastUnlinkButPossibleRename = changedFile;
+                graphCache.mustRevalidate = true; // Invalidate entire
+            } else {
+                graphCache.lastUnlinkButPossibleRename = null;
+            }
+        } else if (changedFile.endsWith('.html')) {
+            fire({ type, changedFile, fileType: 'html', kind: 'asset' });
+        } else if (changedFile.endsWith('.css')) {
+            fire({ type, changedFile, fileType: 'css', kind: 'asset' });
         }
     });
 }
@@ -65,28 +69,31 @@ let prevBuildResult;
 async function generateHMRDependenciesGraph(routeDirs, handlerMatch, fullBuild = false) {
     // 0. Generate graph
     let buildResult;
-    if (prevBuildResult) {
-        if (fullBuild) await prevBuildResult.rebuild.dispose();
-        else buildResult = await buildResult.rebuild();
-    }
-    if (!buildResult) {
-        const entryPoints = await Glob([...routeDirs].map((d) => `${d}/**/handler{,.client,.worker,.server}.js`), { absolute: true })
-            .then((files) => files.map((file) => file.replace(/\\/g, '/')));
-        const bundlingConfig = {
-            entryPoints,
-            bundle: true,
-            format: 'esm',
-            platform: 'browser', // optional but good for clarity
-            metafile: true,
-            write: false,        // ❗ Don't emit files
-            treeShaking: true,   // Optional optimization
-            logLevel: 'silent',  // Suppress output
-            minify: false,
-            sourcemap: false,
-            incremental: true,
-        };
-        buildResult = await EsBuild.build(bundlingConfig);
-    }
+    try {
+        if (prevBuildResult) {
+            if (fullBuild) await prevBuildResult.rebuild.dispose();
+            else buildResult = await buildResult.rebuild();
+        }
+        if (!buildResult) {
+            const entryPoints = await $glob([...routeDirs].map((d) => `${d}/**/handler{,.client,.worker,.server}.js`), { absolute: true })
+                .then((files) => files.map((file) => file.replace(/\\/g, '/')));
+            const bundlingConfig = {
+                entryPoints,
+                bundle: true,
+                format: 'esm',
+                platform: 'browser', // optional but good for clarity
+                metafile: true,
+                write: false,        // ❗ Don't emit files
+                outdir: '.webqit/webflo',        // Unexpectedly still required
+                treeShaking: true,   // Optional optimization
+                logLevel: 'silent',  // Suppress output
+                minify: false,
+                sourcemap: false,
+                incremental: true,
+            };
+            buildResult = await EsBuild.build(bundlingConfig);
+        }
+    } catch(e) { return; }
     // 1. Forward dependency graph (file -> [imported files])
     const forward = {};
     for (const [file, data] of Object.entries(buildResult.metafile.inputs)) {

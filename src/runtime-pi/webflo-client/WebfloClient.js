@@ -314,7 +314,12 @@ export class WebfloClient extends WebfloRuntime {
         };
         // Ping existing background processes
         if (scopeObj.request.method === 'GET' || (scopeObj.request.method === 'POST' && scopeObj.url.pathname !== this.location.pathname)) {
-            this.#backgroundMessagingPorts.postMessage({ ...Url.copy(scopeObj.url), method: scopeObj.request.method }, { eventOptions: { type: 'navigation' } });
+            const url = { ...Url.copy(scopeObj.url), method: scopeObj.request.method };
+            // !IMPORTANT: Posting to the group when empty will keep the event until next addition
+            // and we don't want that
+            for (const port of this.#backgroundMessagingPorts) {
+                port.postMessage(url, { eventOptions: { type: 'navigation' } });
+            }
         }
         // Dispatch for response
         const backgroundMessagingPortCallback = () => new MessagingOverChannel(null, messageChannel.port1, { honourDoneMutationFlags: true });
@@ -330,7 +335,7 @@ export class WebfloClient extends WebfloRuntime {
             backgroundMessagingPort: backgroundMessagingPortCallback,
             originalRequestInit: scopeObj.init
         });
-        if (scopeObj.response.backgroundMessagingPort) {
+        if (scopeObj.response.isLive()) {
             this.backgroundMessagingPorts.add(scopeObj.response.backgroundMessagingPort);
         }
         // ---------------
@@ -470,10 +475,10 @@ export class WebfloClient extends WebfloRuntime {
                 HTML_IMPORTS: { attr: modulesContextAttrs } = {},
             } = window.webqit.oohtml.configs;
             if (bindingsConfig) {
-                const data = response instanceof LiveResponse ? response.body : await response.parse();
+                const $response = await LiveResponse.from(response);
                 this.host[bindingsConfig.bind]({
                     state: {},
-                    data,
+                    data: $response.body,
                     env: 'client',
                     navigator: this.navigator,
                     location: this.location,
@@ -481,13 +486,10 @@ export class WebfloClient extends WebfloRuntime {
                     capabilities: this.capabilities,
                     transition: this.transition,
                 }, { diff: true, merge });
-                if (response instanceof LiveResponse) {
-                    response.addEventListener('replace', (e) => {
-                        console.log('___________', response.body);
-                        if (response.headers.get('Location') && this.processRedirect(response)) return;
-                        this.host[bindingsConfig.bindings].data = response.body;
-                    });
-                }
+                $response.addEventListener('replace', (e) => {
+                    if ($response.headers.get('Location') && this.processRedirect($response)) return;
+                    this.host[bindingsConfig.bindings].data = $response.body;
+                });
             }
             if (modulesContextAttrs) {
                 const newRoute = '/' + `routes/${this.location.pathname}`.split('/').map(a => (a => a.startsWith('$') ? '-' : a)(a.trim())).filter(a => a).join('/');

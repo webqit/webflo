@@ -105,7 +105,7 @@ export class WebfloSubClient extends WebfloClient {
 				setTimeout(() => {
 					popup.close();
 				}, 5000);
-			});
+			}, { once: true });
 			const windowMessageHandler = (e) => {
 				if (e.source === popup && e.data === 'close') {
 					backgroundMessagingPort.close();
