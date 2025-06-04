@@ -11,6 +11,7 @@ import { _from as _arrFrom, _any } from '@webqit/util/arr/index.js';
 import { _isEmpty, _isObject } from '@webqit/util/js/index.js';
 import { _each } from '@webqit/util/obj/index.js';
 import { Readable } from 'stream';
+import { WebfloHMR } from './webflo-devmode.js';
 import { WebfloRuntime } from '../WebfloRuntime.js';
 import { createWindow } from '@webqit/oohtml-ssr';
 import { Context } from './Context.js';
@@ -60,7 +61,7 @@ export class WebfloServer extends WebfloRuntime {
 
     #capabilitiesSetup;
     #servers = new Map;
-    #mhrConnections = new Set;
+    #hmr;
 
     #sdk = {};
     get sdk() { return this.#sdk; }
@@ -124,28 +125,7 @@ export class WebfloServer extends WebfloRuntime {
     }
 
     async enterDevMode() {
-        const { WebfloHMR } = await import('./WebfloHMR.js');
-        await WebfloHMR(this, async (event) => {
-            console.log(event);
-            // Execute server HMR?
-            if (event.affectedRoute) {
-                if (event.effect === 'unlink' && event.realm === 'server') {
-                    delete this.routes[event.affectedRoute];
-                } else if (event.realm === 'server') {
-                    this.routes[event.affectedRoute] = `${Path.join(process.cwd(), event.affectedHandler)}?_webflohmrhash=${Date.now()}`;
-                }
-            }
-            // Broadcast to clients
-            const PUBLIC_DIR = Path.relative(process.cwd(), this.config.LAYOUT.PUBLIC_DIR);
-            const $event = { ...event };
-            $event.changedFile = Path.relative(PUBLIC_DIR, event.changedFile);
-            if (event.affectedHandler) {
-                $event.affectedHandler = Path.relative(PUBLIC_DIR, event.affectedHandler);
-            }
-            for (const connection of this.#mhrConnections) {
-                connection.send(JSON.stringify($event));
-            }
-        });
+        this.#hmr = WebfloHMR.manage(this);
     }
 
     control() {
@@ -349,7 +329,7 @@ export class WebfloServer extends WebfloRuntime {
         if (!scopeObj.error && scopeObj.url.searchParams.get('rel') === 'hmr') {
             wss.handleUpgrade(nodeRequest, socket, head, (ws) => {
                 wss.emit('connection', ws, nodeRequest);
-                this.#mhrConnections.add(ws);
+                this.#hmr.clients.add(ws);
             });
         }
         if (!scopeObj.error && scopeObj.url.searchParams.get('rel') === 'background-messaging') {
@@ -566,12 +546,13 @@ export class WebfloServer extends WebfloRuntime {
     async localFetch(httpEvent) {
         const { flags: FLAGS } = this.cx;
         const { LAYOUT } = this.config;
-        if (!FLAGS['dev'] && /^\.\.\//.test(httpEvent.url.pathname)) {
-            return;
-        }
         const scopeObj = {};
-        scopeObj.filename = Path.join(LAYOUT.PUBLIC_DIR, decodeURIComponent(httpEvent.url.pathname));
-        scopeObj.ext = Path.parse(httpEvent.url.pathname).ext;
+        if (FLAGS['dev'] && httpEvent.url.pathname === '/@dev') {
+            scopeObj.filename = Path.join(LAYOUT.PUBLIC_DIR, (new URL(httpEvent.url.searchParams.get('src'), 'http://example.com')).pathname);
+        } else {
+            scopeObj.filename = Path.join(LAYOUT.PUBLIC_DIR, httpEvent.url.pathname);
+        }
+        scopeObj.ext = Path.parse(scopeObj.filename).ext;
         const finalizeResponse = (response) => {
             response[meta].filename = scopeObj.filename;
             response[meta].static = true;

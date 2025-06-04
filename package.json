@@ -42,7 +42,6 @@
     "@webqit/quantum-js": "^4.6.3",
     "@webqit/util": "^0.8.11",
     "dotenv": "^16.4.7",
-    "esbuild": "^0.14.38",
     "i": "^0.3.7",
     "ioredis": "^5.5.0",
     "jsdom": "^21.1.1",
@@ -54,6 +53,7 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "esbuild": "^0.14.38",
     "chai": "^4.3.6",
     "chokidar": "^4.0.3",
     "coveralls": "^3.1.1",

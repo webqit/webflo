@@ -1,8 +1,9 @@
 import { Observer } from '@webqit/quantum-js';
-import { WebfloClient } from './WebfloClient.js';
 import { Context } from './Context.js';
-import { Capabilities } from './Capabilities.js';
+import { WebfloClient } from './WebfloClient.js';
 import { ClientSideWorkport } from './ClientSideWorkport.js';
+import { Capabilities } from './Capabilities.js';
+import { WebfloHMR } from './webflo-devmode.js';
 
 export class WebfloRootClient1 extends WebfloClient {
 
@@ -24,6 +25,8 @@ export class WebfloRootClient1 extends WebfloClient {
 
 	#capabilities;
 	get capabilities() { return this.#capabilities; }
+
+	#hmr;
 
 	get withViewTransitions() {
 		return document.querySelector('meta[name="webflo:viewtransitions"]')?.value;
@@ -129,47 +132,7 @@ export class WebfloRootClient1 extends WebfloClient {
 	}
 
 	async enterDevMode() {
-		const socket = new WebSocket('/?rel=hmr');
-		socket.onmessage = async (msg) => {
-			const event = JSON.parse(msg.data);
-			if (event.affectedRoute) {
-				if (event.effect === 'unlink' && event.realm === 'client') {
-					delete this.routes[event.affectedRoute];
-				} else if (event.realm === 'client') {
-					this.routes[event.affectedRoute] = `${event.affectedHandler}?_webflohmrhash=${Date.now()}`;
-				}
-				if (event.affectedRoute === this.location.pathname) {
-					await this.navigate(this.location.href);
-				}
-			} else if (event.fileType === 'css') {
-				refreshCSS(event);
-			} else if (event.fileType === 'html') {
-				window.location.reload();
-			}
-		};
-		const removedCss = new Set;
-		const refreshCSS = (event) => {
-			const href = new URL(event.changedFile, this.location.origin);
-			const sheets = document.querySelectorAll('link[rel="stylesheet"]');
-			for (const sheet of [...sheets, ...removedCss]) {
-				const $href = new URL(sheet.href);
-				if ($href.pathname !== href.pathname) continue;
-				if (event.type === 'unlink') {
-					sheet.$previousSibling = sheet.previousSibling;
-					removedCss.add(sheet);
-					sheet.remove();
-				} else if (event.type === 'add') {
-					if (sheet.$previousSibling) {
-						sheet.$previousSibling?.after(sheet);
-					}
-					removedCss.delete(sheet);
-				} else {
-					const [path] = sheet.getAttribute('href').split('?');
-					$href.searchParams.set('_webflohmrhash', Date.now());
-					sheet.setAttribute('href', `${path}?${$href.searchParams}`);
-				}
-			}
-		};
+		this.#hmr = WebfloHMR.manage(this);
 	}
 
 	control() {
