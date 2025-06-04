@@ -178,7 +178,7 @@ export class WebfloRuntime {
                     httpEvent.client.close();
                 }
             });
-            httpEvent.client.addEventListener('navigation', (e) => {
+            httpEvent.client.addEventListener('navigate', (e) => {
                 if (e.defaultPrevented) {
                     console.log(`Client Messaging Port on ${httpEvent.request.url} not auto-closed on user navigation.`);
                     return;

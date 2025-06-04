@@ -74,8 +74,8 @@ function declareRoutes({ $context, $config, $source, which, offset, roots = [] }
         );
     }, offset, roots);
     // >> Specials
-    $source.code.push(`${varName}.$root = '${offset}';`);
-    $source.code.push(`${varName}.$subroots = ${JSON.stringify(roots)};`);
+    $source.code.push(`Object.defineProperty(${varName}, '$root', { value: '${offset}' });`);
+    $source.code.push(`Object.defineProperty(${varName}, '$sparoots', { value: ${JSON.stringify(roots)} });`);
     if (!routeCount) {
         LOGGER?.log(LOGGER.style.comment(`  (none)`));
     }

@@ -18,7 +18,7 @@ export class ClientMessagingPort extends MultiportMessagingAPI {
         this.#portID = portID;
         if (params.url) {
             let url = new URL(params.url), lastNavigationEvent;
-            this.addEventListener('navigation', (e) => {
+            this.addEventListener('navigate', (e) => {
                 if (e.data.pathname === url.pathname) {
                     this.#navigatedIn = true;
                     lastNavigationEvent = 'navigatein';
@@ -26,7 +26,11 @@ export class ClientMessagingPort extends MultiportMessagingAPI {
                     this.#navigatedAway = true;
                     lastNavigationEvent = 'navigateaway';
                 }
-                this.dispatchEvent(new Event(lastNavigationEvent));
+                const event = new Event(lastNavigationEvent);
+                this.dispatchEvent(event);
+                if (event.defaultPrevented) {
+                    e.preventDefault();
+                }
             });
         }
     }

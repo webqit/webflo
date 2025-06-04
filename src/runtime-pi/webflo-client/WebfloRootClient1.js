@@ -136,7 +136,7 @@ export class WebfloRootClient1 extends WebfloClient {
 				if (event.effect === 'unlink' && event.realm === 'client') {
 					delete this.routes[event.affectedRoute];
 				} else if (event.realm === 'client') {
-					this.routes[event.affectedRoute] = await import(`${event.affectedHandler}?_webflohmrhash=${Date.now()}`);
+					this.routes[event.affectedRoute] = `${event.affectedHandler}?_webflohmrhash=${Date.now()}`;
 				}
 				if (event.affectedRoute === this.location.pathname) {
 					await this.navigate(this.location.href);
@@ -147,14 +147,22 @@ export class WebfloRootClient1 extends WebfloClient {
 				window.location.reload();
 			}
 		};
+		const removedCss = new Set;
 		const refreshCSS = (event) => {
 			const href = new URL(event.changedFile, this.location.origin);
 			const sheets = document.querySelectorAll('link[rel="stylesheet"]');
-			for (const sheet of sheets) {
+			for (const sheet of [...sheets, ...removedCss]) {
 				const $href = new URL(sheet.href);
 				if ($href.pathname !== href.pathname) continue;
 				if (event.type === 'unlink') {
+					sheet.$previousSibling = sheet.previousSibling;
+					removedCss.add(sheet);
 					sheet.remove();
+				} else if (event.type === 'add') {
+					if (sheet.$previousSibling) {
+						sheet.$previousSibling?.after(sheet);
+					}
+					removedCss.delete(sheet);
 				} else {
 					const [path] = sheet.getAttribute('href').split('?');
 					$href.searchParams.set('_webflohmrhash', Date.now());

@@ -235,7 +235,7 @@ export class WebfloClient extends WebfloRuntime {
             a = a.split('/').filter(s => s);
             return a.reduce((prev, s, i) => prev && (s === b[i] || [s, b[i]].includes('-')), true);
         };
-        return match(this.routes.$root) && this.routes.$subroots.reduce((prev, subroot) => {
+        return match(this.routes.$root) && this.routes.$sparoots.reduce((prev, subroot) => {
             return prev && !match(subroot);
         }, true);
     }
@@ -314,11 +314,11 @@ export class WebfloClient extends WebfloRuntime {
         };
         // Ping existing background processes
         if (scopeObj.request.method === 'GET' || (scopeObj.request.method === 'POST' && scopeObj.url.pathname !== this.location.pathname)) {
-            const url = { ...Url.copy(scopeObj.url), method: scopeObj.request.method };
             // !IMPORTANT: Posting to the group when empty will keep the event until next addition
             // and we don't want that
-            for (const port of this.#backgroundMessagingPorts) {
-                port.postMessage(url, { eventOptions: { type: 'navigation' } });
+            if (this.#backgroundMessagingPorts.ports.size) {
+                const url = { ...Url.copy(scopeObj.url), method: scopeObj.request.method };
+                this.#backgroundMessagingPorts.postMessage(url, { eventOptions: { type: 'navigate' } });
             }
         }
         // Dispatch for response
@@ -415,7 +415,7 @@ export class WebfloClient extends WebfloRuntime {
                 return await this.dispatchNavigationEvent({ httpEvent: eventClone, crossLayerFetch, backgroundMessagingPort, originalRequestInit, processObj });
             }
         } else if (processObj.recurseController) {
-            // Abort the signal. This is the end of the process
+            // Abort the signal. This is the end of the loop
             processObj.recurseController.abort();
         }
         return response;

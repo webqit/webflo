@@ -81,12 +81,15 @@ export class WebfloServer extends WebfloRuntime {
             REDIRECTS: await readRedirectsConfig(this.cx),
             PROXY: await readProxyConfig(this.cx),
         };
-        this.config.SPAROOTS = scanRoots(this.config.LAYOUT.PUBLIC_DIR, 'index.html');
         this.#routes = {};
+        const spaRoots = scanRoots(this.config.LAYOUT.PUBLIC_DIR, 'index.html');
         const serverRoots = this.config.PROXY.entries.map((proxy) => proxy.path?.replace(/^\.\//, '')).filter((p) => p);
         scanRouteHandlers(this.config.LAYOUT, 'server', (file, route) => {
             this.routes[route] = file;
         }, ''/*offset*/, serverRoots);
+        Object.defineProperty(this.#routes, '$root', { value: '' });
+        Object.defineProperty(this.#routes, '$sparoots', { value: spaRoots });
+        Object.defineProperty(this.#routes, '$serverroots', { value: serverRoots });
         // -----------------
         const { app: APP, flags: FLAGS, logger: LOGGER, } = this.cx;
         const { PROXY } = this.config;
@@ -123,12 +126,13 @@ export class WebfloServer extends WebfloRuntime {
     async enterDevMode() {
         const { WebfloHMR } = await import('./WebfloHMR.js');
         await WebfloHMR(this, async (event) => {
+            console.log(event);
             // Execute server HMR?
             if (event.affectedRoute) {
                 if (event.effect === 'unlink' && event.realm === 'server') {
                     delete this.routes[event.affectedRoute];
                 } else if (event.realm === 'server') {
-                    this.routes[event.affectedRoute] = await import(`${Path.join(process.cwd(), event.affectedHandler)}?_webflohmrhash=${Date.now()}`);
+                    this.routes[event.affectedRoute] = `${Path.join(process.cwd(), event.affectedHandler)}?_webflohmrhash=${Date.now()}`;
                 }
             }
             // Broadcast to clients
@@ -491,15 +495,15 @@ export class WebfloServer extends WebfloRuntime {
     }
 
     writeRedirectHeaders(httpEvent, response) {
-        const { SPAROOTS } = this.config;
+        const $sparoots = this.#routes.$sparoots;
         const xRedirectPolicy = httpEvent.request.headers.get('X-Redirect-Policy');
         const xRedirectCode = httpEvent.request.headers.get('X-Redirect-Code') || 300;
         const destinationUrl = new URL(response.headers.get('Location'), httpEvent.url.origin);
         const isSameOriginRedirect = destinationUrl.origin === httpEvent.url.origin;
         let isSameSpaRedirect = false;
-        if (isSameOriginRedirect && xRedirectPolicy === 'manual-when-cross-spa' && SPAROOTS.length) {
+        if (isSameOriginRedirect && xRedirectPolicy === 'manual-when-cross-spa' && $sparoots.length) {
             // Longest-first sorting
-            const sparoots = SPAROOTS.sort((a, b) => a.length > b.length ? -1 : 1);
+            const sparoots = $sparoots.sort((a, b) => a.length > b.length ? -1 : 1);
             const matchRoot = path => sparoots.reduce((prev, root) => prev || (`${path}/`.startsWith(`${root}/`) && root), null);
             isSameSpaRedirect = matchRoot(destinationUrl.pathname) === matchRoot(httpEvent.url.pathname);
         }
@@ -849,7 +853,7 @@ export class WebfloServer extends WebfloRuntime {
         return log.join(' ');
     }
 
-    formatBytes(bytes, decimals = 2, locale = 'en', withSpace = true) {
+    formatBytes(bytes, decimals = 5, locale = 'en', withSpace = true) {
         if (bytes + '' === '0') return `0${withSpace ? ' ' : ''}B`;
         const k = 1024;
         const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
