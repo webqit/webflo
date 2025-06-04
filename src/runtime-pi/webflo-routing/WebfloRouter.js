@@ -142,7 +142,7 @@ export class WebfloRouter {
                 if (_segmentOnFile.handler) return _segmentOnFile;
                 var _currentPath = `/${thisTick.trailOnFile.concat(_seg).join('/')}`;
                 return routeTree[_currentPath] ? { seg: _seg, handler: _currentPath } : (
-                    routePaths.filter(p => p.startsWith(`${_currentPath}/`)).length ? { seg: _seg, dirExists: true } : _segmentOnFile
+                    routePaths.filter((p) => p.startsWith(`${_currentPath}/`)).length ? { seg: _seg, dirExists: true } : _segmentOnFile
                 );
             }, { seg: null });
             thisTick.trail = thisTick.trail.concat(thisTick.currentSegment);
@@ -153,6 +153,9 @@ export class WebfloRouter {
             thisTick.trailOnFile = [];
             thisTick.currentSegmentOnFile = { handler: '/' };
             thisTick.exports = routeTree['/'];
+            if (!routeTree['/'] && routePaths.length) {
+                thisTick.currentSegmentOnFile.dirExists = true;
+            }
         }
         if (typeof thisTick.exports === 'string') {
             thisTick.exports = await import(thisTick.exports);
