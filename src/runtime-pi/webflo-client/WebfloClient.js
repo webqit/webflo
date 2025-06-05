@@ -492,7 +492,7 @@ export class WebfloClient extends WebfloRuntime {
                 });
             }
             if (modulesContextAttrs) {
-                const newRoute = '/' + `routes/${this.location.pathname}`.split('/').map(a => (a => a.startsWith('$') ? '-' : a)(a.trim())).filter(a => a).join('/');
+                const newRoute = '/' + `app/${this.location.pathname}`.split('/').map(a => (a => a.startsWith('$') ? '-' : a)(a.trim())).filter(a => a).join('/');
                 (this.host === window.document ? window.document.body : this.host).setAttribute(modulesContextAttrs.importscontext, newRoute);
             }
         });

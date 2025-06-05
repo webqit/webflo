@@ -6,7 +6,7 @@ import { gzipSync, brotliCompressSync } from 'zlib';
 import { _afterLast, _beforeLast } from '@webqit/util/str/index.js';
 import { _isObject, _isArray } from '@webqit/util/js/index.js';
 import { jsFile } from '@webqit/backpack/src/dotfile/index.js';
-import { AbstractContext } from '../../AbstractContext.js';
+import { Context } from '../../Context.js';
 import {
     readClientConfig,
     readWorkerConfig,
@@ -100,7 +100,7 @@ function writeScriptBody({ $context, $config, $source, which, offset, roots, con
     $source.code.push(`self.webqit.app = await start.call({ config, routes })`);
 }
 
-async function bundleScript({ $context, $source, which, outfile, asModule = false }) {
+async function bundleScript({ $context, $source, which, outfile, asModule = false, ...restParams }) {
     const { flags: FLAGS, logger: LOGGER } = $context;
     // >> Show banner...
     LOGGER?.log(LOGGER.style.keyword(`---`));
@@ -131,6 +131,7 @@ async function bundleScript({ $context, $source, which, outfile, asModule = fals
         banner: { js: '/** @webqit/webflo */', },
         footer: { js: '', },
         format: 'esm',
+        ...(restParams.buildParams || {})
     };
     if (!asModule) {
         // Support top-level await
@@ -168,6 +169,9 @@ async function bundleScript({ $context, $source, which, outfile, asModule = fals
         } else {
             removals.push(bundlingConfig.outfile + '.br');
         }
+    } else {
+        removals.push(bundlingConfig.outfile + '.gz');
+        removals.push(bundlingConfig.outfile + '.br');
     }
     // Remove moduleFile build
     Fs.unlinkSync(bundlingConfig.entryPoints[0]);
@@ -182,6 +186,7 @@ async function bundleScript({ $context, $source, which, outfile, asModule = fals
         });
         LOGGER.log('');
     }
+    return [bundlingConfig.outfile].concat(compressedFiles);
 }
 
 function handleEmbeds(embeds, targetDocumentFile) {
@@ -239,7 +244,7 @@ function handleEmbeds(embeds, targetDocumentFile) {
 
 // -------------
 
-async function generateClientScript({ $context, $config, offset = '', roots = [] }) {
+async function generateClientScript({ $context, $config, offset = '', roots = [], ...restParams }) {
     const { flags: FLAGS, logger: LOGGER } = $context;
     // -----------
     const inSplitMode = !!roots.length || !!offset;
@@ -263,6 +268,7 @@ async function generateClientScript({ $context, $config, offset = '', roots = []
         };
     }
     // 2. Add the Webflo Runtime
+    const outfiles = [];
     if (inSplitMode) {
         if (!offset) {
             // We're building the Webflo client as a standalone script
@@ -272,13 +278,14 @@ async function generateClientScript({ $context, $config, offset = '', roots = []
             // Write the import code and bundle
             const $$source = { imports: {}, code: [], };
             writeImportWebflo($$source, 'client');
-            await bundleScript({
+            const _outfiles = await bundleScript({
                 $context,
                 $source: $$source,
                 which: 'client',
                 outfile: Path.join($config.LAYOUT.PUBLIC_DIR, outfile_theWebfloClient),
                 asModule: true
             });
+            outfiles.push(..._outfiles);
         }
         if (FLAGS['auto-embed']) {
             embeds.current.push(outfile_theWebfloClientPublic);
@@ -300,15 +307,18 @@ async function generateClientScript({ $context, $config, offset = '', roots = []
         offset,
         roots,
         configExport,
+        ...restParams
     });
     // 4. Bundle
-    await bundleScript({
+    const _outfiles = await bundleScript({
         $context,
         $source,
         which: 'client',
         outfile: Path.join($config.LAYOUT.PUBLIC_DIR, outfile_mainBuild),
-        asModule: true
+        asModule: true,
+        ...restParams
     });
+    outfiles.push(..._outfiles);
     // 4. Embed/unembed
     embeds.all.push(outfile_theWebfloClientPublic);
     embeds.all.push(outfile_mainBuildPublic);
@@ -316,16 +326,19 @@ async function generateClientScript({ $context, $config, offset = '', roots = []
     // -----------
     if (FLAGS.recursive && roots.length) {
         const $roots = roots.slice(0);
-        await generateClientScript({
+        const _outfiles = await generateClientScript({
             $context,
             $config,
             offset: $roots.shift(),
-            roots: $roots
+            roots: $roots,
+            ...restParams
         });
+        return outfiles.concat(_outfiles);
     }
+    return outfiles;
 }
 
-async function generateWorkerScript({ $context, $config, offset = '', roots = [] }) {
+async function generateWorkerScript({ $context, $config, offset = '', roots = [], ...restParams }) {
     const { flags: FLAGS } = $context;
     // -----------
     const outfile_mainBuild = Path.join(offset, $config.WORKER.filename);
@@ -383,30 +396,35 @@ async function generateWorkerScript({ $context, $config, offset = '', roots = []
         offset,
         roots,
         configExport,
+        ...restParams
     });
     // 4. Bundle
-    await bundleScript({
+    const outfiles = await bundleScript({
         $context,
         $source,
         which: 'worker',
         outfile: Path.join($config.LAYOUT.PUBLIC_DIR, outfile_mainBuild),
-        asModule: false
+        asModule: false,
+        ...restParams
     });
     // -----------
     if (FLAGS.recursive && roots.length) {
         const $roots = roots.slice(0);
-        await generateWorkerScript({
+        const _outfiles = await generateWorkerScript({
             $context,
             $config,
             offset: $roots.shift(),
-            roots: $roots
+            roots: $roots,
+            ...restParams
         });
+        return outfiles.concat(_outfiles);
     }
+    return outfiles;
 }
 
-export async function generate(which = null) {
+export async function generate({ client = true, worker = true, buildParams = {} } = {}) {
     const $context = this;
-    if (!($context instanceof AbstractContext)) {
+    if (!($context instanceof Context)) {
         throw new Error(`The "this" context must be a Webflo Context object.`);
     }
     // Resolve common details
@@ -425,12 +443,16 @@ export async function generate(which = null) {
         }
     }
     // Build
-    if (!which || which === 'client') {
+    const outfiles = [];
+    if (client) {
         const documentRoots = scanRoots($config.LAYOUT.PUBLIC_DIR, 'index.html');
-        await generateClientScript({ $context, $config, roots: documentRoots });
+        const _outfiles = await generateClientScript({ $context, $config, roots: documentRoots, buildParams });
+        outfiles.push(..._outfiles);
     }
-    if (!which || which === 'worker') {
+    if (worker) {
         const applicationRoots = scanRoots($config.LAYOUT.PUBLIC_DIR, 'manifest.json');
-        await generateWorkerScript({ $context, $config, roots: applicationRoots });
+        const _outfiles = await generateWorkerScript({ $context, $config, roots: applicationRoots, buildParams });
+        outfiles.push(..._outfiles);
     }
+    return { outfiles };
 }

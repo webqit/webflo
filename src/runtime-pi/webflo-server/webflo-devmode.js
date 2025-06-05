@@ -1,7 +1,10 @@
+import Path from 'path';
+import $glob from 'fast-glob';
 import EsBuild from 'esbuild';
 import chokidar from 'chokidar';
-import $glob from 'fast-glob';
-import Path from 'path';
+import * as WebfloPI from '../../index.js';
+import { generate } from '../webflo-client/webflo-codegen.js';
+import * as OohtmlCliPI from '@webqit/oohtml-cli/src/index.js';
 
 export class WebfloHMR {
 
@@ -12,12 +15,12 @@ export class WebfloHMR {
     #app;
 
     #jsMeta = {
-        dependencyMap: {},
-        lastUnlinkButPossibleRename: null,
+        dependencyMap: null/*!IMPORTANT!*/,
         mustRevalidate: true,
         prevBuildResult: null,
     };
 
+    #layoutDirsMatchMap;
     #routeDirs;
     #handlerMatch;
 
@@ -27,57 +30,74 @@ export class WebfloHMR {
     #watcher;
     get watcher() { return this.#watcher; }
 
+    #ignoreList = new Set;
+    get ignoreList() { return this.#ignoreList; }
+
+    #eventQueue = [];
+
     constructor(app) {
         this.#app = app;
         // Filesytem matching
         const _layoutDirPattern = (dirs) => `^(${[...dirs].map((d) => Path.relative(process.cwd(), d).replace(/^\.\//g, '').replace(/\./g, '\\.').replace(/\//g, '\\/')).join('|')})`;
-        const layoutDirsMatchMap = Object.fromEntries(['CLIENT_DIR', 'WORKER_DIR', 'SERVER_DIR', 'PUBLIC_DIR'].map((name) => {
+        this.#layoutDirsMatchMap = Object.fromEntries(['CLIENT_DIR', 'WORKER_DIR', 'SERVER_DIR', 'VIEWS_DIR', 'PUBLIC_DIR'].map((name) => {
             return [name, new RegExp(_layoutDirPattern([app.config.LAYOUT[name]]))];
         }));
         this.#routeDirs = new Set([app.config.LAYOUT.CLIENT_DIR, app.config.LAYOUT.WORKER_DIR, app.config.LAYOUT.SERVER_DIR]);
         this.#handlerMatch = new RegExp(`${_layoutDirPattern(this.#routeDirs)}(\\/.+)?\\/handler(?:\\.(client|worker|server))?\\.js$`);
-        // The watch logic
-        this.#watcher = chokidar.watch([...this.#routeDirs, app.config.LAYOUT.PUBLIC_DIR], { ignoreInitial: true });
+        // The watch and event ordering logic
+        this.#watcher = chokidar.watch([...this.#routeDirs, app.config.LAYOUT.VIEWS_DIR, app.config.LAYOUT.PUBLIC_DIR], { ignoreInitial: true });
+        let flushTimer;
+        const scheduleFlush = () => {
+            clearTimeout(flushTimer);
+            flushTimer = setTimeout(() => this.#flushEvents(), EVENT_FLUSH_DELAY);
+        };
+        const EVENT_FLUSH_DELAY = 200; // milliseconds
         this.#watcher.on('all', async (type, $target) => {
-            if (!['unlink', 'add', 'change', 'rename', 'addDir', 'unlinkDir'].includes(type)) return;
+            if (!['unlink', 'add', 'change', 'addDir', 'unlinkDir'].includes(type)) return;
+            this.#eventQueue.push({ type, $target });
+            scheduleFlush();
+        });
+    }
+
+    async #flushEvents() {
+        // Sort by event priority and path depth (deepest files first for unlinks)
+        // The Dir events are for structuring purposes
+        const priority = {
+            unlink: 1,
+            unlinkDir: 2,
+            addDir: 3,
+            add: 4
+        };
+        const eventQueue = this.#eventQueue.splice(0).sort((a, b) => {
+            if (priority[a.type] !== priority[b.type]) {
+                return priority[a.type] - priority[b.type];
+            }
+            return b.$target.split('/').length - a.$target.split('/').length; // deeper first
+        });
+        const events = new Set;
+        let hasJustBeenRebuilt = false;
+        for (const { type, $target } of eventQueue) {
+            if (this.#ignoreList.has($target)) continue;
             const target = Path.relative(process.cwd(), $target);
-            const events = new Set;
-            // Handle assets and routes differently
-            if (layoutDirsMatchMap.PUBLIC_DIR.test(target)) { // Assets
-                if (/Dir$/.test(type)) { // (addDir | unlinkDir)
-                    events.add({ type, target, fileType: null, kind: 'asset' });
-                } else if (target.endsWith('.js')) {
-                    events.add([{ type, target, fileType: 'js', kind: 'asset' }]);
-                } else if (target.endsWith('.html')) {
-                    events.add({ type, target, fileType: 'html', kind: 'asset' });
-                } else if (target.endsWith('.css')) {
+            if (this.#layoutDirsMatchMap.PUBLIC_DIR.test(target)) { // Assets
+                if (target.endsWith('.css')) {
                     events.add({ type, target, fileType: 'css', kind: 'asset' });
                 }
-            } else if (target.endsWith('.js') || /Dir$/.test(type)/* (addDir | unlinkDir) */) { // Routes
-                // Trigger deps rebuild on an addition operation that isn't the next step of a rename operation
-                if ((/^add/.test(type) && target !== this.#jsMeta.lastUnlinkButPossibleRename)/*on a real add*/
-                    || type === 'rename'/*just in case fired*/) {
-                    this.#jsMeta.mustRevalidate = true; // Invalidate entire
+            } else if (this.#layoutDirsMatchMap.VIEWS_DIR.test(target)) { // Views
+                if (/Dir$/.test(type)) { // (addDir | unlinkDir)
+                    events.add({ type, target, fileType: null, kind: 'view' });
+                } else if (target.endsWith('.html')) {
+                    events.add({ type, target, fileType: 'html', kind: 'view' });
                 }
-                // Unlink-induced rebuilds are deferred
-                if (!/^unlink/.test(type)) { // We need graph in place to match affected routes for an unlink event
-                    const dependencyMap = await this.#generateHMRDependenciesGraph(this.#jsMeta.mustRevalidate/*fullBuild*/);
-                    if (dependencyMap) {
-                        this.#jsMeta.dependencyMap = dependencyMap;
-                        this.#jsMeta.mustRevalidate = false;
-                    }
+            } else if (target.endsWith('.js')) {
+                if (/add|unlink/.test(type)) {
+                    this.#jsMeta.mustRevalidate = true; // Invalidate graph
                 }
-                // Handle handler-affecting events
-                const affectedHandlers = !/Dir$/.test(type) // !(addDir | unlinkDir)
-                    // Find all affected handlers for the given file
-                    ? (this.#jsMeta.dependencyMap[target] || [])
-                    // Find all affected handlers for the given directory
-                    : Object.entries(this.#jsMeta.dependencyMap).reduce((allAffectedHandlers, [file, affectedHandlers]) => {
-                        if (file.startsWith(`${target}/`)) {
-                            return allAffectedHandlers.concat(affectedHandlers);
-                        }
-                        return allAffectedHandlers;
-                    }, []);
+                if ((!hasJustBeenRebuilt && type !== 'unlink') || !this.#jsMeta.dependencyMap) { // We need graph in place to process affected routes for an unlink event
+                    await this.buildJS(this.#jsMeta.mustRevalidate/*fullBuild*/);
+                    hasJustBeenRebuilt = true;
+                }
+                const affectedHandlers = this.#jsMeta.dependencyMap[target] || [];
                 for (const affectedHandler of affectedHandlers) {
                     const [, dir, affectedRoute = '/', realm] = this.#handlerMatch.exec(affectedHandler) || [];
                     for (const r of ['client', 'worker', 'server']) {
@@ -85,43 +105,54 @@ export class WebfloHMR {
                         if (type === 'unlink' && realm === r && target === affectedHandler // Dedicated handlers directly removed. Calculate fallback!
                             && (scopeObj.genericHandler = _toGeneric(target)) in this.#jsMeta.dependencyMap) {
                             // A fallback to generic handler happened
-                            events.add({ type, target, fileType: 'js', affectedRoute, affectedHandler: scopeObj.genericHandler, realm: r, effect: 'change' });
+                            events.add({ type, target, fileType: 'js', affectedRoute, affectedHandler: scopeObj.genericHandler, realm: r, actionableEffect: 'change' });
                         } else if (realm === r || !realm/*generic handler*/ && (
-                            layoutDirsMatchMap[`${r.toUpperCase()}_DIR`].test(dir) && !(_toDedicated(target, r) in this.#jsMeta.dependencyMap)/*no dedicated handler exists*/
+                            this.#layoutDirsMatchMap[`${r.toUpperCase()}_DIR`].test(dir) && !(_toDedicated(target, r) in this.#jsMeta.dependencyMap)/*no dedicated handler exists*/
                         )) {
-                            let actionableEffect; // Let's indicated directly mutated vs indirectly mutated handlers
-                            if (/Dir$/.test(type)) { // (addDir | unlinkDir)
-                                actionableEffect = affectedHandler.startsWith(`${target}/`) ? type : 'change';
-                            } else {
-                                actionableEffect = target === affectedHandler ? type : 'change';
-                            }
+                            const actionableEffect = target === affectedHandler ? type : 'change';
                             events.add({ type, target, fileType: 'js', affectedRoute, affectedHandler, realm: r, actionableEffect });
                         }
                     }
                 }
-                if (/^unlink/.test(type)) { // (unlink | unlinkDir)
-                    this.#jsMeta.lastUnlinkButPossibleRename = target;
-                    this.#jsMeta.mustRevalidate = true; // Invalidate entire
-                } else {
-                    this.#jsMeta.lastUnlinkButPossibleRename = null;
-                }
             }
-            if (events.size) {
-                this.fire(events);
-            }
-        });
+        }
+        if (events.size) {
+            this.fire(events);
+        }
     }
 
     async fire(events) {
-        console.log(events);
-        // Execute server HMR?
+        const statuses = {
+            CSSAffected: false,
+            HTMLAffected: false,
+            clientRoutesAffected: new Set,
+            serviceWorkerAffected: false,
+        };
         for (const event of events) {
-            if (!event.affectedRoute) continue;
-            if (/^unlink/.test(event.actionableEffect) && event.realm === 'server') {
-                delete this.#app.routes[event.affectedRoute];
+            if (event.realm === 'client') {
+                statuses.clientRoutesAffected.add(event.affectedRoute);
+            } else if (event.realm === 'worker') {
+                statuses.serviceWorkerAffected = true;
             } else if (event.realm === 'server') {
-                this.#app.routes[event.affectedRoute] = `${Path.join(process.cwd(), event.affectedHandler)}?_webflohmrhash=${Date.now()}`;
+                if (/^unlink/.test(event.actionableEffect)) {
+                    delete this.#app.routes[event.affectedRoute];
+                } else if (event.realm === 'server') {
+                    this.#app.routes[event.affectedRoute] = `${Path.join(this.#app.config.DEV_DIR, event.affectedHandler)}?_webflohmrhash=${Date.now()}`;
+                }
+            } else if (event.fileType === 'css') {
+                statuses.CSSAffected = true;
+            } else if (event.fileType === 'html') {
+                statuses.HTMLAffected = true;
             }
+        }
+        if (statuses.clientRoutesAffected.size || statuses.serviceWorkerAffected) {
+            await this.bundleJS({
+                client: !!statuses.clientRoutesAffected.size,
+                worker: statuses.serviceWorkerAffected
+            });
+        }
+        if (statuses.HTMLAffected) {
+            await this.bundleHTML();
         }
         // Broadcast to clients
         const PUBLIC_DIR = Path.relative(process.cwd(), this.#app.config.LAYOUT.PUBLIC_DIR);
@@ -131,13 +162,14 @@ export class WebfloHMR {
             if (event.affectedHandler) {
                 $event.affectedHandler = Path.relative(PUBLIC_DIR, event.affectedHandler);
             }
+            return $event;
         });
         for (const client of this.#clients) {
             client.send(JSON.stringify($events));
         }
     }
 
-    async #generateHMRDependenciesGraph(fullBuild = false) {
+    async buildJS(fullBuild = false) {
         // 0. Generate graph
         let buildResult;
         try {
@@ -146,16 +178,18 @@ export class WebfloHMR {
                 else buildResult = await buildResult.rebuild();
             }
             if (!buildResult) {
-                const entryPoints = await $glob([...this.#routeDirs].map((d) => `${d}/**/handler{,.client,.worker,.server}.js`), { absolute: true })
+                const routeDirs = [...this.#routeDirs];
+                const entryPoints = await $glob(routeDirs.map((d) => `${d}/**/handler{,.client,.worker,.server}.js`), { absolute: true })
                     .then((files) => files.map((file) => file.replace(/\\/g, '/')));
+                const entryNames = routeDirs.length === 1 ? `${Path.relative(process.cwd(), routeDirs[0])}/[dir]/[name]` : `[dir]/[name]`;
                 const bundlingConfig = {
                     entryPoints,
+                    outdir: this.#app.config.DEV_DIR,
+                    entryNames,
                     bundle: true,
                     format: 'esm',
                     platform: 'browser', // optional but good for clarity
-                    metafile: true,
-                    write: false,        // ❗ Don't emit files
-                    outdir: '.webqit/webflo',        // Unexpectedly still required
+                    metafile: true,      // This is key
                     treeShaking: true,   // Optional optimization
                     logLevel: 'silent',  // Suppress output
                     minify: false,
@@ -164,7 +198,7 @@ export class WebfloHMR {
                 };
                 buildResult = await EsBuild.build(bundlingConfig);
             }
-        } catch (e) { return; }
+        } catch (e) { return false; }
         // 1. Forward dependency graph (file -> [imported files])
         const forward = {};
         for (const [file, data] of Object.entries(buildResult.metafile.inputs)) {
@@ -194,12 +228,50 @@ export class WebfloHMR {
                 stack.push(...deps);
             }
         }
-        return handlerDepsMap;
+        this.#jsMeta.dependencyMap = handlerDepsMap;
+        this.#jsMeta.mustRevalidate = false;
+        return true;
+    }
+
+    async bundleJS(params) {
+        const cx = WebfloPI.Context.create({
+            config: WebfloPI.config,
+            flags: {
+                compression: false,
+                ['auto-embed']: true
+            },
+        });
+        try {
+            const result = await generate.call(cx, {
+                ...params,
+                buildParams: {
+                    logLevel: 'silent',
+                }
+            });
+            for (const file of result.outfiles) {
+                this.#ignoreList.add(file);
+            }
+            return result;
+        } catch (e) { return false; }
+    }
+
+    async bundleHTML() {
+        const cx = OohtmlCliPI.Context.create({
+            config: OohtmlCliPI.config,
+            flags: {
+                ['auto-embed']: 'app',
+            }
+        });
+        const result = await OohtmlCliPI.bundler.bundle.call(cx);
+        for (const file of result.outfiles) {
+            this.#ignoreList.add(file);
+        }
+        return result;
     }
 }
 
 const _toGeneric = (file) => {
-    return file.replace(new RegExp(`\\.(client|worker|server)\\.js$`), '.js');
+    return file.replace(/\.(client|worker|server)\.js$/, '.js');
 };
 
 const _toDedicated = (file, suffix) => {

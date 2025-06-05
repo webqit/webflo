@@ -14,7 +14,6 @@ import { Readable } from 'stream';
 import { WebfloHMR } from './webflo-devmode.js';
 import { WebfloRuntime } from '../WebfloRuntime.js';
 import { createWindow } from '@webqit/oohtml-ssr';
-import { Context } from './Context.js';
 import { MessagingOverSocket } from '../webflo-messaging/MessagingOverSocket.js';
 import { ClientMessagingRegistry } from './ClientMessagingRegistry.js';
 import { ServerSideCookies } from './ServerSideCookies.js';
@@ -36,10 +35,6 @@ import '../webflo-fetch/index.js';
 import '../webflo-url/index.js';
 
 export class WebfloServer extends WebfloRuntime {
-
-    static get Context() { return Context; }
-
-    //static get Router() { return ServerSideRouter; }
 
     static get HttpEvent() { return HttpEvent; }
 
@@ -74,6 +69,8 @@ export class WebfloServer extends WebfloRuntime {
     }
 
     async initialize() {
+        const instanceController = await super.initialize();
+        const { app: APP, flags: FLAGS, logger: LOGGER, } = this.cx;
         this.#config = {
             LAYOUT: await readLayoutConfig(this.cx),
             ENV: await readEnvConfig(this.cx),
@@ -82,20 +79,27 @@ export class WebfloServer extends WebfloRuntime {
             REDIRECTS: await readRedirectsConfig(this.cx),
             PROXY: await readProxyConfig(this.cx),
         };
+        const { PROXY } = this.config;
+        if (FLAGS['dev']) {
+            this.#config.DEV_DIR = Path.join(process.cwd(), '.webqit/webflo/@dev');
+            this.#config.DEV_LAYOUT = { ...this.config.LAYOUT };
+            for (const name of ['CLIENT_DIR', 'WORKER_DIR', 'SERVER_DIR', 'VIEWS_DIR', 'PUBLIC_DIR']) {
+                const originalDir = Path.relative(process.cwd(), this.config.LAYOUT[name]);
+                this.config.DEV_LAYOUT[name] = `${this.#config.DEV_DIR}/${originalDir}`;
+            }
+            await this.enterDevMode();
+        }
+        // -----------------
         this.#routes = {};
         const spaRoots = scanRoots(this.config.LAYOUT.PUBLIC_DIR, 'index.html');
-        const serverRoots = this.config.PROXY.entries.map((proxy) => proxy.path?.replace(/^\.\//, '')).filter((p) => p);
-        scanRouteHandlers(this.config.LAYOUT, 'server', (file, route) => {
+        const serverRoots = PROXY.entries.map((proxy) => proxy.path?.replace(/^\.\//, '')).filter((p) => p);
+        scanRouteHandlers(this.#config.DEV_LAYOUT || this.#config.LAYOUT, 'server', (file, route) => {
             this.routes[route] = file;
         }, ''/*offset*/, serverRoots);
         Object.defineProperty(this.#routes, '$root', { value: '' });
         Object.defineProperty(this.#routes, '$sparoots', { value: spaRoots });
         Object.defineProperty(this.#routes, '$serverroots', { value: serverRoots });
         // -----------------
-        const { app: APP, flags: FLAGS, logger: LOGGER, } = this.cx;
-        const { PROXY } = this.config;
-        // -----------------
-        const instanceController = await super.initialize();
         await this.setupCapabilities();
         this.control();
         // -----------------
@@ -118,14 +122,12 @@ export class WebfloServer extends WebfloRuntime {
             LOGGER.info(`Capabilities: ${Object.keys(this.#sdk).join(', ')}`);
             LOGGER.info(``);
         }
-        if (FLAGS['dev']) {
-            await this.enterDevMode();
-        }
         return instanceController;
     }
 
     async enterDevMode() {
         this.#hmr = WebfloHMR.manage(this);
+        await this.#hmr.buildJS(true);
     }
 
     control() {
@@ -545,12 +547,17 @@ export class WebfloServer extends WebfloRuntime {
 
     async localFetch(httpEvent) {
         const { flags: FLAGS } = this.cx;
-        const { LAYOUT } = this.config;
+        const { DEV_LAYOUT, LAYOUT } = this.config;
         const scopeObj = {};
         if (FLAGS['dev'] && httpEvent.url.pathname === '/@dev') {
-            scopeObj.filename = Path.join(LAYOUT.PUBLIC_DIR, (new URL(httpEvent.url.searchParams.get('src'), 'http://example.com')).pathname);
+            const filename = httpEvent.url.searchParams.get('src').split('?')[0];
+            if (filename.endsWith('.js')) {
+                scopeObj.filename = Path.join(DEV_LAYOUT.PUBLIC_DIR, filename);
+            }else {
+                scopeObj.filename = Path.join(LAYOUT.PUBLIC_DIR, filename);
+            }
         } else {
-            scopeObj.filename = Path.join(LAYOUT.PUBLIC_DIR, httpEvent.url.pathname);
+            scopeObj.filename = Path.join(LAYOUT.PUBLIC_DIR, httpEvent.url.pathname.split('?')[0]);
         }
         scopeObj.ext = Path.parse(scopeObj.filename).ext;
         const finalizeResponse = (response) => {
@@ -754,7 +761,7 @@ export class WebfloServer extends WebfloRuntime {
                     BINDINGS_API: { api: bindingsConfig } = {},
                 } = window.webqit.oohtml.config;
                 if (modulesContextAttrs) {
-                    const newRoute = '/' + `routes/${httpEvent.url.pathname}`.split('/').map(a => (a => a.startsWith('$') ? '-' : a)(a.trim())).filter(a => a).join('/');
+                    const newRoute = '/' + `app/${httpEvent.url.pathname}`.split('/').map(a => (a => a.startsWith('$') ? '-' : a)(a.trim())).filter(a => a).join('/');
                     document.body.setAttribute(modulesContextAttrs.importscontext, newRoute);
                 }
                 if (bindingsConfig) {

@@ -1,4 +1,4 @@
-export class AbstractContext {
+export class Context {
 
     constructor(dict, CD = null) {
         // dict can be plain object or some Context instance itself

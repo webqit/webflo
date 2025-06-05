@@ -1,13 +1,10 @@
 import { Observer } from '@webqit/quantum-js';
-import { Context } from './Context.js';
 import { WebfloClient } from './WebfloClient.js';
 import { ClientSideWorkport } from './ClientSideWorkport.js';
 import { Capabilities } from './Capabilities.js';
 import { WebfloHMR } from './webflo-devmode.js';
 
 export class WebfloRootClient1 extends WebfloClient {
-
-	static get Context() { return Context; }
 
 	static get Workport() { return ClientSideWorkport; }
 
@@ -100,9 +97,6 @@ export class WebfloRootClient1 extends WebfloClient {
 					return data && Object.keys(data).length || 0;
 			}
 		}, { signal: instanceController.signal });
-		// Bind top-level HMR events
-		this.backgroundMessagingPorts.handleRequests('hmr:update', (e) => {
-		});
 		return instanceController;
 	}
 

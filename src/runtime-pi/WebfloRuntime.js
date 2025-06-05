@@ -1,4 +1,4 @@
-import { _isTypeObject } from '@webqit/util/js/index.js';
+import { Context } from '../Context.js';
 import { WebfloRouter } from './webflo-routing/WebfloRouter.js';
 import { meta } from './webflo-fetch/util.js';
 
@@ -6,6 +6,8 @@ export class WebfloRuntime {
 
     #instanceController = new AbortController;
     get $instanceController() { return this.#instanceController; }
+
+	static get Context() { return Context; }
 
     static get Router() { return WebfloRouter; }
 

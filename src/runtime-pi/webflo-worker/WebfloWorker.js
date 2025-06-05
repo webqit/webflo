@@ -1,6 +1,4 @@
 import { _any } from '@webqit/util/arr/index.js';
-import { _isObject } from '@webqit/util/js/index.js';
-import { Context } from './Context.js';
 import { WebfloRuntime } from '../WebfloRuntime.js';
 import { ClientMessagingPort } from './ClientMessagingPort.js';
 import { WorkerSideCookies } from './WorkerSideCookies.js';
@@ -12,8 +10,6 @@ import '../webflo-fetch/index.js';
 import '../webflo-url/index.js';
 
 export class WebfloWorker extends WebfloRuntime {
-
-	static get Context() { return Context; }
 
 	static get HttpEvent() { return HttpEvent; }
 

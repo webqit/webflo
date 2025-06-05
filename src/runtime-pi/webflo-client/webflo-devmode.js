@@ -28,50 +28,67 @@ export class WebfloHMR {
     }
 
     async fire(events) {
-        const flags = {
+        const statuses = {
+            numCSSAffected: 0,
+            numHTMLAffected: 0,
+            routesAffected: new Set,
             currentRouteAffected: false,
             serviceWorkerAffected: false,
-            cssCount: 0,
-            htmlCount: 0,
         };
         for (const { ...event } of events) {
             if (event.affectedRoute) {
                 if (event.realm === 'client') {
-                    await this.handleAffectedRoute(event);
+                    if (event.actionableEffect === 'unlink') {
+                        delete this.#app.routes[event.affectedRoute];
+                    } else {
+                        this.#app.routes[event.affectedRoute] = `/@dev?src=${event.affectedHandler}&t=${Date.now()}`;
+                    }
+                    statuses.routesAffected.add(event.affectedRoute);
                 } else if (event.realm === 'worker') {
-                    flags.serviceWorkerAffected = true;
+                    statuses.serviceWorkerAffected = true;
                 }
                 // Now both for realm === client | worker | server
                 if (this.#app.location.pathname.startsWith(event.affectedRoute)) {
-                    flags.currentRouteAffected = true;
+                    statuses.currentRouteAffected = true;
                 }
             } else {
-                event.$target = new URL(event.target, window.location.origin/*not href*/);
-                if (event.fileType === 'css' || /Dir$/.test(event.type)) {
-                    flags.cssCount += await handleAffectedStyleSheets(event);
-                }
-                if (event.fileType === 'html' || /Dir$/.test(event.type)) {
-                    flags.htmlCount += await handleAffectedHTMLModules(event);
+                const parts = event.target.split('/');
+                const upCount = parts.filter((p) => p === '..').length;
+                const remaining = parts.filter((p) => p !== '..' && p !== '.');
+                const $target = '/' + remaining.slice(upCount).join('/');
+                event.$target = new URL($target, window.location.origin/*not href*/);
+                if (event.fileType === 'css') {
+                    statuses.numCSSAffected += await this.handleAffectedStyleSheets(event);
+                } else if (event.fileType === 'html' || /Dir$/.test(event.type)) {
+                    statuses.numHTMLAffected += await this.handleAffectedHTMLModules(event);
                 }
             }
         }
-        if (flags.serviceWorkerAffected) {
-            // Update Service Worker first before any reload below
+        let serviceWorkerUpdateDone;
+        if (statuses.serviceWorkerAffected && 'serviceWorker' in navigator) {
+            // Must run before any reload below
+            serviceWorkerUpdateDone = this.updateServiceWorker().then(async (status) => {
+                console.log('[HMR] Service Worker Update:', status);
+            });
         }
-        if (flags.currentRouteAffected) {
-            await this.#app.navigate(this.#app.location.href);
-        } else if (!flags.cssCount && !flags.htmlCount) {
-            window.location.reload();
+        if (statuses.currentRouteAffected) {
+            Promise.resolve(serviceWorkerUpdateDone).then(async () => {
+                await this.#app.navigate(this.#app.location.href);
+            });
         }
     }
 
-    async handleAffectedRoute(event) {
-        if (/^unlink/.test(event.actionableEffect)) { // (unlink | unlinkDir)
-            delete this.#app.routes[event.affectedRoute];
-        } else {
-            this.#app.routes[event.affectedRoute] = `/@dev?src=${event.affectedHandler}&t=${Date.now()}`;
-        }
-        return 1;
+    async updateServiceWorker() {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (!registration) return 0;
+        registration.update();
+        return await new Promise((resolve) => {
+            navigator.serviceWorker.addEventListener('controllerchange', () => resolve(1));
+            registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                if (!newWorker) return resolve(0);
+            });
+        });
     }
 
     async handleAffectedStyleSheets(event) {
@@ -92,15 +109,15 @@ export class WebfloHMR {
 
     async handleAffectedHTMLModules(event) {
         const topLevelModules = document.querySelectorAll(this.#selectors.remoteHtmlModule);
-        return await (async function eat(contextNode, $contextPath, modules, isTopLevelModules = false) {
+        return await (async function eat(contextNode, $contextPath, modules, level = 0) {
             if (!this.#removedHTML.has($contextPath)) {
                 this.#removedHTML.set($contextPath, new Set);
             }
             const removedHTML = this.#removedHTML.get($contextPath);
             let _count = 0;
             for (const node of [...modules, ...removedHTML]) {
-                const $def = isTopLevelModules ? '' : node.getAttribute('def');
-                const $defPath = `/${[$contextPath, $def].filter((s) => s).join('/')}`;
+                const $def = level === 0 ? '' : node.getAttribute('def');
+                const $defPath = $def ? `${$contextPath}/${$def}` : $contextPath;
                 // Match remote modules
                 if (node.matches(this.#selectors.remoteHtmlModule)) {
                     if (!node.$url) {
@@ -108,22 +125,23 @@ export class WebfloHMR {
                             value: new URL(node.getAttribute('src'), window.location.href/*not origin*/)
                         });
                     }
-                    if (_matchUrl(event, node.$url.pathname)) {
-                        // Target is either a file and exactly matches the SRC (current bundle implied)
-                        // or a directory accessed by the SRC (the directory of current bundle implied)
+                    if (node.$url.pathname === event.$target.pathname) {
+                        // The referenced bundle file has been directly mutated
                         _count += await this.mutateNode(event, node, removedHTML, true);
                         continue;
                     }
-                    if (event.$target.pathname.startsWith(`${_dirname(node.$url.pathname)}/`)) {
+                    const nodeDirName = _dirname(node.$url.pathname);
+                    if (event.$target.pathname.startsWith(`${nodeDirName}/`)) {
                         // Target is a file within current bundle. So we recurse
-                        _count += await eat.call(this, node, _dirname(node.$url.pathname), [...node.content]);
+                        _count += await eat.call(this, node, nodeDirName, [...node.content.children], level + 1);
                         continue;
                     }
                 }
                 if ($defPath === event.$target.pathname) {
                     // Target (file or directory) exactly matches DEF
                     _count += await this.mutateNode(event, node, removedHTML, async () => {
-                        const replacementNode = await this.loadHTMLModule(`${$contextPath}/${$def}`);
+                        const replacementNode = await this.loadHTMLModule(event.target/*!IMPORTANT*/);
+                        if (!replacementNode) return 0;
                         replacementNode.setAttribute('def', $def);
                         node.replaceWith(replacementNode);
                         return 1;
@@ -133,23 +151,25 @@ export class WebfloHMR {
                 // Recurse along DEF tree
                 if (node.matches(this.#selectors.inlineHtmlModule) && event.$target.pathname.startsWith(`${$defPath}/`)) {
                     // Target is a file within current module. So we recurse
-                    _count += await eat.call(this, node, $defPath, [...node.content]);
+                    _count += await eat.call(this, node, $defPath, [...node.content.children], level + 1);
                     continue;
                 }
             }
             // Handle module add event
-            if (!_count/*no existing node matched*/ && /^add/.test(event.type)/* (add | addDir) */ && (
+            if (!_count/*no existing node matched*/ && /^add/.test(event.type)/* (addDir | add) */ && (
                 contextNode && $contextPath === _dirname(event.$target.pathname)
             )) {
-                const newNode = event.type === 'addDir' 
+                const newNode = event.type === 'addDir'
                     ? document.createElement('template')
-                    : await this.loadHTMLModule(event.$target.pathname);
-                newNode.setAttribute('def', _basename(event.$target.pathname));
-                contextNode.content.append(newNode);
-                _count++;
+                    : await this.loadHTMLModule(event.target/*!IMPORTANT*/);
+                if (newNode) {
+                    newNode.setAttribute('def', _basename(event.$target.pathname));
+                    contextNode.content.append(newNode);
+                    _count++;
+                }
             }
             return _count;
-        }).call(this, [...topLevelModules][0], '', topLevelModules, true);
+        }).call(this, [...topLevelModules][0], '/', topLevelModules);
     }
 
     async mutateNode(event, node, removedNodes, customRefresh = null) {

@@ -58,7 +58,7 @@ export async function readLayoutConfig($context) {
         throw new Error(`The Client configurator "config.deployment.Layout" is required in context.`);
     }
     const layoutConfig = await (new $context.config.deployment.Layout($context)).read();
-    return Object.fromEntries(['CLIENT_DIR', 'WORKER_DIR', 'SERVER_DIR', 'PUBLIC_DIR'].map((name) => {
+    return Object.fromEntries(['CLIENT_DIR', 'WORKER_DIR', 'SERVER_DIR', 'PUBLIC_DIR', 'VIEWS_DIR'].map((name) => {
         return [name, Path.resolve($context.CWD || '', layoutConfig[name])];
     }));
 }

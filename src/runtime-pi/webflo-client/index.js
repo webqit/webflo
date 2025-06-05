@@ -10,8 +10,8 @@ export async function start() {
     return instance;
 }
 
-export { WebfloSubClient } from './WebfloSubClient.js';
 export {
     WebfloRootClient1,
-    WebfloRootClient2
+    WebfloRootClient2,
+    WebfloSubClient
 }
