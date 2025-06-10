@@ -7,11 +7,12 @@ import WebSocket from 'ws';
 import Mime from 'mime-types';
 import 'dotenv/config';
 import { Readable } from 'stream';
+import { spawn } from 'child_process';
 import { Observer } from '@webqit/quantum-js';
 import { _from as _arrFrom, _any } from '@webqit/util/arr/index.js';
 import { _isEmpty, _isObject } from '@webqit/util/js/index.js';
 import { _each } from '@webqit/util/obj/index.js';
-import { WebfloHMR } from './webflo-devmode.js';
+import { WebfloHMR, openBrowser } from './webflo-devmode.js';
 import { Tenants } from './messaging/Tenants.js';
 import { WebfloRuntime } from '../WebfloRuntime.js';
 import { MessagingOverSocket } from '../webflo-messaging/MessagingOverSocket.js';
@@ -54,6 +55,8 @@ export class WebfloServer extends WebfloRuntime {
     #routes;
     get routes() { return this.#routes; }
 
+    #renderFileCache = new Map;
+
     #sdk = {};
     get sdk() { return this.#sdk; }
 
@@ -89,11 +92,10 @@ export class WebfloServer extends WebfloRuntime {
                 const originalDir = Path.relative(process.cwd(), this.config.LAYOUT[name]);
                 this.config.DEV_LAYOUT[name] = `${this.#config.DEV_DIR}/${originalDir}`;
             }
-            await this.enterDevMode();
         }
         // -----------------
         this.#routes = {};
-        const spaRoots = scanRoots(this.config.LAYOUT.PUBLIC_DIR, 'index.html');
+        const spaRoots = Fs.existsSync(this.config.LAYOUT.PUBLIC_DIR) ? scanRoots(this.config.LAYOUT.PUBLIC_DIR, 'index.html') : [];
         const serverRoots = PROXY.entries.map((proxy) => proxy.path?.replace(/^\.\//, '')).filter((p) => p);
         scanRouteHandlers(this.#config.DEV_LAYOUT || this.#config.LAYOUT, 'server', (file, route) => {
             this.routes[route] = file;
@@ -102,37 +104,44 @@ export class WebfloServer extends WebfloRuntime {
         Object.defineProperty(this.#routes, '$sparoots', { value: spaRoots });
         Object.defineProperty(this.#routes, '$serverroots', { value: serverRoots });
         // -----------------
-        await this.setupCapabilities();
         this.#tenants = new Tenants(this);
+        await this.setupCapabilities();
         this.control();
-        /* Example usage
-        this.#tenants.addEventListener('navigate', (e) => {
-            e// -> SocketMessageEvent
-                .originalTarget// -> MessagingOverSocket
-                    [$parentNode]// -> ClientMessagePort (.add, .remove, .find())
-                        [$parentNode]// -> Tenant (.add, .remove, .find())
-                            [$parentNode]// -> tenants (.add, .remove, .find())
-        });
-        */
+        if (FLAGS['dev']) {
+            await this.enterDevMode();
+        }
         // -----------------
-        if (LOGGER) {
-            if (this.#servers.size) {
-                LOGGER.info(`> Server running! (${APP.title || ''})`);
-                for (let [proto, def] of this.#servers) {
-                    LOGGER.info(`> ${proto.toUpperCase()} / ${def.hostnames.concat('').join(`:${def.port} / `)}`);
-                }
-            } else {
-                LOGGER.info(`> Server not running! No port specified.`);
+        if (this.#servers.size) {
+            // Show server details
+            LOGGER?.info(`> Server running! (${APP.title || ''}) ✅`);
+            for (let [proto, def] of this.#servers) {
+                LOGGER?.info(`> ${proto.toUpperCase()} / ${def.hostnames.concat('').join(`:${def.port} / `)}`);
             }
-            if (PROXY.entries.length) {
-                LOGGER.info(`> Reverse proxy active.`);
-                for (const proxy of PROXY.entries) {
-                    LOGGER.info(`> ${proxy.hostnames.join('|')} >>> ${proxy.port}`);
+            // Show capabilities
+            LOGGER?.info(``);
+            LOGGER?.info(`Capabilities: ${Object.keys(this.#sdk).join(', ')}`);
+            LOGGER?.info(``);
+        } else {
+            LOGGER?.info(`> Server not running! No port specified.`);
+        }
+        // -----------------
+        if (PROXY.entries.length) {
+            // Show active proxies
+            LOGGER?.info(`> Reverse proxies active.`);
+            for (const proxy of PROXY.entries) {
+                let desc = `> ${proxy.hostnames.join('|')} >>> ${proxy.port || proxy.path}`;
+                // Start a proxy recursively?
+                if (proxy.path && FLAGS['recursive']) {
+                    desc += ` ✅`;
+                    const flags = Object.entries({ ...FLAGS, port: proxy.port }).map(([k, v]) => v === true ? `--${k}` : `--${k}=${v}`);
+                    spawn('npx', ['webflo', 'start', ...flags], {
+                        cwd: proxy.path,  // target directory
+                        stdio: 'inherit', // inherit stdio so output streams to parent terminal
+                        shell: true       // for Windows compatibility
+                    });
                 }
+                LOGGER?.info(desc);
             }
-            LOGGER.info(``);
-            LOGGER.info(`Capabilities: ${Object.keys(this.#sdk).join(', ')}`);
-            LOGGER.info(``);
         }
         return instanceController;
     }
@@ -224,8 +233,15 @@ export class WebfloServer extends WebfloRuntime {
     }
 
     async enterDevMode() {
+        const { flags: FLAGS } = this.cx;
         this.#hmrRegistry = WebfloHMR.manage(this);
         await this.#hmrRegistry.buildJS(true);
+        if (FLAGS['open']) {
+            for (let [proto, def] of this.#servers) {
+                const url = `${proto}://${def.hostnames.find((h) => h !== '*') || 'localhost'}:${def.port}`;
+                await openBrowser(url);
+            }
+        }
     }
 
     control() {
@@ -235,11 +251,11 @@ export class WebfloServer extends WebfloRuntime {
         // ---------------
         if (!FLAGS['test-only'] && !FLAGS['https-only'] && SERVER.port) {
             const httpServer = Http.createServer((request, response) => this.handleNodeHttpRequest(request, response));
-            httpServer.listen(SERVER.port);
+            httpServer.listen(FLAGS['port'] || SERVER.port);
             this.#servers.set('http', {
                 instance: httpServer,
                 hostnames: SERVER.hostnames,
-                port: SERVER.port,
+                port: FLAGS['port'] || SERVER.port,
             });
             // Handle WebSocket connections
             httpServer.on('upgrade', (request, socket, head) => {
@@ -289,182 +305,214 @@ export class WebfloServer extends WebfloRuntime {
         return instanceController;
     }
 
-    getRequestProto(nodeRequest) {
-        return nodeRequest.connection.encrypted ? 'https' : (nodeRequest.headers['x-forwarded-proto'] || 'http');
+    async preResolveIncoming({ type, nodeRequest, proxy, reject, handle }) {
+        const { SERVER, PROXY, REDIRECTS } = this.config;
+        // Derive proto
+        const protoDef = type == 'ws' ? { nonSecure: 'ws', secure: 'wss' } : { nonSecure: 'http', secure: 'https' };
+        const proto = nodeRequest.connection.encrypted ? protoDef.secure : (nodeRequest.headers['x-forwarded-proto'] || protoDef.nonSecure);
+        // Resolve malformed URL: detected when using manual proxy setting in a browser
+        let requestUrl = nodeRequest.url;
+        if (requestUrl.startsWith(`${proto}://${nodeRequest.headers.host}`)) {
+            requestUrl = requestUrl.split(nodeRequest.headers.host)[1];
+        }
+        const fullUrl = proto + '://' + nodeRequest.headers.host + requestUrl;
+        const url = new URL(fullUrl);
+        // Begin resolution...
+        const hosts = [...this.#servers.values()].reduce((_hosts, server) => _hosts.concat(server.hostnames), []);
+        // Level 1 resolution
+        for (const $proxy of PROXY.entries) {
+            if ($proxy.hostnames.includes(url.hostname) || ($proxy.hostnames.includes('*') && !hosts.includes('*'))) {
+                url.port = $proxy.port; // The port forwarding
+                if ($proxy.proto) { // Force proto?
+                    url.protocol = type == 'ws' ? $proxy.proto.replace('http', 'ws') : $proxy.proto;
+                }
+                return await proxy(url);
+            }
+        }
+        // Level 2 resolution
+        if (!hosts.includes(url.hostname) && !hosts.includes('*')) {
+            return reject({
+                status: 500,
+                statusText: 'Unrecognized host',
+            });
+        }
+        if (url.protocol === `${protoDef.nonSecure}:` && SERVER.https.port && SERVER.https.force) {
+            return reject({
+                status: 302,
+                statusText: 'Found',
+                headers: { Location: (url.protocol = `${protoDef.secure}:`, url.href) }
+            });
+        }
+        if (url.hostname.startsWith('www.') && SERVER.force_www === 'remove') {
+            return reject({
+                status: 302,
+                statusText: 'Found',
+                headers: { Location: (url.hostname = url.hostname.substr(4), url.href) }
+            });
+        }
+        if (!url.hostname.startsWith('www.') && SERVER.force_www === 'add') {
+            return reject({
+                status: 302,
+                statusText: 'Found',
+                headers: { Location: (url.hostname = `www.${url.hostname}`, url.href) }
+            });
+        }
+        if (REDIRECTS) {
+            const rejection = REDIRECTS.entries.reduce((_rdr, entry) => {
+                return _rdr || ((_rdr = (new URLPattern(entry.from, url.origin)).exec(url.href)) && {
+                    status: entry.code || 302,
+                    statusText: entry.code === 301 ? 'Moved Permanently' : 'Found',
+                    headers: { Location: _rdr.render(entry.to) }
+                });
+            }, null);
+            if (rejection) {
+                return reject(rejection);
+            }
+        }
+        return handle(url);
     }
 
-    parseNodeRequest(proto, nodeRequest, withBody = true) {
-        // Detected when using manual proxy setting in a browser
-        if (nodeRequest.url.startsWith(`${proto}://${nodeRequest.headers.host}`)) {
-            nodeRequest.url = nodeRequest.url.split(nodeRequest.headers.host)[1];
-        }
-        const fullUrl = proto + '://' + nodeRequest.headers.host + nodeRequest.url;
+    async handleNodeWsRequest(wss, nodeRequest, socket, head) {
+        const reject = (rejection) => {
+            const status = rejection.status || 400;
+            const statusText = rejection.statusText || 'Bad Request';
+            const headers = rejection.headers || {};
+            const body = rejection.body || `${status} ${statusText}`;
+            // Write status line and headers
+            socket.write(
+                `HTTP/1.1 ${status} ${statusText}\r\n` +
+                Object.entries(headers).map(([key, value]) => `${key}: ${value}\r\n`).join('') +
+                `Content-Type: text/plain\r\n` +
+                `Connection: close\r\n` +
+                `\r\n` +
+                body + `\r\n`
+            );
+            socket.destroy();
+        };
+        const proxy = async (destinationURL) => {
+            const isSecure = destinationURL.protocol === 'wss:';
+            const port = destinationURL.port || (isSecure ? 443 : 80);
+            const host = destinationURL.hostname;
+            // Connect
+            const connect = isSecure
+                ? (await import('node:tls')).connect
+                : (await import('node:net')).connect;
+            // Create a TCP or TLS socket to the target WS server and pipe streams
+            const proxySocket = connect({ host, port, servername: isSecure ? host : undefined/*required for TLS SNI*/ }, () => {
+                // Send raw upgrade HTTP request to the target
+                proxySocket.write(`${nodeRequest.method} ${nodeRequest.url} HTTP/${nodeRequest.httpVersion}\r\n`);
+                for (const [key, value] of Object.entries(nodeRequest.headers)) {
+                    proxySocket.write(`${key}: ${value}\r\n`);
+                }
+                proxySocket.write('\r\n');
+                if (head && head.length) {
+                    proxySocket.write(head);
+                }
+                // Pipe both sockets together
+                socket.pipe(proxySocket).pipe(socket);
+            });
+            // Handle errors
+            proxySocket.on('error', err => {
+                console.error('Proxy socket error:', err);
+                socket.destroy();
+            });
+            socket.on('error', () => {
+                proxySocket.destroy();
+            });
+        };
+        const handle = (requestURL) => {
+            if (requestURL.searchParams.get('rel') === 'hmr') {
+                wss.handleUpgrade(nodeRequest, socket, head, (ws) => {
+                    wss.emit('connection', ws, nodeRequest);
+                    this.#hmrRegistry.clients.add(ws);
+                });
+            }
+            if (requestURL.searchParams.get('rel') === 'background-messaging') {
+                const request = new Request(requestURL.href, { headers: nodeRequest.headers });
+                const tenantID = this.#tenants.identifyIncoming(request);
+                const tenant = tenantID && this.#tenants.getTenant(tenantID);
+                if (!tenant) {
+                    return reject({ body: `Lost or invalid tenantID` });
+                }
+                const clientMessagePort = tenant?.getPort(requestURL.pathname.split('/').pop());
+                if (!clientMessagePort) {
+                    return reject({ body: `Lost or invalid portID` });
+                }
+                wss.handleUpgrade(nodeRequest, socket, head, (ws) => {
+                    wss.emit('connection', ws, nodeRequest);
+                    const wsw = new MessagingOverSocket(null, ws, { honourDoneMutationFlags: true });
+                    clientMessagePort.addPort(wsw);
+                });
+            }
+        };
+        return await this.preResolveIncoming({ type: 'ws', nodeRequest, proxy, reject, handle });
+    }
+
+    async handleNodeHttpRequest(nodeRequest, nodeResponse) {
+        // Pipe back response and log
+        const respondWith = (response, requestURL) => {
+            for (const [name, value] of response.headers) {
+                const existing = nodeResponse.getHeader(name);
+                if (existing) nodeResponse.setHeader(name, [].concat(existing).concat(value));
+                else nodeResponse.setHeader(name, value);
+            }
+            nodeResponse.statusCode = response.status;
+            nodeResponse.statusMessage = response.statusText;
+            if (response.body instanceof Readable) {
+                response.body.pipe(nodeResponse);
+            } else if (response.body instanceof ReadableStream) {
+                Readable.fromWeb(response.body).pipe(nodeResponse);
+            } else if (response.body) {
+                nodeResponse.end(response.body);
+            } else {
+                nodeResponse.end();
+            }
+            // Logging
+            const { logger: LOGGER } = this.cx;
+            if (LOGGER && requestURL) {
+                const log = this.generateLog({ url: requestURL.href, method: nodeRequest.method }, response);
+                LOGGER.log(log);
+            }
+        };
+        // Reject with error status
+        const reject = async (rejection) => {
+            respondWith(new Response(null, rejection));
+        };
+        // Proxy request to a remote/local host
+        const proxy = async (destinationURL) => {
+            const requestInit = this.parseNodeRequest(nodeRequest);
+            requestInit.headers.host = destinationURL.host;
+            delete requestInit.headers.connection;
+            const response = await fetch(destinationURL, requestInit);
+            respondWith(response, destinationURL);
+        };
+        // Handle
+        const handle = async (requestURL) => {
+            const requestInit = this.parseNodeRequest(nodeRequest);
+            const response = await this.navigate(requestURL, requestInit, {
+                request: nodeRequest,
+                response: nodeResponse,
+                ipAddress: nodeRequest.headers['x-forwarded-for']?.split(',')[0] || nodeRequest.socket.remoteAddress
+            });
+            respondWith(response, requestURL);
+        };
+        return await this.preResolveIncoming({ typr: 'http', nodeRequest, reject, proxy, handle });
+    }
+
+    parseNodeRequest(nodeRequest, withBody = true) {
         const requestInit = { method: nodeRequest.method, headers: nodeRequest.headers };
         if (withBody && !['GET', 'HEAD'].includes(nodeRequest.method)) {
             nodeRequest[Symbol.toStringTag] = 'ReadableStream'; // Not necessary, but fun
             requestInit.body = nodeRequest;
             requestInit.duplex = 'half'; // See https://github.com/nodejs/node/issues/46221
         }
-        return [fullUrl, requestInit];
+        return requestInit;
     }
 
-    async handleNodeWsRequest(wss, nodeRequest, socket, head) {
-        const { SERVER, PROXY } = this.config;
-        const proto = this.getRequestProto(nodeRequest).replace('http', 'ws');
-        const [fullUrl, requestInit] = this.parseNodeRequest(proto, nodeRequest, false);
-        const scopeObj = {};
-        scopeObj.url = new URL(fullUrl);
-        // -----------------
-        // Level 1 validation
-        const hosts = [...this.#servers.values()].reduce((_hosts, server) => _hosts.concat(server.hostnames), []);
-        for (const proxy of PROXY.entries) {
-            if (proxy.hostnames.includes(scopeObj.url.hostname) || (proxy.hostnames.includes('*') && !hosts.includes('*'))) {
-                scopeObj.error = `Web sockets not supported over Webflo reverse proxies`;
-                break;
-            }
-        }
-        // -----------------
-        // Level 2 validation
-        if (!scopeObj.error) {
-            if (!hosts.includes(scopeObj.url.hostname) && !hosts.includes('*')) {
-                scopeObj.error = 'Unrecognized host';
-            } else if (scopeObj.url.protocol === 'ws:' && SERVER.https.port && SERVER.https.force) {
-                scopeObj.error = `Only secure connections allowed (wss:)`;
-            } else if (scopeObj.url.hostname.startsWith('www.') && SERVER.force_www === 'remove') {
-                scopeObj.error = `Connections not allowed over the www subdomain`;
-            } else if (!scopeObj.url.hostname.startsWith('www.') && SERVER.force_www === 'add') {
-                scopeObj.error = `Connections only allowed over the www subdomain`;
-            }
-        }
-        // -----------------
-        // Level 3 validation
-        // and actual processing
-        if (!scopeObj.error && scopeObj.url.searchParams.get('rel') === 'hmr') {
-            wss.handleUpgrade(nodeRequest, socket, head, (ws) => {
-                wss.emit('connection', ws, nodeRequest);
-                this.#hmrRegistry.clients.add(ws);
-            });
-        }
-        if (!scopeObj.error && scopeObj.url.searchParams.get('rel') === 'background-messaging') {
-            scopeObj.request = this.createRequest(scopeObj.url.href, requestInit);
-            if (!(scopeObj.tenantID = this.#tenants.identifyIncoming(scopeObj.request))
-                || !(scopeObj.tenant = this.#tenants.getTenant(scopeObj.tenantID))) {
-                scopeObj.error = `Lost or invalid tenantID`;
-            } else if (!(scopeObj.clientMessagePort = scopeObj.tenant.getPort(scopeObj.url.pathname.split('/').pop()))) {
-                scopeObj.error = `Lost or invalid portID`;
-            } else {
-                wss.handleUpgrade(nodeRequest, socket, head, (ws) => {
-                    wss.emit('connection', ws, nodeRequest);
-                    const wsw = new MessagingOverSocket(null, ws, { honourDoneMutationFlags: true });
-                    scopeObj.clientMessagePort.addPort(wsw);
-                });
-            }
-        }
-        // -----------------
-        // Errors?
-        if (scopeObj.error) {
-            socket.write(
-                `HTTP/1.1 400 Bad Request\r\n` +
-                `Content-Type: text/plain\r\n` +
-                `Connection: close\r\n` +
-                `\r\n` +
-                `${scopeObj.error}\r\n`
-            );
-            socket.destroy();
-            return;
-        }
-    }
-
-    async handleNodeHttpRequest(nodeRequest, nodeResponse) {
-        const { SERVER, PROXY, REDIRECTS } = this.config;
-        const proto = this.getRequestProto(nodeRequest);
-        const [fullUrl, requestInit] = this.parseNodeRequest(proto, nodeRequest);
-        const scopeObj = {};
-        scopeObj.url = new URL(fullUrl);
-        // -----------------
-        // Level 1 handling
-        const hosts = [...this.#servers.values()].reduce((_hosts, server) => _hosts.concat(server.hostnames), []);
-        for (const proxy of PROXY.entries) {
-            if (proxy.hostnames.includes(scopeObj.url.hostname) || (proxy.hostnames.includes('*') && !hosts.includes('*'))) {
-                scopeObj.response = await this.proxyFetch(proxy, scopeObj.url, scopeObj.init);
-                break;
-            }
-        }
-        // -----------------
-        // Level 2 handling
-        if (!scopeObj.response) {
-            if (!hosts.includes(scopeObj.url.hostname) && !hosts.includes('*')) {
-                scopeObj.exit = { status: 500, statusText: 'Internal Server Error', };
-                scopeObj.exitMessage = 'Unrecognized host';
-            } else if (scopeObj.url.protocol === 'http:' && SERVER.https.port && SERVER.https.force) {
-                scopeObj.exit = {
-                    status: 302,
-                    statusText: 'Found',
-                    headers: { Location: (scopeObj.url.protocol = 'https:', scopeObj.url.href) }
-                };
-            } else if (scopeObj.url.hostname.startsWith('www.') && SERVER.force_www === 'remove') {
-                scopeObj.exit = {
-                    status: 302,
-                    statusText: 'Found',
-                    headers: { Location: (scopeObj.url.hostname = scopeObj.url.hostname.substr(4), scopeObj.url.href) }
-                };
-            } else if (!scopeObj.url.hostname.startsWith('www.') && SERVER.force_www === 'add') {
-                scopeObj.exit = {
-                    status: 302,
-                    statusText: 'Found',
-                    headers: { Location: (scopeObj.url.hostname = `www.${scopeObj.url.hostname}`, scopeObj.url.href) }
-                };
-            } else if (REDIRECTS) {
-                scopeObj.exit = REDIRECTS.entries.reduce((_rdr, entry) => {
-                    return _rdr || ((_rdr = (new URLPattern(entry.from, scopeObj.url.origin)).exec(scopeObj.url.href)) && {
-                        status: entry.code || 302,
-                        statusText: entry.code === 301 ? 'Moved Permanently' : 'Found',
-                        headers: { Location: _rdr.render(entry.to) }
-                    });
-                }, null);
-            }
-            if (scopeObj.exit) {
-                scopeObj.response = new Response(scopeObj.exitMessage, scopeObj.exit);
-            }
-        }
-        // -----------------
-        // Level 3 handling
-        if (!scopeObj.response) {
-            scopeObj.response = await this.navigate(fullUrl, requestInit, {
-                request: nodeRequest,
-                response: nodeResponse,
-                ipAddress: nodeRequest.headers['x-forwarded-for']?.split(',')[0]
-                    || nodeRequest.socket.remoteAddress
-            });
-        }
-        // -----------------
-        // For when response was sent during this.navigate()
-        if (!nodeResponse.headersSent) {
-            for (const [name, value] of scopeObj.response.headers) {
-                const existing = nodeResponse.getHeader(name);
-                if (existing) nodeResponse.setHeader(name, [].concat(existing).concat(value));
-                else nodeResponse.setHeader(name, value);
-            }
-            // --------
-            nodeResponse.statusCode = scopeObj.response.status;
-            nodeResponse.statusMessage = scopeObj.response.statusText;
-            if (scopeObj.response.headers.has('Location')) {
-                nodeResponse.end();
-            } else if (scopeObj.response.body instanceof Readable) {
-                scopeObj.response.body.pipe(nodeResponse);
-            } else if (scopeObj.response.body instanceof ReadableStream) {
-                Readable.fromWeb(scopeObj.response.body).pipe(nodeResponse);
-            } else {
-                nodeResponse.end(scopeObj.response.body);
-            }
-            // -----------------
-            // Logging
-            const { logger: LOGGER } = this.cx;
-            if (LOGGER) {
-                const log = this.generateLog({ url: fullUrl, method: nodeRequest.method }, scopeObj.response);
-                LOGGER.log(log);
-            }
-        }
+    createRequest(href, init = {}, autoHeaders = []) {
+        const request = super.createRequest(href, init);
+        this.writeAutoHeaders(request.headers, autoHeaders);
+        return request;
     }
 
     writeAutoHeaders(headers, autoHeaders) {
@@ -485,14 +533,14 @@ export class WebfloServer extends WebfloRuntime {
         const $sparoots = this.#routes.$sparoots;
         const xRedirectPolicy = httpEvent.request.headers.get('X-Redirect-Policy');
         const xRedirectCode = httpEvent.request.headers.get('X-Redirect-Code') || 300;
-        const destinationUrl = new URL(response.headers.get('Location'), httpEvent.url.origin);
-        const isSameOriginRedirect = destinationUrl.origin === httpEvent.url.origin;
+        const destinationURL = new URL(response.headers.get('Location'), httpEvent.url.origin);
+        const isSameOriginRedirect = destinationURL.origin === httpEvent.url.origin;
         let isSameSpaRedirect = false;
         if (isSameOriginRedirect && xRedirectPolicy === 'manual-when-cross-spa' && $sparoots.length) {
             // Longest-first sorting
             const sparoots = $sparoots.sort((a, b) => a.length > b.length ? -1 : 1);
             const matchRoot = path => sparoots.reduce((prev, root) => prev || (`${path}/`.startsWith(`${root}/`) && root), null);
-            isSameSpaRedirect = matchRoot(destinationUrl.pathname) === matchRoot(httpEvent.url.pathname);
+            isSameSpaRedirect = matchRoot(destinationURL.pathname) === matchRoot(httpEvent.url.pathname);
         }
         if (xRedirectPolicy === 'manual' || (!isSameOriginRedirect && xRedirectPolicy === 'manual-when-cross-origin') || (!isSameSpaRedirect && xRedirectPolicy === 'manual-when-cross-spa')) {
             response.headers.set('X-Redirect-Code', response.status);
@@ -501,12 +549,6 @@ export class WebfloServer extends WebfloRuntime {
             const responseMeta = _wq(response, 'meta');
             responseMeta.set('status', xRedirectCode);
         }
-    }
-
-    createRequest(href, init = {}, autoHeaders = []) {
-        const request = super.createRequest(href, init);
-        this.writeAutoHeaders(request.headers, autoHeaders);
-        return request;
     }
 
     async remoteFetch(request, ...args) {
@@ -522,33 +564,6 @@ export class WebfloServer extends WebfloRuntime {
             // Stop loading status
             return response;
         });
-    }
-
-    async proxyFetch(proxy, url, init) {
-        const scopeObj = {};
-        scopeObj.url = new URL(url);
-        scopeObj.url.port = proxy.port;
-        if (proxy.proto) {
-            scopeObj.url.protocol = proxy.proto;
-        }
-        // ---------
-        if (init instanceof Request) {
-            scopeObj.init = init.clone();
-            scopeObj.init.headers.set('Host', scopeObj.url.host);
-        } else {
-            scopeObj.init = { ...init, decompress: false/* honoured in xfetch() */ };
-            if (!scopeObj.init.headers) scopeObj.init.headers = {};
-            scopeObj.init.headers.host = scopeObj.url.host;
-            delete scopeObj.init.headers.connection;
-        }
-        // ---------
-        try {
-            scopeObj.response = await this.remoteFetch(scopeObj.url, scopeObj.init);
-        } catch (e) {
-            scopeObj.response = new Response(`Reverse Proxy Error: ${e.message}`, { status: 500, statusText: 'Internal Server Error' });
-            console.error(e);
-        }
-        return scopeObj.response;
     }
 
     async localFetch(httpEvent) {
@@ -739,7 +754,6 @@ export class WebfloServer extends WebfloRuntime {
         return response;
     }
 
-    #renderFileCache = new Map;
     async render(httpEvent, response) {
         const { LAYOUT } = this.config;
         const scopeObj = {};

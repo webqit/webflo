@@ -5,6 +5,8 @@ import chokidar from 'chokidar';
 import * as WebfloPI from '../../index.js';
 import { generate } from '../webflo-client/webflo-codegen.js';
 import * as OohtmlCliPI from '@webqit/oohtml-cli/src/index.js';
+import { exec } from 'child_process';
+import { platform } from 'os';
 
 export class WebfloHMR {
 
@@ -281,10 +283,20 @@ const _toDedicated = (file, suffix) => {
     return file.replace(/\.js$/, `.${suffix}.js`);
 };
 
-const _dirname = (path) => {
-    return path.replace(/\/[^\/]+$/, '');
-};
-
-const _basename = (path) => {
-    return path.match(/\/([^\/]+)$/)[1];
-};
+export function openBrowser(url) {
+    const plat = platform();
+    let command;
+    if (plat === 'darwin') {
+        command = `open "${url}"`;
+    } else if (plat === 'win32') {
+        command = `start "" "${url}"`;
+    } else if (plat === 'linux') {
+        command = `xdg-open "${url}"`;
+    } else {
+        console.warn('🌐 Unable to auto-open browser on this platform.');
+        return;
+    }
+    exec(command, (err) => {
+        if (err) console.error('❌ Failed to open browser:', err);
+    });
+}
