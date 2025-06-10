@@ -4,7 +4,7 @@ import { parseHttpMessage, renderHttpMessageInit } from './message.js';
 import { MessagingOverBroadcast } from '../webflo-messaging/MessagingOverBroadcast.js';
 import { MessagingOverSocket } from '../webflo-messaging/MessagingOverSocket.js';
 import { WebfloMessagingAPI } from '../webflo-messaging/WebfloMessagingAPI.js';
-import { meta } from './util.js';
+import { _wq } from '../../util.js';
 
 export function createBackgroundMessagingPort(url) {
     const [proto, portID] = url.split(':');
@@ -18,37 +18,40 @@ export function createBackgroundMessagingPort(url) {
 }
 
 export function backgroundMessagingPort() {
-    if (!this[meta].backgroundMessagingPort) {
+    const responseMeta = _wq(this, 'meta');
+    if (!responseMeta.has('backgroundMessagingPort')) {
         const value = this.headers.get('X-Background-Messaging-Port')?.trim();
         if (value) {
-            this[meta].backgroundMessagingPort = createBackgroundMessagingPort(value);
+            responseMeta.set('backgroundMessagingPort', createBackgroundMessagingPort(value));
         }
-    } else if (typeof this[meta].backgroundMessagingPort === 'function') {
-        const backgroundMessagingPort = this[meta].backgroundMessagingPort.call(this);
+    } else if (typeof responseMeta.get('backgroundMessagingPort') === 'function') {
+        const backgroundMessagingPort = responseMeta.get('backgroundMessagingPort').call(this);
         if (!(backgroundMessagingPort instanceof WebfloMessagingAPI)) {
             throw new Error('backgroundMessagingPort callbacks must return a WebfloMessagingAPI.');
         }
-        this[meta].backgroundMessagingPort = backgroundMessagingPort;
+        responseMeta.set('backgroundMessagingPort', backgroundMessagingPort);
     }
-    return this[meta].backgroundMessagingPort;
+    return responseMeta.get('backgroundMessagingPort');
 }
 
 const { clone: cloneMethod } = Response.prototype;
 const statusAccessor = Object.getOwnPropertyDescriptor(Response.prototype, 'status');
 const responseMethods = {
-    [meta]: { get: function () { if (!this._meta) this._meta = {}; return this._meta; } },
-    status: { get: function () { return this[meta].status || statusAccessor.get.call(this); } },
-    carry: { get: function () { return this[meta].carry; } },
+    status: { get: function () { return _wq(this, 'meta').get('status') || statusAccessor.get.call(this); } },
+    carry: { get: function () { return _wq(this, 'meta').get('carry'); } },
     clone: {
         value: function (init = {}) {
-            const clonedResponse = cloneMethod.call(this, init);
-            Object.assign(clonedResponse[meta], this[meta]);
-            return clonedResponse;
+            const clone = cloneMethod.call(this, init);
+            const responseMeta = _wq(this, 'meta');
+            _wq(clone).set('meta', responseMeta);
+            return clone;
         }
     },
     isLive: {
         value: function () {
-            return this.headers.has('X-Background-Messaging-Port') || !!this[meta].backgroundMessagingPort;
+            let liveLevel = (this.headers.get('X-Background-Messaging-Port')?.trim() || _wq(this, 'meta').has('backgroundMessagingPort')) && 1 || 0;
+            liveLevel += this.headers.get('X-Live-Response-Message-ID')?.trim() && 1 || 0;
+            return liveLevel;
         }
     },
     backgroundMessagingPort: {
@@ -75,17 +78,19 @@ const staticResponseMethods = {
                 init = { ...init, headers };
             }
             const instance = new Response(body, init);
-            instance[meta].body = $body;
-            instance[meta].type = $type;
+            const responseMeta = _wq(instance, 'meta');
+            responseMeta.set('body', $body);
+            responseMeta.set('type', $type);
             return instance;
         }
     },
     json: {
         value: function (data, options = {}) {
-            const response = jsonMethod(data, options);
-            response[meta].type = 'json';
-            response[meta].body = data;
-            return response;
+            const instance = jsonMethod(data, options);
+            const responseMeta = _wq(instance, 'meta');
+            responseMeta.set('body', data);
+            responseMeta.set('type', 'json');
+            return instance;
         }
     },
     redirectWith: {
@@ -98,7 +103,8 @@ const staticResponseMethods = {
             }
             const responseInstance = this.redirect(url, status);
             if (request || response) {
-                responseInstance[meta].carry = { request, response };
+                const responseMeta = _wq(responseInstance, 'meta');
+                responseMeta.set('carry', { request, response });
             }
             return responseInstance;
         }
@@ -106,11 +112,6 @@ const staticResponseMethods = {
     notFound: {
         value: function () {
             return new this(null, { status: 404/*Not Found*/ });
-        }
-    },
-    notModified: {
-        value: function () {
-            return new this(null, { status: 304/*Not Modified*/ });
         }
     },
     accepted: {

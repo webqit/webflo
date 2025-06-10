@@ -2,15 +2,15 @@ import { _before, _toTitle } from '@webqit/util/str/index.js';
 import { _isObject } from '@webqit/util/js/index.js';
 import { Observer } from '@webqit/quantum-js';
 import { WebfloRuntime } from '../WebfloRuntime.js';
-import { meta, createBackgroundMessagingPort } from '../webflo-fetch/util.js';
 import { MultiportMessagingAPI } from '../webflo-messaging/MultiportMessagingAPI.js';
 import { MessagingOverChannel } from '../webflo-messaging/MessagingOverChannel.js';
-import { ClientMessagingPort } from './ClientMessagingPort.js';
+import { ClientMessagePort } from './messaging/ClientMessagePort.js';
 import { ClientSideCookies } from './ClientSideCookies.js';
 import { HttpSession } from '../webflo-routing/HttpSession.js';
 import { HttpEvent } from '../webflo-routing/HttpEvent.js';
 import { HttpUser } from '../webflo-routing/HttpUser.js';
 import { Url } from '../webflo-url/Url.js';
+import { _wq } from '../../util.js';
 import '../webflo-fetch/index.js';
 import '../webflo-url/index.js';
 
@@ -62,7 +62,7 @@ export class WebfloClient extends WebfloRuntime {
             rel: 'unrelated',
             phase: 0
         };
-        this.#backgroundMessagingPorts = new MultiportMessagingAPI(this, { runtime: this });
+        this.#backgroundMessagingPorts = new MultiportMessagingAPI(this);
     }
 
     async initialize() {
@@ -83,8 +83,15 @@ export class WebfloClient extends WebfloRuntime {
         };
         this.backgroundMessagingPorts.handleMessages('confirm', promptsHandler, { signal: instanceController.signal });
         this.backgroundMessagingPorts.handleMessages('prompt', promptsHandler, { signal: instanceController.signal });
-        await this.hydrate();
+        await this.setupCapabilities();
         this.control();
+        await this.hydrate();
+        return instanceController;
+    }
+
+    async setupCapabilities() {
+        const instanceController = await super.setupCapabilities();
+        this.#sdk.Observer = Observer;
         return instanceController;
     }
 
@@ -275,12 +282,12 @@ export class WebfloClient extends WebfloRuntime {
 			request: scopeObj.request
 		});
         const messageChannel = new MessageChannel;
-        scopeObj.clientMessagingPort = new ClientMessagingPort(null, messageChannel.port2, { isPrimary: true, honourDoneMutationFlags: true });
+        scopeObj.clientMessagePort = new ClientMessagePort(null, messageChannel.port2, { isPrimary: true, honourDoneMutationFlags: true });
         scopeObj.user = this.createHttpUser({
             store: this.#sdk.storage?.('user'),
             request: scopeObj.request,
             session: scopeObj.session,
-            client: scopeObj.clientMessagingPort,
+            client: scopeObj.clientMessagePort,
         });
         if (window.webqit?.oohtml?.configs) {
             const { BINDINGS_API: { api: bindingsConfig } = {}, } = window.webqit.oohtml.configs;
@@ -291,7 +298,7 @@ export class WebfloClient extends WebfloRuntime {
             cookies: scopeObj.cookies,
             session: scopeObj.session,
             user: scopeObj.user,
-            client: scopeObj.clientMessagingPort,
+            client: scopeObj.clientMessagePort,
             sdk: this.#sdk,
             detail: scopeObj.detail,
             signal: init.signal,
@@ -335,40 +342,12 @@ export class WebfloClient extends WebfloRuntime {
             backgroundMessagingPort: backgroundMessagingPortCallback,
             originalRequestInit: scopeObj.init
         });
-        if (scopeObj.response.isLive()) {
-            this.backgroundMessagingPorts.add(scopeObj.response.backgroundMessagingPort);
-        }
-        // ---------------
         // Decode response
         scopeObj.finalUrl = scopeObj.response.url || scopeObj.request.url;
         if (scopeObj.response.redirected || scopeObj.detail.navigationType === 'rdr' || scopeObj.detail.isHoisted) {
             const stateData = { ...(this.currentEntry()?.getState() || {}), redirected: true, };
             await this.updateCurrentEntry({ state: stateData }, scopeObj.finalUrl);
         }
-        // Handle no-render scenarios 2
-        if ([202, 304].includes(scopeObj.response.status)) {
-            scopeObj.notModified = true;
-            if (scopeObj.response.backgroundMessagingPort) {
-                scopeObj.response.backgroundMessagingPort.addEventListener(
-                    'response.replace', 
-                    () => scopeObj.resetStates(), 
-                    { once: true, signal: httpEvent.signal }
-                );
-                return;
-            }
-        }
-        // Handle no-render scenarios 1
-        if (scopeObj.response.headers.get('Location') && this.processRedirect(scopeObj.response)) {
-            if (scopeObj.response.backgroundMessagingPort) {
-                scopeObj.response.backgroundMessagingPort.addEventListener(
-                    'response.replace', 
-                    () => scopeObj.resetStates(), 
-                    { once: true, signal: httpEvent.signal }
-                );
-            }
-            return;
-        }
-        // ---------------
         // Transition UI
         Observer.set(this.transition.from, Url.copy(this.location));
         Observer.set(this.transition.to, 'href', scopeObj.finalUrl);
@@ -387,20 +366,31 @@ export class WebfloClient extends WebfloRuntime {
                 Object.defineProperty(error, 'retry', { value: async () => await this.navigate(scopeObj.url, scopeObj.init, scopeObj.detail) });
                 Observer.set(this.navigator, 'error', error);
             }
-            // Render response?
-            if (!scopeObj.notModified) {
-                await this.render(
-                    scopeObj.httpEvent,
-                    scopeObj.response,
-                    !(['GET'].includes(scopeObj.request.method) || scopeObj.response.redirected || scopeObj.detail.navigationType === 'rdr')
-                );
-                await this.applyPostRenderState(scopeObj.httpEvent);
-            }
+            // Render response
+            await this.render(
+                scopeObj.httpEvent,
+                scopeObj.response,
+                !(['GET'].includes(scopeObj.request.method) || scopeObj.response.redirected || scopeObj.detail.navigationType === 'rdr')
+            );
+            await this.applyPostRenderState(scopeObj.httpEvent);
         });
     }
 
     async dispatchNavigationEvent({ httpEvent, crossLayerFetch, backgroundMessagingPort, originalRequestInit, processObj = {} }) {
         const response = await super.dispatchNavigationEvent({ httpEvent, crossLayerFetch, backgroundMessagingPort });
+        // Obtain and connect backgroundMessagingPort as first thing
+        if (response.isLive()) {
+            this.backgroundMessagingPorts.addPort(response.backgroundMessagingPort);
+        }
+        // Await a response with an "Accepted" or redirect status
+        if (response.status === 202 || (response.headers.get('Location') && this.processRedirect(response))) {
+            return new Promise(async (resolve) => {
+                if (response.isLive()) {
+                    const liveResponse = await LiveResponse.from(response);
+                    liveResponse.addEventListener('replace', () => resolve(liveResponse), { once: true, signal: httpEvent.signal });
+                } // Never resolves otherwise
+            });
+        }
         // Handle "retry" directives
         if (response.headers.has('Retry-After')) {
             if (!processObj.recurseController) {
@@ -425,7 +415,8 @@ export class WebfloClient extends WebfloRuntime {
         // Normalize redirect
         const xActualRedirectCode = parseInt(response.headers.get('X-Redirect-Code'));
         if (xActualRedirectCode && response.status === this.#xRedirectCode) {
-            response[meta].status = xActualRedirectCode; // @NOTE 1
+            const responseMeta = _wq(response, 'meta');
+            responseMeta.set('status', xActualRedirectCode); // @NOTE 1
         }
         // Trigger redirect
         if ([302, 301].includes(response.status)) {
@@ -483,7 +474,7 @@ export class WebfloClient extends WebfloRuntime {
                     navigator: this.navigator,
                     location: this.location,
                     network: this.network, // request, redirect, error, status, remote
-                    capabilities: this.capabilities,
+                    capabilities: this.deviceCapabilities,
                     transition: this.transition,
                 }, { diff: true, merge });
                 $response.addEventListener('replace', (e) => {

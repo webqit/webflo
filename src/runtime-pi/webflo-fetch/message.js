@@ -1,6 +1,6 @@
 import { _isTypeObject } from '@webqit/util/js/index.js';
 import { createFormDataFromJson } from './formdata.js';
-import { meta, dataType } from './util.js';
+import { dataType } from './util.js';
 
 export function renderHttpMessageInit(httpMessageInit) {
     // JSONfy headers

@@ -13,15 +13,12 @@ export class WebfloRouter {
     }
 
     async route(method, event, _default = null, remoteFetch = null) {
-
         const $this = this;
-        const $runtime = this.#runtime;
-
         // ----------------
         // The loop
         // ----------------
         const next = async function (thisTick) {
-            const thisContext = { runtime: $runtime };
+            const thisContext = {};
             if (!thisTick.trail || thisTick.trail.length < thisTick.destination.length) {
                 thisTick = await $this.readTick(thisTick);
                 // -------------
@@ -104,7 +101,7 @@ export class WebfloRouter {
                         if (isFetch) {
                             throw new Error('fetch() cannot be called without arguments!');
                         }
-                        nextTick.event = thisTick.event.clone();
+                        nextTick.event = thisTick.event.extend();
                     }
                     return next(nextTick);
                 };
@@ -114,11 +111,26 @@ export class WebfloRouter {
                 $next.pathname = nextPathname.join('/');
                 $next.stepname = nextPathname[0];
                 const $fetch = async (...args) => await go(true, ...args);
-                // Execute handler
-                const returnValue = Promise.resolve(handler.call(thisContext, thisTick.event, $next/*next*/, $fetch/*fetch*/));
-                thisTick.event.waitUntil(returnValue);
-                return returnValue;
-            }
+                // Dispatch to handler
+                return new Promise(async (resolve) => {
+                    let resolved = 0;
+                    thisTick.event.internalLiveResponse.addEventListener('replace', () => {
+                        if (!resolved) {
+                            resolved = 1;
+                            resolve(thisTick.event.internalLiveResponse);
+                        } else if (resolved === 2) {
+                            throw new Error(`Unexpected respondWith() after handler returns.`);
+                        }
+                    });
+                    const returnValue = await handler.call(thisContext, thisTick.event, $next/*next*/, $fetch/*fetch*/);
+                    if (!resolved) {
+                        resolved = 2;
+                        resolve(returnValue);
+                    } else if (typeof returnValue !== 'undefined') {
+                        await thisTick.event.internalLiveResponse.replaceWith(returnValue, { done: true });
+                    }
+                });
+             }
             if (_default) {
                 return await _default.call(thisContext, thisTick.event, remoteFetch);
             }

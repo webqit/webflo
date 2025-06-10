@@ -1,14 +1,11 @@
 import { _isObject } from '@webqit/util/js/index.js';
-import { WebfloMessagingAPI } from '../webflo-messaging/WebfloMessagingAPI.js';
-import { WebfloMessageEvent } from '../webflo-messaging/WebfloMessageEvent.js';
+import { WebfloMessagingAPI } from '../../webflo-messaging/WebfloMessagingAPI.js';
+import { WebfloMessageEvent } from '../../webflo-messaging/WebfloMessageEvent.js';
 
 export class ClientSideWorkport extends WebfloMessagingAPI {
 
     #registration;
     get registration() { return this.#registration; }
-
-    #params;
-    get params() { return this.#params; }
 
     #ready;
     get ready() { return this.#ready; }
@@ -26,7 +23,6 @@ export class ClientSideWorkport extends WebfloMessagingAPI {
     constructor(parentNode, registration, params = {}) {
         super(parentNode, params);
         this.#registration = registration;
-        this.#params = params;
         this.#ready = navigator.serviceWorker ? navigator.serviceWorker.ready : new Promise(() => {});
         // Helper that updates instance's state
         const stateChange = (target) => {
@@ -57,31 +53,20 @@ export class ClientSideWorkport extends WebfloMessagingAPI {
             });
         }
         this.#messageHandler = async (event) => {
-            if (!_isObject(event.data) || !['messageType', 'message'].every((k) => k in event.data)) {
-                return;
-            }
-            this.dispatchEvent(new WorkerMessageEvent(
-                this,
-                event.data.messageType,
-                event.data.message,
-                event.ports
-            ));
+            this.dispatchEvent(new WorkerMessageEvent(this, {
+                type: event.type,
+                data: event.data,
+                ports: event.ports,
+            }));
         };
         navigator.serviceWorker.addEventListener('message', this.#messageHandler);
     }
 
-    postMessage(message, transferOrOptions = []) {
+    postMessage(data, transferOrOptions = []) {
         this.on('open', () => {
-            if (Array.isArray(transferOrOptions)) {
-                transferOrOptions = { transfer: transferOrOptions };
-            }
-            const { messageType = 'message', ...options } = transferOrOptions;
-            return this.#active.postMessage({
-                messageType,
-                message
-            }, options);
+            return this.#active.postMessage(data, transferOrOptions);
         }, { once: true });
-        super.postMessage(message, transferOrOptions);
+        super.postMessage(data, transferOrOptions);
     }
 
     close() {

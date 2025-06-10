@@ -1,8 +1,7 @@
-import { MultiportMessagingAPI } from '../webflo-messaging/MultiportMessagingAPI.js';
+import { MultiportMessagingAPI } from '../../webflo-messaging/MultiportMessagingAPI.js';
+import { $parentNode } from '../../../util.js';
 
-export class ClientMessagingPort extends MultiportMessagingAPI {
-
-    get runtime() { return this.parentNode.parentNode; }
+export class ClientMessagePort extends MultiportMessagingAPI {
 
     #portID;
     get portID() { return this.#portID; }
@@ -13,11 +12,12 @@ export class ClientMessagingPort extends MultiportMessagingAPI {
     #navigatedAway = false;
     navigatedAway() { return this.#navigatedAway; }
 
-    constructor(parentNode/*ClientMessagingRegistry*/, portID, params = {}) {
+    constructor(parentNode, portID, params = {}) {
         super(parentNode, params);
         this.#portID = portID;
         if (params.url) {
-            let url = new URL(params.url), lastNavigationEvent;
+            const url = new URL(params.url);
+            let lastNavigationEvent;
             this.addEventListener('navigate', (e) => {
                 if (e.data.pathname === url.pathname) {
                     this.#navigatedIn = true;
@@ -35,7 +35,11 @@ export class ClientMessagingPort extends MultiportMessagingAPI {
         }
     }
 
-    createBroadcastChannel(name) {
-        return this.parentNode.createBroadcastChannel(name);
+    enterChannel(channelID, ...args) {
+        const tenant = this[$parentNode];
+        const tenants = tenant[$parentNode];
+        const channel = tenants.getChannel(channelID, true);
+        const cleanup = channel.addTenant(tenant, ...args);
+        return { channel, cleanup };
     }
 }

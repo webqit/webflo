@@ -2,6 +2,7 @@ import { Observer } from '@webqit/quantum-js';
 import { WebfloClient } from './WebfloClient.js';
 import { defineElement } from './webflo-embedded.js';
 import { Url } from '../webflo-url/Url.js';
+import { $parentNode } from '../../util.js';
 
 export class WebfloSubClient extends WebfloClient {
 
@@ -20,7 +21,7 @@ export class WebfloSubClient extends WebfloClient {
 
 	get workport() { return this.#superRuntime.workport; }
 
-	get capabilities() { return this.#superRuntime.capabilities; }
+	get deviceCapabilities() { return this.#superRuntime.deviceCapabilities; }
 
 	get withViewTransitions() { return this.host.hasAttribute('viewtransitions'); }
 
@@ -39,11 +40,11 @@ export class WebfloSubClient extends WebfloClient {
 		if (this.host.location.origin !== window.location.origin) {
 			throw new Error(`Webflo embeddable origin violation in "${window.location}"`);
 		}
-		this.backgroundMessagingPorts.setParent(this.#superRuntime.backgroundMessagingPorts);
+		this.backgroundMessagingPorts[$parentNode] = this.#superRuntime.backgroundMessagingPorts;
 		const instanceController = await super.initialize();
 		instanceController.signal.addEventListener('abort', () => {
-			if (this.backgroundMessagingPort.parentNode === this.#superRuntime.backgroundMessagingPort) {
-				this.backgroundMessagingPort.setParent(null);
+			if (this.backgroundMessagingPort[$parentNode] === this.#superRuntime.backgroundMessagingPort) {
+				this.backgroundMessagingPort[$parentNode] = null;
 			}
 		}, { once: true });
 		return instanceController;

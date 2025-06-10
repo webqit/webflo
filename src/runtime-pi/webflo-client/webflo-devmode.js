@@ -116,8 +116,8 @@ export class WebfloHMR {
             const removedHTML = this.#removedHTML.get($contextPath);
             let _count = 0;
             for (const node of [...modules, ...removedHTML]) {
-                const $def = level === 0 ? '' : node.getAttribute('def');
-                const $defPath = $def ? `${$contextPath}/${$def}` : $contextPath;
+                const $def = node.getAttribute('def');
+                const $defPath = $contextPath ? `${$contextPath === '/' ? '' : $contextPath}/${$def}` : null;
                 // Match remote modules
                 if (node.matches(this.#selectors.remoteHtmlModule)) {
                     if (!node.$url) {
@@ -130,10 +130,10 @@ export class WebfloHMR {
                         _count += await this.mutateNode(event, node, removedHTML, true);
                         continue;
                     }
-                    const nodeDirName = _dirname(node.$url.pathname);
-                    if (event.$target.pathname.startsWith(`${nodeDirName}/`)) {
+                    const srcDir = _dirname(node.$url.pathname);
+                    if (srcDir === '/' || event.$target.pathname.startsWith(`${srcDir}/`)) {
                         // Target is a file within current bundle. So we recurse
-                        _count += await eat.call(this, node, nodeDirName, [...node.content.children], level + 1);
+                        _count += await eat.call(this, node, srcDir, [...node.content.children], level + 1);
                         continue;
                     }
                 }
@@ -142,14 +142,14 @@ export class WebfloHMR {
                     _count += await this.mutateNode(event, node, removedHTML, async () => {
                         const replacementNode = await this.loadHTMLModule(event.target/*!IMPORTANT*/);
                         if (!replacementNode) return 0;
-                        replacementNode.setAttribute('def', $def);
+                        replacementNode.setAttribute?.('def', $def);
                         node.replaceWith(replacementNode);
                         return 1;
                     });
                     continue;
                 }
                 // Recurse along DEF tree
-                if (node.matches(this.#selectors.inlineHtmlModule) && event.$target.pathname.startsWith(`${$defPath}/`)) {
+                if (node.matches(this.#selectors.inlineHtmlModule)) {
                     // Target is a file within current module. So we recurse
                     _count += await eat.call(this, node, $defPath, [...node.content.children], level + 1);
                     continue;
@@ -163,13 +163,13 @@ export class WebfloHMR {
                     ? document.createElement('template')
                     : await this.loadHTMLModule(event.target/*!IMPORTANT*/);
                 if (newNode) {
-                    newNode.setAttribute('def', _basename(event.$target.pathname));
-                    contextNode.content.append(newNode);
+                    newNode.setAttribute?.('def', _basename(event.$target.pathname));
+                    contextNode.content.appendChild(newNode);
                     _count++;
                 }
             }
             return _count;
-        }).call(this, [...topLevelModules][0], '/', topLevelModules);
+        }).call(this, [...topLevelModules][0], '', topLevelModules);
     }
 
     async mutateNode(event, node, removedNodes, customRefresh = null) {
@@ -218,11 +218,13 @@ export class WebfloHMR {
 }
 
 const _dirname = (path) => {
-    return path.replace(/\/[^\/]+$/, '');
+    const dname = path.replace(/\/[^\/]+$/, '');
+    return !dname ? '/' : dname;
 };
 
 const _basename = (path) => {
-    return path.match(/\/([^\/]+)$/)[1];
+    const bname = path.match(/\/([^\/]+)$/)[1];
+    return !bname ? path : bname;
 };
 
 const _matchUrl = (event, pathname) => {

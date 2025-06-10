@@ -1,14 +1,14 @@
 import { Observer } from '@webqit/quantum-js';
 import { WebfloClient } from './WebfloClient.js';
-import { ClientSideWorkport } from './ClientSideWorkport.js';
-import { Capabilities } from './Capabilities.js';
+import { ClientSideWorkport } from './messaging/ClientSideWorkport.js';
+import { DeviceCapabilities } from './DeviceCapabilities.js';
 import { WebfloHMR } from './webflo-devmode.js';
 
 export class WebfloRootClient1 extends WebfloClient {
 
 	static get Workport() { return ClientSideWorkport; }
 
-	static get Capabilities() { return Capabilities; }
+	static get DeviceCapabilities() { return DeviceCapabilities; }
 
 	static create(cx, host) {
 		return new this(this.Context.create(cx), host);
@@ -20,8 +20,8 @@ export class WebfloRootClient1 extends WebfloClient {
 	#workport;
 	get workport() { return this.#workport; }
 
-	#capabilities;
-	get capabilities() { return this.#capabilities; }
+	#deviceCapabilities;
+	get deviceCapabilities() { return this.#deviceCapabilities; }
 
 	#hmr;
 
@@ -40,16 +40,6 @@ export class WebfloRootClient1 extends WebfloClient {
 	async initialize() {
 		// INITIALIZATIONS
 		const instanceController = await super.initialize();
-		// Service Worker && Capabilities
-		const cleanups = [];
-		instanceController.signal.addEventListener('abort', () => cleanups.forEach((c) => c()), { once: true });
-		this.#capabilities = await this.constructor.Capabilities.initialize(this, this.config.CLIENT.capabilities);
-		cleanups.push(() => this.#capabilities.close());
-		if (this.config.CLIENT.capabilities?.service_worker?.filename) {
-			const { service_worker: { filename, ...restServiceWorkerParams } = {} } = this.config.CLIENT.capabilities;
-			this.#workport = await this.constructor.Workport.initialize(null, (this.config.CLIENT.public_base_url || '') + filename, restServiceWorkerParams);
-			cleanups.push(() => this.#workport.close());
-		}
 		// Bind network status handlers
 		const onlineHandler = () => Observer.set(this.network, 'status', window.navigator.onLine);
 		window.addEventListener('online', onlineHandler, { signal: instanceController.signal });
@@ -100,18 +90,33 @@ export class WebfloRootClient1 extends WebfloClient {
 		return instanceController;
 	}
 
+	async setupCapabilities() {
+		const instanceController = await super.setupCapabilities();
+		// Service Worker && Capabilities
+		const cleanups = [];
+		instanceController.signal.addEventListener('abort', () => cleanups.forEach((c) => c()), { once: true });
+		this.#deviceCapabilities = await this.constructor.DeviceCapabilities.initialize(this, this.config.CLIENT.capabilities);
+		cleanups.push(() => this.#deviceCapabilities.close());
+		if (this.config.CLIENT.capabilities?.service_worker?.filename) {
+			const { service_worker: { filename, ...restServiceWorkerParams } = {} } = this.config.CLIENT.capabilities;
+			this.#workport = await this.constructor.Workport.initialize(null, (this.config.CLIENT.public_base_url || '') + filename, restServiceWorkerParams);
+			cleanups.push(() => this.#workport.close());
+		}
+		return instanceController;
+	}
+
 	async hydrate() {
 		const instanceController = await super.hydrate();
 		const scopeObj = {};
 		scopeObj.data = this.host.querySelector(`script[rel="hydration"][type="application/json"]`)?.textContent?.trim() || null;
 		scopeObj.response = new Response.from(scopeObj.data, { headers: { 'Content-Type': 'application/json' } });
-		for (const name of ['X-Background-Messaging-Port', 'X-Live-Response-Message-ID', 'X-Live-Response-Generator-Done', 'X-Dev-Mode']) {
+		for (const name of ['X-Background-Messaging-Port', 'X-Live-Response-Message-ID', 'X-Webflo-Dev-Mode']) {
 			const metaElement = this.host.querySelector(`meta[name="${name}"]`);
 			if (!metaElement) continue;
 			scopeObj.response.headers.set(name, metaElement.content?.trim() || '');
 		}
 		if (scopeObj.response.isLive()) {
-			this.backgroundMessagingPorts.add(scopeObj.response.backgroundMessagingPort);
+			this.backgroundMessagingPorts.addPort(scopeObj.response.backgroundMessagingPort);
 		}
 		if (scopeObj.response.body || scopeObj.response.isLive()) {
 			const httpEvent = this.createHttpEvent({ request: this.createRequest(this.location.href) }, true);
@@ -119,7 +124,7 @@ export class WebfloRootClient1 extends WebfloClient {
 		} else {
 			await this.navigate(this.location.href);
 		}
-		if (scopeObj.response.headers.get('X-Dev-Mode') === 'true') {
+		if (scopeObj.response.headers.get('X-Webflo-Dev-Mode') === 'true') {
 			this.enterDevMode();
 		}
 		return instanceController;

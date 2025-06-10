@@ -1,16 +1,16 @@
+import { _wq } from '../../util.js';
 import { renderHttpMessageInit } from './message.js';
-import { meta } from './util.js';
 
 
 const { clone: cloneMethod } = Request.prototype;
 const requestMethods = {
-    [meta]: { get: function () { if (!this._meta) this._meta = {}; return this._meta; } },
-    carries: { get: function () { return new Set(this[meta].carries || []); } },
+    carries: { get: function () { return new Set(_wq(this, 'meta').get('carries') || []); } },
     clone: {
         value: function (init = {}) {
-            const clonedRequest = cloneMethod.call(this, init);
-            Object.assign(clonedRequest[meta], this[meta]);
-            return clonedRequest;
+            const clone = cloneMethod.call(this, init);
+            const requestMeta = _wq(this, 'meta');
+            _wq(clone).set('meta', requestMeta);
+            return clone;
         }
     },
     parse: { value: function () { return parseHttpMessage(this); } },
@@ -27,8 +27,9 @@ const staticRequestMethods = {
                 $$type = $type;
             }
             const instance = new Request(url, init);
-            instance[meta].body = $$body;
-            instance[meta].type = $$type;
+            const responseMeta = _wq(instance, 'meta');
+            responseMeta.set('body', $$body);
+            responseMeta.set('type', $$type);
             return instance;
         }
     },

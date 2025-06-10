@@ -1,8 +1,8 @@
 import { _any } from '@webqit/util/arr/index.js';
 import { WebfloRuntime } from '../WebfloRuntime.js';
-import { ClientMessagingPort } from './ClientMessagingPort.js';
+import { WorkerSideWorkport } from './messaging/WorkerSideWorkport.js';
+import { ClientMessagePort } from './messaging/ClientMessagePort.js';
 import { WorkerSideCookies } from './WorkerSideCookies.js';
-import { WorkerSideWorkport } from './WorkerSideWorkport.js';
 import { HttpSession } from '../webflo-routing/HttpSession.js';
 import { HttpEvent } from '../webflo-routing/HttpEvent.js';
 import { HttpUser } from '../webflo-routing/HttpUser.js';
@@ -74,25 +74,18 @@ export class WebfloWorker extends WebfloRuntime {
 		const instanceController = super.control();
 		// ONFETCH
 		const fetchHandler = (event) => {
-			// URL schemes that might arrive here but not supported; e.g.: chrome-extension://
-			if (!event.request.url.startsWith('http')) return;
+			// Handle special requests
+			if (!event.request.url.startsWith('http') || event.request.mode === 'navigate') {
+				return event.respondWith(fetch(event.request));
+			}
 			// Handle external requests
 			if (!event.request.url.startsWith(self.origin)) {
 				return event.respondWith(this.remoteFetch(event.request));
 			}
-			if (event.request.mode === 'navigate' || event.request.cache === 'force-cache'/* && event.request.mode === 'navigate' - even webflo client init call also comes with that... needs investigation */) {
-				// Now, the following is key:
-				// The browser likes to use "force-cache" for "navigate" requests, when, e.g: re-entering your site with the back button
-				// Problem here, force-cache forces out JSON not HTML as per webflo's design.
-				// So, we detect this scenerio and avoid it.
-				event.respondWith((async (event) => {
-					const { url, ...requestInit } = await Request.copy(event.request);
-					requestInit.cache = 'default';
-					return await this.navigate(url, requestInit, { event });
-				})(event));
-			} else {
-				event.respondWith(this.navigate(event.request.url, event.request, { event }));
-			}
+			event.respondWith((async (event) => {
+				const response = await this.navigate(event.request.url, event.request, { event });
+				return response;
+			})(event));
 		};
 		const webpushHandler = (event) => {
 			if (!(self.Notification && self.Notification.permission === 'granted')) return;
@@ -116,7 +109,7 @@ export class WebfloWorker extends WebfloRuntime {
 			scopeObj.url = new URL(scopeObj.url, self.location.origin);
 		}
 		// Create and route request
-		scopeObj.request = this.createRequest(scopeObj.url, scopeObj.init);
+		scopeObj.request =  this.createRequest(scopeObj.url, scopeObj.init);
 		scopeObj.cookies = this.createHttpCookies({
 			request: scopeObj.request
 		});
@@ -125,19 +118,19 @@ export class WebfloWorker extends WebfloRuntime {
 			request: scopeObj.request
 		});
 		const portID = crypto.randomUUID();
-		scopeObj.clientMessagingPort = new ClientMessagingPort(null, portID, { isPrimary: true, honourDoneMutationFlags: true });
+		scopeObj.clientMessagePort = new ClientMessagePort(null, portID, { isPrimary: true, honourDoneMutationFlags: true });
 		scopeObj.user = this.createHttpUser({
 			store: this.#sdk.storage?.('user'),
 			request: scopeObj.request,
 			session: scopeObj.session,
-			client: scopeObj.clientMessagingPort
+			client: scopeObj.clientMessagePort
 		});
 		scopeObj.httpEvent = this.createHttpEvent({
 			request: scopeObj.request,
 			cookies: scopeObj.cookies,
 			session: scopeObj.session,
 			user: scopeObj.user,
-			client: scopeObj.clientMessagingPort,
+			client: scopeObj.clientMessagePort,
 			detail: scopeObj.detail,
 			sdk: {}
 		});
@@ -153,9 +146,6 @@ export class WebfloWorker extends WebfloRuntime {
 			},
 			backgroundMessagingPort: `channel:${scopeObj.httpEvent.client.port.name}`
 		});
-		if (!scopeObj.response.headers.get('Location') && scopeObj.httpEvent.request.method !== 'GET' && !scopeObj.response.headers.get('Cache-Control')) {
-			scopeObj.response.headers.set('Cache-Control', 'no-store');
-		}
 		return scopeObj.response;
 	}
 
@@ -229,15 +219,15 @@ export class WebfloWorker extends WebfloRuntime {
 		// as well as the cache consuming the response, we need
 		// to clone it so we have two streams.
 		var responseToCache = response.clone();
-		this.getRequestCache(request).then(cache => {
+		await this.getRequestCache(request).then(cache => {
 			cache.put(request, responseToCache);
 		});
 		return response;
 	}
 
 	async getRequestCache(request) {
-		const cacheName = request.headers.get('Accept') === 'application/json'
-			? this.config.WORKER.cache_name + '_json'
+		const cacheName = request.headers.get('X-Powered-By') === '@webqit/webflo'
+			? this.config.WORKER.cache_name + '_csr'
 			: this.config.WORKER.cache_name;
 		return self.caches.open(cacheName);
 	}

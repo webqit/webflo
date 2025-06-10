@@ -79,9 +79,9 @@ export class MessagingOverSocket extends WebfloMessagingAPI {
     }
 
     dispatchLocal(eventOptions = {}) {
-        this.dispatchEvent(new SocketMessageEvent(
-            this, eventOptions
-        ));
+        this.dispatchEvent(
+            new SocketMessageEvent(this, eventOptions)
+        );
     }
 
     close(...args) {

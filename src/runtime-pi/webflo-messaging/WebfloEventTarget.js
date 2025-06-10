@@ -1,3 +1,6 @@
+import { $parentNode, $runtime } from '../../util.js';
+import { WebfloMessageEvent } from './WebfloMessageEvent.js';
+
 export class WebfloEventTarget extends EventTarget {
 
     #parentNode;
@@ -5,24 +8,30 @@ export class WebfloEventTarget extends EventTarget {
     #params;
     #listenersRegistry = new Set;
 
-    get parentNode() { return this.#parentNode; }
+    set [$parentNode](parentNode) {
+        this.#parentNode = parentNode;
+        this.#alwaysBubbleToParent = parentNode?.ports?.has(this);
+    }
+
+    get [$parentNode]() { return this.#parentNode; }
+
+    get [$runtime]() { return this[$parentNode]?.[$runtime]; }
+
     get params() { return this.#params; }
+
     get length() { return this.#listenersRegistry.size; }
 
     constructor(parentNode, params = {}) {
         super();
         this.#parentNode = parentNode;
+        this.#alwaysBubbleToParent = parentNode?.ports?.has(this);
         this.#params = params;
-    }
-
-    setParent(parentNode, alwaysBubble = false) {
-        this.#parentNode = parentNode;
-        this.#alwaysBubbleToParent = alwaysBubble;
     }
 
     dispatchEvent(event) {
         const returnValue = super.dispatchEvent(event);
-        if ((event.bubbles || this.#alwaysBubbleToParent) && this.#parentNode instanceof EventTarget && !event.defaultPrevented && !event.propagationStopped) {
+        if ((event.bubbles || this.#alwaysBubbleToParent && event instanceof WebfloMessageEvent)
+            && this.#parentNode instanceof EventTarget && !event.propagationStopped) {
             this.#parentNode.dispatchEvent(event);
         }
         return returnValue;

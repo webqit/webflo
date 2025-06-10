@@ -1,7 +1,5 @@
 import { _isString, _isObject, _isPlainObject, _isPlainArray, _isTypeObject, _isNumber, _isBoolean } from '@webqit/util/js/index.js';
 
-export const meta = Symbol('meta');
-
 export function isTypeStream(obj) {
     return obj instanceof ReadableStream || isTypeReadable(obj);
 }

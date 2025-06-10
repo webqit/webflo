@@ -45,7 +45,8 @@ export class WebfloHMR {
         this.#routeDirs = new Set([app.config.LAYOUT.CLIENT_DIR, app.config.LAYOUT.WORKER_DIR, app.config.LAYOUT.SERVER_DIR]);
         this.#handlerMatch = new RegExp(`${_layoutDirPattern(this.#routeDirs)}(\\/.+)?\\/handler(?:\\.(client|worker|server))?\\.js$`);
         // The watch and event ordering logic
-        this.#watcher = chokidar.watch([...this.#routeDirs, app.config.LAYOUT.VIEWS_DIR, app.config.LAYOUT.PUBLIC_DIR], { ignoreInitial: true });
+        const totalWatchDirs = new Set([...this.#routeDirs, app.config.LAYOUT.VIEWS_DIR, app.config.LAYOUT.PUBLIC_DIR]);
+        this.#watcher = chokidar.watch([...totalWatchDirs], { ignoreInitial: true });
         let flushTimer;
         const scheduleFlush = () => {
             clearTimeout(flushTimer);
@@ -83,13 +84,15 @@ export class WebfloHMR {
                 if (target.endsWith('.css')) {
                     events.add({ type, target, fileType: 'css', kind: 'asset' });
                 }
-            } else if (this.#layoutDirsMatchMap.VIEWS_DIR.test(target)) { // Views
+            }
+            if (this.#layoutDirsMatchMap.VIEWS_DIR.test(target)) { // Views
                 if (/Dir$/.test(type)) { // (addDir | unlinkDir)
                     events.add({ type, target, fileType: null, kind: 'view' });
                 } else if (target.endsWith('.html')) {
                     events.add({ type, target, fileType: 'html', kind: 'view' });
                 }
-            } else if (target.endsWith('.js')) {
+            }
+            if (target.endsWith('.js')) {
                 if (/add|unlink/.test(type)) {
                     this.#jsMeta.mustRevalidate = true; // Invalidate graph
                 }
@@ -141,7 +144,7 @@ export class WebfloHMR {
                 }
             } else if (event.fileType === 'css') {
                 statuses.CSSAffected = true;
-            } else if (event.fileType === 'html') {
+            } else if (event.fileType === 'html' || !event.fileType) {
                 statuses.HTMLAffected = true;
             }
         }

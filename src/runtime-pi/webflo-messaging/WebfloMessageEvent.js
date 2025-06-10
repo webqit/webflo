@@ -1,16 +1,12 @@
 import { _isTypeObject } from '@webqit/util/js/index.js';
+import { $runtime } from '../../util.js';
 
 export class WebfloMessageEvent extends Event {
 
     #originalTarget;
     get originalTarget() { return this.#originalTarget; }
 
-    get runtime() {
-        let parentNode = this.#originalTarget;
-        do {
-            if (parentNode.runtime) return parentNode.runtime;
-        } while (parentNode = parentNode.parentNode)
-    }
+    get [$runtime]() { return this.#originalTarget[$runtime]; }
 
     #eventID;
     get eventID() { return this.#eventID; }

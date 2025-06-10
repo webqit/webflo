@@ -1,15 +1,17 @@
 import { Context } from '../Context.js';
 import { WebfloRouter } from './webflo-routing/WebfloRouter.js';
-import { meta } from './webflo-fetch/util.js';
+import { _wq, $runtime } from '../util.js';
 
 export class WebfloRuntime {
 
     #instanceController = new AbortController;
     get $instanceController() { return this.#instanceController; }
 
-	static get Context() { return Context; }
+    static get Context() { return Context; }
 
     static get Router() { return WebfloRouter; }
+
+    get [$runtime]() { return this; }
 
     #cx;
     get cx() { return this.#cx; }
@@ -36,15 +38,12 @@ export class WebfloRuntime {
             : ENV.data[key];
     }
 
-    async hmr(route, moduleUrl = null) {
-        if (moduleUrl) {
-            this.routes[route] = `${moduleUrl}?$$$hmr=${Date.now()}`;
-        } else {
-            delete this.routes[route];
-        }
+    async initialize() {
+        // Do init work
+        return this.#instanceController;
     }
 
-    async initialize() {
+    async setupCapabilities() {
         // Do init work
         return this.#instanceController;
     }
@@ -80,152 +79,130 @@ export class WebfloRuntime {
     }
 
     async dispatchNavigationEvent({ httpEvent, crossLayerFetch, backgroundMessagingPort }) {
-        const scopeObj = {};
+        const { flags: FLAGS } = this.cx;
         // Resolve rid before dispatching
-        if (httpEvent.request.method === 'GET'
-            && (httpEvent.request[meta].redirectID = httpEvent.url.query['_rid'])
-            && (httpEvent.request[meta].carries = [].concat(await httpEvent.session.get(`carry-store:${httpEvent.request[meta].redirectID}`) || []))) {
-            await httpEvent.session.delete(`carry-store:${httpEvent.request[meta].redirectID}`);
+        if (httpEvent.request.method === 'GET' && httpEvent.url.query['_rid']) {
+            const requestMeta = _wq(httpEvent.request, 'meta');
+            requestMeta.set('redirectID', httpEvent.url.query['_rid']);
+            requestMeta.set('carries', [].concat(await httpEvent.session.get(`carry-store:${requestMeta.get('redirectID')}`) || []));
+            await httpEvent.session.delete(`carry-store:${requestMeta.get('redirectID')}`);
         }
         // Dispatch event
         const router = new this.constructor.Router(this, httpEvent.url.pathname);
         await router.route(['SETUP'], httpEvent);
-        const route = async () => {
-            return await router.route(
-                [httpEvent.request.method, 'default'],
-                httpEvent,
-                (event) => crossLayerFetch(event),
-                (...args) => this.remoteFetch(...args)
-            );
-        };
-        try {
-            scopeObj.returnValue = await (this.cx.middlewares || []).concat(route).reverse().reduce((next, fn) => {
-                return () => fn.call(this.cx, httpEvent, router, next);
-            }, null)();
-        } catch (e) {
-            console.error(e);
-            scopeObj.returnValue = new Response(null, { status: 500, statusText: e.message });
-        }
-        scopeObj.response = scopeObj.returnValue;
-        // A live response from the server? The logic in this block assumes that this is rather from this realm
-        // we need to skip that
-        if (!(scopeObj.response instanceof Response && scopeObj.response.headers.get('X-Background-Messaging-Port'))) {
-            // Resolve return value
-            if (this.isClientSide) {
-                // Both LiveResponse and Response are supported
-                if (!(scopeObj.response instanceof LiveResponse) && !(scopeObj.response instanceof Response)) {
-                    scopeObj.response = await LiveResponse.from(scopeObj.response);
-                }
-                // Wait until generator done
-                if (scopeObj.response instanceof LiveResponse && !scopeObj.response.generatorDone) {
-                    const done = new Promise((resolve) => {
-                        scopeObj.response.addEventListener('generatordone', (e) => {
-                            if (!scopeObj.response.frameDone/*Closures AREN'T required on the client to indicate live frames*/) {
-                                scopeObj.response.addEventListener('framedone', resolve, { once: true });
-                            } else resolve(e);
-                        }, { once: true });
-                    });
-                    httpEvent.waitUntil(done);
-                }
-            } else {
-                // Only normal Response (with streaming) supported
-                let liveResponse, isStreamingResponse;
-                if (!(scopeObj.response instanceof Response)) {
-                    liveResponse = await LiveResponse.from(scopeObj.response);
-                    // isStreamingResponse if originally a LiveResponse or is initialized from Generator|Quantum
-                    isStreamingResponse = scopeObj.returnValue/*ORIGINAL*/ instanceof LiveResponse || liveResponse.generatorType !== 'Default';
-                    // Convert to normal response with streaming enabled and streaming details applied
-                    scopeObj.response = liveResponse.toResponse({ clientMessagingPort: isStreamingResponse && httpEvent.client || null });
-                }
-                // Wait until generator done
-                if (isStreamingResponse && !liveResponse.generatorDone) {
-                    const done = new Promise((resolve) => {
-                        liveResponse.addEventListener('generatordone', (e) => {
-                            if (!liveResponse.frameDone && liveResponse.frameClosurePromise/*Closures are required on the server to indicate live frames*/) {
-                                liveResponse.addEventListener('framedone', resolve, { once: true });
-                            } else resolve(e);
-                        }, { once: true });
-                    });
-                    httpEvent.waitUntil(done);
-                }
-            }
-            // Any carryon data?
-            await this.handleCarries(httpEvent, scopeObj.response);
-            // Send the X-Background-Messaging-Port header?
-            // !ORDER: Must after the live data-binding logic above
-            // so that httpEvent.eventLifecyclePromises.size can capture the httpEvent.waitUntil()
-            // !ORDER: Must come after having called this.handleCarries()
-            // so that httpEvent.client.isMessaging() can capture any postMessage() there
-            if (httpEvent.eventLifecyclePromises.size || httpEvent.client.isMessaging()) {
-                if (this.isClientSide) {
-                    scopeObj.response[meta].backgroundMessagingPort = backgroundMessagingPort;
-                } else {
-                    scopeObj.response.headers.set(
-                        'X-Background-Messaging-Port',
-                        backgroundMessagingPort
-                    );
-                }
-            }
-            // Terminate live objects listeners
-            // !ORDER: Must after the live data-binding logic above
-            // so that httpEvent.eventLifecyclePromises.size can capture the httpEvent.waitUntil()
-            Promise.all([...httpEvent.eventLifecyclePromises]).then(() => {
-                if (httpEvent.client.isMessaging()) {
-                    httpEvent.client.on('open', () => {
-                        setTimeout(() => {
-                            httpEvent.client.close();
-                        }, 100);
-                    }, { once: true });
-                } else {
-                    httpEvent.client.close();
-                }
+        // Do proper routing for respone
+        const response = await new Promise(async (resolve) => {
+            let autoLiveResponse, response;
+            httpEvent.client.on('messaging', () => {
+                autoLiveResponse = new LiveResponse(null, { status: 202, statusText: 'Accepted', done: false });
+                resolve(autoLiveResponse);
             });
+            const route = async () => {
+                const remoteFetch = (...args) => this.remoteFetch(...args);
+                const routeMethods = [httpEvent.request.method, 'default'];
+                return await router.route(routeMethods, httpEvent, crossLayerFetch, remoteFetch);
+            };
+            const fullRoutingPipeline = (this.cx.middlewares || []).concat(route);
+            try {
+                response = await fullRoutingPipeline.reverse().reduce((next, fn) => {
+                    return () => fn.call(this.cx, httpEvent, router, next);
+                }, null)()/*immediately calling the first*/;
+            } catch (e) {
+                console.error(e);
+                response = new Response(null, { status: 500, statusText: e.message });
+            }
+            if (!(response instanceof LiveResponse) && !(response instanceof Response)) {
+                response = LiveResponse.test(response) === 'Default'
+                    ? Response.from(response)
+                    : await LiveResponse.from(response, { responsesOK: true });
+            }
+            // Any "carry" data?
+            //await this.handleCarries(httpEvent, response);
+            // Resolve now...
+            if (autoLiveResponse) {
+                await autoLiveResponse.replaceWith(response, { done: true });
+            } else {
+                resolve(response);
+            }
+        });
+        // Commit data in the exact order. Reason: in how they depend on each other
+        for (const storage of [httpEvent.user, httpEvent.session, httpEvent.cookies]) {
+            await storage?.commit?.(response, FLAGS['dev']);
+        }
+        if (response instanceof LiveResponse && response.whileLive()) {
+            httpEvent.waitUntil(response.whileLive(true));
+        } else {
+            httpEvent.waitUntil(Promise.resolve());
+            await null; // We need the above resolved before we move on
+        }
+        // Send the X-Background-Messaging-Port header
+        // This server's event lifecycle management
+        if (!httpEvent.lifeCycleComplete()) {
+            const upstreamBackgroundMessagingPort = response.backgroundMessagingPort;
+            if (this.isClientSide) {
+                const responseMeta = _wq(response, 'meta');
+                responseMeta.set('backgroundMessagingPort', backgroundMessagingPort);
+            } else {
+                response.headers.set('X-Background-Messaging-Port', backgroundMessagingPort);
+            }
             httpEvent.client.addEventListener('navigate', (e) => {
-                if (e.defaultPrevented) {
-                    console.log(`Client Messaging Port on ${httpEvent.request.url} not auto-closed on user navigation.`);
-                    return;
-                }
+                setTimeout(() => { // Allow for global handlers to see the events
+                    if (e.defaultPrevented) {
+                        console.log(`Client Messaging Port on ${httpEvent.request.url} not auto-closed on user navigation.`);
+                    } else {
+                        httpEvent.client.close();
+                    }
+                }, 0);
+            });
+            httpEvent.lifeCycleComplete(true).then(() => {
                 httpEvent.client.close();
             });
         }
-        // Commit data in the exact order. Reason: in how they depend on each other
-        for (const storage of [httpEvent.user, httpEvent.session, httpEvent.cookies]) {
-            await storage?.commit?.(scopeObj.response);
+        if (!this.isClientSide && response instanceof LiveResponse) {
+            // Must convert to Response on the server-side before returning
+            return response.toResponse({ clientMessagePort: httpEvent.client });
         }
-        // Return normalized response
-        return scopeObj.response;
+        return response;
     }
 
     async handleCarries(httpEvent, response) {
+        const requestMeta = _wq(httpEvent.request, 'meta');
+        const responseMeta = _wq(response, 'meta');
         if (response.headers.get('Location')) {
-            if (response.carry) {
+            // Save the supposedly incoming "carry" back to URL
+            if (requestMeta.get('carries')?.length) {
+                await httpEvent.session.set(`carry-store:${requestMeta.get('redirectID')}`, requestMeta.get('carries'));
+                requestMeta.set('carries', []);
+            }
+            // Stash current byte of "carry"
+            if (responseMeta.has('carry')) {
                 const $url = new URL(response.headers.get('Location'), httpEvent.request.url);
                 if ($url.searchParams.has('_rid')) {
                     // If the URL already has a rid, append the new one
                     const existingRedirectID = $url.searchParams.get('_rid');
                     const existingData = await httpEvent.session.get(`carry-store:${existingRedirectID}`);
-                    const combinedData = [].concat(response.carry, existingData || []);
+                    const combinedData = [].concat(responseMeta.get('carry'), existingData || []);
                     // Save the combined data back to the session
                     await httpEvent.session.set(`carry-store:${existingRedirectID}`, combinedData);
                 } else {
                     // If not, create a new rid
                     const redirectID = (0 | Math.random() * 9e6).toString(36);
                     $url.searchParams.set('_rid', redirectID);
-                    await httpEvent.session.set(`carry-store:${redirectID}`, [].concat(response.carry));
+                    await httpEvent.session.set(`carry-store:${redirectID}`, [].concat(responseMeta.get('carry')));
                 }
-            }
-            // Save the supposedly next message back to URL
-            if (httpEvent.request.carries.size) {
-                await scopeObj.session.set(`carry-store:${httpEvent.request[meta].redirectID}`, [...httpEvent.request.carries]);
-                httpEvent.request[meta]/*!IMPORTANT*/.carries = [];
             }
         } else {
             // Fire redirect message?
-            const flashResponses = httpEvent.request[meta]/*!IMPORTANT*/.carries?.map((c) => c.response).filter((r) => r);
+            const flashResponses = requestMeta.get('carries')?.map((c) => c.response).filter((r) => r);
             if (flashResponses?.length) {
-                await httpEvent.client.postMessage(flashResponses, { eventOptions: { type: 'flash' } });
-                httpEvent.request[meta]/*!IMPORTANT*/.carries = [];
+                httpEvent.waitUntil(new Promise((resolve) => {
+                    httpEvent.client.on('open', () => {
+                        httpEvent.client.postMessage(flashResponses, { eventOptions: { type: 'flash' } });
+                        resolve();
+                    }, { once: true });
+                }));
             }
+            requestMeta.set('carries', []);
         }
     }
 

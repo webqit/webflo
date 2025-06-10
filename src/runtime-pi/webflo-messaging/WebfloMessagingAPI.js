@@ -87,12 +87,10 @@ export class WebfloMessagingAPI extends WebfloEventTarget {
         } else if (!transferOrOptions || typeof transferOrOptions !== 'object') {
             throw new TypeError('transferOrOptions must be an array or an object');
         }
-        // Live messages would already have been handled if this is a child port of MultiportMessagingAPI,
-        // so we don't need to handle them here. The parent port will handle them.
-        if (this.parentNode?.ports?.size && this.parentNode.ports.has(this)) {
-            this.on('open', () => {
-                callback(transferOrOptions);
-            }, { once: true });
+        if (transferOrOptions.eventOptions?.eventID) {
+            // Live messages would already have been handled if this is a child port of MultiportMessagingAPI,
+            // so we don't need to handle them here. The parent port would have handled them.
+            callback(transferOrOptions);
             return;
         }
         let { eventOptions = {}, liveOptions = {}, ..._options } = transferOrOptions;
@@ -107,24 +105,14 @@ export class WebfloMessagingAPI extends WebfloEventTarget {
 
     postRequest(data, callback, options = {}) {
         const { eventOptions2 = {}, transfer = [], ...$options } = options;
-        const { type = 'message', signal, once } = eventOptions2;
+        const { signal, once } = eventOptions2;
         const messageChannel = new MessageChannel;
-        messageChannel.port1.addEventListener(type, (e) => callback(e), {
-            signal,
-            once
-        });
+        messageChannel.port1.addEventListener('message', (e) => callback(e));
         messageChannel.port1.start();
         return this.postMessage(data, { ...$options, transfer: [messageChannel.port2].concat(transfer) });
     }
 
     /* ----------------- */
-
-    addEventListener(...args) {
-        if (!this.isMessaging()) {
-            this.$emit('messaging');
-        }
-        return super.addEventListener(...args);
-    }
 
     handleMessages(type, listener, options = {}) {
         this.addEventListener(type, listener, options);

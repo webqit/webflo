@@ -30,7 +30,7 @@
     "postpublish": "git push && git push --tags"
   },
   "bin": {
-    "webflo": "src/webflo.js",
+    "webflo": "src/webflo-cli.js",
     "webflo-certbot-http-auth-hook": "src/services-pi/cert/http-auth-hook.js",
     "webflo-certbot-http-cleanup-hook": "src/services-pi/cert/http-cleanup-hook.js"
   },
@@ -42,6 +42,7 @@
     "@webqit/quantum-js": "^4.6.3",
     "@webqit/util": "^0.8.11",
     "dotenv": "^16.4.7",
+    "fs-extra": "^11.3.0",
     "i": "^0.3.7",
     "ioredis": "^5.5.0",
     "jsdom": "^21.1.1",

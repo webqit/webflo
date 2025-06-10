@@ -1,6 +1,6 @@
 import { Observer } from '@webqit/quantum-js';
 
-export class Capabilities {
+export class DeviceCapabilities {
 
     #runtime;
     #params;

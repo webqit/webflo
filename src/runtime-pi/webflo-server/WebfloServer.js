@@ -6,21 +6,20 @@ import Https from 'https';
 import WebSocket from 'ws';
 import Mime from 'mime-types';
 import 'dotenv/config';
+import { Readable } from 'stream';
 import { Observer } from '@webqit/quantum-js';
 import { _from as _arrFrom, _any } from '@webqit/util/arr/index.js';
 import { _isEmpty, _isObject } from '@webqit/util/js/index.js';
 import { _each } from '@webqit/util/obj/index.js';
-import { Readable } from 'stream';
 import { WebfloHMR } from './webflo-devmode.js';
+import { Tenants } from './messaging/Tenants.js';
 import { WebfloRuntime } from '../WebfloRuntime.js';
-import { createWindow } from '@webqit/oohtml-ssr';
 import { MessagingOverSocket } from '../webflo-messaging/MessagingOverSocket.js';
-import { ClientMessagingRegistry } from './ClientMessagingRegistry.js';
 import { ServerSideCookies } from './ServerSideCookies.js';
 import { ServerSideSession } from './ServerSideSession.js';
 import { HttpEvent } from '../webflo-routing/HttpEvent.js';
 import { HttpUser } from '../webflo-routing/HttpUser.js';
-import { meta } from '../webflo-fetch/util.js';
+import { createWindow } from '@webqit/oohtml-ssr';
 import {
     readServerConfig,
     readHeadersConfig,
@@ -31,6 +30,7 @@ import {
     scanRoots,
     scanRouteHandlers,
 } from '../../deployment-pi/util.js';
+import { _wq } from '../../util.js';
 import '../webflo-fetch/index.js';
 import '../webflo-url/index.js';
 
@@ -54,12 +54,14 @@ export class WebfloServer extends WebfloRuntime {
     #routes;
     get routes() { return this.#routes; }
 
-    #capabilitiesSetup;
-    #servers = new Map;
-    #hmr;
-
     #sdk = {};
     get sdk() { return this.#sdk; }
+
+    #servers = new Map;
+
+    #tenants;
+
+    #hmrRegistry;
 
     env(key) {
         const { ENV } = this.config;
@@ -101,7 +103,17 @@ export class WebfloServer extends WebfloRuntime {
         Object.defineProperty(this.#routes, '$serverroots', { value: serverRoots });
         // -----------------
         await this.setupCapabilities();
+        this.#tenants = new Tenants(this);
         this.control();
+        /* Example usage
+        this.#tenants.addEventListener('navigate', (e) => {
+            e// -> SocketMessageEvent
+                .originalTarget// -> MessagingOverSocket
+                    [$parentNode]// -> ClientMessagePort (.add, .remove, .find())
+                        [$parentNode]// -> Tenant (.add, .remove, .find())
+                            [$parentNode]// -> tenants (.add, .remove, .find())
+        });
+        */
         // -----------------
         if (LOGGER) {
             if (this.#servers.size) {
@@ -125,76 +137,9 @@ export class WebfloServer extends WebfloRuntime {
         return instanceController;
     }
 
-    async enterDevMode() {
-        this.#hmr = WebfloHMR.manage(this);
-        await this.#hmr.buildJS(true);
-    }
-
-    control() {
-        const { flags: FLAGS } = this.cx;
-        const { SERVER, PROXY } = this.config;
-        const instanceController = super.control();
-        // ---------------
-        if (!FLAGS['test-only'] && !FLAGS['https-only'] && SERVER.port) {
-            const httpServer = Http.createServer((request, response) => this.handleNodeHttpRequest(request, response));
-            httpServer.listen(SERVER.port);
-            this.#servers.set('http', {
-                instance: httpServer,
-                hostnames: SERVER.hostnames,
-                port: SERVER.port,
-            });
-            // Handle WebSocket connections
-            httpServer.on('upgrade', (request, socket, head) => {
-                this.handleNodeWsRequest(wss, request, socket, head);
-            });
-        }
-        // ---------------
-        if (!FLAGS['test-only'] && !FLAGS['http-only'] && SERVER.https.port) {
-            const httpsServer = Https.createServer((request, response) => this.handleNodeHttpRequest(request, response));
-            httpsServer.listen(SERVER.https.port);
-            const addSSLContext = (SERVER) => {
-                if (!Fs.existsSync(SERVER.https.keyfile)) return;
-                const cert = {
-                    key: Fs.readFileSync(SERVER.https.keyfile),
-                    cert: Fs.readFileSync(SERVER.https.certfile),
-                };
-                SERVER.https.hostnames.forEach((hostname) => {
-                    httpsServer.addContext(hostname, cert);
-                });
-            }
-            this.#servers.set('https', {
-                instance: httpsServer,
-                hostnames: SERVER.https.hostnames,
-                port: SERVER.https.port,
-            });
-            // -------
-            addSSLContext(SERVER);
-            for (const proxy of PROXY.entries) {
-                if (proxy.SERVER) {
-                    addSSLContext(proxy.SERVER);
-                }
-            }
-            // Handle WebSocket connections
-            httpsServer.on('upgrade', (request, socket, head) => {
-                this.handleNodeWsRequest(wss, request, socket, head);
-            });
-        }
-        // ---------------
-        const wss = new WebSocket.Server({ noServer: true });
-        // -----------------
-        process.on('uncaughtException', (err) => {
-            console.error('Uncaught Exception:', err);
-        });
-        process.on('unhandledRejection', (reason, promise) => {
-            console.log('Unhandled Rejection', reason, promise);
-        });
-        return instanceController;
-    }
-
     async setupCapabilities() {
+        const instanceController = await super.setupCapabilities();
         const { SERVER } = this.config;
-        if (this.#capabilitiesSetup) return;
-        this.#capabilitiesSetup = true;
         this.#sdk.Observer = Observer;
         // 1. Database capabilities?
         if (SERVER.capabilities?.database) {
@@ -275,6 +220,73 @@ export class WebfloServer extends WebfloRuntime {
                 );
             }
         }
+        return instanceController;
+    }
+
+    async enterDevMode() {
+        this.#hmrRegistry = WebfloHMR.manage(this);
+        await this.#hmrRegistry.buildJS(true);
+    }
+
+    control() {
+        const { flags: FLAGS } = this.cx;
+        const { SERVER, PROXY } = this.config;
+        const instanceController = super.control();
+        // ---------------
+        if (!FLAGS['test-only'] && !FLAGS['https-only'] && SERVER.port) {
+            const httpServer = Http.createServer((request, response) => this.handleNodeHttpRequest(request, response));
+            httpServer.listen(SERVER.port);
+            this.#servers.set('http', {
+                instance: httpServer,
+                hostnames: SERVER.hostnames,
+                port: SERVER.port,
+            });
+            // Handle WebSocket connections
+            httpServer.on('upgrade', (request, socket, head) => {
+                this.handleNodeWsRequest(wss, request, socket, head);
+            });
+        }
+        // ---------------
+        if (!FLAGS['test-only'] && !FLAGS['http-only'] && SERVER.https.port) {
+            const httpsServer = Https.createServer((request, response) => this.handleNodeHttpRequest(request, response));
+            httpsServer.listen(SERVER.https.port);
+            const addSSLContext = (SERVER) => {
+                if (!Fs.existsSync(SERVER.https.keyfile)) return;
+                const cert = {
+                    key: Fs.readFileSync(SERVER.https.keyfile),
+                    cert: Fs.readFileSync(SERVER.https.certfile),
+                };
+                SERVER.https.hostnames.forEach((hostname) => {
+                    httpsServer.addContext(hostname, cert);
+                });
+            }
+            this.#servers.set('https', {
+                instance: httpsServer,
+                hostnames: SERVER.https.hostnames,
+                port: SERVER.https.port,
+            });
+            // -------
+            addSSLContext(SERVER);
+            for (const proxy of PROXY.entries) {
+                if (proxy.SERVER) {
+                    addSSLContext(proxy.SERVER);
+                }
+            }
+            // Handle WebSocket connections
+            httpsServer.on('upgrade', (request, socket, head) => {
+                this.handleNodeWsRequest(wss, request, socket, head);
+            });
+        }
+        // ---------------
+        const wss = new WebSocket.Server({ noServer: true });
+        // -----------------
+        process.on('uncaughtException', (err) => {
+            console.error('Uncaught Exception:', err);
+        });
+        process.on('unhandledRejection', (reason, promise) => {
+            console.log('Unhandled Rejection', reason, promise);
+        });
+        return instanceController;
     }
 
     getRequestProto(nodeRequest) {
@@ -296,7 +308,6 @@ export class WebfloServer extends WebfloRuntime {
         return [fullUrl, requestInit];
     }
 
-    #globalMessagingRegistry = new Map;
     async handleNodeWsRequest(wss, nodeRequest, socket, head) {
         const { SERVER, PROXY } = this.config;
         const proto = this.getRequestProto(nodeRequest).replace('http', 'ws');
@@ -331,27 +342,21 @@ export class WebfloServer extends WebfloRuntime {
         if (!scopeObj.error && scopeObj.url.searchParams.get('rel') === 'hmr') {
             wss.handleUpgrade(nodeRequest, socket, head, (ws) => {
                 wss.emit('connection', ws, nodeRequest);
-                this.#hmr.clients.add(ws);
+                this.#hmrRegistry.clients.add(ws);
             });
         }
         if (!scopeObj.error && scopeObj.url.searchParams.get('rel') === 'background-messaging') {
             scopeObj.request = this.createRequest(scopeObj.url.href, requestInit);
-            scopeObj.sessionTTL = this.env('SESSION_TTL') || 2592000/*30days*/;
-            scopeObj.session = this.createHttpSession({
-                store: (sessionID) => this.#sdk.storage?.(`${scopeObj.url.host}/session:${sessionID}`, scopeObj.sessionTTL),
-                request: scopeObj.request,
-                secret: this.env('SESSION_KEY'),
-                ttl: scopeObj.sessionTTL,
-            });
-            if (!(scopeObj.clientMessagingRegistry = this.#globalMessagingRegistry.get(scopeObj.session.sessionID))) {
-                scopeObj.error = `Lost or invalid clientID`;
-            } else if (!(scopeObj.clientMessagingPort = scopeObj.clientMessagingRegistry.get(scopeObj.url.pathname.split('/').pop()))) {
+            if (!(scopeObj.tenantID = this.#tenants.identifyIncoming(scopeObj.request))
+                || !(scopeObj.tenant = this.#tenants.getTenant(scopeObj.tenantID))) {
+                scopeObj.error = `Lost or invalid tenantID`;
+            } else if (!(scopeObj.clientMessagePort = scopeObj.tenant.getPort(scopeObj.url.pathname.split('/').pop()))) {
                 scopeObj.error = `Lost or invalid portID`;
             } else {
                 wss.handleUpgrade(nodeRequest, socket, head, (ws) => {
                     wss.emit('connection', ws, nodeRequest);
                     const wsw = new MessagingOverSocket(null, ws, { honourDoneMutationFlags: true });
-                    scopeObj.clientMessagingPort.add(wsw);
+                    scopeObj.clientMessagePort.addPort(wsw);
                 });
             }
         }
@@ -493,7 +498,8 @@ export class WebfloServer extends WebfloRuntime {
             response.headers.set('X-Redirect-Code', response.status);
             response.headers.set('Access-Control-Allow-Origin', '*');
             response.headers.set('Cache-Control', 'no-store');
-            response[meta].status = xRedirectCode;
+            const responseMeta = _wq(response, 'meta');
+            responseMeta.set('status', xRedirectCode);
         }
     }
 
@@ -553,7 +559,7 @@ export class WebfloServer extends WebfloRuntime {
             const filename = httpEvent.url.searchParams.get('src').split('?')[0];
             if (filename.endsWith('.js')) {
                 scopeObj.filename = Path.join(DEV_LAYOUT.PUBLIC_DIR, filename);
-            }else {
+            } else {
                 scopeObj.filename = Path.join(LAYOUT.PUBLIC_DIR, filename);
             }
         } else {
@@ -561,9 +567,10 @@ export class WebfloServer extends WebfloRuntime {
         }
         scopeObj.ext = Path.parse(scopeObj.filename).ext;
         const finalizeResponse = (response) => {
-            response[meta].filename = scopeObj.filename;
-            response[meta].static = true;
-            response[meta].index = scopeObj.index;
+            const responseMeta = _wq(response, 'meta');
+            responseMeta.set('filename', scopeObj.filename);
+            responseMeta.set('static', true);
+            responseMeta.set('index', scopeObj.index);
             return response;
         };
         // Pre-encoding support?
@@ -571,30 +578,30 @@ export class WebfloServer extends WebfloRuntime {
             scopeObj.acceptEncs = [];
             scopeObj.supportedEncs = { gzip: '.gz', br: '.br' };
             if ((scopeObj.acceptEncs = (httpEvent.request.headers.get('Accept-Encoding') || '').split(',').map((e) => e.trim())).length
-                && (scopeObj.enc = scopeObj.acceptEncs.reduce((prev, _enc) => prev || (Fs.existsSync(scopeObj.filename + scopeObj.supportedEncs[_enc]) && _enc), null))) {
+                && (scopeObj.enc = scopeObj.acceptEncs.reduce((prev, _enc) => prev || (scopeObj.supportedEncs[_enc] && Fs.existsSync(scopeObj.filename + scopeObj.supportedEncs[_enc]) && _enc), null))) {
                 // Route to a pre-compressed version of the file
                 scopeObj.filename = scopeObj.filename + scopeObj.supportedEncs[scopeObj.enc];
                 scopeObj.stats = null;
-            } else if (scopeObj.preEncodingSupportLevel === 2 && Fs.existsSync(scopeObj.filename) && Object.values(scopeObj.supportedEncs).includes(scopeObj.ext)) {
-                // If the file is compressed, set the encoding and obtain actual extension
-                scopeObj.enc = Object.entries(scopeObj.supportedEncs).find(([, ext]) => ext === scopeObj.ext)[0];
-                scopeObj.ext = Path.parse(scopeObj.filename.slice(0, -scopeObj.ext.length)).ext;
+            } else if (scopeObj.acceptEncs.length) {
+                // TODO: Do dynamic encoding
             }
         }
-        // if is a directory search for index file matching the extention
+        // if is a directory, search for index file matching the extention
         if (!scopeObj.ext && scopeObj.autoIndexFileSupport !== false && Fs.existsSync(scopeObj.filename) && (scopeObj.stats = Fs.lstatSync(scopeObj.filename)).isDirectory()) {
             scopeObj.ext = '.html';
             scopeObj.index = `index${scopeObj.ext}`;
             scopeObj.filename = Path.join(scopeObj.filename, scopeObj.index);
             scopeObj.stats = null;
         }
-        // File stats and etag
+        // ------ If we get here, scopeObj.filename has been finalized ------
+        // Do file stats
         if (!scopeObj.stats) {
             try { scopeObj.stats = Fs.statSync(scopeObj.filename); } catch (e) {
                 if (e.code === 'ENOENT') return finalizeResponse(new Response(null, { status: 404, statusText: 'Not Found' }));
                 throw e; // Re-throw other errors
             }
         }
+        // ETag support
         scopeObj.stats.etag = `W/"${scopeObj.stats.size}-${scopeObj.stats.mtimeMs}"`;
         const ifNoneMatch = httpEvent.request.headers.get('If-None-Match');
         if (scopeObj.stats.etag && ifNoneMatch === scopeObj.stats.etag) {
@@ -609,19 +616,24 @@ export class WebfloServer extends WebfloRuntime {
         const readStream = (params = {}) => Fs.createReadStream(scopeObj.filename, { ...params });
         scopeObj.response = this.createStreamingResponse(httpEvent, readStream, scopeObj.stats);
         if (scopeObj.response.status === 416) return finalizeResponse(scopeObj.response);
-        // If we reach here, it means we're good
+        // ------ If we get here, it means we're good ------
         if (scopeObj.enc) {
             scopeObj.response.headers.set('Content-Encoding', scopeObj.enc);
         }
-        // Set common headers
+        // 1. Strong cache validators
         scopeObj.response.headers.set('ETag', scopeObj.stats.etag);
         scopeObj.response.headers.set('Last-Modified', scopeObj.stats.mtime.toUTCString());
+        // 2. Content presentation and policy
         scopeObj.response.headers.set('Content-Disposition', `inline; filename="${Path.basename(scopeObj.filename)}"`);
         scopeObj.response.headers.set('Referrer-Policy', 'no-referrer-when-downgrade');
+        // 3. Cache-Control
         scopeObj.response.headers.set('Cache-Control', 'public, max-age=31536000'); // 1 year
+        scopeObj.response.headers.set('Vary', 'Accept-Encoding'); // The header that talks to our support for "Accept-Encoding"
+        // 4. Security headers
         scopeObj.response.headers.set('X-Content-Type-Options', 'nosniff');
         scopeObj.response.headers.set('Access-Control-Allow-Origin', '*');
         scopeObj.response.headers.set('X-Frame-Options', 'SAMEORIGIN');
+        // 5. Partial content support
         scopeObj.response.headers.set('Accept-Ranges', 'bytes');
         return finalizeResponse(scopeObj.response);
     }
@@ -639,30 +651,28 @@ export class WebfloServer extends WebfloRuntime {
         scopeObj.cookies = this.createHttpCookies({
             request: scopeObj.request
         });
+        scopeObj.tenantID = this.#tenants.identifyIncoming(scopeObj.request, true);
+        scopeObj.tenant = this.#tenants.getTenant(scopeObj.tenantID, true);
+        scopeObj.clientMessagePort = scopeObj.tenant.createPort({ url: scopeObj.request.url, honourDoneMutationFlags: true });
         scopeObj.sessionTTL = this.env('SESSION_TTL') || 2592000/*30days*/;
         scopeObj.session = this.createHttpSession({
-            store: (sessionID) => this.#sdk.storage?.(`${scopeObj.url.host}/session:${sessionID}`, scopeObj.sessionTTL),
+            store: this.#sdk.storage?.(`${scopeObj.url.host}/session:${scopeObj.tenantID}`, scopeObj.sessionTTL),
             request: scopeObj.request,
-            secret: this.env('SESSION_KEY'), ttl: scopeObj.sessionTTL
+            sessionID: scopeObj.tenantID,
+            ttl: scopeObj.sessionTTL
         });
-        const sessionID = scopeObj.session.sessionID;
-        if (!this.#globalMessagingRegistry.has(sessionID)) {
-            this.#globalMessagingRegistry.set(sessionID, new ClientMessagingRegistry(this.#globalMessagingRegistry, sessionID));
-        }
-        scopeObj.clientMessagingRegistry = this.#globalMessagingRegistry.get(sessionID);
-        scopeObj.clientMessagingPort = scopeObj.clientMessagingRegistry.createPort({ url: scopeObj.request.url, honourDoneMutationFlags: true });
         scopeObj.user = this.createHttpUser({
-            store: this.#sdk.storage?.(`${scopeObj.url.host}/user:${scopeObj.session.sessionID}`, scopeObj.sessionTTL),
+            store: this.#sdk.storage?.(`${scopeObj.url.host}/user:${scopeObj.tenantID}`, scopeObj.sessionTTL),
+            client: scopeObj.clientMessagePort,
             request: scopeObj.request,
             session: scopeObj.session,
-            client: scopeObj.clientMessagingPort
         });
         scopeObj.httpEvent = this.createHttpEvent({
             request: scopeObj.request,
             cookies: scopeObj.cookies,
             session: scopeObj.session,
             user: scopeObj.user,
-            client: scopeObj.clientMessagingPort,
+            client: scopeObj.clientMessagePort,
             detail: scopeObj.detail,
             sdk: this.#sdk,
         });
@@ -673,7 +683,7 @@ export class WebfloServer extends WebfloRuntime {
             backgroundMessagingPort: `ws:${scopeObj.httpEvent.client.portID}?rel=background-messaging`
         });
         if (FLAGS['dev']) {
-            scopeObj.response.headers.set('X-Dev-Mode', 'true'); // Must come before satisfyRequestFormat() sp as to be rendered
+            scopeObj.response.headers.set('X-Webflo-Dev-Mode', 'true'); // Must come before satisfyRequestFormat() sp as to be rendered
         }
         // Reponse handlers
         if (scopeObj.response.headers.get('Location')) {
@@ -697,10 +707,16 @@ export class WebfloServer extends WebfloRuntime {
         const requestAccept = httpEvent.request.headers.get('Accept', true);
         const asHTML = requestAccept?.match('text/html');
         const asIs = requestAccept?.match(response.headers.get('Content-Type'));
-        if (requestAccept && asHTML >= asIs && !response[meta].static) {
+        const responseMeta = _wq(response, 'meta');
+        if (requestAccept && asHTML >= asIs && !responseMeta.get('static')) {
             response = await this.render(httpEvent, response);
         } else if (requestAccept && response.headers.get('Content-Type') && !asIs) {
             return new Response(response.body, { status: 406, statusText: 'Not Acceptable', headers: response.headers });
+        }
+        // ------- With "exception" responses out of the way,
+        // let's set the header that talks to our support for "Accept"
+        if (!responseMeta.get('static')) {
+            response.headers.append('Vary', 'Accept');
         }
         // Satisfy "Range" header
         const requestRange = httpEvent.request.headers.get('Range', true);
@@ -778,7 +794,7 @@ export class WebfloServer extends WebfloRuntime {
                 }
                 await new Promise(res => setTimeout(res, 300));
             }
-            for (const name of ['X-Background-Messaging-Port', 'X-Live-Response-Message-ID', 'X-Live-Response-Generator-Done', 'X-Dev-Mode']) {
+            for (const name of ['X-Background-Messaging-Port', 'X-Live-Response-Message-ID', 'X-Webflo-Dev-Mode']) {
                 document.querySelector(`meta[name="${name}"]`)?.remove();
                 if (!response.headers.get(name)) continue;
                 const metaElement = document.createElement('meta');
@@ -825,19 +841,19 @@ export class WebfloServer extends WebfloRuntime {
         const xRedirectCode = response.headers.get('X-Redirect-Code');
         const isRedirect = (xRedirectCode || response.status + '').startsWith('3') && (xRedirectCode || response.status) !== 304;
         const statusCode = xRedirectCode && `${xRedirectCode} (${response.status})` || response.status;
+        const responseMeta = _wq(response, 'meta');
         // ---------------
         log.push(`[${style.comment((new Date).toUTCString())}]`);
         log.push(style.keyword(request.method));
         if (isproxy) log.push(style.keyword('>>'));
         log.push(style.url(request.url));
-        if (response[meta].hint) log.push(`(${style.comment(response[meta].hint)})`);
+        if (responseMeta.has('hint')) log.push(`(${style.comment(responseMeta.get('hint'))})`);
         const contentInfo = [response.headers.get('Content-Type'), response.headers.get('Content-Length') && this.formatBytes(response.headers.get('Content-Length'))].filter((x) => x);
         if (contentInfo.length) log.push(`(${style.comment(contentInfo.join('; '))})`);
         if (response.headers.get('Content-Encoding')) log.push(`(${style.comment(response.headers.get('Content-Encoding'))})`);
         if (errorCode) log.push(style.err(`${errorCode} ${response.statusText}`));
         else log.push(style.val(`${statusCode} ${response.statusText}`));
         if (isRedirect) log.push(`- ${style.url(response.headers.get('Location'))}`);
-
         return log.join(' ');
     }
 
