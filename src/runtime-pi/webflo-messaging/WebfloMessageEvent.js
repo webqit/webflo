@@ -23,7 +23,7 @@ export class WebfloMessageEvent extends Event {
     #ports = [];
     get ports() { return this.#ports; }
 
-    constructor(originalTarget, { eventID, type = 'message', data = null, live = false, bubbles = false, ports = [] } = {}) {
+    constructor(originalTarget, { eventID, type = 'message', data = null, live = false, bubbles = false, ports = [], isPiping = false } = {}) {
         if (typeof eventID !== 'string') {
             throw new TypeError('eventID must be a non-empty string');
         }
@@ -37,7 +37,7 @@ export class WebfloMessageEvent extends Event {
         this.#live = live;
         this.#bubbles = bubbles;
         this.#ports = ports;
-        if (_isTypeObject(this.#data) && this.#live && typeof this.#originalTarget?.applyMutations === 'function') {
+        if (_isTypeObject(this.#data) && this.#live && !isPiping && typeof this.#originalTarget?.applyMutations === 'function') {
             // If the data is a live object, we can apply mutations to it
             this.#originalTarget.applyMutations(this.#data, this.#eventID);
         }

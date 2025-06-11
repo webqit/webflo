@@ -24,7 +24,7 @@ export class Channel extends WebfloMessagingAPI {
         // Lifecycle management
         this.#tenants.add(tenant);
         this.$emit('add', tenant);
-        if (!this.isOpen() && this.#tenants.size === 2) {
+        if (!this.isOpen()) {
             this.dispatchEvent(new Event('open'));
             this.$emit('open');
         }
@@ -32,20 +32,23 @@ export class Channel extends WebfloMessagingAPI {
         for (const $tenant of this.#tenants) {
             if ($tenant === tenant) continue;
             $tenant.postMessage(resolveMessage({
-                channelID: this.channelID,
                 event: 'joins',
-            }), { eventOptions: { type: 'broadcast' } });
+            }), { eventOptions: { type: `broadcast:${this.channelID}` } });
         }
         // Router messages
         const broadcastHandler = (e) => {
-            if (e.data?.channelID !== this.#channelID) return;
+            let recievers = 0;
             for (const $tenant of this.#tenants) {
                 // Note that we aren't excluding the event source at this level
                 $tenant.postMessage(resolveMessage(e.data), {
-                    eventOptions: { type: 'broadcast' },
+                    eventOptions: { type: `broadcast:${this.channelID}` },
                     except: e.originalTarget, // but at the level of the originating MessagingOverSocket
                 });
+                if ($tenant !== tenant) {
+                    recievers ++;
+                }
             }
+            return recievers; // ACK
         };
         // ----------
         // Auto cleanup
@@ -54,21 +57,20 @@ export class Channel extends WebfloMessagingAPI {
             if (!this.#tenants.has(tenant)) return;
             this.#tenants.delete(tenant);
             this.$emit('remove', tenant);
-            if (this.#tenants.size === 1) {
+            if (!this.#tenants.size) {
                 this.dispatchEvent(new Event('close'));
                 this.$emit('close');
             }
             // Notify participants
             for (const $tenant of this.#tenants) {
                 $tenant.postMessage(resolveMessage({
-                    channelID: this.channelID,
                     event: 'leaves',
-                }), { eventOptions: { type: 'broadcast' } });
+                }), { eventOptions: { type: `broadcast:${this.channelID}` } });
             }
-            tenant.removeEventListener(`broadcast`, broadcastHandler);
             tenant.removeEventListener('close', cleanup);
+            cleanupBroadcastHandler();
         };
-        tenant.addEventListener(`broadcast`, broadcastHandler);
+        const cleanupBroadcastHandler = tenant.handleRequests(`broadcast:${this.channelID}`, broadcastHandler);
         tenant.addEventListener('close', cleanup);
         return cleanup;
     }

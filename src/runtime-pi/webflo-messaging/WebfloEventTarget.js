@@ -21,6 +21,8 @@ export class WebfloEventTarget extends EventTarget {
 
     get length() { return this.#listenersRegistry.size; }
 
+    #upstreams = new Set;
+
     constructor(parentNode, params = {}) {
         super();
         this.#parentNode = parentNode;
@@ -33,6 +35,21 @@ export class WebfloEventTarget extends EventTarget {
         if ((event.bubbles || this.#alwaysBubbleToParent && event instanceof WebfloMessageEvent)
             && this.#parentNode instanceof EventTarget && !event.propagationStopped) {
             this.#parentNode.dispatchEvent(event);
+        }
+        if (!event.propagationStopped && this.#upstreams.size) {
+            if (event instanceof WebfloMessageEvent) {
+                const { type, eventID, data, live, bubbles, ports } = event;
+                for (const target of this.#upstreams) {
+                    target.postMessage(data, {
+                        transfers: ports,
+                        eventOptions: { type, eventID, bubbles, live, isPiping: true }
+                    });
+                }
+            } else if (event.type === 'close') {
+                for (const target of this.#upstreams) {
+                    target.close();
+                }
+            }
         }
         return returnValue;
     }
@@ -47,5 +64,20 @@ export class WebfloEventTarget extends EventTarget {
             this.removeEventListener(...listenerArgs);
         }
         this.#listenersRegistry.clear();
+    }
+
+    pipe(eventTarget, twoWay = false) {
+        if (this.#upstreams.has(eventTarget)) {
+            return;
+        }
+        this.#upstreams.add(eventTarget);
+        let cleanup2;
+        if (twoWay) {
+            cleanup2 = eventTarget.pipe(this);
+        }
+        return () => {
+            this.#upstreams.delete(eventTarget);
+            cleanup2?.();
+        };
     }
 }

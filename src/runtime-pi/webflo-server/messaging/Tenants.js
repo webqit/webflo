@@ -39,14 +39,18 @@ export class Tenants extends MultiportMessagingAPI {
 
     getTenant(tenantID, autoCreate = false, params = {}) {
         if (autoCreate && !this.findPort((tenant) => tenant.tenantID === tenantID)) {
-            this.addPort(new Tenant(this, tenantID, params));
+            const tenant = new Tenant(this, tenantID, params);
+            const cleanup = this.addPort(tenant);
+            tenant.on('close', cleanup);
         }
         return this.findPort((tenant) => tenant.tenantID === tenantID);
     }
 
     getChannel(channelID, autoCreate = false, params = {}) {
         if (!this.#channels.has(channelID) && autoCreate) {
-            this.#channels.set(channelID, new Channel(this, channelID, params));
+            const channel = new Channel(this, channelID, params);
+            this.#channels.set(channelID, channel);
+            channel.on('close', () => this.#channels.delete(channelID));
         }
         return this.#channels.get(channelID);
     }
