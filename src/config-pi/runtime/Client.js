@@ -24,7 +24,7 @@ export default class Client extends Dotfile {
             copy_public_variables: true,
             spa_routing: true,
             capabilities: {
-                service_worker: true,
+                service_worker: false,
                 webpush: false,
                 custom_install: false,
                 exposed: ['display-mode', 'notifications'],

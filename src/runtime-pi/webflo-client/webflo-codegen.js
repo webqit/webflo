@@ -52,11 +52,11 @@ function declareConfig({ $source, configExport, indentation = 0 }) {
 }
 
 function declareRoutes({ $context, $config, $source, which, offset, roots = [] }) {
-    const { logger: LOGGER } = $context;
+    const { flags: FLAGS, logger: LOGGER } = $context;
     LOGGER?.log(LOGGER.style.keyword(`> `) + `Declaring routes...`);
     // Define vars
     const varName = 'routes';
-    const targetDir = Path.join($config.LAYOUT.PUBLIC_DIR, offset);
+    const targetDir = Path.join(FLAGS.outdir || $config.LAYOUT.PUBLIC_DIR, offset);
     // >> Routes mapping
     $source.code.push(`const ${varName} = {};`);
     // Route entries
@@ -189,10 +189,14 @@ async function bundleScript({ $context, $source, which, outfile, asModule = fals
     return [bundlingConfig.outfile].concat(compressedFiles);
 }
 
-function handleEmbeds(embeds, targetDocumentFile) {
-    if (!Fs.existsSync(targetDocumentFile)) return 0;
+function handleEmbeds($context, embeds, targetDocumentFile) {
+    if (!Fs.existsSync(targetDocumentFile)) {
+        return 0;
+    }
     const targetDocument = Fs.readFileSync(targetDocumentFile).toString();
-    if (targetDocument.trim().startsWith('<!DOCTYPE html')) return 0;
+    if (!/\<\!DOCTYPE html/i.test(targetDocument.trim())) {
+        return 0;
+    }
     const { logger: LOGGER } = $context;
     let successLevel = 1, touched;
     // >> Show banner...
@@ -254,7 +258,11 @@ async function generateClientScript({ $context, $config, offset = '', roots = []
     const outfile_theWebfloClientPublic = Path.join($config.CLIENT.public_base_url, outfile_theWebfloClient);
     // For when we're monolith mode
     const outfile_mainBuild = Path.join(offset, $config.CLIENT.filename);
-    const outfile_mainBuildPublic = Path.join($config.CLIENT.public_base_url, outfile_mainBuild);
+    let publicBaseUrl = $config.CLIENT.public_base_url;
+    if (FLAGS.outdir) {
+        publicBaseUrl = '/' + Path.relative($config.LAYOUT.PUBLIC_DIR, FLAGS.outdir);
+    }
+    const outfile_mainBuildPublic = Path.join(publicBaseUrl, outfile_mainBuild);
     // The source code
     const $source = { imports: {}, code: [] };
     const embeds = { all: [], current: [] };
@@ -263,7 +271,7 @@ async function generateClientScript({ $context, $config, offset = '', roots = []
     const configExport = structuredClone({ CLIENT: $config.CLIENT, ENV: $config.ENV });
     if ($config.CLIENT.capabilities?.service_worker === true) {
         configExport.CLIENT.capabilities.service_worker = {
-            filename: $config.WORKER.filename,
+            filename: Path.join(publicBaseUrl.replace(/^\//, ''), $config.WORKER.filename),
             scope: $config.WORKER.scope
         };
     }
@@ -314,7 +322,7 @@ async function generateClientScript({ $context, $config, offset = '', roots = []
         $context,
         $source,
         which: 'client',
-        outfile: Path.join($config.LAYOUT.PUBLIC_DIR, outfile_mainBuild),
+        outfile: Path.join(FLAGS.outdir || $config.LAYOUT.PUBLIC_DIR, outfile_mainBuild),
         asModule: true,
         ...restParams
     });
@@ -322,7 +330,7 @@ async function generateClientScript({ $context, $config, offset = '', roots = []
     // 4. Embed/unembed
     embeds.all.push(outfile_theWebfloClientPublic);
     embeds.all.push(outfile_mainBuildPublic);
-    handleEmbeds(embeds, targetDocumentFile);
+    handleEmbeds($context, embeds, targetDocumentFile);
     // -----------
     if (FLAGS.recursive && roots.length) {
         const $roots = roots.slice(0);
@@ -403,7 +411,7 @@ async function generateWorkerScript({ $context, $config, offset = '', roots = []
         $context,
         $source,
         which: 'worker',
-        outfile: Path.join($config.LAYOUT.PUBLIC_DIR, outfile_mainBuild),
+        outfile: Path.join(FLAGS.outdir || $config.LAYOUT.PUBLIC_DIR, outfile_mainBuild),
         asModule: false,
         ...restParams
     });
@@ -453,6 +461,9 @@ export async function generate({ client = true, worker = true, buildParams = {} 
         const applicationRoots = scanRoots($config.LAYOUT.PUBLIC_DIR, 'manifest.json');
         const _outfiles = await generateWorkerScript({ $context, $config, roots: applicationRoots, buildParams });
         outfiles.push(..._outfiles);
+    }
+    if (process.send) {
+        process.send({ outfiles });
     }
     return { outfiles };
 }

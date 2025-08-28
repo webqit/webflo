@@ -3,8 +3,12 @@ import { _isObject, _isTypeObject } from '@webqit/util/js/index.js';
 import { _from as _arrFrom } from '@webqit/util/arr/index.js';
 import { renderCookieObjToString } from './cookies.js';
 
-const { set: headerSet, append: headerAppend, get: headerGet } = Headers.prototype;
-Object.defineProperties(Headers.prototype, {
+const prototypeOriginals = {
+    set: Headers.prototype.set,
+    get: Headers.prototype.get,
+    append: Headers.prototype.append,
+};
+const prototypeExtensions = {
     set: {
         value: function (name, value) {
             // -------------------------
@@ -44,7 +48,7 @@ Object.defineProperties(Headers.prototype, {
                 value = value.join(',');
             }
             // -------------------------
-            return headerSet.call(this, name, value);
+            return prototypeOriginals.set.call(this, name, value);
         }
     },
     append: {
@@ -55,12 +59,12 @@ Object.defineProperties(Headers.prototype, {
                 value = renderCookieObjToString(value);
             }
             // -------------------------
-            return headerAppend.call(this, name, value);
+            return prototypeOriginals.append.call(this, name, value);
         }
     },
     get: {
         value: function (name, parsed = false) {
-            let value = headerGet.call(this, name);
+            let value = prototypeOriginals.get.call(this, name);
             // -------------------------
             // Parse "Set-Cookie" response header
             if (/^Set-Cookie$/i.test(name) && parsed) {
@@ -142,4 +146,6 @@ Object.defineProperties(Headers.prototype, {
             return value;
         }
     }
-});
+};
+
+Object.defineProperties(Headers.prototype, prototypeExtensions);

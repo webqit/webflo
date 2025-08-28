@@ -1,73 +1,35 @@
 
 import { _isObject } from '@webqit/util/js/index.js';
 import { parseHttpMessage, renderHttpMessageInit } from './message.js';
-import { MessagingOverBroadcast } from '../webflo-messaging/MessagingOverBroadcast.js';
-import { MessagingOverSocket } from '../webflo-messaging/MessagingOverSocket.js';
-import { WebfloMessagingAPI } from '../webflo-messaging/WebfloMessagingAPI.js';
+import { WQBroadcastChannel } from '../webflo-messaging/WQBroadcastChannel.js';
+import { WQSockPort } from '../webflo-messaging/WQSockPort.js';
+import { WQMessagePort } from '../webflo-messaging/WQMessagePort.js';
 import { _wq } from '../../util.js';
 
-export function createBackgroundMessagingPort(url) {
+export function responseRealtimeConnect(url) {
     const [proto, portID] = url.split(':');
-    if (proto === 'channel') {
-        return new MessagingOverBroadcast(null, portID, { honourDoneMutationFlags: true });
+    if (proto === 'br') {
+        return new WQBroadcastChannel(portID);
     }
     if (proto !== 'ws') {
         throw new Error(`Unknown background messaging protocol: ${proto}`);
     }
-    return new MessagingOverSocket(null, portID, { honourDoneMutationFlags: true });
+    return new WQSockPort(portID);
 }
 
-export function backgroundMessagingPort() {
+export function responseRealtime() {
     const responseMeta = _wq(this, 'meta');
-    if (!responseMeta.has('backgroundMessagingPort')) {
+    if (!responseMeta.has('wqRealtime')) {
         const value = this.headers.get('X-Background-Messaging-Port')?.trim();
         if (value) {
-            responseMeta.set('backgroundMessagingPort', createBackgroundMessagingPort(value));
+            responseMeta.set('wqRealtime', responseRealtimeConnect(value));
         }
-    } else if (typeof responseMeta.get('backgroundMessagingPort') === 'function') {
-        const backgroundMessagingPort = responseMeta.get('backgroundMessagingPort').call(this);
-        if (!(backgroundMessagingPort instanceof WebfloMessagingAPI)) {
-            throw new Error('backgroundMessagingPort callbacks must return a WebfloMessagingAPI.');
-        }
-        responseMeta.set('backgroundMessagingPort', backgroundMessagingPort);
     }
-    return responseMeta.get('backgroundMessagingPort');
+    return responseMeta.get('wqRealtime');
 }
 
-const { clone: cloneMethod } = Response.prototype;
-const statusAccessor = Object.getOwnPropertyDescriptor(Response.prototype, 'status');
-const responseMethods = {
-    status: { get: function () { return _wq(this, 'meta').get('status') || statusAccessor.get.call(this); } },
-    carry: { get: function () { return _wq(this, 'meta').get('carry'); } },
-    clone: {
-        value: function (init = {}) {
-            const clone = cloneMethod.call(this, init);
-            const responseMeta = _wq(this, 'meta');
-            _wq(clone).set('meta', responseMeta);
-            return clone;
-        }
-    },
-    isLive: {
-        value: function () {
-            let liveLevel = (this.headers.get('X-Background-Messaging-Port')?.trim() || _wq(this, 'meta').has('backgroundMessagingPort')) && 1 || 0;
-            liveLevel += this.headers.get('X-Live-Response-Message-ID')?.trim() && 1 || 0;
-            return liveLevel;
-        }
-    },
-    backgroundMessagingPort: {
-        get: function () {
-            return backgroundMessagingPort.call(this);
-        }
-    },
-    parse: {
-        value: async function () {
-            return await parseHttpMessage(this);
-        }
-    }
-};
-
-const { json: jsonMethod } = Response;
-const staticResponseMethods = {
+const staticOriginals = { json: Response.json };
+const staticExtensions = {
     from: {
         value: function (body, init = {}) {
             if (body instanceof Response) return body;
@@ -86,7 +48,7 @@ const staticResponseMethods = {
     },
     json: {
         value: function (data, options = {}) {
-            const instance = jsonMethod(data, options);
+            const instance = staticOriginals.json(data, options);
             const responseMeta = _wq(instance, 'meta');
             responseMeta.set('body', data);
             responseMeta.set('type', 'json');
@@ -108,23 +70,42 @@ const staticResponseMethods = {
             }
             return responseInstance;
         }
-    },
-    notFound: {
-        value: function () {
-            return new this(null, { status: 404/*Not Found*/ });
-        }
-    },
-    accepted: {
-        value: function () {
-            return new this(null, { status: 202/*Accepted*/ });
-        }
-    },
-    defer: {
-        value: function () {
-            return this.accepted();
-        }
-    },
+    }
 };
 
-Object.defineProperties(Response.prototype, responseMethods);
-Object.defineProperties(Response, staticResponseMethods);
+const prototypeOriginals = {
+    clone: Response.prototype.clone,
+    status: Object.getOwnPropertyDescriptor(Response.prototype, 'status'),
+};
+const prototypeExtensions = {
+    status: { get: function () { return _wq(this, 'meta').get('status') || prototypeOriginals.status.get.call(this); } },
+    carry: { get: function () { return _wq(this, 'meta').get('carry'); } },
+    clone: {
+        value: function (init = {}) {
+            const clone = prototypeOriginals.clone.call(this, init);
+            const responseMeta = _wq(this, 'meta');
+            _wq(clone).set('meta', responseMeta);
+            return clone;
+        }
+    },
+    isLive: {
+        value: function () {
+            let liveLevel = (this.headers.get('X-Background-Messaging-Port')?.trim() || _wq(this, 'meta').has('wqRealtime')) && 1 || 0;
+            liveLevel += this.headers.get('X-Live-Response-Message-ID')?.trim() && 1 || 0;
+            return liveLevel;
+        }
+    },
+    wqRealtime: {
+        get: function () {
+            return responseRealtime.call(this);
+        }
+    },
+    parse: {
+        value: async function () {
+            return await parseHttpMessage(this);
+        }
+    }
+};
+
+Object.defineProperties(Response.prototype, prototypeExtensions);
+Object.defineProperties(Response, staticExtensions);

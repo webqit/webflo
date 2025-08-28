@@ -1,0 +1,16 @@
+body {
+    background-color: #4e40ce;
+    margin: 0;
+    color: white;
+}
+h1 {
+    background-color: black;
+    padding: 2rem;
+}
+h1 span:first-of-type {
+    color: crimson;
+}
+ul {
+    padding: 2rem;
+    padding-inline: 3rem;
+}

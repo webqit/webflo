@@ -2,19 +2,19 @@ import { WebfloStorage } from './WebfloStorage.js';
 
 export class HttpUser extends WebfloStorage {
 
-    static create({ store, request, session, client }) {
-        return new this({ store, request, session, client });
+    static create({ store, request, realtime, session }) {
+        return new this({ store, request, realtime, session });
     }
 
-    #client;
+    #realtime;
 
-    constructor({ store, request, session, client }) {
+    constructor({ store, request, realtime, session }) {
         super({
             store,
             request,
             session
         });
-        this.#client = client;
+        this.#realtime = realtime;
     }
 
     async isSignedIn() {
@@ -34,20 +34,20 @@ export class HttpUser extends WebfloStorage {
 
     async confirm(data, callback, options = {}) {
         return await new Promise((resolve) => {
-            this.#client.postRequest(
+            this.#realtime.postRequest(
                 data,
                 (event) => resolve(callback ? callback(event) : event),
-                { ...options, eventOptions: { type: 'confirm' } }
+                { ...options, wqEventOptions: { type: 'confirm' } }
             );
         });
     }
 
     async prompt(data, callback, options = {}) {
         return await new Promise((resolve) => {
-            this.#client.postRequest(
+            this.#realtime.postRequest(
                 data,
                 (event) => resolve(callback ? callback(event) : event),
-                { ...options, eventOptions: { type: 'prompt' } }
+                { ...options, wqEventOptions: { type: 'prompt' } }
             );
         });
     }

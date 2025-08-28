@@ -1,8 +1,4 @@
-import { _isObject } from '@webqit/util/js/index.js';
-import { WebfloMessagingAPI } from '../../webflo-messaging/WebfloMessagingAPI.js';
-import { WebfloMessageEvent } from '../../webflo-messaging/WebfloMessageEvent.js';
-
-export class ClientSideWorkport extends WebfloMessagingAPI {
+export class ClientSideWorkport extends EventTarget {
 
     #registration;
     get registration() { return this.#registration; }
@@ -33,7 +29,6 @@ export class ClientSideWorkport extends WebfloMessagingAPI {
                 this.#active = target;
                 if (!existing) {
                     this.dispatchEvent(new Event('open'));
-                    this.$emit('open');
                 }
             }
         }
@@ -52,26 +47,17 @@ export class ClientSideWorkport extends WebfloMessagingAPI {
                 this.#registration.installing.addEventListener('statechange', (e) => stateChange(e.target));
             });
         }
-        this.#messageHandler = async (event) => {
-            this.dispatchEvent(new WorkerMessageEvent(this, {
-                type: event.type,
-                data: event.data,
-                ports: event.ports,
-            }));
+        this.#messageHandler = (event) => {
+            this.dispatchEvent(event);
         };
         navigator.serviceWorker.addEventListener('message', this.#messageHandler);
     }
 
     postMessage(data, transferOrOptions = []) {
-        this.on('open', () => {
-            return this.#active.postMessage(data, transferOrOptions);
-        }, { once: true });
-        super.postMessage(data, transferOrOptions);
+        return this.#active?.postMessage(data, transferOrOptions);
     }
 
     close() {
         navigator.serviceWorker.removeEventListener('message', this.#messageHandler);
     }
 }
-
-export class WorkerMessageEvent extends WebfloMessageEvent {}

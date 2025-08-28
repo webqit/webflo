@@ -2,9 +2,8 @@ import { _before, _toTitle } from '@webqit/util/str/index.js';
 import { _isObject } from '@webqit/util/js/index.js';
 import { Observer } from '@webqit/quantum-js';
 import { WebfloRuntime } from '../WebfloRuntime.js';
-import { MultiportMessagingAPI } from '../webflo-messaging/MultiportMessagingAPI.js';
-import { MessagingOverChannel } from '../webflo-messaging/MessagingOverChannel.js';
-import { ClientMessagePort } from './messaging/ClientMessagePort.js';
+import { WQMessageChannel } from '../webflo-messaging/WQMessageChannel.js';
+import { WQStarPort } from '../webflo-messaging/WQStarPort.js';
 import { ClientSideCookies } from './ClientSideCookies.js';
 import { HttpSession } from '../webflo-routing/HttpSession.js';
 import { HttpEvent } from '../webflo-routing/HttpEvent.js';
@@ -36,8 +35,8 @@ export class WebfloClient extends WebfloRuntime {
     #transition;
     get transition() { return this.#transition; }
 
-    #backgroundMessagingPorts;
-    get backgroundMessagingPorts() { return this.#backgroundMessagingPorts; }
+    #background;
+    get background() { return this.#background; }
 
     #sdk = {};
     get sdk() { return this.#sdk; }
@@ -62,7 +61,7 @@ export class WebfloClient extends WebfloRuntime {
             rel: 'unrelated',
             phase: 0
         };
-        this.#backgroundMessagingPorts = new MultiportMessagingAPI(this);
+        this.#background = new WQStarPort;
     }
 
     async initialize() {
@@ -74,15 +73,15 @@ export class WebfloClient extends WebfloRuntime {
                 : e.data;
             const execPromp = () => {
                 if (e.type === 'confirm') {
-                    e.respondWith(confirm(message));
+                    e.wqRespondWith(confirm(message));
                 } else if (e.type === 'prompt') {
-                    e.respondWith(prompt(message));
+                    e.wqRespondWith(prompt(message));
                 }
             };
             window.queueMicrotask(execPromp);
         };
-        this.backgroundMessagingPorts.handleMessages('confirm', promptsHandler, { signal: instanceController.signal });
-        this.backgroundMessagingPorts.handleMessages('prompt', promptsHandler, { signal: instanceController.signal });
+        this.background.addEventListener('confirm', promptsHandler, { signal: instanceController.signal });
+        this.background.addEventListener('prompt', promptsHandler, { signal: instanceController.signal });
         await this.setupCapabilities();
         this.control();
         await this.hydrate();
@@ -281,13 +280,13 @@ export class WebfloClient extends WebfloRuntime {
 			store: this.#sdk.storage?.('session'),
 			request: scopeObj.request
 		});
-        const messageChannel = new MessageChannel;
-        scopeObj.clientMessagePort = new ClientMessagePort(null, messageChannel.port2, { isPrimary: true, honourDoneMutationFlags: true });
+        const wqMessageChannel = new WQMessageChannel;
+        scopeObj.clientRequestRealtime = wqMessageChannel.port1;
         scopeObj.user = this.createHttpUser({
             store: this.#sdk.storage?.('user'),
             request: scopeObj.request,
+            realtime: scopeObj.clientRequestRealtime,
             session: scopeObj.session,
-            client: scopeObj.clientMessagePort,
         });
         if (window.webqit?.oohtml?.configs) {
             const { BINDINGS_API: { api: bindingsConfig } = {}, } = window.webqit.oohtml.configs;
@@ -295,10 +294,10 @@ export class WebfloClient extends WebfloRuntime {
         }
         scopeObj.httpEvent = this.createHttpEvent({
             request: scopeObj.request,
+            realtime: scopeObj.clientRequestRealtime,
             cookies: scopeObj.cookies,
             session: scopeObj.session,
             user: scopeObj.user,
-            client: scopeObj.clientMessagePort,
             sdk: this.#sdk,
             detail: scopeObj.detail,
             signal: init.signal,
@@ -320,16 +319,13 @@ export class WebfloClient extends WebfloRuntime {
             });
         };
         // Ping existing background processes
-        if (scopeObj.request.method === 'GET' || (scopeObj.request.method === 'POST' && scopeObj.url.pathname !== this.location.pathname)) {
-            // !IMPORTANT: Posting to the group when empty will keep the event until next addition
-            // and we don't want that
-            if (this.#backgroundMessagingPorts.ports.size) {
-                const url = { ...Url.copy(scopeObj.url), method: scopeObj.request.method };
-                this.#backgroundMessagingPorts.postMessage(url, { eventOptions: { type: 'navigate' } });
-            }
+        // !IMPORTANT: Posting to the group when empty will keep the event until next addition
+        // and we don't want that
+        if (this.#background.length) {
+            const url = { ...Url.copy(scopeObj.url), method: scopeObj.request.method };
+            this.#background.postMessage(url, { wqEventOptions: { type: 'navigate' } });
         }
         // Dispatch for response
-        const backgroundMessagingPortCallback = () => new MessagingOverChannel(null, messageChannel.port1, { honourDoneMutationFlags: true });
         scopeObj.response = await this.dispatchNavigationEvent({
             httpEvent: scopeObj.httpEvent,
             crossLayerFetch: async (event) => {
@@ -339,7 +335,7 @@ export class WebfloClient extends WebfloRuntime {
                 }
                 return await this.remoteFetch(event.request);
             },
-            backgroundMessagingPort: backgroundMessagingPortCallback,
+            responseRealtime: wqMessageChannel.port2,
             originalRequestInit: scopeObj.init
         });
         // Decode response
@@ -376,11 +372,11 @@ export class WebfloClient extends WebfloRuntime {
         });
     }
 
-    async dispatchNavigationEvent({ httpEvent, crossLayerFetch, backgroundMessagingPort, originalRequestInit, processObj = {} }) {
-        const response = await super.dispatchNavigationEvent({ httpEvent, crossLayerFetch, backgroundMessagingPort });
-        // Obtain and connect backgroundMessagingPort as first thing
+    async dispatchNavigationEvent({ httpEvent, crossLayerFetch, responseRealtime, originalRequestInit, processObj = {} }) {
+        const response = await super.dispatchNavigationEvent({ httpEvent, crossLayerFetch, responseRealtime });
+        // Obtain and connect responseRealtime as first thing
         if (response.isLive()) {
-            this.backgroundMessagingPorts.addPort(response.backgroundMessagingPort);
+            this.background.addPort(response.wqRealtime);
         }
         // Await a response with an "Accepted" or redirect status
         if (response.status === 202 || (response.headers.get('Location') && this.processRedirect(response))) {
@@ -402,7 +398,7 @@ export class WebfloClient extends WebfloRuntime {
             if (!processObj.recurseController.signal.aborted) {
                 await new Promise((res) => setTimeout(res, parseInt(response.headers.get('Retry-After')) * 1000));
                 const eventClone = httpEvent.cloneWith({ request: this.createRequest(httpEvent.url, originalRequestInit) });
-                return await this.dispatchNavigationEvent({ httpEvent: eventClone, crossLayerFetch, backgroundMessagingPort, originalRequestInit, processObj });
+                return await this.dispatchNavigationEvent({ httpEvent: eventClone, crossLayerFetch, responseRealtime, originalRequestInit, processObj });
             }
         } else if (processObj.recurseController) {
             // Abort the signal. This is the end of the loop
@@ -424,16 +420,16 @@ export class WebfloClient extends WebfloRuntime {
             if (this.isSpaRoute(location)) {
                 this.navigate(location, {}, { navigationType: 'rdr' });
             } else {
-                this.redirect(location, response.backgroundMessagingPort);
+                this.redirect(location, response.wqRealtime);
             }
             return true;
         }
     }
 
-    redirect(location, backgroundMessagingPort) {
-        if (backgroundMessagingPort) {
+    redirect(location, responseRealtime) {
+        if (responseRealtime) {
             // Redundant as this is a window reload anyways
-            backgroundMessagingPort.close();
+            responseRealtime.close();
         }
         window.location = location;
     }

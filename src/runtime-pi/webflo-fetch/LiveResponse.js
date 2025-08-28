@@ -1,19 +1,9 @@
 import { State, Observer } from '@webqit/quantum-js';
 import { _isObject, _isTypeObject } from '@webqit/util/js/index.js';
-import { backgroundMessagingPort } from './response.js';
+import { publishMutations, applyMutations } from '../webflo-messaging/wq-message-port.js';
+import { responseRealtime } from './response.js';
 import { isTypeStream } from './util.js';
-import { _await, _wq } from '../../util.js';
-
-const isGenerator = (obj) => {
-    return typeof obj?.next === 'function' &&
-        typeof obj?.throw === 'function' &&
-        typeof obj?.return === 'function';
-};
-
-class StateX extends State {
-    constructor() { }
-    dispose() { }
-}
+import { _wq, _await } from '../../util.js';
 
 export class LiveResponse extends EventTarget {
 
@@ -69,18 +59,18 @@ export class LiveResponse extends EventTarget {
             // Generator binding
             if (response.isLive() === 2) {
                 if (_isTypeObject(body) && !isTypeStream(body)) {
-                    response.backgroundMessagingPort.applyMutations(
+                    applyMutations.call(response.wqRealtime,
                         body,
                         response.headers.get('X-Live-Response-Message-ID').trim(),
                         { signal: instance.#abortController.signal }
                     );
                 }
                 // Capture subsequent frames?
-                response.backgroundMessagingPort.addEventListener('response.replace', (e) => {
+                response.wqRealtime.addEventListener('response.replace', (e) => {
                     const { body, ...options } = e.data;
                     instance.#replaceWith(body, options);
                 }, { signal: instance.#abortController.signal });
-                response.backgroundMessagingPort.addEventListener('close', () => {
+                response.wqRealtime.addEventListener('close', () => {
                     instance.#extendLifecycle(Promise.resolve());
                 }, { once: true, signal: instance.#abortController.signal });
             }
@@ -203,14 +193,14 @@ export class LiveResponse extends EventTarget {
 
     /* Level 3 props */
 
-    get backgroundMessagingPort() {
-        return backgroundMessagingPort.call(this);
+    get wqRealtime() {
+        return responseRealtime.call(this);
     }
 
     /* Lifecycle methods */
 
     isLive() {
-        let liveLevel = (this.headers.get('X-Background-Messaging-Port')?.trim() || _wq(this, 'meta').has('backgroundMessagingPort')) && 1 || 0;
+        let liveLevel = (this.headers.get('X-Background-Messaging-Port')?.trim() || _wq(this, 'meta').has('wqRealtime')) && 1 || 0;
         liveLevel += this.headers.get('X-Live-Response-Message-ID')?.trim() && 1 || 0;
         return liveLevel;
     }
@@ -308,7 +298,7 @@ export class LiveResponse extends EventTarget {
                 ...options,
                 type: 'basic',
                 redirected: false,
-                url: null,
+                url: null
             });
             if (frameClosure) {
                 const reactiveProxy = _isTypeObject(body) && !isTypeStream(body) ? Observer.proxy(body, { chainable: true, membrane: body }) : body;
@@ -341,7 +331,7 @@ export class LiveResponse extends EventTarget {
         await this.#replaceWith(body, ...args);
     }
 
-    toResponse({ clientMessagePort, signal: abortSignal } = {}) {
+    toResponse({ clientRequestRealtime, signal: abortSignal } = {}) {
         const response = Response.from(this.body, {
             status: this.status,
             statusText: this.statusText,
@@ -349,12 +339,12 @@ export class LiveResponse extends EventTarget {
         });
         const responseMeta = _wq(this, 'meta');
         _wq(response).set('meta', responseMeta);
-        if (clientMessagePort && this.whileLive()) {
+        if (clientRequestRealtime && this.whileLive()) {
             const liveResponseMessageID = Date.now().toString();
             response.headers.set('X-Live-Response-Message-ID', liveResponseMessageID);
             // Publish mutations
             if (_isTypeObject(this.body) && !isTypeStream(this.body)) {
-                clientMessagePort.publishMutations(this.body, liveResponseMessageID, { signal: abortSignal/* stop observing mutations on body when we abort */ });
+                publishMutations.call(clientRequestRealtime, this.body, liveResponseMessageID, { signal: abortSignal/* stop observing mutations on body when we abort */ });
             }
             // Publish replacements?
             const replaceHandler = () => {
@@ -363,13 +353,13 @@ export class LiveResponse extends EventTarget {
                     delete headers['set-cookie'];
                     console.warn('Warning: The "set-cookie" header is not supported for security reasons and has been removed from the response.');
                 }
-                clientMessagePort.postMessage({
+                clientRequestRealtime.postMessage({
                     body: this.body,
                     status: this.status,
                     statusText: this.statusText,
                     headers,
                     done: !this.whileLive(),
-                }, { eventOptions: { type: 'response.replace', live: true/*gracefully ignored if not an object*/ }, liveOptions: { signal: abortSignal/* stop observing mutations on body when we abort */ } });
+                }, { wqEventOptions: { type: 'response.replace', live: true/*gracefully ignored if not an object*/ }, observerOptions: { signal: abortSignal/* stop observing mutations on body when we abort */ } });
             };
             this.addEventListener('replace', replaceHandler, { signal: abortSignal/* stop listening when we abort */ });
         }
@@ -400,6 +390,17 @@ export class LiveResponse extends EventTarget {
         clone.replaceWith(this, init);
         return clone;
     }
+}
+
+const isGenerator = (obj) => {
+    return typeof obj?.next === 'function' &&
+        typeof obj?.throw === 'function' &&
+        typeof obj?.return === 'function';
+};
+
+class StateX extends State {
+    constructor() { }
+    dispose() { }
 }
 
 globalThis.LiveResponse = LiveResponse;

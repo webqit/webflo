@@ -1,6 +1,7 @@
 import { _difference } from '@webqit/util/arr/index.js';
 import { _isObject } from '@webqit/util/js/index.js';
 import { xURL } from '../webflo-url/xURL.js';
+import { _wq } from '../../util.js';
 
 export class HttpEvent {
 
@@ -13,9 +14,9 @@ export class HttpEvent {
     #init;
     #abortController = new AbortController;
 
-    constructor(parentEvent, { request, cookies, session, user, client, sdk, detail, signal, state, ...rest }) {
+    constructor(parentEvent, { request, cookies, session, user, realtime, sdk, detail, signal, state, ...rest }) {
         this.#parentEvent = parentEvent;
-        this.#init = { request, cookies, session, user, client, sdk, detail, signal, state, ...rest };
+        this.#init = { request, cookies, session, user, realtime, sdk, detail, signal, state, ...rest };
         this.#url = new xURL(this.#init.request.url);
         this.#init.request.signal?.addEventListener('abort', () => this.#abortController.abort(), { once: true });
     }
@@ -24,13 +25,13 @@ export class HttpEvent {
 
     get request() { return this.#init.request; }
 
+    get realtime() { return this.#init.realtime; }
+
     get cookies() { return this.#init.cookies; }
 
     get session() { return this.#init.session; }
 
     get user() { return this.#init.user; }
-
-    get client() { return this.#init.client; }
 
     get sdk() { return this.#init.sdk; }
 
@@ -94,13 +95,13 @@ export class HttpEvent {
         const callback = typeof args[0] === 'function' ? args.shift() : () => null;
         let { interval = 3000, maxClock = -1, whileOpen = 1, cleanupCall = false } = args[0] || {};
         if (whileOpen) {
-            await this.client.ready;
+            await this.realtime.wqLifecycle.open;
         }
         while (true) {
             const termination = maxClock === 0
-                || (whileOpen && !this.client.isOpen())
-                || (whileOpen === 2 && this.client.navigatedIn())
-                || (whileOpen && whileOpen !== 2 && this.client.navigatedAway());
+                || (whileOpen && _wq(this.realtime, 'meta').get('close'))
+                || (whileOpen === 2 && this.realtime.navigatedIn())
+                || (whileOpen && whileOpen !== 2 && this.realtime.navigatedAway());
             const returnValue = (!termination || cleanupCall) && await callback(termination) || { done: true };
             if (returnValue !== undefined && (!_isObject(returnValue) || _difference(Object.keys(returnValue || {}), ['value', 'done']).length)) {
                 throw new Error('Callback must return an object with only "value" and "done" properties');

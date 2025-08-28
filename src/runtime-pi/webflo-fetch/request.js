@@ -1,13 +1,12 @@
 import { _wq } from '../../util.js';
 import { renderHttpMessageInit } from './message.js';
 
-
-const { clone: cloneMethod } = Request.prototype;
-const requestMethods = {
+const prototypeOriginals = { clone: Request.prototype.clone };
+const prototypeExtensions = {
     carries: { get: function () { return new Set(_wq(this, 'meta').get('carries') || []); } },
     clone: {
         value: function (init = {}) {
-            const clone = cloneMethod.call(this, init);
+            const clone = prototypeOriginals.clone.call(this, init);
             const requestMeta = _wq(this, 'meta');
             _wq(clone).set('meta', requestMeta);
             return clone;
@@ -16,7 +15,7 @@ const requestMethods = {
     parse: { value: function () { return parseHttpMessage(this); } },
 };
 
-const staticRequestMethods = {
+const staticExtensions = {
     from: {
         value: function (url, init = {}) {
             if (url instanceof Request) return url;
@@ -59,5 +58,5 @@ const staticRequestMethods = {
     }
 };
 
-Object.defineProperties(Request.prototype, requestMethods);
-Object.defineProperties(Request, staticRequestMethods);
+Object.defineProperties(Request.prototype, prototypeExtensions);
+Object.defineProperties(Request, staticExtensions);

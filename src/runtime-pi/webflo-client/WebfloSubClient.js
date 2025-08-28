@@ -2,7 +2,7 @@ import { Observer } from '@webqit/quantum-js';
 import { WebfloClient } from './WebfloClient.js';
 import { defineElement } from './webflo-embedded.js';
 import { Url } from '../webflo-url/Url.js';
-import { $parentNode } from '../../util.js';
+import { _wq } from '../../util.js';
 
 export class WebfloSubClient extends WebfloClient {
 
@@ -40,11 +40,11 @@ export class WebfloSubClient extends WebfloClient {
 		if (this.host.location.origin !== window.location.origin) {
 			throw new Error(`Webflo embeddable origin violation in "${window.location}"`);
 		}
-		this.backgroundMessagingPorts[$parentNode] = this.#superRuntime.backgroundMessagingPorts;
 		const instanceController = await super.initialize();
+		_wq(this.background, 'meta').set('parentNode', this.#superRuntime.background);
 		instanceController.signal.addEventListener('abort', () => {
-			if (this.backgroundMessagingPort[$parentNode] === this.#superRuntime.backgroundMessagingPort) {
-				this.backgroundMessagingPort[$parentNode] = null;
+			if (_wq(this.background, 'meta').get('parentNode') === this.#superRuntime.background) {
+				_wq(this.background, 'meta').set('parentNode', null);
 			}
 		}, { once: true });
 		return instanceController;
@@ -90,16 +90,16 @@ export class WebfloSubClient extends WebfloClient {
 		(this.host.querySelector('[autofocus]') || this.host).focus();
 	}
 
-	redirect(location, backgroundMessagingPort = null) {
+	redirect(location, responseRealtime = null) {
 		location = typeof location === 'string' ? new URL(location, this.location.origin) : location;
 		const width = Math.min(800, window.innerWidth);
 		const height = Math.min(600, window.innerHeight);
 		const left = (window.outerWidth - width) / 2;
 		const top = (window.outerHeight - height) / 2;
 		const popup = window.open(location, '_blank', `popup=true,width=${width},height=${height},left=${left},top=${top}`);
-		if (backgroundMessagingPort) {
+		if (responseRealtime) {
 			Observer.set(this.navigator, 'redirecting', new Url/*NOT URL*/(location), { diff: true });
-			backgroundMessagingPort.addEventListener('close', (e) => {
+			responseRealtime.addEventListener('close', (e) => {
 				window.removeEventListener('message', windowMessageHandler);
 				Observer.set(this.navigator, 'redirecting', null);
 				popup.postMessage('timeout:5');
@@ -109,7 +109,7 @@ export class WebfloSubClient extends WebfloClient {
 			}, { once: true });
 			const windowMessageHandler = (e) => {
 				if (e.source === popup && e.data === 'close') {
-					backgroundMessagingPort.close();
+					responseRealtime.close();
 				}
 			};
 			window.addEventListener('message', windowMessageHandler);

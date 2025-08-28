@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en-US">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title render="#text: titleBar || title">APP_TITLE</title>
+    <meta name="description" content="APP_DESCRIPTION">
+    <meta name="apple-mobile-web-app-title" content="APP_TITLE">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#313131">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="/manifest.json">
+    <!--
+    <link rel="icon" href="/assets/..." type="image/png">
+    <link rel="apple-touch-icon" href="/assets/...">
+    -->
+    <script crossorigin ssr src="https://unpkg.com/@webqit/oohtml@latest/dist/main.lite.js"></script>
+    <template def="app" ssr src="/assets/app.html" by="oohtml-cli"></template>
+    <script type="module" src="/assets/app.js" by="webflo"></script>
+    <link rel="stylesheet" href="/assets/app.css">
+</head>
+
+<body importscontext="/app">
+
+    <h1>
+        <span><?{ data.title }?></span><br>
+        <span><?{ data.greeting }?></span>
+    </h1>
+    
+    <import ref="#page.html">
+        Import will show here...
+    </import>
+
+</body>
+
+</html>

@@ -34,8 +34,8 @@ export class Context {
     }
 
     // app
-    get app() {
-        return this.dict.app || {};
+    get appMeta() {
+        return this.dict.appMeta || {};
     }
 
     // config

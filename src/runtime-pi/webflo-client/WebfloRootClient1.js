@@ -1,6 +1,6 @@
 import { Observer } from '@webqit/quantum-js';
 import { WebfloClient } from './WebfloClient.js';
-import { ClientSideWorkport } from './messaging/ClientSideWorkport.js';
+import { ClientSideWorkport } from './ClientSideWorkport.js';
 import { DeviceCapabilities } from './DeviceCapabilities.js';
 import { WebfloHMR } from './webflo-devmode.js';
 
@@ -50,24 +50,21 @@ export class WebfloRootClient1 extends WebfloClient {
 			window.addEventListener('beforeunload', beforeunloadHandler, { signal: instanceController.signal });
 		}
 		// Bind top-level User-Agent requests
-		this.backgroundMessagingPorts.handleRequests('ua:query', async (e) => {
+		this.background.handleRequests('ua:query', async (e) => {
 			if (e.data?.query === 'push_registration') {
 				const pushManager = (await navigator.serviceWorker.getRegistration()).pushManager;
-				const r = await pushManager.getSubscription();
-				return r;
+				return await pushManager.getSubscription();
 			}
 		}, { signal: instanceController.signal });
 		// Bind top-level Storage requests
-		this.backgroundMessagingPorts.handleRequests('storage:query', (e) => {
+		this.background.handleRequests('storage:query', (e) => {
 			const { source, namespace, query, key, value } = e.data;
 			const storage = source === 'session' ? sessionStorage : (source === 'local' ? localStorage : null);
 			if (!storage) return;
 			const data = JSON.parse(storage.getItem(namespace) || (query === 'set' ? '{}' : 'null'));
 			switch (query) {
-				case 'has':
-					return !!data && Reflect.has(data, key);
-				case 'get':
-					return data && Reflect.get(data, key);
+				case 'has': return !!data && Reflect.has(data, key);
+				case 'get': return data && Reflect.get(data, key);
 				case 'set':
 					Reflect.set(data, key, value);
 					return storage.setItem(namespace, JSON.stringify(data))
@@ -75,16 +72,11 @@ export class WebfloRootClient1 extends WebfloClient {
 					if (!data) return;
 					Reflect.deleteProperty(data, key);
 					return storage.setItem(namespace, JSON.stringify(data));
-				case 'clear':
-					return storage.removeItem(namespace);
-				case 'keys':
-					return data && Reflect.ownKeys(data) || [];
-				case 'values':
-					return data && Object.values(data) || [];
-				case 'entries':
-					return data && Object.entries(data) || [];
-				case 'size':
-					return data && Object.keys(data).length || 0;
+				case 'clear': return storage.removeItem(namespace);
+				case 'keys': return data && Reflect.ownKeys(data) || [];
+				case 'values': return data && Object.values(data) || [];
+				case 'entries': return data && Object.entries(data) || [];
+				case 'size': return data && Object.keys(data).length || 0;
 			}
 		}, { signal: instanceController.signal });
 		return instanceController;
@@ -116,7 +108,7 @@ export class WebfloRootClient1 extends WebfloClient {
 			scopeObj.response.headers.set(name, metaElement.content?.trim() || '');
 		}
 		if (scopeObj.response.isLive()) {
-			this.backgroundMessagingPorts.addPort(scopeObj.response.backgroundMessagingPort);
+			this.background.addPort(scopeObj.response.wqRealtime);
 		}
 		if (scopeObj.response.body || scopeObj.response.isLive()) {
 			const httpEvent = this.createHttpEvent({ request: this.createRequest(this.location.href) }, true);

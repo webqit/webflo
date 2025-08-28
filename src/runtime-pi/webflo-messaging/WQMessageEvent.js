@@ -1,12 +1,11 @@
 import { _isTypeObject } from '@webqit/util/js/index.js';
-import { $runtime } from '../../util.js';
+import { toWQPort, applyMutations } from './wq-message-port.js';
+import { _wq } from '../../util.js';
 
-export class WebfloMessageEvent extends Event {
+export class WQMessageEvent extends Event {
 
     #originalTarget;
     get originalTarget() { return this.#originalTarget; }
-
-    get [$runtime]() { return this.#originalTarget[$runtime]; }
 
     #eventID;
     get eventID() { return this.#eventID; }
@@ -20,15 +19,23 @@ export class WebfloMessageEvent extends Event {
     #bubbles;
     get bubbles() { return this.#bubbles; }
 
+    #forwarded;
+    get forwarded() { return this.#forwarded; }
+
     #ports = [];
     get ports() { return this.#ports; }
 
-    constructor(originalTarget, { eventID, type = 'message', data = null, live = false, bubbles = false, ports = [], isPiping = false } = {}) {
+    constructor(originalTarget, {
+        data = null,
+        wqEventOptions: { eventID, type = 'message', live = false, bubbles = false, forwarded = false } = {},
+        wqProcessingOptions: {} = {},
+        ports = []
+    } = {}) {
         if (typeof eventID !== 'string') {
             throw new TypeError('eventID must be a non-empty string');
         }
         if (type && typeof type !== 'string') {
-            throw new TypeError('Where specified, eventOptions.type must be a string');
+            throw new TypeError('Where specified, wqEventOptions.type must be a string');
         }
         super(type);
         this.#originalTarget = originalTarget;
@@ -36,10 +43,11 @@ export class WebfloMessageEvent extends Event {
         this.#data = data;
         this.#live = live;
         this.#bubbles = bubbles;
-        this.#ports = ports;
-        if (_isTypeObject(this.#data) && this.#live && !isPiping && typeof this.#originalTarget?.applyMutations === 'function') {
+        this.#forwarded = forwarded;
+        this.#ports = ports.map(toWQPort);
+        if (_isTypeObject(this.#data) && this.#live) {
             // If the data is a live object, we can apply mutations to it
-            this.#originalTarget.applyMutations(this.#data, this.#eventID);
+            applyMutations.call(originalTarget, this.#data, this.#eventID);
         }
     }
 
@@ -68,10 +76,12 @@ export class WebfloMessageEvent extends Event {
         super.preventDefault();
     }
 
-    respondWith(data, transferOrOptions = []) {
-        for (const port of this.ports) {
+    wqRespondWith(data, transferOrOptions = []) {
+        for (const port of this.#ports) {
             port.postMessage(data, transferOrOptions);
         }
-        return !!this.ports.length;
+        return !!this.#ports.length;
     }
 }
+
+globalThis.WQMessageEvent = WQMessageEvent;

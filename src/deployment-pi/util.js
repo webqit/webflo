@@ -11,6 +11,13 @@ function selectHostnames(serverDefs, matchingPort = null) {
 
 // config.runtime
 
+export async function readInitConfig($context) {
+    if (!$context.config.static.Init) {
+        throw new Error(`The Client configurator "config.static.Init" is required in context.`);
+    }
+    return await (new $context.config.static.Init($context)).read();
+}
+
 export async function readClientConfig($context) {
     if (!$context.config.runtime?.Client) {
         throw new Error(`The Client configurator "config.runtime.Client" is required in context.`);

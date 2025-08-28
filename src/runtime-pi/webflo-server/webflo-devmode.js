@@ -2,19 +2,19 @@ import Path from 'path';
 import $glob from 'fast-glob';
 import EsBuild from 'esbuild';
 import chokidar from 'chokidar';
-import * as WebfloPI from '../../index.js';
-import { generate } from '../webflo-client/webflo-codegen.js';
-import * as OohtmlCliPI from '@webqit/oohtml-cli/src/index.js';
-import { exec } from 'child_process';
+import { exec, spawn } from 'child_process';
 import { platform } from 'os';
 
 export class WebfloHMR {
 
-    static manage(app) {
-        return new this(app);
+    static manage(app, options = {}) {
+        return new this(app, options);
     }
 
     #app;
+
+    #options;
+    get options() { return this.#options; }
 
     #jsMeta = {
         dependencyMap: null/*!IMPORTANT!*/,
@@ -32,13 +32,22 @@ export class WebfloHMR {
     #watcher;
     get watcher() { return this.#watcher; }
 
+    #dirtiness = {
+        CSSAffected: false,
+        HTMLAffected: false,
+        clientRoutesAffected: new Set,
+        serviceWorkerAffected: false,
+    };
+    get dirtiness() { return this.#dirtiness; }
+
     #ignoreList = new Set;
     get ignoreList() { return this.#ignoreList; }
 
     #eventQueue = [];
 
-    constructor(app) {
+    constructor(app, options = {}) {
         this.#app = app;
+        this.#options = options;
         // Filesytem matching
         const _layoutDirPattern = (dirs) => `^(${[...dirs].map((d) => Path.relative(process.cwd(), d).replace(/^\.\//g, '').replace(/\./g, '\\.').replace(/\//g, '\\/')).join('|')})`;
         this.#layoutDirsMatchMap = Object.fromEntries(['CLIENT_DIR', 'WORKER_DIR', 'SERVER_DIR', 'VIEWS_DIR', 'PUBLIC_DIR'].map((name) => {
@@ -127,17 +136,11 @@ export class WebfloHMR {
     }
 
     async fire(events) {
-        const statuses = {
-            CSSAffected: false,
-            HTMLAffected: false,
-            clientRoutesAffected: new Set,
-            serviceWorkerAffected: false,
-        };
         for (const event of events) {
             if (event.realm === 'client') {
-                statuses.clientRoutesAffected.add(event.affectedRoute);
+                this.#dirtiness.clientRoutesAffected.add(event.affectedRoute);
             } else if (event.realm === 'worker') {
-                statuses.serviceWorkerAffected = true;
+                this.#dirtiness.serviceWorkerAffected = true;
             } else if (event.realm === 'server') {
                 if (/^unlink/.test(event.actionableEffect)) {
                     delete this.#app.routes[event.affectedRoute];
@@ -145,19 +148,13 @@ export class WebfloHMR {
                     this.#app.routes[event.affectedRoute] = `${Path.join(this.#app.config.DEV_DIR, event.affectedHandler)}?_webflohmrhash=${Date.now()}`;
                 }
             } else if (event.fileType === 'css') {
-                statuses.CSSAffected = true;
+                this.#dirtiness.CSSAffected = true;
             } else if (event.fileType === 'html' || !event.fileType) {
-                statuses.HTMLAffected = true;
+                this.#dirtiness.HTMLAffected = true;
             }
         }
-        if (statuses.clientRoutesAffected.size || statuses.serviceWorkerAffected) {
-            await this.bundleJS({
-                client: !!statuses.clientRoutesAffected.size,
-                worker: statuses.serviceWorkerAffected
-            });
-        }
-        if (statuses.HTMLAffected) {
-            await this.bundleHTML();
+        if (this.#options.buildSensitivity === 1) {
+            await this.bundleAssetsIfPending();
         }
         // Broadcast to clients
         const PUBLIC_DIR = Path.relative(process.cwd(), this.#app.config.LAYOUT.PUBLIC_DIR);
@@ -169,6 +166,7 @@ export class WebfloHMR {
             }
             return $event;
         });
+
         for (const client of this.#clients) {
             client.send(JSON.stringify($events));
         }
@@ -204,11 +202,13 @@ export class WebfloHMR {
                 buildResult = await EsBuild.build(bundlingConfig);
             }
         } catch (e) { return false; }
+
         // 1. Forward dependency graph (file -> [imported files])
         const forward = {};
         for (const [file, data] of Object.entries(buildResult.metafile.inputs)) {
             forward[file] = data.imports?.map((imp) => Path.normalize(imp.path)) || [];
         }
+
         // 2. Reverse dependency graph (file -> [parents])
         const reverse = {};
         for (const [file, imports] of Object.entries(forward)) {
@@ -217,9 +217,11 @@ export class WebfloHMR {
                 reverse[dep].push(file);
             }
         }
+
         // 3. Trace from leaf file to roots (handler files)
         const handlers = Object.keys(buildResult.metafile.inputs).filter((f) => this.#handlerMatch.test(f));
         const handlerDepsMap = {};
+
         for (const handler of handlers) {
             const visited = new Set();
             const stack = [handler];
@@ -235,43 +237,65 @@ export class WebfloHMR {
         }
         this.#jsMeta.dependencyMap = handlerDepsMap;
         this.#jsMeta.mustRevalidate = false;
+        
         return true;
     }
 
-    async bundleJS(params) {
-        const cx = WebfloPI.Context.create({
-            config: WebfloPI.config,
-            flags: {
-                compression: false,
-                ['auto-embed']: true
-            },
-        });
-        try {
-            const result = await generate.call(cx, {
-                ...params,
-                buildParams: {
-                    logLevel: 'silent',
-                }
-            });
-            for (const file of result.outfiles) {
-                this.#ignoreList.add(file);
+    async bundleAssetsIfPending() {
+        const entries = {};
+
+        if (this.#dirtiness.clientRoutesAffected.size || this.#dirtiness.serviceWorkerAffected) {
+            entries.js = {};
+            entries.js.client = !!this.#dirtiness.clientRoutesAffected.size;
+            entries.js.worker = this.#dirtiness.serviceWorkerAffected;
+            // Clear state
+            this.#dirtiness.clientRoutesAffected.clear();
+            this.#dirtiness.serviceWorkerAffected = false;
+        }
+
+        if (this.#dirtiness.HTMLAffected) {
+            this.#dirtiness.HTMLAffected = false;
+            entries.html = {};
+        }
+
+        if (this.#dirtiness.CSSAffected) {
+            this.#dirtiness.CSSAffected = false;
+            entries.css = {};
+        }
+
+        for (const e in entries) {
+            const buildKey = `build:${e}`;
+            let buildScript,
+                buildScriptName = this.#options.buildScripts?.[buildKey];
+            if (buildScriptName === true) {
+                buildScriptName = buildKey;
             }
-            return result;
-        } catch (e) { return false; }
+            if (buildScriptName
+                && (buildScript = this.#options.appMeta.scripts?.[buildScriptName])) {
+                await this.#spawnProcess(buildScript, entries[e]);
+            }
+        }
     }
 
-    async bundleHTML() {
-        const cx = OohtmlCliPI.Context.create({
-            config: OohtmlCliPI.config,
-            flags: {
-                ['auto-embed']: 'app',
-            }
+    async #spawnProcess(command, options = {}) {
+        const commandArr = [...new Set(
+            command.split(/\s+?/).concat(Object.keys(options)).filter((s) => !(s in options) || options[s])
+        )];
+        return await new Promise((resolve, reject) => {
+            const child = spawn(commandArr.shift(), commandArr, {
+                stdio: ['pipe', 'pipe', 'inherit', 'ipc'],
+                shell: true, // for Windows compatibility
+            });
+            child.on('message', (msg) => {
+                for (const file of msg?.outfiles || []) {
+                    this.#ignoreList.add(file);
+                }
+            });
+            child.on('exit', (code) => {
+                if (code === 0) resolve(child);
+                else reject(new Error(`Process exited with code ${code}`));
+            });
         });
-        const result = await OohtmlCliPI.bundler.bundle.call(cx);
-        for (const file of result.outfiles) {
-            this.#ignoreList.add(file);
-        }
-        return result;
     }
 }
 

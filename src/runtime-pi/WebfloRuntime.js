@@ -1,6 +1,6 @@
 import { Context } from '../Context.js';
 import { WebfloRouter } from './webflo-routing/WebfloRouter.js';
-import { _wq, $runtime } from '../util.js';
+import { _wq } from '../util.js';
 
 export class WebfloRuntime {
 
@@ -10,8 +10,6 @@ export class WebfloRuntime {
     static get Context() { return Context; }
 
     static get Router() { return WebfloRouter; }
-
-    get [$runtime]() { return this; }
 
     #cx;
     get cx() { return this.#cx; }
@@ -70,15 +68,15 @@ export class WebfloRuntime {
         return this.constructor.HttpSession.create({ store, request, ...rest });
     }
 
-    createHttpUser({ store, request, session, client, ...rest }) {
-        return this.constructor.HttpUser.create({ store, request, session, client, ...rest });
+    createHttpUser({ store, request, session, realtime, ...rest }) {
+        return this.constructor.HttpUser.create({ store, request, session, realtime, ...rest });
     }
 
-    createHttpEvent({ request, cookies, session, user, client, sdk, detail, signal, state, ...rest }) {
-        return this.constructor.HttpEvent.create(null, { request, cookies, session, user, client, sdk, detail, signal, state, ...rest });
+    createHttpEvent({ request, cookies, session, user, realtime, sdk, detail, signal, state, ...rest }) {
+        return this.constructor.HttpEvent.create(null, { request, cookies, session, user, realtime, sdk, detail, signal, state, ...rest });
     }
 
-    async dispatchNavigationEvent({ httpEvent, crossLayerFetch, backgroundMessagingPort }) {
+    async dispatchNavigationEvent({ httpEvent, crossLayerFetch, responseRealtime }) {
         const { flags: FLAGS } = this.cx;
         // Resolve rid before dispatching
         if (httpEvent.request.method === 'GET' && httpEvent.url.query['_rid']) {
@@ -93,7 +91,7 @@ export class WebfloRuntime {
         // Do proper routing for respone
         const response = await new Promise(async (resolve) => {
             let autoLiveResponse, response;
-            httpEvent.client.on('messaging', () => {
+            httpEvent.realtime.wqLifecycle.messaging.then(() => {
                 autoLiveResponse = new LiveResponse(null, { status: 202, statusText: 'Accepted', done: false });
                 resolve(autoLiveResponse);
             });
@@ -138,29 +136,29 @@ export class WebfloRuntime {
         // Send the X-Background-Messaging-Port header
         // This server's event lifecycle management
         if (!httpEvent.lifeCycleComplete()) {
-            const upstreamBackgroundMessagingPort = response.backgroundMessagingPort;
             if (this.isClientSide) {
                 const responseMeta = _wq(response, 'meta');
-                responseMeta.set('backgroundMessagingPort', backgroundMessagingPort);
+                responseMeta.set('wqRealtime', responseRealtime);
             } else {
-                response.headers.set('X-Background-Messaging-Port', backgroundMessagingPort);
+                const upstreamBackgroundMessagingPort = response.headers.get('X-Background-Messaging-Port');
+                response.headers.set('X-Background-Messaging-Port', responseRealtime);
             }
-            httpEvent.client.addEventListener('navigate', (e) => {
+            httpEvent.realtime.addEventListener('navigate', (e) => {
                 setTimeout(() => { // Allow for global handlers to see the events
                     if (e.defaultPrevented) {
                         console.log(`Client Messaging Port on ${httpEvent.request.url} not auto-closed on user navigation.`);
                     } else {
-                        httpEvent.client.close();
+                        httpEvent.realtime.close();
                     }
                 }, 0);
             });
             httpEvent.lifeCycleComplete(true).then(() => {
-                httpEvent.client.close();
+                httpEvent.realtime.close();
             });
         }
         if (!this.isClientSide && response instanceof LiveResponse) {
             // Must convert to Response on the server-side before returning
-            return response.toResponse({ clientMessagePort: httpEvent.client });
+            return response.toResponse({ clientRequestRealtime: httpEvent.realtime });
         }
         return response;
     }
@@ -196,8 +194,8 @@ export class WebfloRuntime {
             const flashResponses = requestMeta.get('carries')?.map((c) => c.response).filter((r) => r);
             if (flashResponses?.length) {
                 httpEvent.waitUntil(new Promise((resolve) => {
-                    httpEvent.client.on('open', () => {
-                        httpEvent.client.postMessage(flashResponses, { eventOptions: { type: 'flash' } });
+                    httpEvent.realtime.wqLifecycle.open.then(() => {
+                        httpEvent.realtime.postMessage(flashResponses, { wqEventOptions: { type: 'flash' } });
                         resolve();
                     }, { once: true });
                 }));

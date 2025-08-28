@@ -5,6 +5,7 @@ import Http from 'http';
 import Https from 'https';
 import WebSocket from 'ws';
 import Mime from 'mime-types';
+import crypto from 'crypto';
 import 'dotenv/config';
 import { Readable } from 'stream';
 import { spawn } from 'child_process';
@@ -13,9 +14,9 @@ import { _from as _arrFrom, _any } from '@webqit/util/arr/index.js';
 import { _isEmpty, _isObject } from '@webqit/util/js/index.js';
 import { _each } from '@webqit/util/obj/index.js';
 import { WebfloHMR, openBrowser } from './webflo-devmode.js';
-import { Tenants } from './messaging/Tenants.js';
+import { Clients } from './messaging/Clients.js';
 import { WebfloRuntime } from '../WebfloRuntime.js';
-import { MessagingOverSocket } from '../webflo-messaging/MessagingOverSocket.js';
+import { WQSockPort } from '../webflo-messaging/WQSockPort.js';
 import { ServerSideCookies } from './ServerSideCookies.js';
 import { ServerSideSession } from './ServerSideSession.js';
 import { HttpEvent } from '../webflo-routing/HttpEvent.js';
@@ -28,6 +29,7 @@ import {
     readLayoutConfig,
     readEnvConfig,
     readProxyConfig,
+    readWorkerConfig,
     scanRoots,
     scanRouteHandlers,
 } from '../../deployment-pi/util.js';
@@ -62,7 +64,7 @@ export class WebfloServer extends WebfloRuntime {
 
     #servers = new Map;
 
-    #tenants;
+    #clients;
 
     #hmrRegistry;
 
@@ -75,7 +77,7 @@ export class WebfloServer extends WebfloRuntime {
 
     async initialize() {
         const instanceController = await super.initialize();
-        const { app: APP, flags: FLAGS, logger: LOGGER, } = this.cx;
+        const { appMeta: APP_META, flags: FLAGS, logger: LOGGER, } = this.cx;
         this.#config = {
             LAYOUT: await readLayoutConfig(this.cx),
             ENV: await readEnvConfig(this.cx),
@@ -83,6 +85,7 @@ export class WebfloServer extends WebfloRuntime {
             HEADERS: await readHeadersConfig(this.cx),
             REDIRECTS: await readRedirectsConfig(this.cx),
             PROXY: await readProxyConfig(this.cx),
+            WORKER: await readWorkerConfig(this.cx),
         };
         const { PROXY } = this.config;
         if (FLAGS['dev']) {
@@ -104,8 +107,8 @@ export class WebfloServer extends WebfloRuntime {
         Object.defineProperty(this.#routes, '$sparoots', { value: spaRoots });
         Object.defineProperty(this.#routes, '$serverroots', { value: serverRoots });
         // -----------------
-        this.#tenants = new Tenants(this);
         await this.setupCapabilities();
+        this.#clients = new Clients;
         this.control();
         if (FLAGS['dev']) {
             await this.enterDevMode();
@@ -113,7 +116,7 @@ export class WebfloServer extends WebfloRuntime {
         // -----------------
         if (this.#servers.size) {
             // Show server details
-            LOGGER?.info(`> Server running! (${APP.title || ''}) ✅`);
+            LOGGER?.info(`> Server running! (${APP_META.title || ''}) ✅`);
             for (let [proto, def] of this.#servers) {
                 LOGGER?.info(`> ${proto.toUpperCase()} / ${def.hostnames.concat('').join(`:${def.port} / `)}`);
             }
@@ -233,8 +236,16 @@ export class WebfloServer extends WebfloRuntime {
     }
 
     async enterDevMode() {
-        const { flags: FLAGS } = this.cx;
-        this.#hmrRegistry = WebfloHMR.manage(this);
+        const { appMeta, flags: FLAGS } = this.cx;
+        this.#hmrRegistry = WebfloHMR.manage(this, {
+            appMeta,
+            buildScripts: {
+                ['build:html']: FLAGS['build:html'] ?? true,
+                ['build:css']: FLAGS['build:css'] ?? true,
+                ['build:js']: FLAGS['build:js'] ?? true,
+            },
+            buildSensitivity: parseInt(FLAGS['build-sensitivity'] || 0),
+        });
         await this.#hmrRegistry.buildJS(true);
         if (FLAGS['open']) {
             for (let [proto, def] of this.#servers) {
@@ -305,10 +316,40 @@ export class WebfloServer extends WebfloRuntime {
         return instanceController;
     }
 
+    identifyIncoming(request, autoGenerateID = false) {
+        const secret = this.env('SESSION_KEY');
+        let clientID = request.headers.get('Cookie', true).find((c) => c.name === '__sessid')?.value;
+        if (clientID?.includes('.')) {
+            if (secret) {
+                const [rand, signature] = clientID.split('.');
+                const expectedSignature = crypto.createHmac('sha256', secret)
+                    .update(rand)
+                    .digest('hex');
+                if (signature !== expectedSignature) {
+                    clientID = null;
+                }
+            } else {
+                clientID = null;
+            }
+        }
+        if (!clientID && autoGenerateID) {
+            if (secret) {
+                const rand = `${(0 | Math.random() * 9e6).toString(36)}`;
+                const signature = crypto.createHmac('sha256', secret)
+                    .update(rand)
+                    .digest('hex');
+                clientID = `${rand}.${signature}`
+            } else {
+                clientID = crypto.randomUUID();
+            }
+        }
+        return clientID;
+    }
+
     async preResolveIncoming({ type, nodeRequest, proxy, reject, handle }) {
         const { SERVER, PROXY, REDIRECTS } = this.config;
         // Derive proto
-        const protoDef = type == 'ws' ? { nonSecure: 'ws', secure: 'wss' } : { nonSecure: 'http', secure: 'https' };
+        const protoDef = type === 'ws' ? { nonSecure: 'ws', secure: 'wss' } : { nonSecure: 'http', secure: 'https' };
         const proto = nodeRequest.connection.encrypted ? protoDef.secure : (nodeRequest.headers['x-forwarded-proto'] || protoDef.nonSecure);
         // Resolve malformed URL: detected when using manual proxy setting in a browser
         let requestUrl = nodeRequest.url;
@@ -324,7 +365,7 @@ export class WebfloServer extends WebfloRuntime {
             if ($proxy.hostnames.includes(url.hostname) || ($proxy.hostnames.includes('*') && !hosts.includes('*'))) {
                 url.port = $proxy.port; // The port forwarding
                 if ($proxy.proto) { // Force proto?
-                    url.protocol = type == 'ws' ? $proxy.proto.replace('http', 'ws') : $proxy.proto;
+                    url.protocol = type === 'ws' ? $proxy.proto.replace('http', 'ws') : $proxy.proto;
                 }
                 return await proxy(url);
             }
@@ -429,19 +470,19 @@ export class WebfloServer extends WebfloRuntime {
             }
             if (requestURL.searchParams.get('rel') === 'background-messaging') {
                 const request = new Request(requestURL.href, { headers: nodeRequest.headers });
-                const tenantID = this.#tenants.identifyIncoming(request);
-                const tenant = tenantID && this.#tenants.getTenant(tenantID);
-                if (!tenant) {
-                    return reject({ body: `Lost or invalid tenantID` });
+                const clientID = this.identifyIncoming(request);
+                const client = clientID && this.#clients.getClient(clientID);
+                if (!client) {
+                    return reject({ body: `Lost or invalid clientID` });
                 }
-                const clientMessagePort = tenant?.getPort(requestURL.pathname.split('/').pop());
-                if (!clientMessagePort) {
+                const clientRequestRealtime = client?.getRequestRealtime(requestURL.pathname.split('/').pop());
+                if (!clientRequestRealtime) {
                     return reject({ body: `Lost or invalid portID` });
                 }
                 wss.handleUpgrade(nodeRequest, socket, head, (ws) => {
                     wss.emit('connection', ws, nodeRequest);
-                    const wsw = new MessagingOverSocket(null, ws, { honourDoneMutationFlags: true });
-                    clientMessagePort.addPort(wsw);
+                    const wsw = new WQSockPort(ws);
+                    clientRequestRealtime.addPort(wsw);
                 });
             }
         };
@@ -570,12 +611,17 @@ export class WebfloServer extends WebfloRuntime {
         const { flags: FLAGS } = this.cx;
         const { DEV_LAYOUT, LAYOUT } = this.config;
         const scopeObj = {};
-        if (FLAGS['dev'] && httpEvent.url.pathname === '/@dev') {
-            const filename = httpEvent.url.searchParams.get('src').split('?')[0];
-            if (filename.endsWith('.js')) {
-                scopeObj.filename = Path.join(DEV_LAYOUT.PUBLIC_DIR, filename);
-            } else {
-                scopeObj.filename = Path.join(LAYOUT.PUBLIC_DIR, filename);
+        if (FLAGS['dev']) {
+            if (httpEvent.url.pathname === '/@dev') {
+                const filename = httpEvent.url.searchParams.get('src').split('?')[0];
+                if (filename.endsWith('.js')) {
+                    scopeObj.filename = Path.join(DEV_LAYOUT.PUBLIC_DIR, filename);
+                } else {
+                    scopeObj.filename = Path.join(LAYOUT.PUBLIC_DIR, filename);
+                }
+            } else if (this.#hmrRegistry.options.buildSensitivity === 2) {
+                await this.#hmrRegistry.bundleAssetsIfPending();
+                scopeObj.filename = Path.join(LAYOUT.PUBLIC_DIR, httpEvent.url.pathname.split('?')[0]);
             }
         } else {
             scopeObj.filename = Path.join(LAYOUT.PUBLIC_DIR, httpEvent.url.pathname.split('?')[0]);
@@ -650,6 +696,10 @@ export class WebfloServer extends WebfloRuntime {
         scopeObj.response.headers.set('X-Frame-Options', 'SAMEORIGIN');
         // 5. Partial content support
         scopeObj.response.headers.set('Accept-Ranges', 'bytes');
+        // 6. Qualify Service-Worker responses
+        if (httpEvent.request.headers.get('Service-Worker') === 'script') {
+            scopeObj.response.headers.set('Service-Worker-Allowed', this.#config.WORKER.scope || '/');
+        }
         return finalizeResponse(scopeObj.response);
     }
 
@@ -666,28 +716,29 @@ export class WebfloServer extends WebfloRuntime {
         scopeObj.cookies = this.createHttpCookies({
             request: scopeObj.request
         });
-        scopeObj.tenantID = this.#tenants.identifyIncoming(scopeObj.request, true);
-        scopeObj.tenant = this.#tenants.getTenant(scopeObj.tenantID, true);
-        scopeObj.clientMessagePort = scopeObj.tenant.createPort({ url: scopeObj.request.url, honourDoneMutationFlags: true });
+        scopeObj.clientID = this.identifyIncoming(scopeObj.request, true);
+        scopeObj.client = this.#clients.getClient(scopeObj.clientID, true);
+        scopeObj.realtimePortID = crypto.randomUUID();
+        scopeObj.clientRequestRealtime = scopeObj.client.createRequestRealtime(scopeObj.realtimePortID, scopeObj.request.url);
         scopeObj.sessionTTL = this.env('SESSION_TTL') || 2592000/*30days*/;
         scopeObj.session = this.createHttpSession({
-            store: this.#sdk.storage?.(`${scopeObj.url.host}/session:${scopeObj.tenantID}`, scopeObj.sessionTTL),
+            store: this.#sdk.storage?.(`${scopeObj.url.host}/session:${scopeObj.clientID}`, scopeObj.sessionTTL),
             request: scopeObj.request,
-            sessionID: scopeObj.tenantID,
+            sessionID: scopeObj.clientID,
             ttl: scopeObj.sessionTTL
         });
         scopeObj.user = this.createHttpUser({
-            store: this.#sdk.storage?.(`${scopeObj.url.host}/user:${scopeObj.tenantID}`, scopeObj.sessionTTL),
-            client: scopeObj.clientMessagePort,
+            store: this.#sdk.storage?.(`${scopeObj.url.host}/user:${scopeObj.clientID}`, scopeObj.sessionTTL),
             request: scopeObj.request,
+            realtime: scopeObj.clientRequestRealtime,
             session: scopeObj.session,
         });
         scopeObj.httpEvent = this.createHttpEvent({
             request: scopeObj.request,
+            realtime: scopeObj.clientRequestRealtime,
             cookies: scopeObj.cookies,
             session: scopeObj.session,
             user: scopeObj.user,
-            client: scopeObj.clientMessagePort,
             detail: scopeObj.detail,
             sdk: this.#sdk,
         });
@@ -695,12 +746,12 @@ export class WebfloServer extends WebfloRuntime {
         scopeObj.response = await this.dispatchNavigationEvent({
             httpEvent: scopeObj.httpEvent,
             crossLayerFetch: (event) => this.localFetch(event),
-            backgroundMessagingPort: `ws:${scopeObj.httpEvent.client.portID}?rel=background-messaging`
+            responseRealtime: `ws:${scopeObj.httpEvent.realtime.portID}?rel=background-messaging`
         });
+        // Reponse handlers
         if (FLAGS['dev']) {
             scopeObj.response.headers.set('X-Webflo-Dev-Mode', 'true'); // Must come before satisfyRequestFormat() sp as to be rendered
         }
-        // Reponse handlers
         if (scopeObj.response.headers.get('Location')) {
             this.writeRedirectHeaders(scopeObj.httpEvent, scopeObj.response);
         } else {
@@ -828,7 +879,7 @@ export class WebfloServer extends WebfloRuntime {
             const rendering = window.toString();
             document.documentElement.remove();
             document.writeln('');
-            try { window.close(); } catch (e) { }
+            try { window.close(); } catch (e) {}
             return rendering;
         });
         // Validate rendering

@@ -37,7 +37,7 @@
   "dependencies": {
     "@linked-db/linked-ql": "^0.30.13",
     "@octokit/webhooks": "^7.15.1",
-    "@webqit/backpack": "^0.1.8",
+    "@webqit/backpack": "^0.1.12",
     "@webqit/oohtml-ssr": "^2.1.1",
     "@webqit/quantum-js": "^4.6.3",
     "@webqit/util": "^0.8.11",
@@ -54,7 +54,6 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
-    "@webqit/oohtml-cli": "^1.1.4",
     "chai": "^4.3.6",
     "chokidar": "^4.0.3",
     "coveralls": "^3.1.1",

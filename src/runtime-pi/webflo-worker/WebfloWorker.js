@@ -1,7 +1,7 @@
 import { _any } from '@webqit/util/arr/index.js';
 import { WebfloRuntime } from '../WebfloRuntime.js';
-import { WorkerSideWorkport } from './messaging/WorkerSideWorkport.js';
-import { ClientMessagePort } from './messaging/ClientMessagePort.js';
+import { WQBroadcastChannel } from '../webflo-messaging/WQBroadcastChannel.js';
+import { WorkerSideWorkport } from './WorkerSideWorkport.js';
 import { WorkerSideCookies } from './WorkerSideCookies.js';
 import { HttpSession } from '../webflo-routing/HttpSession.js';
 import { HttpEvent } from '../webflo-routing/HttpEvent.js';
@@ -117,20 +117,20 @@ export class WebfloWorker extends WebfloRuntime {
 			store: this.#sdk.storage?.('session'),
 			request: scopeObj.request
 		});
-		const portID = crypto.randomUUID();
-		scopeObj.clientMessagePort = new ClientMessagePort(null, portID, { isPrimary: true, honourDoneMutationFlags: true });
+		const requestID = crypto.randomUUID();
+		scopeObj.clientRequestRealtime = new WQBroadcastChannel(requestID);
 		scopeObj.user = this.createHttpUser({
 			store: this.#sdk.storage?.('user'),
 			request: scopeObj.request,
+			realtime: scopeObj.clientRequestRealtime,
 			session: scopeObj.session,
-			client: scopeObj.clientMessagePort
 		});
 		scopeObj.httpEvent = this.createHttpEvent({
 			request: scopeObj.request,
+			realtime: scopeObj.clientRequestRealtime,
 			cookies: scopeObj.cookies,
 			session: scopeObj.session,
 			user: scopeObj.user,
-			client: scopeObj.clientMessagePort,
 			detail: scopeObj.detail,
 			sdk: {}
 		});
@@ -144,7 +144,7 @@ export class WebfloWorker extends WebfloRuntime {
 				}
 				return await this.remoteFetch(event.request);
 			},
-			backgroundMessagingPort: `channel:${scopeObj.httpEvent.client.port.name}`
+			responseRealtime: `br:${scopeObj.httpEvent.realtime.name}`
 		});
 		return scopeObj.response;
 	}

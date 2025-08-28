@@ -1,10 +1,13 @@
 export class WebfloHMR {
 
-    static manage(app) {
-        return new this(app);
+    static manage(app, options = {}) {
+        return new this(app, options);
     }
 
     #app;
+
+    #options;
+    get options() { return this.#options; }
 
     #socket;
     get socket() { return this.#socket; }
@@ -18,8 +21,9 @@ export class WebfloHMR {
     #removedCSS = new Set;
     #removedHTML = new Map;
 
-    constructor(app) {
+    constructor(app, options = {}) {
         this.#app = app;
+        this.#options = options;
         this.#socket = new WebSocket('/?rel=hmr');
         this.#socket.onmessage = async (msg) => {
             const events = JSON.parse(msg.data);
@@ -118,6 +122,7 @@ export class WebfloHMR {
             for (const node of [...modules, ...removedHTML]) {
                 const $def = node.getAttribute('def');
                 const $defPath = $contextPath ? `${$contextPath === '/' ? '' : $contextPath}/${$def}` : null;
+
                 // Match remote modules
                 if (node.matches(this.#selectors.remoteHtmlModule)) {
                     if (!node.$url) {
@@ -130,12 +135,15 @@ export class WebfloHMR {
                         _count += await this.mutateNode(event, node, removedHTML, true);
                         continue;
                     }
+                    /*
                     const srcDir = _dirname(node.$url.pathname);
                     if (srcDir === '/' || event.$target.pathname.startsWith(`${srcDir}/`)) {
                         // Target is a file within current bundle. So we recurse
                         _count += await eat.call(this, node, srcDir, [...node.content.children], level + 1);
                         continue;
-                    }
+                    }*/
+                    _count += await eat.call(this, node, $defPath || '/', [...node.content.children], level + 1);
+                    continue;
                 }
                 if ($defPath === event.$target.pathname) {
                     // Target (file or directory) exactly matches DEF
