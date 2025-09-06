@@ -20,10 +20,10 @@ export default class Server extends Dotfile {
     withDefaults(config) {
         return this.merge({
             port: process.env.PORT || 3000,
-            domains: [],
+            hostnames: [],
             https: {
                 port: process.env.SSL_PORT || 0,
-                domains: [],
+                hostnames: [],
                 keyfile: '/etc/letsencrypt/live/[domain]/privkey.pem',
                 certfile: '/etc/letsencrypt/live/[domain]/fullchain.pem',
                 force: false,
@@ -59,10 +59,10 @@ export default class Server extends Dotfile {
                 validation: ['important'],
             },
             {
-                name: 'domains',
+                name: 'hostnames',
                 type: 'list',
-                message: '[domains]: Enter a list of allowed domains if necessary (comma-separated)',
-                initial: (config.domains || []).join(', '),
+                message: '[hostnames]: Enter a list of allowed hostnames if necessary (comma-separated)',
+                initial: (config.hostnames || []).join(', '),
                 validation: ['important'],
             },
             {
@@ -98,9 +98,9 @@ export default class Server extends Dotfile {
                         validation: ['important'],
                     },
                     {
-                        name: 'domains',
+                        name: 'hostnames',
                         type: 'list',
-                        message: '[domains]: Enter the CERT domains (comma-separated)',
+                        message: '[hostnames]: Enter the CERT hostnames (comma-separated)',
                         validation: ['important'],
                     },
                     {

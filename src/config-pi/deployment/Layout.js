@@ -20,9 +20,10 @@ export default class Layout extends Dotfile {
     withDefaults(config) {
         return this.merge({
             PUBLIC_DIR: './public',
-            SERVER_DIR: './server',
-            CLIENT_DIR: './client',
-            WORKER_DIR: './worker',
+            VIEWS_DIR: './app',
+            SERVER_DIR: './app',
+            CLIENT_DIR: './app',
+            WORKER_DIR: './app',
         }, config, 'patch');
     }
 
@@ -35,6 +36,13 @@ export default class Layout extends Dotfile {
                 type: 'text',
                 message: 'Enter the application\'s public directory',
                 initial: config.PUBLIC_DIR,
+                validation: ['important'],
+            },
+            {
+                name: 'VIEWS_DIR',
+                type: 'text',
+                message: 'Enter the directory for the application\'s view files (templates)',
+                initial: config.VIEWS_DIR,
                 validation: ['important'],
             },
             {

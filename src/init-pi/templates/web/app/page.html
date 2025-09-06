@@ -1,0 +1,7 @@
+<ul render="#items: (item) of data?.menu / 'menu'">
+    <template def="menu" scoped="">
+        <li>
+            <a render="~href: item?.href; #text: item?.title;"></a>
+        </li>
+    </template>
+</ul>

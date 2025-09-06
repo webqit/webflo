@@ -1,0 +1,29 @@
+{
+  "name": "APP_TITLE",
+  "short_name": "APP_TITLE",
+  "description": "APP_DESCRIPTION",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#4e40ce",
+  "theme_color": "#4e40ce",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/assets/...",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/...",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": [],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "lang": "en",
+  "dir": "ltr"
+}

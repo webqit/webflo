@@ -21,7 +21,7 @@ export default class Worker extends Dotfile {
     // Defaults merger
     withDefaults(config) {
         return this.merge({
-            filename: 'worker.js',
+            filename: 'app.worker.js',
             scope: '/',
             skip_waiting: true,
             cache_name: 'cache_v0',
