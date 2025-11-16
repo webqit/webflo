@@ -1,0 +1,1 @@
+import{_ as e,c as t,o}from"./chunks/framework.9Uv4PgnO.js";const d=JSON.parse('{"title":"","description":"","frontmatter":{},"headers":[],"relativePath":"api/webflo-fetch/Response.md","filePath":"api/webflo-fetch/Response.md"}'),s={name:"api/webflo-fetch/Response.md"};function a(n,c,p,r,f,i){return o(),t("div")}const l=e(s,[["render",a]]);export{d as __pageData,l as default};

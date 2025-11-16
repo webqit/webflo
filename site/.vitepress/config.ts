@@ -139,6 +139,7 @@ const config = {
         math: true,
         theme: 'material-theme-palenight',
     },
+    ignoreDeadLinks: true,
 };
 
 

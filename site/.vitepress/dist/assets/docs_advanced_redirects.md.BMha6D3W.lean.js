@@ -1,0 +1,1 @@
+import{_ as e,c as t,o as a}from"./chunks/framework.9Uv4PgnO.js";const m=JSON.parse('{"title":"","description":"","frontmatter":{},"headers":[],"relativePath":"docs/advanced/redirects.md","filePath":"docs/advanced/redirects.md"}'),r={name:"docs/advanced/redirects.md"};function c(d,s,o,n,i,p){return a(),t("div")}const f=e(r,[["render",c]]);export{m as __pageData,f as default};
