@@ -2,7 +2,7 @@
 
 Welcome! This guide will help you build your first Webflo app from scratch and get it running in minutes, even if you’ve never used the framework before. You’ll learn not just the “how,” but the “why”—and see your results live in the browser.
 
-If you're totally new here, you may want to [meet Webflo](/docs/overview).
+If you're totally new here, you may want to [meet Webflo](/overview).
 
 ---
 
