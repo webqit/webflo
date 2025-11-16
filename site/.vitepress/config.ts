@@ -19,17 +19,22 @@ const config = {
             { icon: 'github', link: 'https://github.com/webqit/webflo' },
         ],
         nav: [
-            { text: 'Docs', link: '/docs', activeMatch: '/docs' },
+            { text: 'What is Webflo', link: '/overview', activeMatch: '/overview' },
+            { text: 'Docs', link: '/docs/getting-started', activeMatch: '/docs' },
             { text: 'API', link: '/api', activeMatch: '/api/webflo-routing/handler' },
             { text: 'Guides', link: '/guides', activeMatch: '/guides' },
             { text: 'Examples', link: '/examples', activeMatch: '/examples' },
+            {
+                text: 'Star on GitHub',
+                link: 'https://github.com/webqit/webflo',
+            }
         ],
         sidebar: {
             '/': [
                 {
                     text: 'Getting Started',
                     items: [
-                        { text: 'Welcome', link: '/docs' },
+                        { text: 'What is Webflo', link: '/overview' },
                         { text: 'Quickstart', link: '/docs/getting-started' },
                     ]
                 },

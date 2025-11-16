@@ -2,7 +2,7 @@
 layout: home
 hero:
   name: Webflo
-  text: Modern Web Application Framework
+  text: A Web-Native Framework for the Next Gen
   tagline: Build scalable, real-time, and reactive web apps with ease.
   image:
     src: /img/brand/logo-670x670.png
@@ -12,6 +12,9 @@ hero:
     - theme: brand
       text: Get Started
       link: /docs/getting-started
+    - theme: brand
+      text: Meet Webflo
+      link: /overview
     - theme: alt
       text: Star on GitHub
       link: https://github.com/webqit/webflo

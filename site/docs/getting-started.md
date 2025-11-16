@@ -2,6 +2,18 @@
 
 Welcome! This guide will help you build your first Webflo app from scratch and get it running in minutes, even if you’ve never used the framework before. You’ll learn not just the “how,” but the “why”—and see your results live in the browser.
 
+If you're totally new here, you may want to [meet Webflo](/docs/overview).
+
+---
+
+> [!IMPORTANT]
+> 🚀 **Webflo is in active development and evolving daily.** Current status = **beta**.<br>
+> You’re welcome to experiment, but it’s not yet suited for production workloads.
+
+::: warning Work in Progress
+This documentation is a work in progress. Please expect some rough edges, missing information, and incomplete pages.
+:::
+
 ## Prerequisites
 
 - **Node.js** 18+ installed

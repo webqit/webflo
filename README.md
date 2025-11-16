@@ -5,8 +5,7 @@
 _A web-native framework for the next generation of apps_
 
 [![npm version][npm-version-src]][npm-version-href]
-[![npm downloads][npm-downloads-src]][npm-downloads-href]
-[![bundle][bundle-src]][bundle-href]
+<!--[![npm downloads][npm-downloads-src]][npm-downloads-href]-->
 [![License][license-src]][license-href]
 
 </div>
@@ -14,7 +13,7 @@ _A web-native framework for the next generation of apps_
 <div align="center">
 
 _Build the full spectrum of modern applications — backends, frontends, offline-first, and realtime apps — on raw platform power._ 🛸<br>
-[Webflo ↗](https://webflo.netlify.app/docs) is a web-native framework that lets you build absurdlly fast — with the whole sophistication and scale of modern apps solved from the foundation up.
+[Webflo ↗](https://webflo.netlify.app/overview) is a web-native framework that lets you build absurdlly fast — with the whole sophistication and scale of modern apps solved from the foundation up.
 
 </div>
 
@@ -34,6 +33,8 @@ For a quick intro, see the docs:
 + [Core Concepts ↗](https://webflo.netlify.app/docs/concepts)
 + [Examples ↗](https://webflo.netlify.app/examples)
 
+---
+
 ## What You Can Build
 
 | Category                   | Examples & Notes                                                                                                 |
@@ -44,6 +45,8 @@ For a quick intro, see the docs:
 | **Mobile experiences**     | Installable, offline-capable PWAs with background sync, worker routing, and native-feeling navigation.            |
 | **Realtime & multiplayer** | Chats, presence, dashboards, live docs, notifications — realtime channels and dialogs available out of the box.  |
 | **AI & agents**            | Multi-step AI workflows, background agents, and automation powered by Webflo’s live request lifecycle.           |
+
+---
 
 ## Features
 
@@ -58,6 +61,8 @@ For a quick intro, see the docs:
 | 🧱 **OOHTML integration**              | HTML-native templates, imports, and composition without a component DSL or build-heavy toolchain.   |
 | 📦 **Offline & worker features**       | Worker-side routing, caching, background sync, and offline-first behaviors built in.                |
 | 🧩 **Dev mode & HMR**                 | Fast development server with fine-grained rebuilds and hot updates for HTML, JS, and CSS.           |
+
+---
 
 ## Contributing
 
@@ -94,7 +99,5 @@ MIT — see [LICENSE](https://github.com/webqit/webflo/blob/master/LICENSE)
 [npm-version-href]: https://npmjs.com/package/@webqit/webflo
 [npm-downloads-src]: https://img.shields.io/npm/dm/@webqit/webflo?style=flat&colorA=18181B&colorB=F0DB4F
 [npm-downloads-href]: https://npmjs.com/package/@webqit/webflo
-[bundle-src]: https://img.shields.io/bundlephobia/minzip/@webqit/webflo?style=flat&colorA=18181B&colorB=F0DB4F
-[bundle-href]: https://bundlephobia.com/result?p=@webqit/webflo
 [license-src]: https://img.shields.io/github/license/webqit/webflo.svg?style=flat&colorA=18181B&colorB=F0DB4F
 [license-href]: https://github.com/webqit/webflo/blob/master/LICENSE
