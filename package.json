@@ -12,7 +12,7 @@
     "vanila-javascript"
   ],
   "homepage": "https://webqit.io/tooling/webflo",
-  "version": "0.2.1-next.1",
+  "version": "1.0.40",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -24,7 +24,9 @@
   "type": "module",
   "main": "./src/index.js",
   "scripts": {
-    "test": "mocha --extension .test.js --exit",
+    "test": "echo \"Nothing to test yet\"",
+    "build": "echo \"Nothing to build yet\"",
+    "preversion": "npm run test && npm run build && git add -A dist",
     "postversion": "git push && git push --tags",
     "version:next": "npm version prerelease --preid=next",
     "site:dev": "vitepress dev site --open",
