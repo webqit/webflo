@@ -25,8 +25,7 @@
   "main": "./src/index.js",
   "scripts": {
     "test": "echo \"Nothing to test yet\"",
-    "build": "echo \"Nothing to build yet\"",
-    "preversion": "npm run test && npm run build && git add -A dist",
+    "preversion": "npm run test",
     "postversion": "git push && git push --tags",
     "version:next": "npm version prerelease --preid=next",
     "site:dev": "vitepress dev site --open",
