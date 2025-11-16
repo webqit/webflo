@@ -2,8 +2,6 @@
 
 _Build the full spectrum of modern apps — backends, frontends, offline-first, and realtime apps — on raw platform power._
 
-Welcome to the docs.
-
 ## What is Webflo
 
 Webflo is a web-native framework that lets you build backends, frontends, offline-first, and realtime apps absurdly fast.

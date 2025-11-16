@@ -4,8 +4,7 @@
 
 _A web-native framework for the next generation of apps_
 
-[![npm version][npm-version-src]][npm-version-href]
-<!--[![npm downloads][npm-downloads-src]][npm-downloads-href]-->
+[![npm version][npm-version-src]][npm-version-href]<!--[![npm downloads][npm-downloads-src]][npm-downloads-href]-->
 [![License][license-src]][license-href]
 
 </div>

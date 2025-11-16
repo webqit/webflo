@@ -1,6 +1,6 @@
 # Webflo Routing
 
-Functions come into play in Webflo when you need to dynamically handle requests.
+Route handlers come into play in Webflo when you need to dynamically handle requests.
 Routing defines how those requests map to functions in a Webflo application.
 It determines which handler responds to a given URL, how requests move across layers of the stack, and how each step in that process composes into a complete response.
 
@@ -73,7 +73,7 @@ Use these for conditional delegation, or per-segment rules.
 ### Your First Handler (Again)
 
 Your application's routes may be designed with as many or as few handlers as desired.<br>
-The contextual parameters `next.stepname` and `next.pathname` totally make it possible to fit routing logic into a single handler.
+In fact, if it calls for it, the contextual parameters `next.stepname` and `next.pathname` totally make it possible to fit routing logic into a single handler.
 
 ```js
 export default function(event, next) {
@@ -97,12 +97,12 @@ export default function(event, next) {
 }
 ```
 
-But the power of Webflo routing model really shines as you spread out to more handlers.
+But the power of Webflo routing really shines as you spread out to more functions.
 
 ## The Delegation Model
 
-In Webflo, nested URLs such as `/products/stickers` don’t directly invoke their corresponding leaf handler (`app/products/stickers/handler.server.js`) in isolation.
-Instead, requests are handled **step-by-step — from parent to child**, forming a **pipeline**.
+In Webflo, nested URLs such as `/products/stickers` don’t directly invoke their corresponding leaf handler (`app/products/stickers/handler.server.js`).
+Instead, requests are handled **step-by-step — from parent to child** until a handler returns a response, forming a **pipeline**.
 
 The `next()` function is how a handler delegates control to the next step in that pipeline.
 
@@ -149,7 +149,7 @@ export default async function () {
 
 ### Internal Rerouting
 
-Beyond the default parent-child flow, a handler can explicitly **reroute** a request to another path within the app by calling `next(path)` or `next(context, path)`.
+Beyond the default parent-child flow, a handler can explicitly **reroute** a request to another path within the app by calling `next({ redirect: path })`, or `next(path)`, for short.
 
 This is simulated below for a URL like `/products/stickers`.<br>
 Here, the root handler conditionally reroutes the request to `/api/inventory`, all within the same app.
@@ -195,7 +195,7 @@ export default async function (event, next) {
 
 The rerouted request travels through the normal routing tree (`app/` → `api/` → `inventory/`) as if it had originated normally.
 
-A relative path (e.g., `next('./api/inventory?range=7d')`) may be used to bypass lineage.
+A relative path (e.g., `next('./api/inventory?range=7d')`) may be used to bypass the target route's lineage.
 But this must be done intentionally: deeper routes often inherit authentication or other contexts that should not be bypassed.
 
 This technique enables **in-app data composition** — using existing route logic without additional network requests.
@@ -215,7 +215,7 @@ export default async function (event, next) {
     url.searchParams.set('p', 3);
 
     // Delegate with the modified URL
-    const res = await next({}, url.pathname + url.search);
+    const res = await next(url.pathname + url.search);
 
     // Post-process response before returning
     const headers = new Headers(res.headers);
@@ -236,7 +236,7 @@ Through this mechanism, Webflo lets handlers **reshape requests or responses inl
 
 ## The Client-Server Flow
 
-While the **Delegation Model** describes how a request flows through a _horizontal_ route path (parent → child), the **Client-Server Flow** represents the _vertical_ flow of the same request through the application stack (client → server).
+In addition to the handler-to-handler model, Webflo also has the **client-server flow** which represents the _vertical_ flow of the same request through the application stack (client → server).
 
 Webflo follows a model that supports request handling and routing at all three layers in this stack: the browser window layer (**client**), the service worker layer (**worker**), the server layer (**server**).
 
@@ -265,7 +265,7 @@ Below is a conceptual diagram of how a navigation request flows donw the layers:
                   ▼   └─────────────────────────────────┘
 ```
 
-Handlers are optional; if a level-specific file doesn’t exist, Webflo automatically falls back to the unsuffixed one `handler.js`,
+Handlers across this vertical stack are optional; if a layer-specific file doesn’t exist, Webflo automatically falls back to the unsuffixed one `handler.js`,
 if defined. Otherwise, the request continues to the next layer. Each request gets a graceful path from local logic to remote fulfillment.
 
 As with the horizontal flow, each layer may intercept, fulfill, or delegate down the request.<br>
@@ -342,7 +342,7 @@ export default async function (event, next) {
 
 #### Server-Side Handlers
 
-Server handlers perform the heavy lifting — database queries, rendering, API endpoints, and integrations.
+Server handlers perform the heavy lifting — database queries, integrations, etc.
 They represent the final dynamic layer before static content resolution.
 
 ```js
@@ -362,8 +362,8 @@ export default async function (event, next) {
 
 #### Universal Handlers
 
-Universal handlers (`handler.js`) are handlers declared without any layer binding.
-They can coexist with layer-specific handlers but execute wherever no layer-specific handler exists for the current layer, making them perfect for universal logic.
+Universal handlers (`handler.js`) are handlers declared without any layer binding. They represent the default handler for a route. And they imply logic that can run anywhere in the client-server stack.
+They execute wherever no layer-specific handler exists for the current layer, making them perfect for universal logic.
 
 ```js
 // app/handler.js
@@ -374,8 +374,7 @@ export default async function (event, next) {
 ```
 
 ::: tip Progressive Enhancement
-- Because handlers are modular by filename, promoting a route from server-side to client-side is as simple as renaming the file.
-- Webflo’s model turns *progressive enhancement* into a first-class development workflow.
+- Because handlers are modular by filename, promoting a route from server-side to client-side, or the reverse, is as simple as renaming the file.
 :::
 
 ### Fall-Through Behavior
@@ -443,13 +442,13 @@ This composability and control extend to static files handling.
 
 At the end of Webflo’s routing chain lies the **static layer** — a built-in static file server that operates by the same rules as every other layer.
 
-In Webflo, static resolution is not a separate middleware; it is simply the final stage of the routing pipeline.
+In Webflo, static files serving is not a separate middleware; it is simply the final stage of the routing pipeline.
 
 This layer is reached **from the server routing layer**, when:
 
 * a server handler calls `next()` and no further route step exists in the pipeline
 
-Because static serving sits in this same flow, route handlers take first-seat complete control — to intercept, rewrite, or even *simulate* static responses before they are served.
+Because static files serving sits in this same flow, route handlers take first-seat control in how static URLs resolve — being able to intercept, rewrite, or even *simulate* static file responses before they are served.
 
 This flow is simulated below for an image URL: `/img/logo.png` embedded on a page.<br>
 Its resolution goes the standard routing flow until matching a file in the `app/public` directory.
@@ -480,7 +479,7 @@ This handler-first approach to static files serving ensures that asset delivery 
 But this also requires **proper delegation discipline** by handlers.
 Handlers must consciously call `next()` for requests they're not explicitly designed to handle.
 
-Overall, by merging dynamic logic and static delivery into one continuous flow, Webflo replaces special-case asset middleware with a **first-class, programmable static pipeline**.
+Overall, by merging dynamic logic and static delivery into one continuous flow, Webflo replaces special-case asset middleware with a **first-class, programmable static files pipeline**.
 
 ### Default Resolution
 
@@ -492,7 +491,7 @@ When a request reaches the static layer, Webflo performs deterministic file reso
 
 ## Use Case Patterns
 
-The following examples demonstrate how Webflo’s routing primitives—delegation, composition, and explicit fall-through—combine to express real application structures.
+The following examples demonstrate how Webflo’s routing primitives — delegation, composition, and explicit fall-through — combine to express real application architectures.
 Each pattern is an applied scenario that builds directly on the models we’ve covered so far.
 
 ### Parent–Child Composition
@@ -502,10 +501,9 @@ This pattern allows *layered composition*—logic in parents, data or view in ch
 
 ```js
 // app/handler.server.js
-export default async function (event, context, next) {
+export default async function (event, next) {
     if (next.stepname) {
-        const user = await getSessionUser(event.request);
-        const childResult = await next({ user });
+        const childResult = await next();
         return { ...childResult, title: `${childResult.title} | ExampleApp` };
     }
     return { title: 'Home' };
@@ -517,7 +515,7 @@ export default async function (event, context, next) {
 ### Internal API Consumption
 
 **Scenario:** A page handler calls an internal API route using `next(path)` instead of making an HTTP request.
-This lets server code reuse API logic without duplication or latency.
+This, for example, lets server code reuse API logic without duplication or latency.
 
 ```html
 app/
@@ -542,16 +540,16 @@ export default async function (event, next) {
 
 ```js
 // app/account/handler.server.js
-export default async function (event, context, next) {
-    const user = await getUserFromSession(event.request);
-    if (!user) {
+export default async function (event, next) {
+    // Using event.user.isSignedIn() to check authentication
+    if (!await event.user.isSignedIn()) {
         return new Response(null, { status: 302, headers: { Location: '/login' } });
     }
-    return next({ ...context, user });
+    return next();
 }
 ```
 
-**Takeaway:** Authentication becomes just another layer in the routing flow—no external middleware required.
+**Takeaway:** Authentication becomes just another layer in the routing flow — as against external middleware.
 
 ### File Guards and Access Control
 
@@ -560,8 +558,12 @@ export default async function (event, context, next) {
 ```js
 // app/files/handler.server.js
 export default async function (event, next) {
-    const user = await getUserFromSession(event.request);
-    if (!user?.isPremium) {
+    // Using event.user.isSignedIn() to check authentication
+    if (!await event.user.isSignedIn()) {
+        return new Response('Access denied', { status: 403 });
+    }
+    // Using 'is_premium' from an underlying users table to authorize access
+    if (!await event.user.get('is_premium')) {
         return new Response('Access denied', { status: 403 });
     }
     return next();
@@ -588,11 +590,11 @@ export default async function (event, next) {
 }
 ```
 
-**Takeaway:** Handlers can shape even static responses—embedding application-level awareness into the file server itself.
+**Takeaway:** Handlers can shape even static responses — embedding application-level awareness into the file response.
 
 ### Full-Stack Routing
 
-**Scenario:** A single navigation passes through multiple layers—client, worker, server, static—each adding incremental behavior.
+**Scenario:** A single navigation passes through multiple layers — `client`, `worker`, `server`, `public` — each adding incremental behavior.
 
 ```js
 CLIENT (handler.client.js)
@@ -643,14 +645,14 @@ export default async function (event, next) {
 
 Webflo’s routing system unifies **filesystem mapping**, **functional composition**, and **layered execution** into one consistent model.
 
-* The filesystem defines your application structure.
+* The filesystem defines your application URL structure.
 * Handlers define logic for each URL segment.
-* `next()` controls flow between steps and scopes.
+* `next()` controls flow between steps and layers.
 * Default fallbacks ensure graceful completion through the stack.
 * Static serving is part of the same flow, enabling dynamic control.
 
 ## Next Steps
 
-* [Rendering](./rendering.md): How handler data becomes UI.
-* [Templates](./templates.md): Composing reusable HTML layouts.
-* [State & Reactivity](./state.md): Managing state and mutation across requests.
+* [Rendering](./rendering): How handler data becomes UI.
+* [Templates](./templates): Composing reusable HTML layouts.
+* [State & Reactivity](./state): Managing state and mutation across requests.

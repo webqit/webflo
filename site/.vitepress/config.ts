@@ -32,10 +32,10 @@ const config = {
         sidebar: {
             '/': [
                 {
-                    text: 'Getting Started',
+                    text: 'Overview',
                     items: [
                         { text: 'What is Webflo', link: '/overview' },
-                        { text: 'Quickstart', link: '/docs/getting-started' },
+                        { text: 'Getting Started', link: '/docs/getting-started' },
                     ]
                 },
                 {

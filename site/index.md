@@ -3,7 +3,7 @@ layout: home
 hero:
   name: Webflo
   text: A Web-Native Framework for the Next Gen
-  tagline: Build scalable, real-time, and reactive web apps with ease.
+  tagline: Build backends, frontends, offline-first, and realtime apps absurdly fast.
   image:
     src: /img/brand/logo-670x670.png
     width: 600px
@@ -13,7 +13,7 @@ hero:
       text: Get Started
       link: /docs/getting-started
     - theme: brand
-      text: Meet Webflo
+      text: What is Webflo
       link: /overview
     - theme: alt
       text: Star on GitHub
