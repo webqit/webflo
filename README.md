@@ -1,6 +1,6 @@
 <div align="center">
 
-# LinkedQL  
+# Webflo  
 
 _A web-native framework for the next generation of apps_
 
