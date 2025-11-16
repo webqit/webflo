@@ -96,8 +96,8 @@ export class WebfloRuntime {
                 resolve(autoLiveResponse);
             });
             const route = async () => {
-                const remoteFetch = (...args) => this.remoteFetch(...args);
                 const routeMethods = [httpEvent.request.method, 'default'];
+                const remoteFetch = (...args) => this.remoteFetch(...args);
                 return await router.route(routeMethods, httpEvent, crossLayerFetch, remoteFetch);
             };
             const fullRoutingPipeline = (this.cx.middlewares || []).concat(route);
@@ -133,6 +133,7 @@ export class WebfloRuntime {
             httpEvent.waitUntil(Promise.resolve());
             await null; // We need the above resolved before we move on
         }
+
         // Send the X-Background-Messaging-Port header
         // This server's event lifecycle management
         if (!httpEvent.lifeCycleComplete()) {
@@ -143,23 +144,37 @@ export class WebfloRuntime {
                 const upstreamBackgroundMessagingPort = response.headers.get('X-Background-Messaging-Port');
                 response.headers.set('X-Background-Messaging-Port', responseRealtime);
             }
+
+            // On navigation:
+            // Abort httpEvent.realtime and httpEvent itself
             httpEvent.realtime.addEventListener('navigate', (e) => {
                 setTimeout(() => { // Allow for global handlers to see the events
                     if (e.defaultPrevented) {
                         console.log(`Client Messaging Port on ${httpEvent.request.url} not auto-closed on user navigation.`);
                     } else {
                         httpEvent.realtime.close();
+                        httpEvent.abort();
                     }
                 }, 0);
             });
+            // On close:
+            // Abort httpEvent itself
+            httpEvent.realtime.wqLifecycle.close.then(() => {
+                httpEvent.abort();
+            });
+
+            // On ROOT event complete:
+            // Close httpEvent.realtime
             httpEvent.lifeCycleComplete(true).then(() => {
                 httpEvent.realtime.close();
             });
         }
+
         if (!this.isClientSide && response instanceof LiveResponse) {
             // Must convert to Response on the server-side before returning
             return response.toResponse({ clientRequestRealtime: httpEvent.realtime });
         }
+        
         return response;
     }
 
@@ -167,7 +182,8 @@ export class WebfloRuntime {
         const requestMeta = _wq(httpEvent.request, 'meta');
         const responseMeta = _wq(response, 'meta');
         if (response.headers.get('Location')) {
-            // Save the supposedly incoming "carry" back to URL
+            // Don't emit the supposedly incoming "carries"
+            // Save back to URL
             if (requestMeta.get('carries')?.length) {
                 await httpEvent.session.set(`carry-store:${requestMeta.get('redirectID')}`, requestMeta.get('carries'));
                 requestMeta.set('carries', []);

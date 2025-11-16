@@ -44,7 +44,7 @@ export class ClientRequestRealtime extends WQStarPort {
             throw new Error('Instance seem not connected to the messaging system.');
         }
         const channel = clients.getChannel(channelID, true);
-        const cleanup = channel.addPort(client, { resolveData });
-        return { channel, cleanup };
+        const leave = channel.addPort(client, { resolveData });
+        return { channel, leave };
     }
 }

@@ -1,6 +1,6 @@
-import { WebfloStorage } from './WebfloStorage.js';
+import { HttpState } from './HttpState.js';
 
-export class HttpUser extends WebfloStorage {
+export class HttpUser extends HttpState {
 
     static create({ store, request, realtime, session }) {
         return new this({ store, request, realtime, session });

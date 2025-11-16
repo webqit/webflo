@@ -1,8 +1,8 @@
 import { _isObject } from '@webqit/util/js/index.js';
 import { renderCookieObjToString } from '../webflo-fetch/cookies.js';
-import { WebfloStorage } from './WebfloStorage.js';
+import { HttpState } from './HttpState.js';
 
-export class HttpCookies extends WebfloStorage {
+export class HttpCookies extends HttpState {
 
     #originals;
 

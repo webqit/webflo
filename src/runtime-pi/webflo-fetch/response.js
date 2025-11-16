@@ -3,7 +3,6 @@ import { _isObject } from '@webqit/util/js/index.js';
 import { parseHttpMessage, renderHttpMessageInit } from './message.js';
 import { WQBroadcastChannel } from '../webflo-messaging/WQBroadcastChannel.js';
 import { WQSockPort } from '../webflo-messaging/WQSockPort.js';
-import { WQMessagePort } from '../webflo-messaging/WQMessagePort.js';
 import { _wq } from '../../util.js';
 
 export function responseRealtimeConnect(url) {

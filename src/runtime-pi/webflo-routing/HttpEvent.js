@@ -18,7 +18,11 @@ export class HttpEvent {
         this.#parentEvent = parentEvent;
         this.#init = { request, cookies, session, user, realtime, sdk, detail, signal, state, ...rest };
         this.#url = new xURL(this.#init.request.url);
+        this.#parentEvent?.signal.addEventListener('abort', () => this.#abortController.abort(), { once: true });
         this.#init.request.signal?.addEventListener('abort', () => this.#abortController.abort(), { once: true });
+        this.#lifeCycleResolutionPromise.finally(() => {
+            this.#abortController.abort();
+        });
     }
 
     get url() { return this.#url; }
@@ -56,7 +60,7 @@ export class HttpEvent {
         promise = Promise.resolve(promise);
         this.#lifecyclePromises.add(promise);
         this.#lifecyclePromises.dirty = true;
-        promise.then((value) => {
+        return promise.then((value) => {
             this.#lifecyclePromises.delete(promise);
             if (!this.#lifecyclePromises.size) {
                 this.#lifeCycleResolve(value);
@@ -67,9 +71,6 @@ export class HttpEvent {
                 this.#lifeCycleReject();
             }
         });
-        if (this.#parentEvent) {
-            this.#parentEvent.#extendLifecycle(promise);
-        }
     }
 
     lifeCycleComplete(returningThePromise = false) {
@@ -81,40 +82,18 @@ export class HttpEvent {
     }
 
     waitUntil(promise) {
-        this.#extendLifecycle(promise);
+        return this.#extendLifecycle(promise);
     }
 
-    #liveResponse = new LiveResponse(null, { done: false });
-    get internalLiveResponse() { return this.#liveResponse; }
-    
+    waitUntilNavigate() {
+        return this.waitUntil(new Promise(() => { }));
+    }
+
+    #internalLiveResponse = new LiveResponse(null, { done: false });
+    get internalLiveResponse() { return this.#internalLiveResponse; }
+
     async respondWith(data, ...args) {
-        await this.#liveResponse.replaceWith(data, ...args);
-    }
-
-    async * poll(...args) {
-        const callback = typeof args[0] === 'function' ? args.shift() : () => null;
-        let { interval = 3000, maxClock = -1, whileOpen = 1, cleanupCall = false } = args[0] || {};
-        if (whileOpen) {
-            await this.realtime.wqLifecycle.open;
-        }
-        while (true) {
-            const termination = maxClock === 0
-                || (whileOpen && _wq(this.realtime, 'meta').get('close'))
-                || (whileOpen === 2 && this.realtime.navigatedIn())
-                || (whileOpen && whileOpen !== 2 && this.realtime.navigatedAway());
-            const returnValue = (!termination || cleanupCall) && await callback(termination) || { done: true };
-            if (returnValue !== undefined && (!_isObject(returnValue) || _difference(Object.keys(returnValue || {}), ['value', 'done']).length)) {
-                throw new Error('Callback must return an object with only "value" and "done" properties');
-            }
-            if (typeof returnValue?.value !== 'undefined') {
-                yield returnValue.value;
-            }
-            if (returnValue?.done) {
-                return;
-            }
-            await new Promise((resolve) => setTimeout(resolve, interval));
-            maxClock--;
-        }
+        await this.#internalLiveResponse.replaceWith(data, ...args);
     }
 
     clone(init = {}) {
@@ -122,7 +101,9 @@ export class HttpEvent {
     }
 
     extend(init = {}) {
-        return this.constructor.create(this/*Main difference from clone*/, { ...this.#init, ...init });
+        const instance = this.constructor.create(this/*Main difference from clone*/, { ...this.#init, ...init });
+        this.#extendLifecycle(instance.lifeCycleComplete(true));
+        return instance;
     }
 
     abort() {

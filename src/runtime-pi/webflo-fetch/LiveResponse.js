@@ -2,8 +2,8 @@ import { State, Observer } from '@webqit/quantum-js';
 import { _isObject, _isTypeObject } from '@webqit/util/js/index.js';
 import { publishMutations, applyMutations } from '../webflo-messaging/wq-message-port.js';
 import { responseRealtime } from './response.js';
-import { isTypeStream } from './util.js';
 import { _wq, _await } from '../../util.js';
+import { isTypeStream } from './util.js';
 
 export class LiveResponse extends EventTarget {
 
@@ -94,7 +94,7 @@ export class LiveResponse extends EventTarget {
             return _await(frame.value, (value) => {
                 const $options = { done: frame.done, ...options };
                 let instance, $$await;
-                if (value instanceof Response && frame.done && options.done !== false && options.responsesOK) {
+                if (value instanceof Response && frame.done && options.done !== false/* && value.responsesOK*/) {
                     return value;
                 }
                 if (value instanceof LiveResponse) {
@@ -239,8 +239,27 @@ export class LiveResponse extends EventTarget {
     }
 
     async #replaceWith(body, ...args) {
+
+        if (body instanceof Promise) {
+            this.#extendLifecycle(body);
+            return await new Promise((resolve, reject) => {
+                let aborted = false;
+                this.#abortController.signal.addEventListener('abort', () => {
+                    aborted = true
+                    resolve();
+                });
+                body.then(async (resolveData) => {
+                    resolve();
+                    if (aborted) return;
+                    await this.#replaceWith(resolveData, ...args);
+                });
+                body.catch((e) => reject(e));
+            });
+        }
+
         const options = _isObject(args[0]/* !ORDER 1 */) ? { ...args.shift() } : {};
         const frameClosure = typeof args[0]/* !ORDER 2 */ === 'function' ? args.shift() : null;
+
         if ('status' in options) {
             options.status = parseInt(options.status);
             if (options.status < 200 || options.status > 599) {
@@ -248,11 +267,12 @@ export class LiveResponse extends EventTarget {
             }
         }
         if ('statusText' in options) {
-            options.statusText = String(options.status.statusText);
+            options.statusText = String(options.statusText);
         }
         if (options.headers && !(options.headers instanceof Headers)) {
             options.headers = new Headers(options.headers);
         }
+
         const execReplaceWith = (responseLike) => {
             const $body = responseLike.body;
             this.#status = responseLike.status;
@@ -270,7 +290,8 @@ export class LiveResponse extends EventTarget {
             Observer.defineProperty(this, 'body', { get: () => $body, enumerable: true, configurable: true });
             this.dispatchEvent(new Event('replace'));
         };
-        const execReplaceWithResponse = async (response, options, resolve) => {
+
+        const execReplaceWithResponse = async (response, options) => {
             this.#generator = response;
             this.#generatorType = response instanceof Response ? 'Response' : 'LiveResponse';
             execReplaceWith({
@@ -285,10 +306,11 @@ export class LiveResponse extends EventTarget {
             });
             if (response instanceof LiveResponse) {
                 response.addEventListener('replace', () => execReplaceWith(response), { signal: this.#abortController.signal });
-                this.#abortController.signal.addEventListener('abort', resolve);
                 return await response.whileLive(true);
             }
+            return Promise.resolve();
         };
+
         const execReplaceWithBody = async (body, options) => {
             execReplaceWith({
                 body,
@@ -301,26 +323,35 @@ export class LiveResponse extends EventTarget {
                 url: null
             });
             if (frameClosure) {
-                const reactiveProxy = _isTypeObject(body) && !isTypeStream(body) ? Observer.proxy(body, { chainable: true, membrane: body }) : body;
+                const reactiveProxy = _isTypeObject(body) && !isTypeStream(body)
+                    ? Observer.proxy(body, { chainable: true, membrane: body })
+                    : body;
                 return await frameClosure.call(this, reactiveProxy);
             }
+            return Promise.resolve();
         };
-        const donePromise = new Promise((resolve) => {
-            if (body instanceof Response || body instanceof LiveResponse) {
-                if (frameClosure) {
-                    throw new Error('frameClosure unsupported for inputs of type response.');
-                }
-                resolve(execReplaceWithResponse(body, options, resolve));
-            } else {
-                resolve(execReplaceWithBody(body, options));
+
+        let donePromise;
+        if (body instanceof Response || body instanceof LiveResponse) {
+            if (frameClosure) {
+                throw new Error('frameClosure unsupported for inputs of type response.');
             }
-        });
+            donePromise = execReplaceWithResponse(body, options);
+        } else {
+            donePromise = execReplaceWithBody(body, options);
+        }
+
         if (options.done === false) {
             this.#extendLifecycle(new Promise(() => { }));
         } else {
             this.#extendLifecycle(donePromise);
         }
-        return await donePromise;
+
+        return await new Promise((resolve, reject) => {
+            this.#abortController.signal.addEventListener('abort', resolve);
+            donePromise.then(() => resolve());
+            donePromise.catch((e) => reject(e));
+        });
     }
 
     async replaceWith(body, ...args) {
@@ -392,7 +423,7 @@ export class LiveResponse extends EventTarget {
     }
 }
 
-const isGenerator = (obj) => {
+export const isGenerator = (obj) => {
     return typeof obj?.next === 'function' &&
         typeof obj?.throw === 'function' &&
         typeof obj?.return === 'function';
