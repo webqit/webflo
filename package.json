@@ -25,7 +25,6 @@
   "main": "./src/index.js",
   "scripts": {
     "test": "mocha --extension .test.js --exit",
-    "preversion": "npm run test && npm run build && git add -A dist",
     "postversion": "git push && git push --tags",
     "version:next": "npm version prerelease --preid=next",
     "site:dev": "vitepress dev site --open",
