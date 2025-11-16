@@ -1,4 +1,4 @@
-# Request/Response Lifecycle
+# Requests & Responses
 
 This page explains how Webflo orchestrates each interaction from request to response, and how you can hook into various stages, including realtime.
 

@@ -1,4 +1,4 @@
-# State Management
+# State, Mutation, & Reactivity
 
 Webflo’s approach to state is refreshingly simple: your UI state is just a plain JavaScript object. When your server handler returns data, it becomes available as `document.bindings.data` for your templates and UI. No special syntax, no framework-specific magic—just JavaScript you already know.
 

@@ -339,7 +339,9 @@ Webflo knows to switch the connection to background mode in all the above cases.
 - **Webflo simply fulfills the intent of however a handler works**.
   :::
 
-## Real-world Examples
+## Real-World Examples
+
+Below are some examples of how Webflo's realtime features work in action.
 
 ### Live Responses
 
@@ -371,7 +373,7 @@ This handler returns a skeleton object immediately for fast page load and then b
 **_Result_:** The UI renders a skeleton first, then progressively fills in as the object tree is built from the server.
 
 ```js
-import { Observer } from '@webqit/observer';
+import Observer from '@webqit/observer';
 ```
 
 ```js
@@ -597,24 +599,25 @@ export default async function (event, next) {
 :::
 
 ::: warning
-
 - Channel IDs must be unique and unguessable across the app.
 - Channels are not persistent and are only active for the duration of the request. A database is required to store channel data.
-  :::
+:::
 
 ## Appendix A – The Realtime Lifecycle
 
+The realtime lifecycle — from handshake to termination — can be summarized as follows. Note that this is the model between any two ports — Port A and Port B, not just between the client and the server, as that's only typical.
+
 ```mermaid
 sequenceDiagram
-  participant Browser
-  participant Handler
-  Browser->>Handler: HTTP request
-  Handler-->>Browser: Initial Response (or a Temporary 202 Accepted) <br>+ X-Background-Messaging-Port
-  Browser-->>Handler: Connect (WebSocket / Broadcast / MessageChannel)
-  Note over Browser,Handler: Background mode established
-  Handler-->>Browser: Messages, updates, dialogs, etc.
-  Browser-->>Handler: Replies, requests, etc.
-  Browser<<-->>Handler: Termination
+  participant Port A
+  participant Port B
+  Port A->>Port B: HTTP request
+  Port B-->>Port A: Initial Response (or a Temporary 202 Accepted) <br>+ X-Background-Messaging-Port
+  Port A-->>Port B: Connect (WebSocket / Broadcast / MessageChannel)
+  Note over Port A,Port B: Background mode established
+  Port B-->>Port A: Messages, updates, dialogs, etc.
+  Port A-->>Port B: Replies, requests, etc.
+  Port A<<-->>Port B: Termination
 ```
 
 ### The Handshake
@@ -622,7 +625,7 @@ sequenceDiagram
 On entering background mode, Webflo initiates a handshake sequence as follows:
 
 1. Webflo gives the initial response a unique `X-Background-Messaging-Port` header that tells the client to connect in the background after rendering the initial response.
-   > If the scenario is case `1.` above happening _before_ yielding a response, Webflo sends a temporary `202 Accepted` response to the client carrying this header.
+   > If the scenario is that the handler tiggers `event.client` messaging  _before_ yielding a response, Webflo sends a temporary `202 Accepted` response to the client carrying this header.
 2. The client reads that header and opens the background channel.
    > If the client fails to connect within the handshake window, Webflo abandons the wait and concludes the request normally.
 3. On connecting, both sides resume the same request context — now in live mode.

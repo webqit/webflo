@@ -46,7 +46,7 @@ const config = {
                         { text: 'Rendering', link: '/docs/concepts/rendering' },
                         { text: 'Templates', link: '/docs/concepts/templates' },
                         { text: 'State Management', link: '/docs/concepts/state' },
-                        { text: 'Request/Response Lifecycle', link: '/docs/concepts/request-response' },
+                        { text: 'Requests & Responses', link: '/docs/concepts/requests-responses' },
                         { text: 'Webflo Realtime', link: '/docs/concepts/realtime' },
                     ]
                 },
