@@ -1,13 +1,13 @@
 import { State, Observer } from '@webqit/quantum-js';
 import { _isObject, _isTypeObject } from '@webqit/util/js/index.js';
 import { publishMutations, applyMutations } from '../webflo-messaging/wq-message-port.js';
-import { responseRealtime } from './response.js';
+import { WQBroadcastChannel } from '../webflo-messaging/WQBroadcastChannel.js';
+import { WQSockPort } from '../webflo-messaging/WQSockPort.js';
+import { response as responseShim } from './index.js';
 import { _wq, _await } from '../../util.js';
 import { isTypeStream } from './util.js';
 
 export class LiveResponse extends EventTarget {
-
-    /* STATIC methods for Input sources */
 
     static test(data) {
         if (data instanceof LiveResponse) {
@@ -25,15 +25,15 @@ export class LiveResponse extends EventTarget {
         return 'Default';
     }
 
-    static from(data, ...args) {
+    static async from(data, ...args) {
         if (data instanceof LiveResponse) {
             return data.clone(...args);
         }
         if (data instanceof Response) {
-            return this.fromResponse(data, ...args);
+            return await this.fromResponse(data, ...args);
         }
         if (isGenerator(data)) {
-            return this.fromGenerator(data, ...args);
+            return await this.fromGenerator(data, ...args);
         }
         if (data instanceof State) {
             return this.fromQuantum(data, ...args);
@@ -41,91 +41,99 @@ export class LiveResponse extends EventTarget {
         return new this(data, ...args);
     }
 
-    static fromResponse(response, options = {}) {
+    static async fromResponse(response, options = {}) {
         if (!(response instanceof Response)) {
             throw new Error('Argument must be a Response instance.');
         }
-        return response.parse().then((body) => {
-            // Instance
-            const instance = new this(body, {
-                status: response.status,
-                statusText: response.statusText,
-                headers: response.headers,
-                done: false,
-                ...options,
-            });
-            const responseMeta = _wq(response, 'meta');
-            _wq(instance).set('meta', responseMeta);
-            // Generator binding
-            if (response.isLive() === 2) {
-                if (_isTypeObject(body) && !isTypeStream(body)) {
-                    applyMutations.call(response.wqRealtime,
-                        body,
-                        response.headers.get('X-Live-Response-Message-ID').trim(),
-                        { signal: instance.#abortController.signal }
-                    );
-                }
-                // Capture subsequent frames?
-                response.wqRealtime.addEventListener('response.replace', (e) => {
-                    const { body, ...options } = e.data;
-                    instance.#replaceWith(body, options);
-                }, { signal: instance.#abortController.signal });
-                response.wqRealtime.addEventListener('close', () => {
-                    instance.#extendLifecycle(Promise.resolve());
-                }, { once: true, signal: instance.#abortController.signal });
-            }
-            // Data props
-            instance.#type = response.type;
-            instance.#redirected = response.redirected;
-            instance.#url = response.url;
-            // Lifecycle props
-            instance.#generator = response;
-            instance.#generatorType = 'Response';
-            return instance;
-        });
-    }
+        
+        const body = await responseShim.prototype.parse.value.call(response);
 
-    static fromGenerator(gen, options = {}) {
-        if (!isGenerator(gen)) {
-            throw new Error('Argument must be a generator or async generator.');
-        }
-        const $firstFrame = gen.next();
-        const instance = _await($firstFrame, (frame) => {
-            return _await(frame.value, (value) => {
-                const $options = { done: frame.done, ...options };
-                let instance, $$await;
-                if (value instanceof Response && frame.done && options.done !== false/* && value.responsesOK*/) {
-                    return value;
-                }
-                if (value instanceof LiveResponse) {
-                    instance = new this;
-                    const responseMeta = _wq(value, 'meta');
-                    _wq(instance).set('meta', responseMeta);
-                    $$await = instance.#replaceWith(value, $options);
-                } else {
-                    instance = this.from/*important*/(value, $options);
-                }
-                return _await(instance, (instance) => {
-                    (async function () {
-                        await $$await;
-                        instance.#generator = gen;
-                        instance.#generatorType = 'Generator';
-                        while (!frame.done && !options.done && !instance.#abortController.signal.aborted) {
-                            frame = await gen.next();
-                            value = await frame.value;
-                            if (!instance.#abortController.signal.aborted) {
-                                await instance.#replaceWith(value, { done: frame.done });
-                            }
-                        }
-                    })();
-                    return instance;
-                });
-            });
+        // Instance
+        const instance = new this(body, {
+            status: responseShim.prototype.status.get.call(response),
+            statusText: response.statusText,
+            headers: response.headers,
+            done: false,
+            ...options,
         });
+        const responseMeta = _wq(response, 'meta');
+        _wq(instance).set('meta', responseMeta);
+
+        // Generator binding
+        if (this.hasBackground(response) === 2) {
+            const backgroundPort = this.getBackground(response);
+            if (_isTypeObject(body) && !isTypeStream(body)) {
+                applyMutations.call(backgroundPort,
+                    body,
+                    response.headers.get('X-Live-Response-Message-ID').trim(),
+                    { signal: instance.#abortController.signal }
+                );
+            }
+            // Capture subsequent frames?
+            backgroundPort.addEventListener('response.replace', (e) => {
+                const { body, ...options } = e.data;
+                instance.#replaceWith(body, options);
+            }, { signal: instance.#abortController.signal });
+            backgroundPort.addEventListener('close', () => {
+                instance.#extendLifecycle(Promise.resolve());
+            }, { once: true, signal: instance.#abortController.signal });
+        }
+
+        // Data props
+        instance.#type = response.type;
+        instance.#redirected = response.redirected;
+        instance.#url = response.url;
+        // Lifecycle props
+        instance.#generator = response;
+        instance.#generatorType = 'Response';
+
         return instance;
     }
 
-    static fromQuantum(qState, options = {}) {
+    static async fromGenerator(gen, options = {}) {
+        if (!isGenerator(gen)) {
+            throw new Error('Argument must be a generator or async generator.');
+        }
+
+        const firstFrame = await gen.next();
+        const firstValue = await firstFrame.value;
+
+        if (firstValue instanceof Response && firstFrame.done && options.done !== false/* && value.responsesOK*/) {
+            return firstValue;
+        }
+
+        let instance;
+        let frame = firstFrame;
+        let value = firstValue;
+        let $$await;
+
+        const $options = { done: firstFrame.done, ...options };
+        if (value instanceof LiveResponse) {
+            instance = new this;
+            const responseMeta = _wq(value, 'meta');
+            _wq(instance).set('meta', responseMeta);
+            $$await = instance.#replaceWith(value, $options);
+        } else {
+            instance = await this.from/*important*/(value, $options);
+        }
+
+        (async function () {
+            await $$await;
+            instance.#generator = gen;
+            instance.#generatorType = 'Generator';
+            while (!frame.done && !options.done && !instance.#abortController.signal.aborted) {
+                frame = await gen.next();
+                value = await frame.value;
+                if (!instance.#abortController.signal.aborted) {
+                    await instance.#replaceWith(value, { done: frame.done });
+                }
+            }
+        })();
+
+        return instance;
+    }
+
+    static async fromQuantum(qState, options = {}) {
         if (!(qState instanceof State)) {
             throw new Error('Argument must be a Quantum State instance.');
         }
@@ -139,6 +147,34 @@ export class LiveResponse extends EventTarget {
             { signal: instance.#abortController.signal }
         );
         return instance;
+    }
+
+    static hasBackground(respone) {
+        let liveLevel = (respone.headers?.get?.('X-Background-Messaging-Port')?.trim() || _wq(respone, 'meta').has('background_port')) && 1 || 0;
+        liveLevel += respone.headers?.get?.('X-Live-Response-Message-ID')?.trim() && 1 || 0;
+        return liveLevel;
+    }
+
+    static getBackground(respone) {
+        if (!(respone instanceof Response)
+            && !(respone instanceof LiveResponse)) return;
+        const responseMeta = _wq(respone, 'meta');
+        if (!responseMeta.has('background_port')) {
+            const value = respone.headers.get('X-Background-Messaging-Port')?.trim();
+            if (value) {
+                const [proto, portID] = value.split(':');
+                let backgroundPort;
+                if (proto === 'br') {
+                    backgroundPort = new WQBroadcastChannel(portID);
+                } else if (proto === 'ws') {
+                    backgroundPort = new WQSockPort(portID);
+                } else {
+                    throw new Error(`Unknown background messaging protocol: ${proto}`);
+                }
+                responseMeta.set('background_port', backgroundPort);
+            }
+        }
+        return responseMeta.get('background_port');
     }
 
     #generator = null;
@@ -193,17 +229,9 @@ export class LiveResponse extends EventTarget {
 
     /* Level 3 props */
 
-    get wqRealtime() {
-        return responseRealtime.call(this);
-    }
+    get background() { return this.constructor.getBackground(this); }
 
     /* Lifecycle methods */
-
-    isLive() {
-        let liveLevel = (this.headers.get('X-Background-Messaging-Port')?.trim() || _wq(this, 'meta').has('wqRealtime')) && 1 || 0;
-        liveLevel += this.headers.get('X-Live-Response-Message-ID')?.trim() && 1 || 0;
-        return liveLevel;
-    }
 
     whileLive(returningThePromise = false) {
         if (returningThePromise) {
@@ -295,8 +323,8 @@ export class LiveResponse extends EventTarget {
             this.#generator = response;
             this.#generatorType = response instanceof Response ? 'Response' : 'LiveResponse';
             execReplaceWith({
-                body: response instanceof Response ? await response.parse() : response.body,
-                status: response.status,
+                body: response instanceof Response ? await responseShim.prototype.parse.value.call(response) : response.body,
+                status: responseShim.prototype.status.get.call(response),
                 statusText: response.statusText,
                 headers: response.headers,
                 ...options,
@@ -362,21 +390,25 @@ export class LiveResponse extends EventTarget {
         await this.#replaceWith(body, ...args);
     }
 
-    toResponse({ clientRequestRealtime, signal: abortSignal } = {}) {
-        const response = Response.from(this.body, {
+    toResponse({ client: clientPort, signal: abortSignal } = {}) {
+        const response = responseShim.from.value(this.body, {
             status: this.status,
             statusText: this.statusText,
             headers: this.headers,
         });
+
         const responseMeta = _wq(this, 'meta');
         _wq(response).set('meta', responseMeta);
-        if (clientRequestRealtime && this.whileLive()) {
+
+        if (clientPort && this.whileLive()) {
             const liveResponseMessageID = Date.now().toString();
             response.headers.set('X-Live-Response-Message-ID', liveResponseMessageID);
+
             // Publish mutations
             if (_isTypeObject(this.body) && !isTypeStream(this.body)) {
-                publishMutations.call(clientRequestRealtime, this.body, liveResponseMessageID, { signal: abortSignal/* stop observing mutations on body when we abort */ });
+                publishMutations.call(clientPort, this.body, liveResponseMessageID, { signal: abortSignal/* stop observing mutations on body when we abort */ });
             }
+
             // Publish replacements?
             const replaceHandler = () => {
                 const headers = Object.fromEntries([...this.headers.entries()]);
@@ -384,7 +416,7 @@ export class LiveResponse extends EventTarget {
                     delete headers['set-cookie'];
                     console.warn('Warning: The "set-cookie" header is not supported for security reasons and has been removed from the response.');
                 }
-                clientRequestRealtime.postMessage({
+                clientPort.postMessage({
                     body: this.body,
                     status: this.status,
                     statusText: this.statusText,
@@ -392,6 +424,7 @@ export class LiveResponse extends EventTarget {
                     done: !this.whileLive(),
                 }, { wqEventOptions: { type: 'response.replace', live: true/*gracefully ignored if not an object*/ }, observerOptions: { signal: abortSignal/* stop observing mutations on body when we abort */ } });
             };
+
             this.addEventListener('replace', replaceHandler, { signal: abortSignal/* stop listening when we abort */ });
         }
         return response;
@@ -433,5 +466,3 @@ class StateX extends State {
     constructor() { }
     dispose() { }
 }
-
-globalThis.LiveResponse = LiveResponse;

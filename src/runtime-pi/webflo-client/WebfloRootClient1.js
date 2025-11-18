@@ -2,6 +2,7 @@ import { Observer } from '@webqit/quantum-js';
 import { WebfloClient } from './WebfloClient.js';
 import { ClientSideWorkport } from './ClientSideWorkport.js';
 import { DeviceCapabilities } from './DeviceCapabilities.js';
+import { LiveResponse, response as responseShim } from '../webflo-fetch/index.js';
 import { WebfloHMR } from './webflo-devmode.js';
 
 export class WebfloRootClient1 extends WebfloClient {
@@ -10,8 +11,8 @@ export class WebfloRootClient1 extends WebfloClient {
 
 	static get DeviceCapabilities() { return DeviceCapabilities; }
 
-	static create(cx, host) {
-		return new this(this.Context.create(cx), host);
+	static create(bootstrap, host) {
+		return new this(bootstrap, host);
 	}
 
 	#network;
@@ -20,8 +21,8 @@ export class WebfloRootClient1 extends WebfloClient {
 	#workport;
 	get workport() { return this.#workport; }
 
-	#deviceCapabilities;
-	get deviceCapabilities() { return this.#deviceCapabilities; }
+	#capabilities;
+	get capabilities() { return this.#capabilities; }
 
 	#hmr;
 
@@ -29,11 +30,11 @@ export class WebfloRootClient1 extends WebfloClient {
 		return document.querySelector('meta[name="webflo:viewtransitions"]')?.value;
 	}
 
-	constructor(cx, host) {
+	constructor(bootstrap, host) {
 		if (!(host instanceof Document)) {
 			throw new Error('Argument #1 must be a Document instance');
 		}
-		super(cx, host);
+		super(bootstrap, host);
 		this.#network = { status: window.navigator.onLine };
 	}
 
@@ -87,10 +88,10 @@ export class WebfloRootClient1 extends WebfloClient {
 		// Service Worker && Capabilities
 		const cleanups = [];
 		instanceController.signal.addEventListener('abort', () => cleanups.forEach((c) => c()), { once: true });
-		this.#deviceCapabilities = await this.constructor.DeviceCapabilities.initialize(this, this.config.CLIENT.capabilities);
-		cleanups.push(() => this.#deviceCapabilities.close());
-		if (this.config.CLIENT.capabilities?.service_worker?.filename) {
-			const { service_worker: { filename, ...restServiceWorkerParams } = {} } = this.config.CLIENT.capabilities;
+		this.#capabilities = await this.constructor.DeviceCapabilities.initialize(this, this.config.CLIENT.capabilities);
+		cleanups.push(() => this.#capabilities.close());
+		if (this.config.CLIENT.capabilities?.service_worker) {
+			const { filename, ...restServiceWorkerParams } = this.config.WORKER;
 			this.#workport = await this.constructor.Workport.initialize(null, (this.config.CLIENT.public_base_url || '') + filename, restServiceWorkerParams);
 			cleanups.push(() => this.#workport.close());
 		}
@@ -101,16 +102,17 @@ export class WebfloRootClient1 extends WebfloClient {
 		const instanceController = await super.hydrate();
 		const scopeObj = {};
 		scopeObj.data = this.host.querySelector(`script[rel="hydration"][type="application/json"]`)?.textContent?.trim() || null;
-		scopeObj.response = new Response.from(scopeObj.data, { headers: { 'Content-Type': 'application/json' } });
+		scopeObj.response = responseShim.from.value(scopeObj.data, { headers: { 'Content-Type': 'application/json' } });
 		for (const name of ['X-Background-Messaging-Port', 'X-Live-Response-Message-ID', 'X-Webflo-Dev-Mode']) {
 			const metaElement = this.host.querySelector(`meta[name="${name}"]`);
 			if (!metaElement) continue;
 			scopeObj.response.headers.set(name, metaElement.content?.trim() || '');
 		}
-		if (scopeObj.response.isLive()) {
-			this.background.addPort(scopeObj.response.wqRealtime);
+		const backgroundPort = LiveResponse.getBackground(scopeObj.response);
+		if (backgroundPort) {
+			this.background.addPort(backgroundPort);
 		}
-		if (scopeObj.response.body || scopeObj.response.isLive()) {
+		if (scopeObj.response.body || backgroundPort) {
 			const httpEvent = this.createHttpEvent({ request: this.createRequest(this.location.href) }, true);
 			await this.render(httpEvent, scopeObj.response);
 		} else {

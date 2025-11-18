@@ -16,12 +16,11 @@ const appMeta = jsonFile.read('./package.json');
 /**
  * @cx
  */
-const cx = WebfloPI.Context.create({
+const cx = WebfloPI.CLIContext.create({
     meta: { title: webfloMeta.title, version: webfloMeta.version },
     appMeta: { ...appMeta },
     logger: Logger,
     config: WebfloPI.config,
-    middlewares: [ WebfloPI.deployment.origins.webhook ],
 });
 
 /**

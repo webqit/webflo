@@ -20,17 +20,17 @@ event.waitUntilNavigate();
 ```
 
 ```js
-event.client.addEventListener('message', handle);
-event.client.postMessage({ message: 'You seem to be typing something.' });
+event.client.addEventListener("message", handle);
+event.client.postMessage({ message: "You seem to be typing something." });
 ```
 
 ```js
-const result = await event.user.confirm({ message: 'Should we proceed?' });
-const result = await event.user.prompt({ message: 'What is your name?' });
+const result = await event.user.confirm({ message: "Should we proceed?" });
+const result = await event.user.prompt({ message: "What is your name?" });
 ```
 
 ```js
-const { channel, leave } = event.client.enterChannel('test-channel');
+const { channel, leave } = event.client.enterChannel("test-channel");
 ```
 
 ## The Traditional Setup
@@ -124,7 +124,7 @@ The **primary** realtime API here is `event.client` — a Webflo `MessagePort` s
 
 ```js
 export default async function (event) {
-  event.client.postMessage({ hello: 'world' });
+  event.client.postMessage({ hello: "world" });
 }
 ```
 
@@ -138,10 +138,10 @@ These HTTP clients or handlers are the _Port B_.
 The primary realtime API here is `liveResponse.background` — the same Webflo `MessagePort` interface as `event.client`, supporting things like: `.postMessage()`, `.addEventListener()`, etc.
 
 ```js
-const response = await fetch('https://api.example.com/data');
-const liveResponse = LiveResponse.from(response);
+const response = await fetch("https://api.example.com/data");
+const liveResponse = await LiveResponse.from(response);
 
-liveResponse.background.addEventListener('message', (message) => {
+liveResponse.background.addEventListener("message", (message) => {
   console.log(message);
 });
 ```
@@ -172,7 +172,7 @@ The `app.background` port is also a _multi-port_ hub housing all _active_ backgr
 Every interaction on this API is thus an interaction over all active realtime conversations.
 
 ```js
-app.background.addEventListener('message', (message) => {
+app.background.addEventListener("message", (message) => {
   console.log(message);
 });
 ```
@@ -193,8 +193,8 @@ export default async function (event, next) {
   if (next.stepname) return await next(); // The conventional delegation line
 
   const response = await next();
-  const liveResponse = LiveResponse.from(response);
-  liveResponse.background.addEventListener('message', (message) => {
+  const liveResponse = await LiveResponse.from(response);
+  liveResponse.background.addEventListener("message", (message) => {
     console.log(message);
   });
 
@@ -209,7 +209,7 @@ The handler’s own `event.client` port remains its own _Port A_ for communicati
 ---
 
 ::: tip
-While not explicitly mentioned, external Webflo servers are just as accessible and interactive as the local server. A server-to-server interaction, for example, is just a matter of `LiveResponse.from(await fetch('https://api.example.com/data'))`.
+While not explicitly mentioned, external Webflo servers are just as accessible and interactive as the local server. A server-to-server interaction, for example, is just a matter of `await LiveResponse.from(await fetch('https://api.example.com/data'))`.
 :::
 
 ## Entering Background Mode
@@ -230,7 +230,7 @@ event.client.postMessage({ progress: 10 });
 2. or achieving the same through higher-level APIs like `event.user.confirm()`:
 
 ```js
-const result = await event.user.confirm({ message: 'Are you sure?' });
+const result = await event.user.confirm({ message: "Are you sure?" });
 ```
 
 ### _Handler returns a response and explicitly marks it **not done**_
@@ -278,9 +278,9 @@ event.respondWith(
 ```js
 event.respondWith(data, async ($data /* reactive copy of data */) => {
   await new Promise((resolve) => setTimeout(resolve, 1000));
-  $data.someProp = 'someValue';
+  $data.someProp = "someValue";
   await new Promise((resolve) => setTimeout(resolve, 1000));
-  $data.someProp = 'someOtherValue';
+  $data.someProp = "someOtherValue";
 });
 ```
 
@@ -294,7 +294,7 @@ A handler may return a `Generator` object by either:
 export default async function* (event) {
   yield data1;
   yield new Response(data2);
-  yield new LiveResponse(null, { headers: { Location: '/' } });
+  yield new LiveResponse(null, { headers: { Location: "/" } });
 }
 ```
 
@@ -352,14 +352,14 @@ This handler returns a `LiveResponse` whose body starts as `{ step: 1 }` and is 
 **_Result_:** The page first renders step: 1, then updates to step: 2 after ~200ms.
 
 ```js
-import { LiveResponse } from '@webqit/webflo';
+import { LiveResponse } from '@webqit/webflo/apis';
 ```
 
 ```js
 export async function GET(event, next) {
   if (next.stepname) return await next(); // The conventional delegation line
 
-  const res = LiveResponse.from({ step: 1 }, { done: false });
+  const res = await LiveResponse.from({ step: 1 }, { done: false });
   setTimeout(() => res.replaceWith({ step: 2 }), 200); // [!code highlight]
 
   return res;
@@ -373,7 +373,7 @@ This handler returns a skeleton object immediately for fast page load and then b
 **_Result_:** The UI renders a skeleton first, then progressively fills in as the object tree is built from the server.
 
 ```js
-import Observer from '@webqit/observer';
+import { Observer } from '@webqit/webflo/apis';
 ```
 
 ```js
@@ -382,30 +382,30 @@ export async function GET(event, next) {
 
   const data = {
     menu: [
-      { name: 'Home', href: '/' },
-      { name: 'About', href: '/about' },
-      { name: 'Contact', href: '/contact' },
+      { name: "Home", href: "/" },
+      { name: "About", href: "/about" },
+      { name: "Contact", href: "/contact" },
     ],
     content: {
-      header: 'Loading...',
+      header: "Loading...",
       body: [],
     },
   };
 
   event.waitUntil(
     new Promise(async (resolve) => {
-      const someData = await fetch('https://api.example.com/data');
-      Observer.set(data.content, 'header', someData.header);
+      const someData = await fetch("https://api.example.com/data");
+      Observer.set(data.content, "header", someData.header);
 
       Observer.proxy(data.content.body).push(
-        { text: 'Inventory 1:' + someData.items[0] },
-        { text: 'Inventory 2:' + someData.items[1] }
+        { text: "Inventory 1:" + someData.items[0] },
+        { text: "Inventory 2:" + someData.items[1] }
       );
 
-      const someData2 = await fetch('https://api.example.com/data2');
+      const someData2 = await fetch("https://api.example.com/data2");
       Observer.proxy(data.content.body).push(
-        { text: 'Inventory 3:' + someData2.items[0] },
-        { text: 'Inventory 4:' + someData2.items[1] }
+        { text: "Inventory 3:" + someData2.items[0] },
+        { text: "Inventory 4:" + someData2.items[1] }
       );
 
       resolve();
@@ -450,12 +450,12 @@ export async function POST(event, next) {
   // Initiate response
   event.respondWith({ step: 1 }, { done: false });
   // Make API call
-  await fetch('https://api.example.com/data');
+  await fetch("https://api.example.com/data");
   // Update response
   event.respondWith({ step: 2 }, { done: false });
 
   // Redirect
-  event.respondWith(null, { status: 302, headers: { Location: '/done' } }); // [!code highlight]
+  event.respondWith(null, { status: 302, headers: { Location: "/done" } }); // [!code highlight]
 }
 ```
 
@@ -471,7 +471,7 @@ This handler pauses request processing to interact with the user before proceedi
 export async function DELETE(event, next) {
   if (next.stepname) return await next(); // The conventional delegation line
 
-  const message = 'This item will be permanently deleted. Are you sure?';
+  const message = "This item will be permanently deleted. Are you sure?";
   const answer = await event.user.confirm({ message }); // [!code highlight]
   if (answer?.data === true) {
     // proceed
@@ -487,7 +487,7 @@ Customization is as simple as intercepting these via `preventDefault()` to rende
 
 ```javascript
 // Intercept at window.webqit.app.background
-window.webqit.app.background.addEventListener('prompt', (e) => {
+window.webqit.app.background.addEventListener("prompt", (e) => {
   e.preventDefault(); // [!code highlight]
   customDialog(e.data.message).then((result) => {
     // Reply to the request on the provided port
@@ -509,17 +509,17 @@ export async function GET(event, next) {
   if (next.stepname) return await next(); // The conventional delegation line
 
   // Channel ID - must tally with the client-side ID
-  const channelID = 'test-channel';
+  const channelID = "test-channel";
 
   const { channel, leave } = event.client.enterChannel(channelID, {
     // Optionally annotate user's messages with user's name
-    resolveData: (message) => ({ ...message, user: 'sample name' }),
+    resolveData: (message) => ({ ...message, user: "sample name" }),
   });
 
   event.waitUntilNavigate(); // keep open
-  event.client.addEventListener('close', (e) => {
+  event.client.addEventListener("close", (e) => {
     //e.preventDefault();
-    console.log('Chat closed');
+    console.log("Chat closed");
   });
 }
 ```
@@ -531,15 +531,15 @@ export default async function (event, next) {
   if (next.stepname) return await next(); // The conventional delegation line
 
   // Initialize states
-  const data = { messageTrail: [{ message: 'Beginning of chat...' }] };
+  const data = { messageTrail: [{ message: "Beginning of chat..." }] };
   await event.respondWith(data, { done: false }); // [!code highlight]
 
   // The messaging part
   const response = await next(); // Call server
-  const chatPort = LiveResponse.from(response).background;
+  const chatPort = (await LiveResponse.from(response)).background;
 
   // Channel ID - must tally with the server-side ID
-  const channelID = 'test-channel';
+  const channelID = "test-channel";
 
   // Listen to upstream messages - from others in the same channel
   chatPort.addEventListener(`${channelID}:message`, (e) => {
@@ -599,9 +599,10 @@ export default async function (event, next) {
 :::
 
 ::: warning
+
 - Channel IDs must be unique and unguessable across the app.
 - Channels are not persistent and are only active for the duration of the request. A database is required to store channel data.
-:::
+  :::
 
 ## Appendix A – The Realtime Lifecycle
 
@@ -625,7 +626,7 @@ sequenceDiagram
 On entering background mode, Webflo initiates a handshake sequence as follows:
 
 1. Webflo gives the initial response a unique `X-Background-Messaging-Port` header that tells the client to connect in the background after rendering the initial response.
-   > If the scenario is that the handler tiggers `event.client` messaging  _before_ yielding a response, Webflo sends a temporary `202 Accepted` response to the client carrying this header.
+   > If the scenario is that the handler tiggers `event.client` messaging _before_ yielding a response, Webflo sends a temporary `202 Accepted` response to the client carrying this header.
 2. The client reads that header and opens the background channel.
    > If the client fails to connect within the handshake window, Webflo abandons the wait and concludes the request normally.
 3. On connecting, both sides resume the same request context — now in live mode.

@@ -33,6 +33,9 @@
     "site:build": "vitepress build site",
     "site:preview": "vitepress preview site --port 4173"
   },
+  "exports": {
+    "./apis": "./src/runtime-pi/apis.js"
+  },
   "bin": {
     "webflo": "src/webflo-cli.js",
     "webflo-certbot-http-auth-hook": "src/services-pi/cert/http-auth-hook.js",
@@ -73,23 +76,5 @@
   "maintainers": [
     "Oxford Harrison <oxharris.dev@gmail.com>"
   ],
-  "contributors": [],
-  "funding": {
-    "type": "patreon",
-    "url": "https://patreon.com/ox_harris"
-  },
-  "badges": {
-    "list": [
-      "npmversion",
-      "npmdownloads",
-      "patreon"
-    ],
-    "config": {
-      "patreonUsername": "ox_harris",
-      "githubUsername": "webqit",
-      "githubRepository": "webflo",
-      "githubSlug": "webqit/webflo",
-      "npmPackageName": "@webqit/webflo"
-    }
-  }
+  "contributors": []
 }

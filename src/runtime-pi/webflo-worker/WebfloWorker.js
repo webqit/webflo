@@ -1,5 +1,6 @@
 import { _any } from '@webqit/util/arr/index.js';
 import { WebfloRuntime } from '../WebfloRuntime.js';
+import { response as responseShim } from '../webflo-fetch/index.js';
 import { WQBroadcastChannel } from '../webflo-messaging/WQBroadcastChannel.js';
 import { WorkerSideWorkport } from './WorkerSideWorkport.js';
 import { WorkerSideCookies } from './WorkerSideCookies.js';
@@ -20,13 +21,6 @@ export class WebfloWorker extends WebfloRuntime {
 	static get HttpUser() { return HttpUser; }
 
 	static get Workport() { return WorkerSideWorkport; }
-
-	static create(cx) {
-		return new this(this.Context.create(cx));
-	}
-
-    #sdk = {};
-    get sdk() { return this.#sdk; }
 
 	async initialize() {
 		const instanceController = super.initialize();
@@ -98,7 +92,9 @@ export class WebfloWorker extends WebfloRuntime {
 			self.registration.showNotification(title, params);
 		};
 		self.addEventListener('fetch', fetchHandler, { signal: instanceController.signal });
-		self.addEventListener('push', webpushHandler, { signal: instanceController.signal });
+		if (this.config.CLIENT.capabilities.webpush) {
+			self.addEventListener('push', webpushHandler, { signal: instanceController.signal });
+		}
 		return instanceController;
 	}
 
@@ -114,25 +110,24 @@ export class WebfloWorker extends WebfloRuntime {
 			request: scopeObj.request
 		});
 		scopeObj.session = this.createHttpSession({
-			store: this.#sdk.storage?.('session'),
+			store: this.createStorage('session'),
 			request: scopeObj.request
 		});
 		const requestID = crypto.randomUUID();
 		scopeObj.clientRequestRealtime = new WQBroadcastChannel(requestID);
 		scopeObj.user = this.createHttpUser({
-			store: this.#sdk.storage?.('user'),
+			store: this.createStorage('user'),
 			request: scopeObj.request,
-			realtime: scopeObj.clientRequestRealtime,
+			client: scopeObj.clientRequestRealtime,
 			session: scopeObj.session,
 		});
 		scopeObj.httpEvent = this.createHttpEvent({
 			request: scopeObj.request,
-			realtime: scopeObj.clientRequestRealtime,
+			client: scopeObj.clientRequestRealtime,
 			cookies: scopeObj.cookies,
 			session: scopeObj.session,
 			user: scopeObj.user,
 			detail: scopeObj.detail,
-			sdk: {}
 		});
 		// Dispatch for response
 		scopeObj.response = await this.dispatchNavigationEvent({
@@ -144,7 +139,7 @@ export class WebfloWorker extends WebfloRuntime {
 				}
 				return await this.remoteFetch(event.request);
 			},
-			responseRealtime: `br:${scopeObj.httpEvent.realtime.name}`
+			clientPortB: `br:${scopeObj.httpEvent.client.name}`
 		});
 		return scopeObj.response;
 	}
@@ -211,7 +206,8 @@ export class WebfloWorker extends WebfloRuntime {
 
 	async refreshCache(request, response) {
 		// Check if we received a valid response
-		if (request.method !== 'GET' || !response || response.status !== 200 || (response.type !== 'basic' && response.type !== 'cors')) {
+		const statusCode = responseShim.prototype.status.get.call(response);
+		if (request.method !== 'GET' || !response || statusCode !== 200 || (response.type !== 'basic' && response.type !== 'cors')) {
 			return response;
 		}
 		// IMPORTANT: Clone the response. A response is a stream

@@ -4,7 +4,8 @@ import Path from 'path';
 import { exec } from 'child_process';
 import { _toTitle } from '@webqit/util/str/index.js';
 import { readInitConfig } from '../deployment-pi/util.js';
-import { Context } from '../Context.js';
+import { CLIContext } from '../CLIContext.js';
+import * as deployment from '../deployment-pi/index.js';
 
 export const desc = {
     init: 'Generate a preset Webflo starter app.',
@@ -12,9 +13,11 @@ export const desc = {
 
 export async function init(projectName = 'my-webflo-app', projectTitle = '', projectDescription = '') {
     const $context = this;
+    //middlewares: [ deployment.origins.webhook ],
 
-    if (!($context instanceof Context)) {
-        throw new Error(`The "this" context must be a Webflo Context object.`);
+
+    if (!($context instanceof CLIContext)) {
+        throw new Error(`The "this" context must be a Webflo CLIContext object.`);
     }
 
     const { flags: FLAGS, logger: LOGGER } = $context;

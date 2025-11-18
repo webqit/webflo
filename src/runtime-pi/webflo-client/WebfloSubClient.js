@@ -21,7 +21,7 @@ export class WebfloSubClient extends WebfloClient {
 
 	get workport() { return this.#superRuntime.workport; }
 
-	get deviceCapabilities() { return this.#superRuntime.deviceCapabilities; }
+	get capabilities() { return this.#superRuntime.capabilities; }
 
 	get withViewTransitions() { return this.host.hasAttribute('viewtransitions'); }
 
@@ -32,7 +32,7 @@ export class WebfloSubClient extends WebfloClient {
 		if (!(host instanceof HTMLElement)) {
 			throw new Error('Argument #1 must be a HTMLElement instance');
 		}
-		super(superRuntime.cx, host);
+		super(superRuntime.bootstrap, host);
 		this.#superRuntime = superRuntime;
 	}
 
@@ -65,19 +65,19 @@ export class WebfloSubClient extends WebfloClient {
 		return super.controlClassic/*IMPORTANT*/(locationCallback);
 	}
 
-	reload(params) {}
+	reload(params) { }
 
-	back() {}
+	back() { }
 
-	forward() {}
+	forward() { }
 
-	traverseTo(...args) {}
+	traverseTo(...args) { }
 
-	async push(url, state = {}) {}
+	async push(url, state = {}) { }
 
-	entries() {}
+	entries() { }
 
-	currentEntry() {}
+	currentEntry() { }
 
 	async updateCurrentEntry(params, url = null) {
 		this.host.reflectLocation(url);
@@ -90,16 +90,16 @@ export class WebfloSubClient extends WebfloClient {
 		(this.host.querySelector('[autofocus]') || this.host).focus();
 	}
 
-	redirect(location, responseRealtime = null) {
+	redirect(location, responseBackground = null) {
 		location = typeof location === 'string' ? new URL(location, this.location.origin) : location;
 		const width = Math.min(800, window.innerWidth);
 		const height = Math.min(600, window.innerHeight);
 		const left = (window.outerWidth - width) / 2;
 		const top = (window.outerHeight - height) / 2;
 		const popup = window.open(location, '_blank', `popup=true,width=${width},height=${height},left=${left},top=${top}`);
-		if (responseRealtime) {
+		if (responseBackground) {
 			Observer.set(this.navigator, 'redirecting', new Url/*NOT URL*/(location), { diff: true });
-			responseRealtime.addEventListener('close', (e) => {
+			responseBackground.addEventListener('close', (e) => {
 				window.removeEventListener('message', windowMessageHandler);
 				Observer.set(this.navigator, 'redirecting', null);
 				popup.postMessage('timeout:5');
@@ -109,7 +109,7 @@ export class WebfloSubClient extends WebfloClient {
 			}, { once: true });
 			const windowMessageHandler = (e) => {
 				if (e.source === popup && e.data === 'close') {
-					responseRealtime.close();
+					responseBackground.close();
 				}
 			};
 			window.addEventListener('message', windowMessageHandler);

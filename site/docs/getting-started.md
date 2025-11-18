@@ -22,15 +22,7 @@ This documentation is a work in progress. Please expect some rough edges, missin
 
 ## Installation
 
-### Option 1: Global Installation (Recommended)
-
-Install Webflo globally to use the CLI from anywhere:
-
-```bash
-npm install -g @webqit/webflo
-```
-
-### Option 2: Local Installation
+### Option 1: Local Installation (Recommended)
 
 Install Webflo as a dependency in your project:
 
@@ -38,7 +30,15 @@ Install Webflo as a dependency in your project:
 npm install @webqit/webflo
 ```
 
-The scope you choose will determine how you run Webflo commands. The Webflo commands in the rest of this page will show in both `global` and `local` styles.
+### Option 2: Global Installation
+
+Install Webflo globally to use the CLI from anywhere:
+
+```bash
+npm install -g @webqit/webflo
+```
+
+The scope you choose will determine how you run Webflo commands. The Webflo commands in the rest of this page will show in both `local` and `global` styles.
 
 ## Creating a New Project
 
@@ -46,12 +46,12 @@ Webflo provides a CLI command to scaffold new projects:
 
 ::: code-group
 
-```bash [global]
-webflo init my-webflo-app
-```
-
 ```bash [local]
 npx webflo init my-webflo-app
+```
+
+```bash [global]
+webflo init my-webflo-app
 ```
 
 :::
@@ -70,12 +70,12 @@ The above command could take a project title and project description too:
 
 ::: code-group
 
-```bash [global]
-webflo init my-webflo-app "My Webflo App" "My first ever Webflo app"
-```
-
 ```bash [local]
 npx webflo init my-webflo-app "My Webflo App" "My first ever Webflo app"
+```
+
+```bash [global]
+webflo init my-webflo-app "My Webflo App" "My first ever Webflo app"
 ```
 
 :::
@@ -84,12 +84,12 @@ And you can specify a template to use:
 
 ::: code-group
 
-```bash [global]
-webflo init my-webflo-app --template=web
-```
-
 ```bash [local]
 npx webflo init my-webflo-app --template=web
+```
+
+```bash [global]
+webflo init my-webflo-app --template=web
 ```
 
 :::
@@ -151,11 +151,11 @@ The generated `package.json` for your project will include scripts like `dev`, `
   "scripts": {
     // Builds HTML templates and client bundles into public/assets
     "build:html": "oohtml bundle --recursive --outdir=public/assets --auto-embed=app",
-    "build:js": "webflo generate::client --recursive --outdir=public/assets --auto-embed",
+    "build:js": "webflo build --client --worker --server --recursive --outdir=public/assets --auto-embed",
     // Production build: runs both steps
     "build": "npm run build:html && npm run build:js",
     // Development server with auto-rebuilds and fine-grained HMR
-    "dev": "webflo start --dev --build-sensitivity=2",
+    "dev": "webflo start --dev --build-sensitivity=1",
     // Production server
     "start": "webflo start"
   },
@@ -181,7 +181,7 @@ You can customize as necessary.
 ::: info Scripts & customization
 - You can customize `build:html` or `build:js` scripts if you need finer control
 - Add a `build:css` script if your CSS requires a build step; it'll be called in dev mode as necessary on CSS file changes
-- Adjust dev mode's rebuild frequency for assets with `--build-sensitivity` (e.g., `--build-sensitivity=2` — to defer rebuild until page reload; `0` — to turn off)
+- Adjust dev mode's rebuild frequency for assets with `--build-sensitivity` (e.g., `--build-sensitivity=1` — to defer rebuild until page reload; `0` — to turn off)
 :::
 
 ## Running Your Application
@@ -194,12 +194,12 @@ Start the development server:
 
 ::: code-group
 
-```bash [global]
-webflo start --dev
-```
-
 ```bash [npm]
 npm run dev
+```
+
+```bash [global]
+webflo start --dev
 ```
 
 :::
@@ -220,12 +220,12 @@ The server starts on `http://localhost:3000` by default.
 
 ::: code-group
 
-```bash [global]
-webflo start --dev --open --port 8080
-```
-
 ```bash [npm]
 npm run dev -- --open --port 8080
+```
+
+```bash [global]
+webflo start --dev --open --port 8080
 ```
 
 :::
@@ -254,12 +254,12 @@ Start the production server when ready:
 
 ::: code-group
 
-```bash [global]
-webflo start
-```
-
 ```bash [npm]
 npm start
+```
+
+```bash [global]
+webflo start
 ```
 
 Your app runs in production mode. Production can be in any filesystem-enabled JavaScript runtime.
@@ -354,22 +354,22 @@ You’ve:
 
 ```bash
 # Initialize a new project
-webflo init <project-name>
+npx webflo init <project-name>
 
 # Start development server
-webflo start --dev
+npx webflo start --dev
 
 # Start production server
-webflo start
+npx webflo start
 
 # Build for production
-webflo build
+npx webflo build
 
 # Configure Webflo
-webflo config
+npx webflo config
 
 # View help
-webflo --help
+npx webflo --help
 ```
 
 </details>

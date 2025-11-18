@@ -3,6 +3,7 @@ import { _isObject } from '@webqit/util/js/index.js';
 import { Observer } from '@webqit/quantum-js';
 import { WebfloRuntime } from '../WebfloRuntime.js';
 import { WQMessageChannel } from '../webflo-messaging/WQMessageChannel.js';
+import { LiveResponse, response as responseShim } from '../webflo-fetch/index.js';
 import { WQStarPort } from '../webflo-messaging/WQStarPort.js';
 import { ClientSideCookies } from './ClientSideCookies.js';
 import { HttpSession } from '../webflo-routing/HttpSession.js';
@@ -38,13 +39,10 @@ export class WebfloClient extends WebfloRuntime {
     #background;
     get background() { return this.#background; }
 
-    #sdk = {};
-    get sdk() { return this.#sdk; }
-
     get isClientSide() { return true; }
 
-    constructor(cx, host) {
-        super(cx);
+    constructor(bootstrap, host) {
+        super(bootstrap);
         this.#host = host;
         Object.defineProperty(this.host, 'webfloRuntime', { get: () => this });
         this.#location = new Url/*NOT URL*/(this.host.location);
@@ -85,12 +83,6 @@ export class WebfloClient extends WebfloRuntime {
         await this.setupCapabilities();
         this.control();
         await this.hydrate();
-        return instanceController;
-    }
-
-    async setupCapabilities() {
-        const instanceController = await super.setupCapabilities();
-        this.#sdk.Observer = Observer;
         return instanceController;
     }
 
@@ -241,7 +233,7 @@ export class WebfloClient extends WebfloRuntime {
             a = a.split('/').filter(s => s);
             return a.reduce((prev, s, i) => prev && (s === b[i] || [s, b[i]].includes('-')), true);
         };
-        return match(this.routes.$root) && this.routes.$sparoots.reduce((prev, subroot) => {
+        return match(this.bootstrap.$root) && this.bootstrap.$sparoots.reduce((prev, subroot) => {
             return prev && !match(subroot);
         }, true);
     }
@@ -277,15 +269,15 @@ export class WebfloClient extends WebfloRuntime {
             request: scopeObj.request
         });
         scopeObj.session = this.createHttpSession({
-			store: this.#sdk.storage?.('session'),
+			store: this.createStorage('session'),
 			request: scopeObj.request
 		});
         const wqMessageChannel = new WQMessageChannel;
         scopeObj.clientRequestRealtime = wqMessageChannel.port1;
         scopeObj.user = this.createHttpUser({
-            store: this.#sdk.storage?.('user'),
+            store: this.createStorage('user'),
             request: scopeObj.request,
-            realtime: scopeObj.clientRequestRealtime,
+            client: scopeObj.clientRequestRealtime,
             session: scopeObj.session,
         });
         if (window.webqit?.oohtml?.configs) {
@@ -294,11 +286,10 @@ export class WebfloClient extends WebfloRuntime {
         }
         scopeObj.httpEvent = this.createHttpEvent({
             request: scopeObj.request,
-            realtime: scopeObj.clientRequestRealtime,
+            client: scopeObj.clientRequestRealtime,
             cookies: scopeObj.cookies,
             session: scopeObj.session,
             user: scopeObj.user,
-            sdk: this.#sdk,
             detail: scopeObj.detail,
             signal: init.signal,
             state: scopeObj.UIState,
@@ -335,7 +326,7 @@ export class WebfloClient extends WebfloRuntime {
                 }
                 return await this.remoteFetch(event.request);
             },
-            responseRealtime: wqMessageChannel.port2,
+            clientPortB: wqMessageChannel.port2,
             originalRequestInit: scopeObj.init
         });
         // Decode response
@@ -357,8 +348,9 @@ export class WebfloClient extends WebfloRuntime {
             Observer.set(this.location, 'href', scopeObj.finalUrl);
             scopeObj.resetStates();
             // Error?
-            if ([404, 500].includes(scopeObj.response.status)) {
-                const error = new Error(scopeObj.response.statusText, { code: scopeObj.response.status });
+            const statusCode = responseShim.prototype.status.get.call(scopeObj.response);
+            if ([404, 500].includes(statusCode)) {
+                const error = new Error(scopeObj.response.statusText, { code: statusCode });
                 Object.defineProperty(error, 'retry', { value: async () => await this.navigate(scopeObj.url, scopeObj.init, scopeObj.detail) });
                 Observer.set(this.navigator, 'error', error);
             }
@@ -372,16 +364,18 @@ export class WebfloClient extends WebfloRuntime {
         });
     }
 
-    async dispatchNavigationEvent({ httpEvent, crossLayerFetch, responseRealtime, originalRequestInit, processObj = {} }) {
-        const response = await super.dispatchNavigationEvent({ httpEvent, crossLayerFetch, responseRealtime });
-        // Obtain and connect responseRealtime as first thing
-        if (response.isLive()) {
-            this.background.addPort(response.wqRealtime);
+    async dispatchNavigationEvent({ httpEvent, crossLayerFetch, clientPortB, originalRequestInit, processObj = {} }) {
+        const response = await super.dispatchNavigationEvent({ httpEvent, crossLayerFetch, clientPortB });
+        // Obtain and connect clientPortB as first thing
+        const backgroundPort = LiveResponse.getBackground(response);
+        if (backgroundPort) {
+            this.background.addPort(backgroundPort);
         }
         // Await a response with an "Accepted" or redirect status
-        if (response.status === 202 || (response.headers.get('Location') && this.processRedirect(response))) {
+        const statusCode = responseShim.prototype.status.get.call(response);
+        if (statusCode === 202 || (response.headers.get('Location') && this.processRedirect(response))) {
             return new Promise(async (resolve) => {
-                if (response.isLive()) {
+                if (LiveResponse.hasBackground(response)) {
                     const liveResponse = await LiveResponse.from(response);
                     liveResponse.addEventListener('replace', () => resolve(liveResponse), { once: true, signal: httpEvent.signal });
                 } // Never resolves otherwise
@@ -398,7 +392,7 @@ export class WebfloClient extends WebfloRuntime {
             if (!processObj.recurseController.signal.aborted) {
                 await new Promise((res) => setTimeout(res, parseInt(response.headers.get('Retry-After')) * 1000));
                 const eventClone = httpEvent.cloneWith({ request: this.createRequest(httpEvent.url, originalRequestInit) });
-                return await this.dispatchNavigationEvent({ httpEvent: eventClone, crossLayerFetch, responseRealtime, originalRequestInit, processObj });
+                return await this.dispatchNavigationEvent({ httpEvent: eventClone, crossLayerFetch, clientPortB, originalRequestInit, processObj });
             }
         } else if (processObj.recurseController) {
             // Abort the signal. This is the end of the loop
@@ -409,27 +403,29 @@ export class WebfloClient extends WebfloRuntime {
 
     processRedirect(response) {
         // Normalize redirect
+        let statusCode = responseShim.prototype.status.get.call(response);
         const xActualRedirectCode = parseInt(response.headers.get('X-Redirect-Code'));
-        if (xActualRedirectCode && response.status === this.#xRedirectCode) {
+        if (xActualRedirectCode && statusCode === this.#xRedirectCode) {
             const responseMeta = _wq(response, 'meta');
             responseMeta.set('status', xActualRedirectCode); // @NOTE 1
+            statusCode = xActualRedirectCode;
         }
         // Trigger redirect
-        if ([302, 301].includes(response.status)) {
+        if ([302, 301].includes(statusCode)) {
             const location = new URL(response.headers.get('Location'), this.location.origin);
             if (this.isSpaRoute(location)) {
                 this.navigate(location, {}, { navigationType: 'rdr' });
             } else {
-                this.redirect(location, response.wqRealtime);
+                this.redirect(location, LiveResponse.getBackground(response));
             }
             return true;
         }
     }
 
-    redirect(location, responseRealtime) {
-        if (responseRealtime) {
+    redirect(location, responseBackground) {
+        if (responseBackground) {
             // Redundant as this is a window reload anyways
-            responseRealtime.close();
+            responseBackground.close();
         }
         window.location = location;
     }
@@ -470,7 +466,7 @@ export class WebfloClient extends WebfloRuntime {
                     navigator: this.navigator,
                     location: this.location,
                     network: this.network, // request, redirect, error, status, remote
-                    capabilities: this.deviceCapabilities,
+                    capabilities: this.capabilities,
                     transition: this.transition,
                 }, { diff: true, merge });
                 $response.addEventListener('replace', (e) => {

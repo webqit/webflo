@@ -1,10 +1,12 @@
+import { headers as headersShim } from '../webflo-fetch/index.js';
 import { HttpCookies } from '../webflo-routing/HttpCookies.js';
 
 export class ServerSideCookies extends HttpCookies {
     static create({ request }) {
+        const cookies = headersShim.get.value.call(request.headers, 'Cookie', true);
         return new this({
             request,
-            entries: request.headers.get('Cookie', true).map((c) => [c.name, c])
+            entries: cookies.map((c) => [c.name, c])
         });
     }
 

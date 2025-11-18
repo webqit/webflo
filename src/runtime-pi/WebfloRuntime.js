@@ -1,5 +1,6 @@
-import { Context } from '../Context.js';
 import { WebfloRouter } from './webflo-routing/WebfloRouter.js';
+import { LiveResponse, response as responseShim, headers as headersShim } from './webflo-fetch/index.js';
+import { AppBootstrap } from './AppBootstrap.js';
 import { _wq } from '../util.js';
 
 export class WebfloRuntime {
@@ -7,53 +8,55 @@ export class WebfloRuntime {
     #instanceController = new AbortController;
     get $instanceController() { return this.#instanceController; }
 
-    static get Context() { return Context; }
-
     static get Router() { return WebfloRouter; }
 
-    #cx;
-    get cx() { return this.#cx; }
+    static create(bootstrap) { return new this(bootstrap); }
 
-    #config;
-    get config() { return this.#config; }
+    #bootstrap;
 
-    #routes;
-    get routes() { return this.#routes; }
+    get bootstrap() { return this.#bootstrap; }
+    get cx() { return this.bootstrap.cx; }
+    get config() { return this.bootstrap.config; }
+    get routes() { return this.bootstrap.routes; }
 
-    constructor(cx) {
-        if (!(cx instanceof this.constructor.Context)) {
-            throw new Error('Argument #1 must be a Webflo Context instance');
-        }
-        this.#cx = cx;
-        this.#config = this.#cx.config;
-        this.#routes = this.#cx.routes;
+    constructor(bootstrap) {
+        this.#bootstrap = new AppBootstrap(bootstrap);
     }
 
     env(key) {
         const { ENV } = this.config;
         return key in ENV.mappings
-            ? ENV.data[ENV.mappings[key]]
-            : ENV.data[key];
+            ? ENV.data?.[ENV.mappings[key]]
+            : ENV.data?.[key];
     }
 
     async initialize() {
-        // Do init work
+        if (!this.bootstrap.init.createStorage) {
+            const inmemSessionRegistry = new Map;
+            this.bootstrap.init.createStorage = (namespace) => {
+                if (!inmemSessionRegistry.has(namespace)) {
+                    inmemSessionRegistry.set(namespace, new Map);
+                }
+                return inmemSessionRegistry.get(namespace);
+            };
+        }
         return this.#instanceController;
     }
 
     async setupCapabilities() {
-        // Do init work
         return this.#instanceController;
     }
 
     async hydrate() {
-        // Do hydration work
         return this.#instanceController;
     }
 
     control() {
-        // Do control work
         return this.#instanceController;
+    }
+
+    async createStorage(namespace, ttl) {
+       return await this.bootstrap.init.createStorage(namespace, ttl);
     }
 
     createRequest(href, init = {}) {
@@ -68,16 +71,16 @@ export class WebfloRuntime {
         return this.constructor.HttpSession.create({ store, request, ...rest });
     }
 
-    createHttpUser({ store, request, session, realtime, ...rest }) {
-        return this.constructor.HttpUser.create({ store, request, session, realtime, ...rest });
+    createHttpUser({ store, request, session, client, ...rest }) {
+        return this.constructor.HttpUser.create({ store, request, session, client, ...rest });
     }
 
-    createHttpEvent({ request, cookies, session, user, realtime, sdk, detail, signal, state, ...rest }) {
-        return this.constructor.HttpEvent.create(null, { request, cookies, session, user, realtime, sdk, detail, signal, state, ...rest });
+    createHttpEvent({ request, cookies, session, user, client, detail, signal, state, ...rest }) {
+        return this.constructor.HttpEvent.create(null, { request, cookies, session, user, client, detail, signal, state, ...rest });
     }
 
-    async dispatchNavigationEvent({ httpEvent, crossLayerFetch, responseRealtime }) {
-        const { flags: FLAGS } = this.cx;
+    async dispatchNavigationEvent({ httpEvent, crossLayerFetch, clientPortB }) {
+        const { flags: FLAGS, logger: LOGGER } = this.cx;
         // Resolve rid before dispatching
         if (httpEvent.request.method === 'GET' && httpEvent.url.query['_rid']) {
             const requestMeta = _wq(httpEvent.request, 'meta');
@@ -91,7 +94,7 @@ export class WebfloRuntime {
         // Do proper routing for respone
         const response = await new Promise(async (resolve) => {
             let autoLiveResponse, response;
-            httpEvent.realtime.wqLifecycle.messaging.then(() => {
+            httpEvent.client.wqLifecycle.messaging.then(() => {
                 autoLiveResponse = new LiveResponse(null, { status: 202, statusText: 'Accepted', done: false });
                 resolve(autoLiveResponse);
             });
@@ -100,10 +103,10 @@ export class WebfloRuntime {
                 const remoteFetch = (...args) => this.remoteFetch(...args);
                 return await router.route(routeMethods, httpEvent, crossLayerFetch, remoteFetch);
             };
-            const fullRoutingPipeline = (this.cx.middlewares || []).concat(route);
+            const fullRoutingPipeline = this.bootstrap.middlewares.concat(route);
             try {
                 response = await fullRoutingPipeline.reverse().reduce((next, fn) => {
-                    return () => fn.call(this.cx, httpEvent, router, next);
+                    return () => fn.call(this.cx, httpEvent, next);
                 }, null)()/*immediately calling the first*/;
             } catch (e) {
                 console.error(e);
@@ -111,7 +114,7 @@ export class WebfloRuntime {
             }
             if (!(response instanceof LiveResponse) && !(response instanceof Response)) {
                 response = LiveResponse.test(response) === 'Default'
-                    ? Response.from(response)
+                    ? responseShim.from.value(response)
                     : await LiveResponse.from(response, { responsesOK: true });
             }
             // Any "carry" data?
@@ -139,42 +142,42 @@ export class WebfloRuntime {
         if (!httpEvent.lifeCycleComplete()) {
             if (this.isClientSide) {
                 const responseMeta = _wq(response, 'meta');
-                responseMeta.set('wqRealtime', responseRealtime);
+                responseMeta.set('background_port', clientPortB);
             } else {
-                const upstreamBackgroundMessagingPort = response.headers.get('X-Background-Messaging-Port');
-                response.headers.set('X-Background-Messaging-Port', responseRealtime);
+                const upstreamBackgroundPort = response.headers.get('X-Background-Messaging-Port');
+                response.headers.set('X-Background-Messaging-Port', clientPortB);
             }
 
             // On navigation:
-            // Abort httpEvent.realtime and httpEvent itself
-            httpEvent.realtime.addEventListener('navigate', (e) => {
+            // Abort httpEvent.client and httpEvent itself
+            httpEvent.client.addEventListener('navigate', (e) => {
                 setTimeout(() => { // Allow for global handlers to see the events
                     if (e.defaultPrevented) {
-                        console.log(`Client Messaging Port on ${httpEvent.request.url} not auto-closed on user navigation.`);
+                        LOGGER.log(`Client Messaging Port on ${httpEvent.request.url} not auto-closed on user navigation.`);
                     } else {
-                        httpEvent.realtime.close();
+                        httpEvent.client.close();
                         httpEvent.abort();
                     }
                 }, 0);
             });
             // On close:
             // Abort httpEvent itself
-            httpEvent.realtime.wqLifecycle.close.then(() => {
+            httpEvent.client.wqLifecycle.close.then(() => {
                 httpEvent.abort();
             });
 
             // On ROOT event complete:
-            // Close httpEvent.realtime
+            // Close httpEvent.client
             httpEvent.lifeCycleComplete(true).then(() => {
-                httpEvent.realtime.close();
+                httpEvent.client.close();
             });
         }
 
         if (!this.isClientSide && response instanceof LiveResponse) {
             // Must convert to Response on the server-side before returning
-            return response.toResponse({ clientRequestRealtime: httpEvent.realtime });
+            return response.toResponse({ client: httpEvent.client });
         }
-        
+
         return response;
     }
 
@@ -210,8 +213,8 @@ export class WebfloRuntime {
             const flashResponses = requestMeta.get('carries')?.map((c) => c.response).filter((r) => r);
             if (flashResponses?.length) {
                 httpEvent.waitUntil(new Promise((resolve) => {
-                    httpEvent.realtime.wqLifecycle.open.then(() => {
-                        httpEvent.realtime.postMessage(flashResponses, { wqEventOptions: { type: 'flash' } });
+                    httpEvent.client.wqLifecycle.open.then(() => {
+                        httpEvent.client.postMessage(flashResponses, { wqEventOptions: { type: 'flash' } });
                         resolve();
                     }, { once: true });
                 }));
@@ -315,7 +318,7 @@ export class WebfloRuntime {
 
     createStreamingResponse(httpEvent, readStream, stats) {
         let response;
-        const requestRange = httpEvent.request.headers.get('Range', true); // Parses the Range header
+        const requestRange = headersShim.get.value.call(httpEvent.request.headers, 'Range', true); // Parses the Range header
         if (requestRange.length) {
             const streams = requestRange.reduce((streams, range) => {
                 if (!streams) return;

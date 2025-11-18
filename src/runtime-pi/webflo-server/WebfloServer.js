@@ -7,9 +7,10 @@ import WebSocket from 'ws';
 import Mime from 'mime-types';
 import crypto from 'crypto';
 import 'dotenv/config';
+import $glob from 'fast-glob';
+import EsBuild from 'esbuild';
 import { Readable } from 'stream';
 import { spawn } from 'child_process';
-import { Observer } from '@webqit/quantum-js';
 import { _from as _arrFrom, _any } from '@webqit/util/arr/index.js';
 import { _isEmpty, _isObject } from '@webqit/util/js/index.js';
 import { _each } from '@webqit/util/obj/index.js';
@@ -21,18 +22,9 @@ import { ServerSideCookies } from './ServerSideCookies.js';
 import { ServerSideSession } from './ServerSideSession.js';
 import { HttpEvent } from '../webflo-routing/HttpEvent.js';
 import { HttpUser } from '../webflo-routing/HttpUser.js';
+import { response as responseShim, headers as headersShim } from '../webflo-fetch/index.js';
+import { LiveJSTransform } from '../../build-pi/esbuild-plugin-livejs-transform.js';
 import { createWindow } from '@webqit/oohtml-ssr';
-import {
-    readServerConfig,
-    readHeadersConfig,
-    readRedirectsConfig,
-    readLayoutConfig,
-    readEnvConfig,
-    readProxyConfig,
-    readWorkerConfig,
-    scanRoots,
-    scanRouteHandlers,
-} from '../../deployment-pi/util.js';
 import { _wq } from '../../util.js';
 import '../webflo-fetch/index.js';
 import '../webflo-url/index.js';
@@ -47,26 +39,15 @@ export class WebfloServer extends WebfloRuntime {
 
     static get HttpUser() { return HttpUser; }
 
-    static create(cx) {
-        return new this(this.Context.create(cx));
+    static create(bootstrap) {
+        return new this(bootstrap);
     }
 
-    #config;
-    get config() { return this.#config; }
-
-    #routes;
-    get routes() { return this.#routes; }
+    #servers = new Map;
+    #clients = new Clients;
+    #hmr;
 
     #renderFileCache = new Map;
-
-    #sdk = {};
-    get sdk() { return this.#sdk; }
-
-    #servers = new Map;
-
-    #clients;
-
-    #hmrRegistry;
 
     env(key) {
         const { ENV } = this.config;
@@ -78,59 +59,21 @@ export class WebfloServer extends WebfloRuntime {
     async initialize() {
         const instanceController = await super.initialize();
         const { appMeta: APP_META, flags: FLAGS, logger: LOGGER, } = this.cx;
-        this.#config = {
-            LAYOUT: await readLayoutConfig(this.cx),
-            ENV: await readEnvConfig(this.cx),
-            SERVER: await readServerConfig(this.cx),
-            HEADERS: await readHeadersConfig(this.cx),
-            REDIRECTS: await readRedirectsConfig(this.cx),
-            PROXY: await readProxyConfig(this.cx),
-            WORKER: await readWorkerConfig(this.cx),
-        };
-        const { PROXY } = this.config;
-        if (FLAGS['dev']) {
-            this.#config.DEV_DIR = Path.join(process.cwd(), '.webqit/webflo/@dev');
-            this.#config.DEV_LAYOUT = { ...this.config.LAYOUT };
-            for (const name of ['CLIENT_DIR', 'WORKER_DIR', 'SERVER_DIR', 'VIEWS_DIR', 'PUBLIC_DIR']) {
-                const originalDir = Path.relative(process.cwd(), this.config.LAYOUT[name]);
-                this.config.DEV_LAYOUT[name] = `${this.#config.DEV_DIR}/${originalDir}`;
-            }
-        }
-        // -----------------
-        this.#routes = {};
-        const spaRoots = Fs.existsSync(this.config.LAYOUT.PUBLIC_DIR) ? scanRoots(this.config.LAYOUT.PUBLIC_DIR, 'index.html') : [];
-        const serverRoots = PROXY.entries.map((proxy) => proxy.path?.replace(/^\.\//, '')).filter((p) => p);
-        scanRouteHandlers(this.#config.DEV_LAYOUT || this.#config.LAYOUT, 'server', (file, route) => {
-            this.routes[route] = file;
-        }, ''/*offset*/, serverRoots);
-        Object.defineProperty(this.#routes, '$root', { value: '' });
-        Object.defineProperty(this.#routes, '$sparoots', { value: spaRoots });
-        Object.defineProperty(this.#routes, '$serverroots', { value: serverRoots });
-        // -----------------
-        await this.setupCapabilities();
-        this.#clients = new Clients;
-        this.control();
+
+        // ----------
+        // Initialize routes
         if (FLAGS['dev']) {
             await this.enterDevMode();
-        }
-        // -----------------
-        if (this.#servers.size) {
-            // Show server details
-            LOGGER?.info(`> Server running! (${APP_META.title || ''}) ✅`);
-            for (let [proto, def] of this.#servers) {
-                LOGGER?.info(`> ${proto.toUpperCase()} / ${def.hostnames.concat('').join(`:${def.port} / `)}`);
-            }
-            // Show capabilities
-            LOGGER?.info(``);
-            LOGGER?.info(`Capabilities: ${Object.keys(this.#sdk).join(', ')}`);
-            LOGGER?.info(``);
         } else {
-            LOGGER?.info(`> Server not running! No port specified.`);
+            await this.buildRoutes();
         }
-        // -----------------
+
+        // ----------
+        // Show proxies
+        const { PROXY } = this.config;
         if (PROXY.entries.length) {
             // Show active proxies
-            LOGGER?.info(`> Reverse proxies active.`);
+            LOGGER.info(`> Reverse proxies active.`);
             for (const proxy of PROXY.entries) {
                 let desc = `> ${proxy.hostnames.join('|')} >>> ${proxy.port || proxy.path}`;
                 // Start a proxy recursively?
@@ -143,101 +86,52 @@ export class WebfloServer extends WebfloRuntime {
                         shell: true       // for Windows compatibility
                     });
                 }
-                LOGGER?.info(desc);
+                LOGGER.info(desc);
             }
         }
+
+        // ----------
+        // Start serving
+        this.control();
+
+        // ----------
+        // Show server details
+        if (this.#servers.size) {
+            LOGGER.info(`> Server running! (${APP_META.title || ''}) ✅`);
+            for (let [proto, def] of this.#servers) {
+                LOGGER.info(`> ${proto.toUpperCase()} / ${def.hostnames.concat('').join(`:${def.port} / `)}`);
+            }
+        } else {
+            LOGGER.info(`> No servers running!`);
+        }
+
         return instanceController;
     }
 
-    async setupCapabilities() {
-        const instanceController = await super.setupCapabilities();
-        const { SERVER } = this.config;
-        this.#sdk.Observer = Observer;
-        // 1. Database capabilities?
-        if (SERVER.capabilities?.database) {
-            if (SERVER.capabilities.database_dialect !== 'postgres') {
-                throw new Error(`Only postgres supported for now for database dialect`);
-            }
-            if (this.env('DATABASE_URL')) {
-                const { SQLClient } = await import('@linked-db/linked-ql/sql');
-                const { default: pg } = await import('pg');
-                // Obtain pg client
-                const pgClient = new pg.Pool({
-                    connectionString: this.env('DATABASE_URL')
-                });
-                await (async function connect() {
-                    pgClient.on('error', (e) => {
-                        console.log('PG Error', e);
-                    });
-                    pgClient.on('end', (e) => {
-                        console.log('PG End', e);
-                    });
-                    pgClient.on('notice', (e) => {
-                        console.log('PG Notice', e);
-                    });
-                    await pgClient.connect();
-                })();
-                this.#sdk.db = new SQLClient(pgClient, { dialect: 'postgres' });
-            } else {
-                //const { ODBClient } = await import('@linked-db/linked-ql/odb');
-                //this.#sdk.db = new ODBClient({ dialect: 'postgres' });
-            }
-        }
-        // 2. Storage capabilities?
-        if (SERVER.capabilities?.redis) {
-            const { Redis } = await import('ioredis');
-            const redis = this.env('REDIS_URL')
-                ? new Redis(this.env('REDIS_URL'))
-                : new Redis;
-            this.#sdk.redis = redis;
-            this.#sdk.storage = (namespace, ttl = null) => ({
-                async has(key) { return await redis.hexists(namespace, key); },
-                async get(key) {
-                    const value = await redis.hget(namespace, key);
-                    return typeof value === 'undefined' ? value : JSON.parse(value);
-                },
-                async set(key, value) {
-                    const returnValue = await redis.hset(namespace, key, JSON.stringify(value));
-                    if (!this.ttlApplied && ttl) {
-                        await redis.expire(namespace, ttl);
-                        this.ttlApplied = true;
-                    }
-                    return returnValue;
-                },
-                async delete(key) { return await redis.hdel(namespace, key); },
-                async clear() { return await redis.del(namespace); },
-                async keys() { return await redis.hkeys(namespace); },
-                async values() { return (await redis.hvals(namespace) || []).map((value) => typeof value === 'undefined' ? value : JSON.parse(value)); },
-                async entries() { return Object.entries(await redis.hgetall(namespace) || {}).map(([key, value]) => [key, typeof value === 'undefined' ? value : JSON.parse(value)]); },
-                get size() { return redis.hlen(namespace); },
-            });
-        } else {
-            const inmemSessionRegistry = new Map;
-            this.#sdk.storage = (namespace) => {
-                if (!inmemSessionRegistry.has(namespace)) {
-                    inmemSessionRegistry.set(namespace, new Map);
-                }
-                return inmemSessionRegistry.get(namespace);
-            };
-        }
-        // 3. webpush capabilities?
-        if (SERVER.capabilities?.webpush) {
-            const { default: webpush } = await import('web-push');
-            this.#sdk.webpush = webpush;
-            if (this.env('VAPID_PUBLIC_KEY') && this.env('VAPID_PRIVATE_KEY')) {
-                webpush.setVapidDetails(
-                    SERVER.capabilities.vapid_subject,
-                    this.env('VAPID_PUBLIC_KEY'),
-                    this.env('VAPID_PRIVATE_KEY')
-                );
-            }
-        }
-        return instanceController;
+    async buildRoutes({ client = false, worker = false, ...options } = {}) {
+        const routeDirs = [...new Set([this.config.LAYOUT.CLIENT_DIR, this.config.LAYOUT.WORKER_DIR, this.config.LAYOUT.SERVER_DIR])];
+        const entryPoints = await $glob(routeDirs.map((d) => `${d}/**/handler{${client ? ',.client' : ''}${worker ? ',.worker' : ''},.server}.js`), { absolute: true })
+            .then((files) => files.map((file) => file.replace(/\\/g, '/')));
+        const entryNames = routeDirs.length === 1 ? `${Path.relative(process.cwd(), routeDirs[0])}/[dir]/[name]` : `[dir]/[name]`;
+        const bundlingConfig = {
+            entryPoints,
+            outdir: this.config.RUNTIME_DIR,
+            entryNames,
+            bundle: true,
+            format: 'esm',
+            minify: false,
+            sourcemap: false,
+            platform: 'browser', // optional but good for clarity
+            treeShaking: true,   // Important optimization
+            plugins: [ LiveJSTransform() ],
+            ...options,
+        };
+        return await EsBuild.build(bundlingConfig);
     }
 
     async enterDevMode() {
         const { appMeta, flags: FLAGS } = this.cx;
-        this.#hmrRegistry = WebfloHMR.manage(this, {
+        this.#hmr = WebfloHMR.manage(this, {
             appMeta,
             buildScripts: {
                 ['build:html']: FLAGS['build:html'] ?? true,
@@ -246,7 +140,7 @@ export class WebfloServer extends WebfloRuntime {
             },
             buildSensitivity: parseInt(FLAGS['build-sensitivity'] || 0),
         });
-        await this.#hmrRegistry.buildJS(true);
+        await this.#hmr.buildRoutes(true);
         if (FLAGS['open']) {
             for (let [proto, def] of this.#servers) {
                 const url = `${proto}://${def.hostnames.find((h) => h !== '*') || 'localhost'}:${def.port}`;
@@ -259,7 +153,7 @@ export class WebfloServer extends WebfloRuntime {
         const { flags: FLAGS } = this.cx;
         const { SERVER, PROXY } = this.config;
         const instanceController = super.control();
-        // ---------------
+
         if (!FLAGS['test-only'] && !FLAGS['https-only'] && SERVER.port) {
             const httpServer = Http.createServer((request, response) => this.handleNodeHttpRequest(request, response));
             httpServer.listen(FLAGS['port'] || SERVER.port);
@@ -273,7 +167,7 @@ export class WebfloServer extends WebfloRuntime {
                 this.handleNodeWsRequest(wss, request, socket, head);
             });
         }
-        // ---------------
+
         if (!FLAGS['test-only'] && !FLAGS['http-only'] && SERVER.https.port) {
             const httpsServer = Https.createServer((request, response) => this.handleNodeHttpRequest(request, response));
             httpsServer.listen(SERVER.https.port);
@@ -304,21 +198,22 @@ export class WebfloServer extends WebfloRuntime {
                 this.handleNodeWsRequest(wss, request, socket, head);
             });
         }
-        // ---------------
+
         const wss = new WebSocket.Server({ noServer: true });
-        // -----------------
+
         process.on('uncaughtException', (err) => {
             console.error('Uncaught Exception:', err);
         });
         process.on('unhandledRejection', (reason, promise) => {
             console.log('Unhandled Rejection', reason, promise);
         });
+
         return instanceController;
     }
 
     identifyIncoming(request, autoGenerateID = false) {
         const secret = this.env('SESSION_KEY');
-        let clientID = request.headers.get('Cookie', true).find((c) => c.name === '__sessid')?.value;
+        let clientID = headersShim.get.value.call(request.headers, 'Cookie', true).find((c) => c.name === '__sessid')?.value;
         if (clientID?.includes('.')) {
             if (secret) {
                 const [rand, signature] = clientID.split('.');
@@ -465,7 +360,7 @@ export class WebfloServer extends WebfloRuntime {
             if (requestURL.searchParams.get('rel') === 'hmr') {
                 wss.handleUpgrade(nodeRequest, socket, head, (ws) => {
                     wss.emit('connection', ws, nodeRequest);
-                    this.#hmrRegistry.clients.add(ws);
+                    this.#hmr.clients.add(ws);
                 });
             }
             if (requestURL.searchParams.get('rel') === 'background-messaging') {
@@ -497,7 +392,7 @@ export class WebfloServer extends WebfloRuntime {
                 if (existing) nodeResponse.setHeader(name, [].concat(existing).concat(value));
                 else nodeResponse.setHeader(name, value);
             }
-            nodeResponse.statusCode = response.status;
+            nodeResponse.statusCode = responseShim.prototype.status.get.call(response);
             nodeResponse.statusMessage = response.statusText;
             if (response.body instanceof Readable) {
                 response.body.pipe(nodeResponse);
@@ -571,7 +466,7 @@ export class WebfloServer extends WebfloRuntime {
     }
 
     writeRedirectHeaders(httpEvent, response) {
-        const $sparoots = this.#routes.$sparoots;
+        const $sparoots = this.bootstrap.$sparoots;
         const xRedirectPolicy = httpEvent.request.headers.get('X-Redirect-Policy');
         const xRedirectCode = httpEvent.request.headers.get('X-Redirect-Code') || 300;
         const destinationURL = new URL(response.headers.get('Location'), httpEvent.url.origin);
@@ -584,7 +479,7 @@ export class WebfloServer extends WebfloRuntime {
             isSameSpaRedirect = matchRoot(destinationURL.pathname) === matchRoot(httpEvent.url.pathname);
         }
         if (xRedirectPolicy === 'manual' || (!isSameOriginRedirect && xRedirectPolicy === 'manual-when-cross-origin') || (!isSameSpaRedirect && xRedirectPolicy === 'manual-when-cross-spa')) {
-            response.headers.set('X-Redirect-Code', response.status);
+            response.headers.set('X-Redirect-Code', responseShim.prototype.status.get.call(response));
             response.headers.set('Access-Control-Allow-Origin', '*');
             response.headers.set('Cache-Control', 'no-store');
             const responseMeta = _wq(response, 'meta');
@@ -609,18 +504,23 @@ export class WebfloServer extends WebfloRuntime {
 
     async localFetch(httpEvent) {
         const { flags: FLAGS } = this.cx;
-        const { DEV_LAYOUT, LAYOUT } = this.config;
+        const { RUNTIME_LAYOUT, LAYOUT } = this.config;
         const scopeObj = {};
         if (FLAGS['dev']) {
-            if (httpEvent.url.pathname === '/@dev') {
-                const filename = httpEvent.url.searchParams.get('src').split('?')[0];
+            if (httpEvent.url.pathname === '/@hmr') {
+                const filename = httpEvent.url.searchParams.get('src')?.split('?')[0] || '';
                 if (filename.endsWith('.js')) {
-                    scopeObj.filename = Path.join(DEV_LAYOUT.PUBLIC_DIR, filename);
+                    // This is purely a route handler source request from HMR
+                    scopeObj.filename = Path.join(RUNTIME_LAYOUT.PUBLIC_DIR, filename);
                 } else {
+                    // This is a static asset (HTML) request from HMR
                     scopeObj.filename = Path.join(LAYOUT.PUBLIC_DIR, filename);
                 }
-            } else if (this.#hmrRegistry.options.buildSensitivity === 2) {
-                await this.#hmrRegistry.bundleAssetsIfPending();
+            } else {
+                if (this.#hmr.options.buildSensitivity === 1) {
+                    // This is a static asset request in dev mode but NOT from HMR
+                    await this.#hmr.bundleAssetsIfPending();
+                }
                 scopeObj.filename = Path.join(LAYOUT.PUBLIC_DIR, httpEvent.url.pathname.split('?')[0]);
             }
         } else {
@@ -676,7 +576,8 @@ export class WebfloServer extends WebfloRuntime {
         // Range support
         const readStream = (params = {}) => Fs.createReadStream(scopeObj.filename, { ...params });
         scopeObj.response = this.createStreamingResponse(httpEvent, readStream, scopeObj.stats);
-        if (scopeObj.response.status === 416) return finalizeResponse(scopeObj.response);
+        const statusCode = responseShim.prototype.status.get.call(scopeObj.response);
+        if (statusCode === 416) return finalizeResponse(scopeObj.response);
         // ------ If we get here, it means we're good ------
         if (scopeObj.enc) {
             scopeObj.response.headers.set('Content-Encoding', scopeObj.enc);
@@ -698,7 +599,7 @@ export class WebfloServer extends WebfloRuntime {
         scopeObj.response.headers.set('Accept-Ranges', 'bytes');
         // 6. Qualify Service-Worker responses
         if (httpEvent.request.headers.get('Service-Worker') === 'script') {
-            scopeObj.response.headers.set('Service-Worker-Allowed', this.#config.WORKER.scope || '/');
+            scopeObj.response.headers.set('Service-Worker-Allowed', this.config.WORKER.scope || '/');
         }
         return finalizeResponse(scopeObj.response);
     }
@@ -718,35 +619,34 @@ export class WebfloServer extends WebfloRuntime {
         });
         scopeObj.clientID = this.identifyIncoming(scopeObj.request, true);
         scopeObj.client = this.#clients.getClient(scopeObj.clientID, true);
-        scopeObj.realtimePortID = crypto.randomUUID();
-        scopeObj.clientRequestRealtime = scopeObj.client.createRequestRealtime(scopeObj.realtimePortID, scopeObj.request.url);
+        scopeObj.clientPortID = crypto.randomUUID();
+        scopeObj.clientRequestRealtime = scopeObj.client.createRequestRealtime(scopeObj.clientPortID, scopeObj.request.url);
         scopeObj.sessionTTL = this.env('SESSION_TTL') || 2592000/*30days*/;
         scopeObj.session = this.createHttpSession({
-            store: this.#sdk.storage?.(`${scopeObj.url.host}/session:${scopeObj.clientID}`, scopeObj.sessionTTL),
+            store: this.createStorage(`${scopeObj.url.host}/session:${scopeObj.clientID}`, scopeObj.sessionTTL),
             request: scopeObj.request,
             sessionID: scopeObj.clientID,
             ttl: scopeObj.sessionTTL
         });
         scopeObj.user = this.createHttpUser({
-            store: this.#sdk.storage?.(`${scopeObj.url.host}/user:${scopeObj.clientID}`, scopeObj.sessionTTL),
+            store: this.createStorage(`${scopeObj.url.host}/user:${scopeObj.clientID}`, scopeObj.sessionTTL),
             request: scopeObj.request,
-            realtime: scopeObj.clientRequestRealtime,
+            client: scopeObj.clientRequestRealtime,
             session: scopeObj.session,
         });
         scopeObj.httpEvent = this.createHttpEvent({
             request: scopeObj.request,
-            realtime: scopeObj.clientRequestRealtime,
+            client: scopeObj.clientRequestRealtime,
             cookies: scopeObj.cookies,
             session: scopeObj.session,
             user: scopeObj.user,
             detail: scopeObj.detail,
-            sdk: this.#sdk,
         });
         // Dispatch for response
         scopeObj.response = await this.dispatchNavigationEvent({
             httpEvent: scopeObj.httpEvent,
             crossLayerFetch: (event) => this.localFetch(event),
-            responseRealtime: `ws:${scopeObj.httpEvent.realtime.portID}?rel=background-messaging`
+            clientPortB: `ws:${scopeObj.httpEvent.client.portID}?rel=background-messaging`
         });
         // Reponse handlers
         if (FLAGS['dev']) {
@@ -765,12 +665,13 @@ export class WebfloServer extends WebfloRuntime {
     }
 
     async satisfyRequestFormat(httpEvent, response) {
-        if (response.status === 206 || response.status === 416) {
+        const statusCode = responseShim.prototype.status.get.call(response);
+        if (statusCode === 206 || statusCode === 416) {
             // If the response is a partial content, we don't need to do anything else
             return response;
         }
         // Satisfy "Accept" header
-        const requestAccept = httpEvent.request.headers.get('Accept', true);
+        const requestAccept = headersShim.get.value.call(httpEvent.request.headers, 'Accept', true);
         const asHTML = requestAccept?.match('text/html');
         const asIs = requestAccept?.match(response.headers.get('Content-Type'));
         const responseMeta = _wq(response, 'meta');
@@ -785,7 +686,7 @@ export class WebfloServer extends WebfloRuntime {
             response.headers.append('Vary', 'Accept');
         }
         // Satisfy "Range" header
-        const requestRange = httpEvent.request.headers.get('Range', true);
+        const requestRange = headersShim.get.value.call(httpEvent.request.headers, 'Range', true);
         if (requestRange.length && response.headers.get('Content-Length')) {
             const stats = {
                 size: parseInt(response.headers.get('Content-Length')),
@@ -827,7 +728,7 @@ export class WebfloServer extends WebfloRuntime {
                 if (document.readyState === 'complete') return res(1);
                 document.addEventListener('load', res);
             });
-            const data = await response.parse();
+            const data = await responseShim.prototype.parse.value.call(response);
             if (window.webqit?.oohtml?.config) {
                 // Await rendering engine
                 if (window.webqit?.$qCompilerWorker) {
@@ -879,7 +780,7 @@ export class WebfloServer extends WebfloRuntime {
             const rendering = window.toString();
             document.documentElement.remove();
             document.writeln('');
-            try { window.close(); } catch (e) {}
+            try { window.close(); } catch (e) { }
             return rendering;
         });
         // Validate rendering
@@ -887,9 +788,10 @@ export class WebfloServer extends WebfloRuntime {
             throw new Error('render() must return a string response or an object that implements toString()..');
         }
         // Convert back to response
+        const statusCode = responseShim.prototype.status.get.call(response);
         scopeObj.response = new Response(scopeObj.rendering, {
             headers: response.headers,
-            status: response.status,
+            status: statusCode,
             statusText: response.statusText,
         });
         scopeObj.response.headers.set('Content-Type', 'text/html');
@@ -902,10 +804,11 @@ export class WebfloServer extends WebfloRuntime {
         const log = [];
         // ---------------
         const style = LOGGER.style || { keyword: (str) => str, comment: (str) => str, url: (str) => str, val: (str) => str, err: (str) => str, };
-        const errorCode = response.status >= 400 && response.status < 500 ? response.status : 0;
+        const statusCode = responseShim.prototype.status.get.call(response);
+        const errorCode = statusCode >= 400 && statusCode < 500 ? statusCode : 0;
         const xRedirectCode = response.headers.get('X-Redirect-Code');
-        const isRedirect = (xRedirectCode || response.status + '').startsWith('3') && (xRedirectCode || response.status) !== 304;
-        const statusCode = xRedirectCode && `${xRedirectCode} (${response.status})` || response.status;
+        const isRedirect = (xRedirectCode || statusCode + '').startsWith('3') && (xRedirectCode || statusCode) !== 304;
+        const _statusCode = xRedirectCode && `${xRedirectCode} (${statusCode})` || statusCode;
         const responseMeta = _wq(response, 'meta');
         // ---------------
         log.push(`[${style.comment((new Date).toUTCString())}]`);
@@ -917,7 +820,7 @@ export class WebfloServer extends WebfloRuntime {
         if (contentInfo.length) log.push(`(${style.comment(contentInfo.join('; '))})`);
         if (response.headers.get('Content-Encoding')) log.push(`(${style.comment(response.headers.get('Content-Encoding'))})`);
         if (errorCode) log.push(style.err(`${errorCode} ${response.statusText}`));
-        else log.push(style.val(`${statusCode} ${response.statusText}`));
+        else log.push(style.val(`${_statusCode} ${response.statusText}`));
         if (isRedirect) log.push(`- ${style.url(response.headers.get('Location'))}`);
         return log.join(' ');
     }

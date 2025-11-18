@@ -1,4 +1,4 @@
-export class Context {
+export class CLIContext {
 
     constructor(dict, CD = null) {
         // dict can be plain object or some Context instance itself
@@ -14,13 +14,14 @@ export class Context {
         }
     }
 
-    get name() {
-        return 'webflo';
-    }
-
     // create
     static create(...args) {
         return new this(...args);
+    }
+
+    // name
+    get name() {
+        return 'webflo';
     }
 
     // CWD
@@ -33,7 +34,7 @@ export class Context {
         return this.dict.meta || {};
     }
 
-    // app
+    // appMeta
     get appMeta() {
         return this.dict.appMeta || {};
     }
@@ -63,7 +64,7 @@ export class Context {
 
     // logger
     get logger() {
-        return this.dict.logger;
+        return this.dict.logger || console;
     }
 
     set logger(value) {

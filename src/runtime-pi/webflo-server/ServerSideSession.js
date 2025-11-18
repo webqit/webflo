@@ -1,4 +1,5 @@
 import { HttpSession } from '../webflo-routing/HttpSession.js';
+import { headers as headersShim } from '../webflo-fetch/index.js';
 
 export class ServerSideSession extends HttpSession {
 
@@ -29,7 +30,7 @@ export class ServerSideSession extends HttpSession {
     }
 
     async commit(response = null, devMode = false) {
-        if (response && !response.headers.get('Set-Cookie', true).find((c) => c.name === '__sessid')) {
+        if (response && !headersShim.get.value.call(response.headers, 'Set-Cookie', true).find((c) => c.name === '__sessid')) {
             // expires six months
             response.headers.append('Set-Cookie', `__sessid=${this.#sessionID}; Path=/; ${!devMode ? 'Secure; ' : ''}HttpOnly; SameSite=Lax${this.#ttl ? `; Max-Age=${this.#ttl}` : ''}`);
         }

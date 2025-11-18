@@ -1,7 +1,5 @@
-import * as server from './webflo-server/index.js';
-import * as client from './webflo-client/webflo-codegen.js';
+import { start } from './webflo-server/bootstrap.js';
 
 export {
-    server,
-    client
+    start,
 }

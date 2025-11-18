@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "build:html": "oohtml bundle --recursive --outdir=public/assets --auto-embed=app",
-    "build:js": "webflo generate::client --recursive --outdir=public/assets --auto-embed",
+    "build:js": "webflo build --client --worker --server --recursive --outdir=public/assets --auto-embed",
     "build": "npm run build:html && npm run build:js",
-    "dev": "webflo start --dev --build-sensitivity=2",
+    "dev": "webflo start --dev --build-sensitivity=1",
     "start": "webflo start"
   },
   "dependencies": {

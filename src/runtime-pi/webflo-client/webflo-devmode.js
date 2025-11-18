@@ -45,7 +45,7 @@ export class WebfloHMR {
                     if (event.actionableEffect === 'unlink') {
                         delete this.#app.routes[event.affectedRoute];
                     } else {
-                        this.#app.routes[event.affectedRoute] = `/@dev?src=${event.affectedHandler}&t=${Date.now()}`;
+                        this.#app.routes[event.affectedRoute] = `/@hmr?src=${event.affectedHandler}&t=${Date.now()}`;
                     }
                     statuses.routesAffected.add(event.affectedRoute);
                 } else if (event.realm === 'worker') {
@@ -203,7 +203,7 @@ export class WebfloHMR {
         }
         const $url = node.$url;
         const url = encodeURIComponent($url.href.replace(`${$url.origin}/`, '')); // preserving origin query strings
-        const urlRewrite = `/@dev?src=${url}&t=${Date.now()}`;
+        const urlRewrite = `/@hmr?src=${url}&t=${Date.now()}`;
         if (node.matches(this.#selectors.remoteStyleSheet)) {
             node.setAttribute('href', urlRewrite);
             return 1;
@@ -216,7 +216,7 @@ export class WebfloHMR {
     }
 
     async loadHTMLModule(url) {
-        const urlRewrite = `/@dev?src=${url}?t=${Date.now()}`;
+        const urlRewrite = `/@hmr?src=${url}?t=${Date.now()}`;
         const fileContents = await fetch(urlRewrite).then((res) => res.text()).catch(() => null);
         if (fileContents === null) return null;
         const temp = document.createElement('template');

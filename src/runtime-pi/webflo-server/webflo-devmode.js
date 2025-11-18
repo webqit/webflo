@@ -1,6 +1,4 @@
 import Path from 'path';
-import $glob from 'fast-glob';
-import EsBuild from 'esbuild';
 import chokidar from 'chokidar';
 import { exec, spawn } from 'child_process';
 import { platform } from 'os';
@@ -108,7 +106,7 @@ export class WebfloHMR {
                     this.#jsMeta.mustRevalidate = true; // Invalidate graph
                 }
                 if ((!hasJustBeenRebuilt && type !== 'unlink') || !this.#jsMeta.dependencyMap) { // We need graph in place to process affected routes for an unlink event
-                    await this.buildJS(this.#jsMeta.mustRevalidate/*fullBuild*/);
+                    await this.buildRoutes(this.#jsMeta.mustRevalidate/*fullBuild*/);
                     hasJustBeenRebuilt = true;
                 }
                 const affectedHandlers = this.#jsMeta.dependencyMap[target] || [];
@@ -145,7 +143,7 @@ export class WebfloHMR {
                 if (/^unlink/.test(event.actionableEffect)) {
                     delete this.#app.routes[event.affectedRoute];
                 } else if (event.realm === 'server') {
-                    this.#app.routes[event.affectedRoute] = `${Path.join(this.#app.config.DEV_DIR, event.affectedHandler)}?_webflohmrhash=${Date.now()}`;
+                    this.#app.routes[event.affectedRoute] = `${Path.join(this.#app.config.RUNTIME_DIR, event.affectedHandler)}?_webflohmrhash=${Date.now()}`;
                 }
             } else if (event.fileType === 'css') {
                 this.#dirtiness.CSSAffected = true;
@@ -153,7 +151,7 @@ export class WebfloHMR {
                 this.#dirtiness.HTMLAffected = true;
             }
         }
-        if (this.#options.buildSensitivity === 1) {
+        if (this.#options.buildSensitivity === 2) {
             await this.bundleAssetsIfPending();
         }
         // Broadcast to clients
@@ -172,34 +170,23 @@ export class WebfloHMR {
         }
     }
 
-    async buildJS(fullBuild = false) {
+    async buildRoutes(fullBuild = false) {
         // 0. Generate graph
         let buildResult;
         try {
             if (this.#jsMeta.prevBuildResult) {
                 if (fullBuild) await this.#jsMeta.prevBuildResult.rebuild.dispose();
                 else buildResult = await buildResult.rebuild();
-            }
+            }``
             if (!buildResult) {
-                const routeDirs = [...this.#routeDirs];
-                const entryPoints = await $glob(routeDirs.map((d) => `${d}/**/handler{,.client,.worker,.server}.js`), { absolute: true })
-                    .then((files) => files.map((file) => file.replace(/\\/g, '/')));
-                const entryNames = routeDirs.length === 1 ? `${Path.relative(process.cwd(), routeDirs[0])}/[dir]/[name]` : `[dir]/[name]`;
                 const bundlingConfig = {
-                    entryPoints,
-                    outdir: this.#app.config.DEV_DIR,
-                    entryNames,
-                    bundle: true,
-                    format: 'esm',
-                    platform: 'browser', // optional but good for clarity
+                    client: true,
+                    worker: true,
                     metafile: true,      // This is key
-                    treeShaking: true,   // Optional optimization
                     logLevel: 'silent',  // Suppress output
-                    minify: false,
-                    sourcemap: false,
                     incremental: true,
                 };
-                buildResult = await EsBuild.build(bundlingConfig);
+                buildResult = await this.#app.buildRoutes(bundlingConfig);
             }
         } catch (e) { return false; }
 
@@ -248,6 +235,7 @@ export class WebfloHMR {
             entries.js = {};
             entries.js.client = !!this.#dirtiness.clientRoutesAffected.size;
             entries.js.worker = this.#dirtiness.serviceWorkerAffected;
+            entries.js.server = false;
             // Clear state
             this.#dirtiness.clientRoutesAffected.clear();
             this.#dirtiness.serviceWorkerAffected = false;
@@ -265,11 +253,11 @@ export class WebfloHMR {
 
         for (const e in entries) {
             const buildKey = `build:${e}`;
-            let buildScript,
-                buildScriptName = this.#options.buildScripts?.[buildKey];
+            let buildScriptName = this.#options.buildScripts?.[buildKey];
             if (buildScriptName === true) {
                 buildScriptName = buildKey;
             }
+            let buildScript;
             if (buildScriptName
                 && (buildScript = this.#options.appMeta.scripts?.[buildScriptName])) {
                 await this.#spawnProcess(buildScript, entries[e]);
@@ -278,8 +266,9 @@ export class WebfloHMR {
     }
 
     async #spawnProcess(command, options = {}) {
+        const $options = Object.fromEntries(Object.entries(options).map(([k, v]) => [`--${k}`, v]));
         const commandArr = [...new Set(
-            command.split(/\s+?/).concat(Object.keys(options)).filter((s) => !(s in options) || options[s])
+            command.split(/\s+?/).concat(Object.keys($options)).filter((s) => !(s in $options) || $options[s])
         )];
         return await new Promise((resolve, reject) => {
             const child = spawn(commandArr.shift(), commandArr, {

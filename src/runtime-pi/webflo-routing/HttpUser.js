@@ -2,19 +2,19 @@ import { HttpState } from './HttpState.js';
 
 export class HttpUser extends HttpState {
 
-    static create({ store, request, realtime, session }) {
-        return new this({ store, request, realtime, session });
+    static create({ store, request, client, session }) {
+        return new this({ store, request, client, session });
     }
 
-    #realtime;
+    #client;
 
-    constructor({ store, request, realtime, session }) {
+    constructor({ store, request, client, session }) {
         super({
             store,
             request,
             session
         });
-        this.#realtime = realtime;
+        this.#client = client;
     }
 
     async isSignedIn() {
@@ -34,7 +34,7 @@ export class HttpUser extends HttpState {
 
     async confirm(data, callback, options = {}) {
         return await new Promise((resolve) => {
-            this.#realtime.postRequest(
+            this.#client.postRequest(
                 data,
                 (event) => resolve(callback ? callback(event) : event),
                 { ...options, wqEventOptions: { type: 'confirm' } }
@@ -44,7 +44,7 @@ export class HttpUser extends HttpState {
 
     async prompt(data, callback, options = {}) {
         return await new Promise((resolve) => {
-            this.#realtime.postRequest(
+            this.#client.postRequest(
                 data,
                 (event) => resolve(callback ? callback(event) : event),
                 { ...options, wqEventOptions: { type: 'prompt' } }

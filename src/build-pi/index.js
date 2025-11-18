@@ -1,21 +1,18 @@
 import Fs from 'fs';
 import Path from 'path';
+import Url from 'url';
 import Jsdom from 'jsdom';
 import EsBuild from 'esbuild';
 import { gzipSync, brotliCompressSync } from 'zlib';
 import { _afterLast, _beforeLast } from '@webqit/util/str/index.js';
 import { _isObject, _isArray } from '@webqit/util/js/index.js';
 import { jsFile } from '@webqit/backpack/src/dotfile/index.js';
-import { Context } from '../../Context.js';
-import {
-    readClientConfig,
-    readWorkerConfig,
-    readLayoutConfig,
-    readEnvConfig,
-    scanRoots,
-    scanRouteHandlers,
-} from '../../deployment-pi/util.js';
-import '../webflo-url/urlpattern.js';
+import { bootstrap as serverBootstrap } from '../runtime-pi/webflo-server/bootstrap.js';
+import { bootstrap as clientBootstrap } from '../runtime-pi/webflo-client/bootstrap.js';
+import { bootstrap as workerBootstrap } from '../runtime-pi/webflo-worker/bootstrap.js';
+import { LiveJSTransform } from './esbuild-plugin-livejs-transform.js';
+import { CLIContext } from '../CLIContext.js';
+import '../runtime-pi/webflo-url/urlpattern.js';
 
 function declareConfig({ $source, configExport, indentation = 0 }) {
     const varName = 'config';
@@ -51,20 +48,25 @@ function declareConfig({ $source, configExport, indentation = 0 }) {
     }
 }
 
-function declareRoutes({ $context, $config, $source, which, offset, roots = [] }) {
+function declareRoutes({ $context, $source, bootstrap }) {
     const { flags: FLAGS, logger: LOGGER } = $context;
     LOGGER?.log(LOGGER.style.keyword(`> `) + `Declaring routes...`);
+
     // Define vars
     const varName = 'routes';
-    const targetDir = Path.join(FLAGS.outdir || $config.LAYOUT.PUBLIC_DIR, offset);
+    const targetDir = FLAGS.outdir || bootstrap.outdir;
+
     // >> Routes mapping
     $source.code.push(`const ${varName} = {};`);
+
     // Route entries
     let routeCount = 0;
-    scanRouteHandlers($config.LAYOUT, which, (file, route, filename, fstat) => {
+    for (const route of Object.keys(bootstrap.routes)) {
+        const file = bootstrap.routes[route];
+        const fstat = Fs.statSync(file);
         // The "import" code
         const routeId = 'route' + (++routeCount);
-        const importPath = Path.relative(targetDir, file);
+        const importPath = file;
         $source.imports[importPath] = '* as ' + routeId;
         // The route def
         $source.code.push(`${varName}['${route}'] = ${routeId};`);
@@ -72,35 +74,52 @@ function declareRoutes({ $context, $config, $source, which, offset, roots = [] }
         LOGGER?.log(
             LOGGER.style.comment(`  [${route}]:   `) + LOGGER.style.url(importPath) + LOGGER.style.comment(` (${fstat.size / 1024} KB)`)
         );
-    }, offset, roots);
-    // >> Specials
-    $source.code.push(`Object.defineProperty(${varName}, '$root', { value: '${offset}' });`);
-    $source.code.push(`Object.defineProperty(${varName}, '$sparoots', { value: ${JSON.stringify(roots)} });`);
+    }
+
     if (!routeCount) {
         LOGGER?.log(LOGGER.style.comment(`  (none)`));
     }
 }
 
 function writeImportWebflo($source, which) {
-    $source.imports[`@webqit/webflo/src/runtime-pi/webflo-${which}/index.js`] = `{ start }`;
+    const importUrl = Url.fileURLToPath(import.meta.url);
+    const importPath = Path.join(Path.dirname(importUrl), `../runtime-pi/webflo-${which}/index.js`);
+    $source.imports[importPath] = `{ start }`;
 }
 
-function writeScriptBody({ $context, $config, $source, which, offset, roots, configExport }) {
+function writeScriptBody({ $context, $source, bootstrap, configExport, which }) {
+    // >> Init
+    if (bootstrap.$init) {
+        const importPath = bootstrap.$init;
+        $source.imports[importPath] = `* as init`;
+    } else {
+        $source.code.push(`const init = null;`);
+    }
+
     // >> Config
     $source.code.push(`// >> Config export`);
     declareConfig({ $source, configExport });
     $source.code.push(``);
+
     // >> Routes mapping
     $source.code.push(`// >> Routes`);
-    declareRoutes({ $context, $config, $source, which, offset, roots });
+    declareRoutes({ $context, $source, bootstrap, which });
     $source.code.push(``);
+
+    // >> Specials
+    $source.code.push(`// >> Routes`);
+    $source.code.push(`const $root = '${bootstrap.offset || null}';`);
+    $source.code.push(`const $roots = ${bootstrap.$roots?.length ? JSON.stringify(bootstrap.$roots) : '[]'};`);
+    $source.code.push(`const $sparoots = ${bootstrap.$sparoots?.length ? JSON.stringify(bootstrap.$sparoots) : '[]'};`);
+    $source.code.push(``);
+
     // >> Startup
     $source.code.push(`// >> Startup`);
-    $source.code.push(`self.webqit = self.webqit || {};`);
-    $source.code.push(`self.webqit.app = await start.call({ config, routes })`);
+    $source.code.push(`globalThis.webqit = globalThis.webqit || {};`);
+    $source.code.push(`globalThis.webqit.app = await start({ init, config, routes, $root, $roots, $sparoots });`);
 }
 
-async function bundleScript({ $context, $source, which, outfile, asModule = false, ...restParams }) {
+async function bundleScript({ $context, $source, which, outfile, asModule = true, ...restParams }) {
     const { flags: FLAGS, logger: LOGGER } = $context;
     // >> Show banner...
     LOGGER?.log(LOGGER.style.keyword(`---`));
@@ -126,11 +145,14 @@ async function bundleScript({ $context, $source, which, outfile, asModule = fals
     const bundlingConfig = {
         entryPoints: [moduleFile],
         outfile,
-        bundle: true,
+        bundle: which === 'server' ? false : true,
         minify: true,
+        format: asModule ? 'esm' : 'iife',
+        platform: which === 'server' ? 'node' : 'browser', // optional but good for clarity
+        treeShaking: true,   // Important optimization
         banner: { js: '/** @webqit/webflo */', },
         footer: { js: '', },
-        format: 'esm',
+        plugins: [ LiveJSTransform() ],
         ...(restParams.buildParams || {})
     };
     if (!asModule) {
@@ -248,38 +270,35 @@ function handleEmbeds($context, embeds, targetDocumentFile) {
 
 // -------------
 
-async function generateClientScript({ $context, $config, offset = '', roots = [], ...restParams }) {
+async function generateClientScript({ $context, bootstrap, ...restParams }) {
     const { flags: FLAGS, logger: LOGGER } = $context;
-    // -----------
-    const inSplitMode = !!roots.length || !!offset;
-    const targetDocumentFile = Path.join($config.LAYOUT.PUBLIC_DIR, offset, 'index.html');
-    // For when we're in split mode
-    const outfile_theWebfloClient = $config.CLIENT.filename.replace(/\.js$/, '.webflo.js');
-    const outfile_theWebfloClientPublic = Path.join($config.CLIENT.public_base_url, outfile_theWebfloClient);
-    // For when we're monolith mode
-    const outfile_mainBuild = Path.join(offset, $config.CLIENT.filename);
-    let publicBaseUrl = $config.CLIENT.public_base_url;
-    if (FLAGS.outdir) {
-        publicBaseUrl = '/' + Path.relative($config.LAYOUT.PUBLIC_DIR, FLAGS.outdir);
-    }
-    const outfile_mainBuildPublic = Path.join(publicBaseUrl, outfile_mainBuild);
-    // The source code
+
+    const inSplitMode = !!bootstrap.$roots.length || !!bootstrap.offset;
+
+    const targetDocumentFile = Path.join(FLAGS.outdir || bootstrap.outdir, 'index.html');
+    const publicBaseUrl = bootstrap.config.CLIENT.public_base_url;
+
+    const sharedBuild_filename = bootstrap.config.CLIENT.filename.replace(/\.js$/, '.webflo.js');
+    const outfile_sharedBuild = Path.join(bootstrap.config.LAYOUT.PUBLIC_DIR, sharedBuild_filename);
+    const outfile_sharedBuildPublic = Path.join(publicBaseUrl, sharedBuild_filename);
+
+    const outfile_clientBuild = Path.join(FLAGS.outdir || bootstrap.outdir, bootstrap.config.CLIENT.filename);
+    const outfile_clientBuildPublic = Path.join(publicBaseUrl, Path.relative(bootstrap.config.LAYOUT.PUBLIC_DIR, outfile_clientBuild));
+
     const $source = { imports: {}, code: [] };
     const embeds = { all: [], current: [] };
-    // -----------
-    // 1. Derive params
-    const configExport = structuredClone({ CLIENT: $config.CLIENT, ENV: $config.ENV });
-    if ($config.CLIENT.capabilities?.service_worker === true) {
-        configExport.CLIENT.capabilities.service_worker = {
-            filename: Path.join(publicBaseUrl.replace(/^\//, ''), $config.WORKER.filename),
-            scope: $config.WORKER.scope
+
+    const configExport = structuredClone({ ENV: bootstrap.config.ENV, CLIENT: bootstrap.config.CLIENT, WORKER: {} });
+    if (bootstrap.config.CLIENT.capabilities?.service_worker === true) {
+        configExport.WORKER = {
+            filename: Path.join(publicBaseUrl.replace(/^\//, ''), bootstrap.config.WORKER.filename),
+            scope: bootstrap.config.WORKER.scope
         };
     }
-    // 2. Add the Webflo Runtime
+
     const outfiles = [];
     if (inSplitMode) {
-        if (!offset) {
-            // We're building the Webflo client as a standalone script
+        if (!bootstrap.offset) {
             LOGGER?.log(LOGGER.style.keyword(`---`));
             LOGGER?.log(`[SPLIT_MODE] Base Build`);
             LOGGER?.log(LOGGER.style.keyword(`---`));
@@ -290,79 +309,64 @@ async function generateClientScript({ $context, $config, offset = '', roots = []
                 $context,
                 $source: $$source,
                 which: 'client',
-                outfile: Path.join($config.LAYOUT.PUBLIC_DIR, outfile_theWebfloClient),
+                outfile: outfile_sharedBuild,
                 asModule: true
             });
             outfiles.push(..._outfiles);
         }
         if (FLAGS['auto-embed']) {
-            embeds.current.push(outfile_theWebfloClientPublic);
-            embeds.current.push(outfile_mainBuildPublic);
+            embeds.current.push(outfile_sharedBuildPublic);
+            embeds.current.push(outfile_clientBuildPublic);
         }
     } else {
-        // We're building the Webflo client as part of the main script
         writeImportWebflo($source, 'client');
         if (FLAGS['auto-embed']) {
-            embeds.current.push(outfile_mainBuildPublic);
+            embeds.current.push(outfile_clientBuildPublic);
         }
     }
-    // 3. Write the body and bundle
+
     writeScriptBody({
         $context,
-        $config,
         $source,
-        which: 'client',
-        offset,
-        roots,
+        bootstrap,
         configExport,
+        which: 'client',
         ...restParams
     });
-    // 4. Bundle
+
     const _outfiles = await bundleScript({
         $context,
         $source,
         which: 'client',
-        outfile: Path.join(FLAGS.outdir || $config.LAYOUT.PUBLIC_DIR, outfile_mainBuild),
+        outfile: outfile_clientBuild,
         asModule: true,
         ...restParams
     });
     outfiles.push(..._outfiles);
-    // 4. Embed/unembed
-    embeds.all.push(outfile_theWebfloClientPublic);
-    embeds.all.push(outfile_mainBuildPublic);
+
+    embeds.all.push(outfile_sharedBuildPublic);
+    embeds.all.push(outfile_clientBuildPublic);
     handleEmbeds($context, embeds, targetDocumentFile);
-    // -----------
-    if (FLAGS.recursive && roots.length) {
-        const $roots = roots.slice(0);
-        const _outfiles = await generateClientScript({
-            $context,
-            $config,
-            offset: $roots.shift(),
-            roots: $roots,
-            ...restParams
-        });
-        return outfiles.concat(_outfiles);
-    }
+
     return outfiles;
 }
 
-async function generateWorkerScript({ $context, $config, offset = '', roots = [], ...restParams }) {
+async function generateWorkerScript({ $context, bootstrap, ...restParams }) {
     const { flags: FLAGS } = $context;
-    // -----------
-    const outfile_mainBuild = Path.join(offset, $config.WORKER.filename);
+
     const $source = { imports: {}, code: [] };
-    // -----------
-    // 1. Derive params
-    const configExport = structuredClone({ WORKER: $config.WORKER, ENV: $config.ENV });
-    if ($config.CLIENT.capabilities?.webpush === true) {
-        configExport.WORKER.capabilities = {
+
+    const outfile_workerBuild = Path.join(FLAGS.outdir || bootstrap.outdir, bootstrap.config.WORKER.filename);
+
+    const configExport = structuredClone({ ENV: bootstrap.config.ENV, CLIENT: { capabilities: {} }, WORKER: bootstrap.config.WORKER });
+    if (bootstrap.config.CLIENT.capabilities?.webpush === true) {
+        configExport.CLIENT.capabilities = {
             webpush: true
         };
     }
-    // Fetching strategies
+
     for (const strategy of ['cache_first_urls', 'cache_only_urls']) {
         if (configExport.WORKER[strategy].length) {
-            // Separate URLs from patterns
             const [urls, patterns] = configExport.WORKER[strategy].reduce(([urls, patterns], url) => {
                 const patternInstance = new URLPattern(url, 'http://localhost');
                 const isPattern = patternInstance.isPattern();
@@ -371,20 +375,17 @@ async function generateWorkerScript({ $context, $config, offset = '', roots = []
                 }
                 return isPattern ? [urls, patterns.concat(patternInstance)] : [urls.concat(url), patterns];
             }, [[], []]);
-            // Resolve patterns
             if (patterns.length) {
-                // List all files
                 function scanDir(dir) {
                     Fs.readdirSync(dir).reduce((result, f) => {
                         const resource = Path.join(dir, f);
                         if (f.startsWith('.')) return result;
                         return result.concat(
-                            Fs.statSync(resource).isDirectory() ? scanDir(resource) : '/' + Path.relative($config.LAYOUT.PUBLIC_DIR, resource)
+                            Fs.statSync(resource).isDirectory() ? scanDir(resource) : '/' + Path.relative(bootstrap.config.LAYOUT.PUBLIC_DIR, resource)
                         );
                     }, []);
                 }
-                const files = scanDir($config.LAYOUT.PUBLIC_DIR);
-                // Resolve patterns from files
+                const files = scanDir(bootstrap.config.LAYOUT.PUBLIC_DIR);
                 configExport.WORKER[strategy] = patterns.reduce((all, pattern) => {
                     const matchedFiles = files.filter((file) => pattern.test(file, 'http://localhost'));
                     if (matchedFiles.length) return all.concat(matchedFiles);
@@ -393,77 +394,80 @@ async function generateWorkerScript({ $context, $config, offset = '', roots = []
             }
         }
     }
-    // 2. Add the Webflo Runtime
+
     writeImportWebflo($source, 'worker');
-    // 3. Write the body and bundle
     writeScriptBody({
         $context,
-        $config,
         $source,
-        which: 'worker',
-        offset,
-        roots,
+        bootstrap,
         configExport,
+        which: 'worker',
         ...restParams
     });
-    // 4. Bundle
-    const outfiles = await bundleScript({
+
+    return await bundleScript({
         $context,
         $source,
         which: 'worker',
-        outfile: Path.join(FLAGS.outdir || $config.LAYOUT.PUBLIC_DIR, outfile_mainBuild),
-        asModule: false,
+        outfile: outfile_workerBuild,
+        asModule: true,
         ...restParams
     });
-    // -----------
-    if (FLAGS.recursive && roots.length) {
-        const $roots = roots.slice(0);
-        const _outfiles = await generateWorkerScript({
-            $context,
-            $config,
-            offset: $roots.shift(),
-            roots: $roots,
-            ...restParams
-        });
-        return outfiles.concat(_outfiles);
-    }
-    return outfiles;
 }
 
-export async function generate({ client = true, worker = true, buildParams = {} } = {}) {
+async function generateServerScript({ $context, bootstrap, ...restParams }) {
+    const $source = { imports: {}, code: [] };
+    const outfile_serverBuild = Path.join(bootstrap.outdir, 'app.js'); // Must not consult FLAGS.outdir
+
+    writeImportWebflo($source, 'server');
+    writeScriptBody({
+        $context,
+        $source,
+        bootstrap,
+        configExport: bootstrap.config,
+        which: 'server',
+        ...restParams
+    });
+
+    return await bundleScript({
+        $context,
+        $source,
+        which: 'server',
+        outfile: outfile_serverBuild,
+        asModule: true,
+        ...restParams
+    });
+}
+
+export async function build() {
     const $context = this;
-    if (!($context instanceof Context)) {
-        throw new Error(`The "this" context must be a Webflo Context object.`);
+    if (!($context instanceof CLIContext)) {
+        throw new Error(`The "this" context must be a Webflo CLIContext object.`);
     }
-    // Resolve common details
-    const $config = {
-        LAYOUT: await readLayoutConfig($context),
-        ENV: { ...await readEnvConfig($context), data: {} },
-        CLIENT: await readClientConfig($context),
-        WORKER: await readWorkerConfig($context),
-    };
-    if ($config.CLIENT.copy_public_variables) {
-        const publicEnvPattern = /(?:^|_)PUBLIC(?:_|$)/;
-        for (const key in process.env) {
-            if (publicEnvPattern.test(key)) {
-                $config.ENV.data[key] = process.env[key];
-            }
-        }
-    }
-    // Build
+
+    const buildParams = {};
     const outfiles = [];
-    if (client) {
-        const documentRoots = scanRoots($config.LAYOUT.PUBLIC_DIR, 'index.html');
-        const _outfiles = await generateClientScript({ $context, $config, roots: documentRoots, buildParams });
+    if ($context.flags.client) {
+        const bootstrap = await clientBootstrap($context);
+        const _outfiles = await generateClientScript({ $context, bootstrap, buildParams });
         outfiles.push(..._outfiles);
     }
-    if (worker) {
-        const applicationRoots = scanRoots($config.LAYOUT.PUBLIC_DIR, 'manifest.json');
-        const _outfiles = await generateWorkerScript({ $context, $config, roots: applicationRoots, buildParams });
+
+    if ($context.flags.worker) {
+        const bootstrap = await workerBootstrap($context);
+        const _outfiles = await generateWorkerScript({ $context, bootstrap, buildParams });
         outfiles.push(..._outfiles);
     }
+
+    if (false) { // TODO: WebfloServer needs to be buildable first
+        const bootstrap = await serverBootstrap($context);
+        const _outfiles = await generateServerScript({ $context, bootstrap, buildParams });
+        outfiles.push(..._outfiles);
+    }
+
     if (process.send) {
         process.send({ outfiles });
     }
+
     return { outfiles };
 }
