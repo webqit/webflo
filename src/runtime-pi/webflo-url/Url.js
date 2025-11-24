@@ -1,7 +1,7 @@
 import { _with } from '@webqit/util/obj/index.js';
 import { _isArray, _isObject, _isTypeObject, _isString, _isEmpty } from '@webqit/util/js/index.js';
 import { DeepURLSearchParams } from './util.js';
-import { Observer } from '@webqit/quantum-js';
+import { Observer } from '@webqit/use-live';
 
 export class Url {
 

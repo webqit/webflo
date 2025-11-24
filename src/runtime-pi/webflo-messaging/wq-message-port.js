@@ -2,7 +2,7 @@ import { _isObject, _isTypeObject } from '@webqit/util/js/index.js';
 import { WQMessagePort, WQMessagePortInstanceTag } from './WQMessagePort.js';
 import { isTypeStream } from '../webflo-fetch/util.js';
 import { WQMessageEvent } from './WQMessageEvent.js';
-import { Observer } from '@webqit/quantum-js';
+import { Observer } from '@webqit/use-live';
 import { _wq } from '../../util.js';
 
 /**

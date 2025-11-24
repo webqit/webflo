@@ -1,8 +1,7 @@
-import { State } from '@webqit/quantum-js';
 import { _isFunction, _isArray, _isObject } from '@webqit/util/js/index.js';
 import { _from as _arrFrom } from '@webqit/util/arr/index.js';
+import { LiveResponse } from '../webflo-fetch/LiveResponse.js';
 import { path as Path } from '../webflo-url/util.js';
-import { isGenerator } from '../webflo-fetch/LiveResponse.js';
 
 export class WebfloRouter {
 
@@ -170,11 +169,11 @@ export class WebfloRouter {
                     const returnValue = await handler.call(thisContext, thisTick.event, $next/*next*/, $fetch/*fetch*/);
 
                     // Handle cleanup on abort
-                    if (returnValue instanceof State) {
+                    if (LiveResponse.test(returnValue) === 'LiveMode') {
                         thisTick.event.signal.addEventListener('abort', () => {
-                            returnValue.dispose();
+                            returnValue.abort();
                         });
-                    } else if (isGenerator(returnValue)) {
+                    } else if (LiveResponse.test(returnValue) === 'Generator') {
                         thisTick.event.signal.addEventListener('abort', () => {
                             if (typeof returnValue.return === 'function') {
                                 returnValue.return();
@@ -187,13 +186,19 @@ export class WebfloRouter {
                         resolved = 2;
                         resolve(returnValue);
                     } else if (typeof returnValue !== 'undefined') {
-                        await thisTick.event.internalLiveResponse.replaceWith(returnValue, { done: true });
+                        thisTick.event.internalLiveResponse.replaceWith(returnValue, { done: true });
                     }
                 });
             }
+            let returnValue;
             if (_default) {
-                return await _default.call(thisContext, thisTick.event, remoteFetch);
+                returnValue = await _default.call(thisContext, thisTick.event, remoteFetch);
             }
+            try {
+                // IMPORTANT: Explicitly terminate the event lifecycle if nothing extends it
+                await thisTick.event.waitUntil();
+            } catch(e) {}
+            return returnValue;
         };
 
         return next({

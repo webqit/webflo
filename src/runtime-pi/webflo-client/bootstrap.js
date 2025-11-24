@@ -21,6 +21,7 @@ export async function bootstrap(cx, offset = '') {
     };
     if (config.CLIENT.copy_public_variables) {
         const publicEnvPattern = /(?:^|_)PUBLIC(?:_|$)/;
+        config.ENV.data = config.ENV.data || {};
         for (const key in process.env) {
             if (publicEnvPattern.test(key)) {
                 config.ENV.data[key] = process.env[key];

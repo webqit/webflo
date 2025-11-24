@@ -40,7 +40,7 @@ export async function init(projectName = 'my-webflo-app', projectTitle = '', pro
         process.exit(1);
     }
 
-    LOGGER?.log(LOGGER.style.keyword(`> `) + `Initializing your webflo app: "${projectName}" using template "${template}"...\n`);
+    LOGGER?.log(LOGGER.style.keyword(`> `) + `Initializing your webflo app "${projectName}" using template "${template}"...\n`);
 
     // 1. Create project dir
     await Fs2.mkdir(targetDir, { recursive: true });

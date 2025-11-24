@@ -1,8 +1,9 @@
-import { Observer } from '@webqit/quantum-js';
+import { Observer } from '@webqit/use-live';
 import { WebfloClient } from './WebfloClient.js';
 import { ClientSideWorkport } from './ClientSideWorkport.js';
 import { DeviceCapabilities } from './DeviceCapabilities.js';
-import { LiveResponse, response as responseShim } from '../webflo-fetch/index.js';
+import { response as responseShim } from '../webflo-fetch/index.js';
+import { LiveResponse } from '../webflo-fetch/LiveResponse.js';
 import { WebfloHMR } from './webflo-devmode.js';
 
 export class WebfloRootClient1 extends WebfloClient {
@@ -92,8 +93,10 @@ export class WebfloRootClient1 extends WebfloClient {
 		cleanups.push(() => this.#capabilities.close());
 		if (this.config.CLIENT.capabilities?.service_worker) {
 			const { filename, ...restServiceWorkerParams } = this.config.WORKER;
-			this.#workport = await this.constructor.Workport.initialize(null, (this.config.CLIENT.public_base_url || '') + filename, restServiceWorkerParams);
-			cleanups.push(() => this.#workport.close());
+			this.constructor.Workport.initialize(null, filename, restServiceWorkerParams).then((workport) => {
+				this.#workport = workport;
+				cleanups.push(() => this.#workport.close());
+			});
 		}
 		return instanceController;
 	}
@@ -113,6 +116,7 @@ export class WebfloRootClient1 extends WebfloClient {
 			this.background.addPort(backgroundPort);
 		}
 		if (scopeObj.response.body || backgroundPort) {
+
 			const httpEvent = this.createHttpEvent({ request: this.createRequest(this.location.href) }, true);
 			await this.render(httpEvent, scopeObj.response);
 		} else {

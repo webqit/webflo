@@ -1,4 +1,4 @@
-import { Observer } from '@webqit/quantum-js';
+import { Observer } from '@webqit/use-live';
 
 export class DeviceCapabilities {
 

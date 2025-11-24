@@ -182,13 +182,17 @@ export class WebfloHMR {
                 const bundlingConfig = {
                     client: true,
                     worker: true,
+                    server: true,
                     metafile: true,      // This is key
                     logLevel: 'silent',  // Suppress output
                     incremental: true,
                 };
                 buildResult = await this.#app.buildRoutes(bundlingConfig);
             }
-        } catch (e) { return false; }
+        } catch (e) {
+            //console.error(e);
+            return false;
+        }
 
         // 1. Forward dependency graph (file -> [imported files])
         const forward = {};
@@ -228,25 +232,25 @@ export class WebfloHMR {
         return true;
     }
 
-    async bundleAssetsIfPending() {
+    async bundleAssetsIfPending(ohForce = false) {
         const entries = {};
 
-        if (this.#dirtiness.clientRoutesAffected.size || this.#dirtiness.serviceWorkerAffected) {
+        if (this.#dirtiness.clientRoutesAffected.size || this.#dirtiness.serviceWorkerAffected || ohForce) {
             entries.js = {};
-            entries.js.client = !!this.#dirtiness.clientRoutesAffected.size;
-            entries.js.worker = this.#dirtiness.serviceWorkerAffected;
+            entries.js.client = !!this.#dirtiness.clientRoutesAffected.size || ohForce;
+            entries.js.worker = this.#dirtiness.serviceWorkerAffected || ohForce;
             entries.js.server = false;
             // Clear state
             this.#dirtiness.clientRoutesAffected.clear();
             this.#dirtiness.serviceWorkerAffected = false;
         }
 
-        if (this.#dirtiness.HTMLAffected) {
+        if (this.#dirtiness.HTMLAffected || ohForce) {
             this.#dirtiness.HTMLAffected = false;
             entries.html = {};
         }
 
-        if (this.#dirtiness.CSSAffected) {
+        if (this.#dirtiness.CSSAffected || ohForce) {
             this.#dirtiness.CSSAffected = false;
             entries.css = {};
         }

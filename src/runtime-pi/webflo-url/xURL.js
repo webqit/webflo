@@ -1,5 +1,5 @@
 import { _isObject } from '@webqit/util/js/index.js';
-import { Observer } from '@webqit/quantum-js';
+import { Observer } from '@webqit/use-live';
 import { DeepURLSearchParams } from './util.js';
 
 export class xURL extends URL {
