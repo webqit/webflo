@@ -6,14 +6,12 @@ import { _wq } from '../../util.js';
 
 export class WQSockPort extends WQMessagePort {
 
-    static WebSocket = typeof WebSocket !== 'undefined' ? WebSocket : null;
-
     #socket;
     #cleanups = [];
 
     constructor(instanceOrConnectionID) {
         super();
-        this.#socket = typeof instanceOrConnectionID === 'string' ? new this.constructor.WebSocket(`/${instanceOrConnectionID}`) : instanceOrConnectionID;
+        this.#socket = typeof instanceOrConnectionID === 'string' ? new WebSocket(`/${instanceOrConnectionID}`) : instanceOrConnectionID;
         const meta = _wq(this, 'meta');
         Object.defineProperty(this, 'wqLifecycle', {
             value: {

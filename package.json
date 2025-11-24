@@ -48,6 +48,7 @@
     "@webqit/use-live": "^0.5.41",
     "@webqit/util": "^0.8.11",
     "dotenv": "^16.4.7",
+    "esbuild": "^0.14.38",
     "mime-types": "^2.1.33",
     "simple-git": "^2.20.1",
     "urlpattern-polyfill": "^4.0.3"
@@ -56,7 +57,6 @@
     "chai": "^4.3.6",
     "chokidar": "^4.0.3",
     "coveralls": "^3.1.1",
-    "esbuild": "^0.14.38",
     "fast-glob": "^3.3.3",
     "jsdom": "^27.0.1",
     "markdown-it-mathjax3": "^4.3.2",

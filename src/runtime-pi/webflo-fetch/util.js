@@ -22,7 +22,7 @@ export function dataType(value) {
         'Uint8Array', 'Uint16Array', 'Uint32Array', 'ArrayBuffer', 'Blob', 'File', 'FormData', 'Stream', 'ReadableStream'
     ].reduce((_toStringTag, type) => _toStringTag || (toStringTag === type ? type : null), null);
     if (type) return type;
-    if ((_isObject(value) && _isPlainObject(value)) || (Array.isArray(value) && _isPlainArray(value)) || 'toString' in value) {
+    if ((_isObject(value)) || (Array.isArray(value) && _isPlainArray(value)) || 'toString' in value) {
         return 'json';
     }
 }

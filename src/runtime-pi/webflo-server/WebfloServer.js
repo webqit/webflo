@@ -65,7 +65,6 @@ export class WebfloServer extends WebfloRuntime {
             await this.enterDevMode();
         } else {
             await this.buildRoutes({ server: true });
-            await this.bundleAssetsIfPending(true);
         }
 
         // ----------
@@ -564,7 +563,7 @@ export class WebfloServer extends WebfloRuntime {
         const finalizeResponse = (response) => {
             // Qualify Service-Worker responses
             if (httpEvent.request.headers.get('Service-Worker') === 'script') {
-                scopeObj.response.headers.set('Service-Worker-Allowed', this.config.WORKER.scope || '/');
+                response.headers.set('Service-Worker-Allowed', this.config.WORKER.scope || '/');
             }
             const responseMeta = _wq(response, 'meta');
             responseMeta.set('filename', scopeObj.filename);

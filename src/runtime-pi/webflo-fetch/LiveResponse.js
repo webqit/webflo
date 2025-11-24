@@ -339,7 +339,7 @@ export class LiveResponse extends EventTarget {
                 redirected: response.redirected,
                 url: response.url,
             });
-            if (this.test(response) === 'LiveResponse') {
+            if (this.constructor.test(response) === 'LiveResponse') {
                 response.addEventListener('replace', () => execReplaceWith(response), { signal: this.#abortController.signal });
                 return await response.whileLive(true);
             }

@@ -153,7 +153,14 @@ export const response = {
         }
     },
     prototype: {
-        status: { get: function () { return _wq(this, 'meta').get('status') || responseOriginals.prototype.status.get.call(this); } },
+        status: {
+            get: function () {
+                return _wq(this, 'meta').get('status')
+                    || this instanceof Response
+                    ? responseOriginals.prototype.status.get.call(this)
+                    : this.status;
+            }
+        },
         carry: { get: function () { return _wq(this, 'meta').get('carry'); } },
         parse: { value: async function () { return await parseHttpMessage(this); } },
         clone: {

@@ -294,6 +294,7 @@ export function postRequest(data, callback, options = {}) {
     const { signal, once } = eventOptions2;
     const messageChannel = new MessageChannel;
     messageChannel.port1.start();
+    toWQPort(messageChannel.port1);
     messageChannel.port1.addEventListener('message', (e) => callback(e), { signal, once });
     return this.postMessage(data, { ...$options, transfer: [messageChannel.port2].concat(transfer) });
 }
