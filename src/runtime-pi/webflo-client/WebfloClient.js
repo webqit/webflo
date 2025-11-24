@@ -1,9 +1,10 @@
 import { _before, _toTitle } from '@webqit/util/str/index.js';
 import { _isObject } from '@webqit/util/js/index.js';
-import { Observer } from '@webqit/quantum-js';
+import { Observer } from '@webqit/use-live';
 import { WebfloRuntime } from '../WebfloRuntime.js';
 import { WQMessageChannel } from '../webflo-messaging/WQMessageChannel.js';
-import { LiveResponse, response as responseShim } from '../webflo-fetch/index.js';
+import { response as responseShim } from '../webflo-fetch/index.js';
+import { LiveResponse } from '../webflo-fetch/LiveResponse.js';
 import { WQStarPort } from '../webflo-messaging/WQStarPort.js';
 import { ClientSideCookies } from './ClientSideCookies.js';
 import { HttpSession } from '../webflo-routing/HttpSession.js';

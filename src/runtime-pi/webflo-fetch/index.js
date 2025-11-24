@@ -1,10 +1,11 @@
-export { LiveResponse } from './LiveResponse.js';
 import { _isObject, _isTypeObject, _isNumeric } from '@webqit/util/js/index.js';
 import { _from as _arrFrom } from '@webqit/util/arr/index.js';
 import { _before, _after } from '@webqit/util/str/index.js';
 import { DeepURLSearchParams } from '../webflo-url/util.js';
 import { dataType } from './util.js';
 import { _wq } from '../../util.js';
+import { Observer } from '@webqit/use-live';
+import { LiveResponse } from './LiveResponse.js';
 
 // ----- env & globalize
 
@@ -30,6 +31,8 @@ export function shim(prefix = 'wq') {
             patch(api.prototype, prototype);
         }
     }
+    globalThis.LiveResponse = LiveResponse;
+    globalThis.Observer = Observer;
 }
 
 // ----- request
@@ -336,23 +339,23 @@ export function renderHttpMessageInit(httpMessageInit) {
         return { ..._headers, [name.toLowerCase()]: httpMessageInit.headers[name] };
     }, {});
     // Process body
-    let body = httpMessageInit.body, type = dataType(httpMessageInit.body);
+    let body = httpMessageInit.body,
+        type = dataType(httpMessageInit.body);
+
     if (['Blob', 'File'].includes(type)) {
         !headers['content-type'] && (headers['content-type'] = body.type);
         !headers['content-length'] && (headers['content-length'] = body.size);
     } else if (['Uint8Array', 'Uint16Array', 'Uint32Array', 'ArrayBuffer'].includes(type)) {
         !headers['content-length'] && (headers['content-length'] = body.byteLength);
     } else if (type === 'json' && _isTypeObject(body)/*JSON object*/) {
-        if (!headers['content-type']) {
-            const [_body, isJsonfiable] = createFormDataFromJson(body, true/*jsonfy*/, true/*getIsJsonfiable*/);
-            if (isJsonfiable) {
-                body = JSON.stringify(body, (k, v) => v instanceof Error ? { ...v, message: v.message } : v);
-                headers['content-type'] = 'application/json';
-                headers['content-length'] = (new Blob([body])).size;
-            } else {
-                body = _body;
-                type = 'FormData';
-            }
+        const [_body, isJsonfiable] = createFormDataFromJson(body, true/*jsonfy*/, true/*getIsJsonfiable*/);
+        if (isJsonfiable) {
+            body = JSON.stringify(body, (k, v) => v instanceof Error ? { ...v, message: v.message } : v);
+            headers['content-type'] = 'application/json';
+            headers['content-length'] = (new Blob([body])).size;
+        } else {
+            body = _body;
+            type = 'FormData';
         }
     } else if (type === 'json'/*JSON string*/ && !headers['content-length']) {
         (headers['content-length'] = (body + '').length);
@@ -429,7 +432,5 @@ export function renderCookieObjToString(cookieObj) {
 
 const importUrl = new URL(import.meta.url);
 if (importUrl.searchParams.has('shim')) {
-    globalThis.LiveResponse = LiveResponse;
     shim(importUrl.searchParams.get('shim')?.trim());
-    console.log('Webflo Fetch APIs shimmed.');
 }

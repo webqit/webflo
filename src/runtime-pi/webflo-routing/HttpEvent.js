@@ -1,6 +1,6 @@
 import { _isObject } from '@webqit/util/js/index.js';
 import { _difference } from '@webqit/util/arr/index.js';
-import { LiveResponse } from '../webflo-fetch/index.js';
+import { LiveResponse } from '../webflo-fetch/LiveResponse.js';
 import { xURL } from '../webflo-url/xURL.js';
 import { _wq } from '../../util.js';
 
@@ -45,6 +45,8 @@ export class HttpEvent {
     get state() { return { ...(this.#init.state || {}) }; }
 
     #lifecyclePromises = new Set;
+    get lifecyclePromises() { return this.#lifecyclePromises; }
+
     #lifeCycleResolve;
     #lifeCycleReject;
     #lifeCycleResolutionPromise = new Promise((resolve, reject) => {
@@ -80,12 +82,12 @@ export class HttpEvent {
             && !this.#lifecyclePromises.size;
     }
 
-    waitUntil(promise) {
-        return this.#extendLifecycle(promise);
+    async waitUntil(promise) {
+        return await this.#extendLifecycle(promise);
     }
 
     waitUntilNavigate() {
-        return this.waitUntil(new Promise(() => { }));
+        this.waitUntil(new Promise(() => { }));
     }
 
     #internalLiveResponse = new LiveResponse(null, { done: false });
@@ -100,8 +102,8 @@ export class HttpEvent {
     }
 
     extend(init = {}) {
-        const instance = this.constructor.create(this/*Main difference from clone*/, { ...this.#init, ...init });
-        this.#extendLifecycle(instance.lifeCycleComplete(true));
+        const instance = this.constructor.create(this/*Main difference from clone*/, { ...this.#init, ...(init || {}) });
+        if (init !== false) this.#extendLifecycle(instance.lifeCycleComplete(true));
         return instance;
     }
 

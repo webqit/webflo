@@ -10,7 +10,7 @@ import { jsFile } from '@webqit/backpack/src/dotfile/index.js';
 import { bootstrap as serverBootstrap } from '../runtime-pi/webflo-server/bootstrap.js';
 import { bootstrap as clientBootstrap } from '../runtime-pi/webflo-client/bootstrap.js';
 import { bootstrap as workerBootstrap } from '../runtime-pi/webflo-worker/bootstrap.js';
-import { LiveJSTransform } from './esbuild-plugin-livejs-transform.js';
+import { UseLiveTransform } from './esbuild-plugin-uselive-transform.js';
 import { CLIContext } from '../CLIContext.js';
 import '../runtime-pi/webflo-url/urlpattern.js';
 
@@ -145,14 +145,14 @@ async function bundleScript({ $context, $source, which, outfile, asModule = true
     const bundlingConfig = {
         entryPoints: [moduleFile],
         outfile,
-        bundle: which === 'server' ? false : true,
-        minify: true,
         format: asModule ? 'esm' : 'iife',
         platform: which === 'server' ? 'node' : 'browser', // optional but good for clarity
+        bundle: which === 'server' ? false : true,
+        minify: which === 'server' ? false : true,
         treeShaking: true,   // Important optimization
         banner: { js: '/** @webqit/webflo */', },
         footer: { js: '', },
-        plugins: [ LiveJSTransform() ],
+        plugins: [UseLiveTransform()],
         ...(restParams.buildParams || {})
     };
     if (!asModule) {
@@ -290,8 +290,10 @@ async function generateClientScript({ $context, bootstrap, ...restParams }) {
 
     const configExport = structuredClone({ ENV: bootstrap.config.ENV, CLIENT: bootstrap.config.CLIENT, WORKER: {} });
     if (bootstrap.config.CLIENT.capabilities?.service_worker === true) {
+        const outfile_workerBuild = Path.join(FLAGS.outdir || bootstrap.outdir, bootstrap.config.WORKER.filename);
+        const outfile_workerBuildPublic = Path.join(publicBaseUrl, Path.relative(bootstrap.config.LAYOUT.PUBLIC_DIR, outfile_workerBuild));
         configExport.WORKER = {
-            filename: Path.join(publicBaseUrl.replace(/^\//, ''), bootstrap.config.WORKER.filename),
+            filename: outfile_workerBuildPublic,
             scope: bootstrap.config.WORKER.scope
         };
     }

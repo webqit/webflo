@@ -1,4 +1,4 @@
-import { Observer } from '@webqit/quantum-js';
+import { Observer } from '@webqit/use-live';
 import { WebfloRootClient1 } from './WebfloRootClient1.js';
 
 export class WebfloRootClient2 extends WebfloRootClient1 {

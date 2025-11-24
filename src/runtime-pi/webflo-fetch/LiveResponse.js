@@ -1,4 +1,4 @@
-import { State, Observer } from '@webqit/quantum-js';
+import { Observer, LiveMode } from '@webqit/use-live';
 import { _isObject, _isTypeObject } from '@webqit/util/js/index.js';
 import { publishMutations, applyMutations } from '../webflo-messaging/wq-message-port.js';
 import { WQBroadcastChannel } from '../webflo-messaging/WQBroadcastChannel.js';
@@ -9,8 +9,11 @@ import { isTypeStream } from './util.js';
 
 export class LiveResponse extends EventTarget {
 
+    [Symbol.toStringTag] = 'LiveResponse';
+
     static test(data) {
-        if (data instanceof LiveResponse) {
+        if (data instanceof LiveResponse
+            || data?.[Symbol.toStringTag] === 'LiveResponse') {
             return 'LiveResponse';
         }
         if (data instanceof Response) {
@@ -19,24 +22,25 @@ export class LiveResponse extends EventTarget {
         if (isGenerator(data)) {
             return 'Generator';
         }
-        if (data instanceof State) {
-            return 'Quantum';
+        if (data instanceof LiveMode
+            || data?.[Symbol.toStringTag] === 'LiveMode') {
+            return 'LiveMode';
         }
         return 'Default';
     }
 
     static async from(data, ...args) {
-        if (data instanceof LiveResponse) {
+        if (this.test(data) === 'LiveResponse') {
             return data.clone(...args);
         }
-        if (data instanceof Response) {
+        if (this.test(data) === 'Response') {
             return await this.fromResponse(data, ...args);
         }
-        if (isGenerator(data)) {
+        if (this.test(data) === 'Generator') {
             return await this.fromGenerator(data, ...args);
         }
-        if (data instanceof State) {
-            return this.fromQuantum(data, ...args);
+        if (this.test(data) === 'LiveMode') {
+            return this.fromLiveMode(data, ...args);
         }
         return new this(data, ...args);
     }
@@ -45,7 +49,7 @@ export class LiveResponse extends EventTarget {
         if (!(response instanceof Response)) {
             throw new Error('Argument must be a Response instance.');
         }
-        
+
         const body = await responseShim.prototype.parse.value.call(response);
 
         // Instance
@@ -108,7 +112,7 @@ export class LiveResponse extends EventTarget {
         let $$await;
 
         const $options = { done: firstFrame.done, ...options };
-        if (value instanceof LiveResponse) {
+        if (this.test(value) === 'LiveResponse') {
             instance = new this;
             const responseMeta = _wq(value, 'meta');
             _wq(instance).set('meta', responseMeta);
@@ -133,15 +137,18 @@ export class LiveResponse extends EventTarget {
         return instance;
     }
 
-    static async fromQuantum(qState, options = {}) {
-        if (!(qState instanceof State)) {
-            throw new Error('Argument must be a Quantum State instance.');
+    static async fromLiveMode(liveMode, options = {}) {
+        if (!this.test(liveMode) === 'LiveMode') {
+            throw new Error('Argument must be a UseLive LiveMode instance.');
         }
-        const instance = new this(qState.value, { done: false, ...options });
-        instance.#generator = qState;
-        instance.#generatorType = 'Quantum';
+        const instance = new this;
+        await instance.replaceWith(liveMode.value, { done: false, ...options });
+        if (instance.#generatorType === 'Default') {
+            instance.#generator = liveMode;
+            instance.#generatorType = 'LiveMode';
+        }
         Observer.observe(
-            qState,
+            liveMode,
             'value',
             (e) => instance.#replaceWith(e.value),
             { signal: instance.#abortController.signal }
@@ -156,8 +163,7 @@ export class LiveResponse extends EventTarget {
     }
 
     static getBackground(respone) {
-        if (!(respone instanceof Response)
-            && !(respone instanceof LiveResponse)) return;
+        if (!/Response/.test(this.test(respone) )) return;
         const responseMeta = _wq(respone, 'meta');
         if (!responseMeta.has('background_port')) {
             const value = respone.headers.get('X-Background-Messaging-Port')?.trim();
@@ -322,8 +328,9 @@ export class LiveResponse extends EventTarget {
         const execReplaceWithResponse = async (response, options) => {
             this.#generator = response;
             this.#generatorType = response instanceof Response ? 'Response' : 'LiveResponse';
+            const body = response instanceof Response ? await responseShim.prototype.parse.value.call(response) : response.body;
             execReplaceWith({
-                body: response instanceof Response ? await responseShim.prototype.parse.value.call(response) : response.body,
+                body,
                 status: responseShim.prototype.status.get.call(response),
                 statusText: response.statusText,
                 headers: response.headers,
@@ -332,7 +339,7 @@ export class LiveResponse extends EventTarget {
                 redirected: response.redirected,
                 url: response.url,
             });
-            if (response instanceof LiveResponse) {
+            if (this.test(response) === 'LiveResponse') {
                 response.addEventListener('replace', () => execReplaceWith(response), { signal: this.#abortController.signal });
                 return await response.whileLive(true);
             }
@@ -360,7 +367,7 @@ export class LiveResponse extends EventTarget {
         };
 
         let donePromise;
-        if (body instanceof Response || body instanceof LiveResponse) {
+        if (/Response/.test(body)) {
             if (frameClosure) {
                 throw new Error('frameClosure unsupported for inputs of type response.');
             }
@@ -439,8 +446,8 @@ export class LiveResponse extends EventTarget {
         }));
     }
 
-    toQuantum({ signal: abortSignal } = {}) {
-        const state = new StateX;
+    toLiveMode({ signal: abortSignal } = {}) {
+        const state = new LiveModeX;
         const replaceHandler = () => Observer.defineProperty(state, 'value', { value: this.body, enumerable: true, configurable: true });
         this.addEventListener('replace', replaceHandler, { signal: abortSignal });
         replaceHandler();
@@ -462,7 +469,7 @@ export const isGenerator = (obj) => {
         typeof obj?.return === 'function';
 };
 
-class StateX extends State {
+class LiveModeX extends LiveMode {
     constructor() { }
-    dispose() { }
+    abort() { }
 }

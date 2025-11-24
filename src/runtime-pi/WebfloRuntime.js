@@ -1,5 +1,6 @@
 import { WebfloRouter } from './webflo-routing/WebfloRouter.js';
-import { LiveResponse, response as responseShim, headers as headersShim } from './webflo-fetch/index.js';
+import { response as responseShim, headers as headersShim } from './webflo-fetch/index.js';
+import { LiveResponse } from './webflo-fetch/LiveResponse.js';
 import { AppBootstrap } from './AppBootstrap.js';
 import { _wq } from '../util.js';
 
@@ -31,6 +32,14 @@ export class WebfloRuntime {
     }
 
     async initialize() {
+        if (this.bootstrap.init.SETUP) {
+            await this.bootstrap.init.SETUP(this);
+        }
+        await this.initCreateStorage();
+        return this.#instanceController;
+    }
+
+    async initCreateStorage() {
         if (!this.bootstrap.init.createStorage) {
             const inmemSessionRegistry = new Map;
             this.bootstrap.init.createStorage = (namespace) => {
@@ -55,8 +64,8 @@ export class WebfloRuntime {
         return this.#instanceController;
     }
 
-    async createStorage(namespace, ttl) {
-       return await this.bootstrap.init.createStorage(namespace, ttl);
+    createStorage(namespace, ttl) {
+        return this.bootstrap.init.createStorage(namespace, ttl);
     }
 
     createRequest(href, init = {}) {
@@ -90,7 +99,7 @@ export class WebfloRuntime {
         }
         // Dispatch event
         const router = new this.constructor.Router(this, httpEvent.url.pathname);
-        await router.route(['SETUP'], httpEvent);
+        await router.route(['SETUP'], httpEvent.extend(false));
         // Do proper routing for respone
         const response = await new Promise(async (resolve) => {
             let autoLiveResponse, response;
@@ -112,10 +121,11 @@ export class WebfloRuntime {
                 console.error(e);
                 response = new Response(null, { status: 500, statusText: e.message });
             }
-            if (!(response instanceof LiveResponse) && !(response instanceof Response)) {
-                response = LiveResponse.test(response) === 'Default'
-                    ? responseShim.from.value(response)
-                    : await LiveResponse.from(response, { responsesOK: true });
+            if (!/Response/.test(LiveResponse.test(response))) {
+                const isLifecyleComplete = httpEvent.lifeCycleComplete();
+                response = LiveResponse.test(response) !== 'Default' || !isLifecyleComplete
+                    ? await LiveResponse.from(response, { done: isLifecyleComplete })
+                    : responseShim.from.value(response);
             }
             // Any "carry" data?
             //await this.handleCarries(httpEvent, response);
@@ -126,15 +136,14 @@ export class WebfloRuntime {
                 resolve(response);
             }
         });
+
         // Commit data in the exact order. Reason: in how they depend on each other
         for (const storage of [httpEvent.user, httpEvent.session, httpEvent.cookies]) {
             await storage?.commit?.(response, FLAGS['dev']);
         }
-        if (response instanceof LiveResponse && response.whileLive()) {
+        // Wait for any whileLive promises to resolve
+        if (LiveResponse.test(response) === 'LiveResponse' && response.whileLive()) {
             httpEvent.waitUntil(response.whileLive(true));
-        } else {
-            httpEvent.waitUntil(Promise.resolve());
-            await null; // We need the above resolved before we move on
         }
 
         // Send the X-Background-Messaging-Port header
@@ -173,9 +182,9 @@ export class WebfloRuntime {
             });
         }
 
-        if (!this.isClientSide && response instanceof LiveResponse) {
+        if (!this.isClientSide && LiveResponse.test(response) === 'LiveResponse') {
             // Must convert to Response on the server-side before returning
-            return response.toResponse({ client: httpEvent.client });
+            return await response.toResponse({ client: httpEvent.client });
         }
 
         return response;

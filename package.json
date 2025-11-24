@@ -42,25 +42,15 @@
     "webflo-certbot-http-cleanup-hook": "src/services-pi/cert/http-cleanup-hook.js"
   },
   "dependencies": {
-    "@linked-db/linked-ql": "^0.30.13",
     "@octokit/webhooks": "^7.15.1",
     "@webqit/backpack": "^0.1.12",
-    "@webqit/oohtml-ssr": "^2.1.1",
-    "@webqit/quantum-js": "^4.6.3",
+    "@webqit/oohtml-ssr": "^2.2.1",
+    "@webqit/use-live": "^0.5.41",
     "@webqit/util": "^0.8.11",
     "dotenv": "^16.4.7",
-    "fs-extra": "^11.3.0",
-    "i": "^0.3.7",
-    "ioredis": "^5.5.0",
-    "jsdom": "^21.1.1",
-    "markdown-it-mathjax3": "^4.3.2",
     "mime-types": "^2.1.33",
-    "npm": "^11.4.0",
-    "pg": "^8.13.3",
     "simple-git": "^2.20.1",
-    "urlpattern-polyfill": "^4.0.3",
-    "vitepress-plugin-mermaid": "^2.0.17",
-    "web-push": "^3.6.7"
+    "urlpattern-polyfill": "^4.0.3"
   },
   "devDependencies": {
     "chai": "^4.3.6",
@@ -68,9 +58,13 @@
     "coveralls": "^3.1.1",
     "esbuild": "^0.14.38",
     "fast-glob": "^3.3.3",
+    "jsdom": "^27.0.1",
+    "markdown-it-mathjax3": "^4.3.2",
     "mocha": "^10.0.0",
     "mocha-lcov-reporter": "^1.3.0",
-    "vitepress": "^1.6.4"
+    "vitepress": "^1.6.4",
+    "vitepress-plugin-mermaid": "^2.0.17",
+    "web-push": "^3.6.7"
   },
   "author": "Oxford Harrison <oxharris.dev@gmail.com>",
   "maintainers": [

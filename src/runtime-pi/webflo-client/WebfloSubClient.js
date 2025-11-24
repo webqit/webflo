@@ -1,4 +1,4 @@
-import { Observer } from '@webqit/quantum-js';
+import { Observer } from '@webqit/use-live';
 import { WebfloClient } from './WebfloClient.js';
 import { defineElement } from './webflo-embedded.js';
 import { Url } from '../webflo-url/Url.js';

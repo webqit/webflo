@@ -1,0 +1,12 @@
+{
+    "filename": "app.js",
+    "public_base_url": "/",
+    "copy_public_variables": true,
+    "spa_routing": true,
+    "capabilities": {
+        "service_worker": false,
+        "webpush": false,
+        "custom_install": false,
+        "exposed": []
+    }
+}

@@ -23,7 +23,7 @@ import { ServerSideSession } from './ServerSideSession.js';
 import { HttpEvent } from '../webflo-routing/HttpEvent.js';
 import { HttpUser } from '../webflo-routing/HttpUser.js';
 import { response as responseShim, headers as headersShim } from '../webflo-fetch/index.js';
-import { LiveJSTransform } from '../../build-pi/esbuild-plugin-livejs-transform.js';
+import { UseLiveTransform } from '../../build-pi/esbuild-plugin-uselive-transform.js';
 import { createWindow } from '@webqit/oohtml-ssr';
 import { _wq } from '../../util.js';
 import '../webflo-fetch/index.js';
@@ -57,7 +57,6 @@ export class WebfloServer extends WebfloRuntime {
     }
 
     async initialize() {
-        const instanceController = await super.initialize();
         const { appMeta: APP_META, flags: FLAGS, logger: LOGGER, } = this.cx;
 
         // ----------
@@ -65,8 +64,17 @@ export class WebfloServer extends WebfloRuntime {
         if (FLAGS['dev']) {
             await this.enterDevMode();
         } else {
-            await this.buildRoutes();
+            await this.buildRoutes({ server: true });
+            await this.bundleAssetsIfPending(true);
         }
+
+        // ----------
+        // Call default-init
+        const instanceController = await super.initialize();
+
+        // ----------
+        // Start serving
+        this.control();
 
         // ----------
         // Show proxies
@@ -91,10 +99,6 @@ export class WebfloServer extends WebfloRuntime {
         }
 
         // ----------
-        // Start serving
-        this.control();
-
-        // ----------
         // Show server details
         if (this.#servers.size) {
             LOGGER.info(`> Server running! (${APP_META.title || ''}) ✅`);
@@ -108,22 +112,22 @@ export class WebfloServer extends WebfloRuntime {
         return instanceController;
     }
 
-    async buildRoutes({ client = false, worker = false, ...options } = {}) {
+    async buildRoutes({ client = false, worker = false, server = false, ...options } = {}) {
         const routeDirs = [...new Set([this.config.LAYOUT.CLIENT_DIR, this.config.LAYOUT.WORKER_DIR, this.config.LAYOUT.SERVER_DIR])];
-        const entryPoints = await $glob(routeDirs.map((d) => `${d}/**/handler{${client ? ',.client' : ''}${worker ? ',.worker' : ''},.server}.js`), { absolute: true })
+        const entryPoints = await $glob(routeDirs.map((d) => `${d}/**/handler{${client ? ',.client' : ''}${worker ? ',.worker' : ''}${server ? ',.server' : ''}}.js`), { absolute: true })
             .then((files) => files.map((file) => file.replace(/\\/g, '/')));
-        const entryNames = routeDirs.length === 1 ? `${Path.relative(process.cwd(), routeDirs[0])}/[dir]/[name]` : `[dir]/[name]`;
+        const initFiles = await $glob(`${process.cwd()}/init.server.js`);
         const bundlingConfig = {
-            entryPoints,
+            entryPoints: entryPoints.concat(initFiles),
             outdir: this.config.RUNTIME_DIR,
-            entryNames,
-            bundle: true,
+            outbase: process.cwd(),
             format: 'esm',
-            minify: false,
+            platform: server ? 'node' : 'browser',
+            bundle: server ? false : true,
+            minify: server ? false : true,
             sourcemap: false,
-            platform: 'browser', // optional but good for clarity
-            treeShaking: true,   // Important optimization
-            plugins: [ LiveJSTransform() ],
+            treeShaking: true,
+            plugins: [UseLiveTransform()],
             ...options,
         };
         return await EsBuild.build(bundlingConfig);
@@ -141,12 +145,42 @@ export class WebfloServer extends WebfloRuntime {
             buildSensitivity: parseInt(FLAGS['build-sensitivity'] || 0),
         });
         await this.#hmr.buildRoutes(true);
+        await this.#hmr.bundleAssetsIfPending(true);
         if (FLAGS['open']) {
             for (let [proto, def] of this.#servers) {
                 const url = `${proto}://${def.hostnames.find((h) => h !== '*') || 'localhost'}:${def.port}`;
                 await openBrowser(url);
             }
         }
+    }
+
+    async initCreateStorage() {
+        if (this.bootstrap.init.createStorage
+            || !this.bootstrap.init.redis) {
+            return super.initCreateStorage();
+        }
+        const redis = this.bootstrap.init.redis;
+        this.bootstrap.init.createStorage = (namespace, ttl = null) => ({
+            async has(key) { return await redis.hexists(namespace, key); },
+            async get(key) {
+                const value = await redis.hget(namespace, key);
+                return typeof value === 'undefined' ? value : JSON.parse(value);
+            },
+            async set(key, value) {
+                const returnValue = await redis.hset(namespace, key, JSON.stringify(value));
+                if (!this.ttlApplied && ttl) {
+                    await redis.expire(namespace, ttl);
+                    this.ttlApplied = true;
+                }
+                return returnValue;
+            },
+            async delete(key) { return await redis.hdel(namespace, key); },
+            async clear() { return await redis.del(namespace); },
+            async keys() { return await redis.hkeys(namespace); },
+            async values() { return (await redis.hvals(namespace) || []).map((value) => typeof value === 'undefined' ? value : JSON.parse(value)); },
+            async entries() { return Object.entries(await redis.hgetall(namespace) || {}).map(([key, value]) => [key, typeof value === 'undefined' ? value : JSON.parse(value)]); },
+            get size() { return redis.hlen(namespace); },
+        });
     }
 
     control() {
@@ -528,6 +562,10 @@ export class WebfloServer extends WebfloRuntime {
         }
         scopeObj.ext = Path.parse(scopeObj.filename).ext;
         const finalizeResponse = (response) => {
+            // Qualify Service-Worker responses
+            if (httpEvent.request.headers.get('Service-Worker') === 'script') {
+                scopeObj.response.headers.set('Service-Worker-Allowed', this.config.WORKER.scope || '/');
+            }
             const responseMeta = _wq(response, 'meta');
             responseMeta.set('filename', scopeObj.filename);
             responseMeta.set('static', true);
@@ -597,10 +635,7 @@ export class WebfloServer extends WebfloRuntime {
         scopeObj.response.headers.set('X-Frame-Options', 'SAMEORIGIN');
         // 5. Partial content support
         scopeObj.response.headers.set('Accept-Ranges', 'bytes');
-        // 6. Qualify Service-Worker responses
-        if (httpEvent.request.headers.get('Service-Worker') === 'script') {
-            scopeObj.response.headers.set('Service-Worker-Allowed', this.config.WORKER.scope || '/');
-        }
+
         return finalizeResponse(scopeObj.response);
     }
 
@@ -675,7 +710,7 @@ export class WebfloServer extends WebfloRuntime {
         const asHTML = requestAccept?.match('text/html');
         const asIs = requestAccept?.match(response.headers.get('Content-Type'));
         const responseMeta = _wq(response, 'meta');
-        if (requestAccept && asHTML >= asIs && !responseMeta.get('static')) {
+        if (requestAccept && asHTML > asIs && !responseMeta.get('static')) {
             response = await this.render(httpEvent, response);
         } else if (requestAccept && response.headers.get('Content-Type') && !asIs) {
             return new Response(response.body, { status: 406, statusText: 'Not Acceptable', headers: response.headers });
