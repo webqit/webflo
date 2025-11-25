@@ -1,7 +1,0 @@
-{
-    "PUBLIC_DIR": "./public",
-    "VIEWS_DIR": "./app",
-    "SERVER_DIR": "./app",
-    "CLIENT_DIR": "./app",
-    "WORKER_DIR": "./app"
-}
