@@ -1,4 +1,4 @@
-# Guide: Auth
+# Guide: Auth (Page Coming Soon)
 
 Patterns for session, cookies, and user state.
 

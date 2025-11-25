@@ -1,4 +1,4 @@
-# Guide: Service Worker
+# Guide: Service Worker (Page Coming Soon)
 
 Integrate a Service Worker for offline and caching.
 

@@ -1,5 +1,6 @@
-# Templates
+# Templates (Page Coming Soon)
 
+<!--
 Templates let you compose, reuse, and organize HTML in your Webflo app using modern standards.
 
 ## The Mental Model
@@ -11,10 +12,10 @@ Templates let you compose, reuse, and organize HTML in your Webflo app using mod
 ## Example: HTML Modules & Imports
 
 ```html
-<!-- public/header.html -->
+<!-- public/header.html - ->
 <header>Header Area</header>
 
-<!-- public/index.html -->
+<!-- public/index.html - ->
 <!DOCTYPE html>
 <html>
   <head>
@@ -46,3 +47,4 @@ oohtml bundle --recursive --auto-embed=app
 
 - [See Rendering →](./rendering.md)
 - [See Lifecycle →](./lifecycle.md)
+-->

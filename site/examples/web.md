@@ -1,4 +1,4 @@
-# Example: Web App
+# Example: Web App (Page Coming Soon)
 
 Conventional web app with server-rendered data and client interactivity.
 

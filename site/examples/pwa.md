@@ -1,4 +1,4 @@
-# Example: PWA
+# Example: PWA (Page Coming Soon)
 
 Add manifest, service worker, and offline caching.
 

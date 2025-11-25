@@ -1,4 +1,4 @@
-# HTTP Event
+# HTTP Event (Page Coming Soon)
 
 The `event` object represents the request and provides access to all request data, state, and lifecycle helpers.
 
