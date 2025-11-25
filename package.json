@@ -52,11 +52,11 @@
     "mime-types": "^2.1.33",
     "simple-git": "^2.20.1",
     "urlpattern-polyfill": "^4.0.3",
+    "chokidar": "^4.0.3",
     "fast-glob": "^3.3.3"
   },
   "devDependencies": {
     "chai": "^4.3.6",
-    "chokidar": "^4.0.3",
     "coveralls": "^3.1.1",
     "jsdom": "^27.0.1",
     "markdown-it-mathjax3": "^4.3.2",
