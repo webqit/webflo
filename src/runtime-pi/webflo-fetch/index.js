@@ -87,7 +87,11 @@ export const request = {
         }
     },
     prototype: {
-        carries: { get: function () { return new Set(_wq(this, 'meta').get('carries') || []); } },
+        carries: {
+            get: function () {
+                return _wq(this, 'meta').get('carries') || [];
+            }
+        },
         parse: { value: async function () { return await parseHttpMessage(this); } },
         clone: {
             value: function (init = {}) {

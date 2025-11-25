@@ -17,6 +17,7 @@ export class WQStarPort extends WQMessagePort {
 
     #startWQLifecycle() {
         const meta = _wq(this, 'meta');
+        let isMessaging = false;
         Object.defineProperty(this, 'wqLifecycle', {
             value: {
                 open: new Promise((resolve) => {
@@ -28,9 +29,16 @@ export class WQStarPort extends WQMessagePort {
                     meta.set('offlineCallback', resolve);
                 }),
                 messaging: new Promise((resolve) => {
-                    if (meta.get('messaging')) return resolve();
-                    meta.set('messagingCallback', resolve);
+                    if (meta.get('messaging')) {
+                        isMessaging = true;
+                        return resolve();
+                    }
+                    meta.set('messagingCallback', () => {
+                        isMessaging = true;
+                        resolve()
+                    });
                 }),
+                isMessaging: (() => isMessaging),
             },
             configurable: true
         });

@@ -128,7 +128,7 @@ export class WebfloRuntime {
                     : responseShim.from.value(response);
             }
             // Any "carry" data?
-            //await this.handleCarries(httpEvent, response);
+            await this.handleCarries(httpEvent, response);
             // Resolve now...
             if (autoLiveResponse) {
                 await autoLiveResponse.replaceWith(response, { done: true });
@@ -219,7 +219,7 @@ export class WebfloRuntime {
             }
         } else {
             // Fire redirect message?
-            const flashResponses = requestMeta.get('carries')?.map((c) => c.response).filter((r) => r);
+            const flashResponses = requestMeta.get('carries')?.filter((c) => ['message', 'error', 'success', 'alert', 'info', 'tip', 'warning'].includes(c.type));
             if (flashResponses?.length) {
                 httpEvent.waitUntil(new Promise((resolve) => {
                     httpEvent.client.wqLifecycle.open.then(() => {

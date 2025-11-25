@@ -261,6 +261,7 @@ export function toWQPort(port) {
     port.addEventListener('message', messageHandler);
     portMeta.set('messageHandler', messageHandler);
     // Only after the above native methods usages...
+    let isMessaging = false;
     Object.defineProperty(port, 'wqLifecycle', {
         value: {
             open: new Promise((resolve) => {
@@ -272,9 +273,16 @@ export function toWQPort(port) {
                 portMeta.set('offlineCallback', resolve);
             }),
             messaging: new Promise((resolve) => {
-                if (portMeta.get('messaging')) return resolve();
-                portMeta.set('messagingCallback', resolve);
+                if (portMeta.get('messaging')) {
+                    isMessaging = true;
+                    return resolve();
+                }
+                portMeta.set('messagingCallback', () => {
+                    isMessaging = true;
+                    resolve()
+                });
             }),
+            isMessaging: (() => isMessaging),
         }
     });
     Object.defineProperties(port, prototypeExtensions);
