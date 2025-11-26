@@ -140,18 +140,36 @@ export const response = {
             return instance;
         }
     },
+    redirect: {
+        value: function (url, status = 302) {
+            if (typeof url !== 'string' && !(url instanceof URL)) {
+                throw new Error('Redirect URL must be a string or URL!');
+            }
+            if (typeof status !== 'number') {
+                throw new Error('Redirect code must be a number!');
+            }
+            return new Response(null, { status, headers: { Location: url } });
+        }
+    },
     redirectWith: {
-        value: function (url, { status = 302, request = null, response = null }) {
-            if (typeof status !== 'string') {
-                throw new Error('Redirect code must be an object!');
+        value: function (url, ...args) {
+            if (typeof url !== 'string' && !(url instanceof URL)) {
+                throw new Error('Redirect URL must be a string or URL!');
             }
-            if (request && !_isObject(request) || response && !_isObject(response)) {
-                throw new Error('Carries (redirect requests and responses) must be an object!');
+            let status = 302;
+            if (!_isObject(args[0])) {
+                status = args.shift();
             }
-            const responseInstance = this.redirect(url, status);
-            if (request || response) {
+            if (typeof status !== 'number') {
+                throw new Error('Redirect code must be a number!');
+            }
+            if (args.some((arg) => !_isObject(arg))) {
+                throw new Error('Redirect arguments must be objects!');
+            }
+            const responseInstance = new Response(null, { status, headers: { Location: url } });
+            if (args.length) {
                 const responseMeta = _wq(responseInstance, 'meta');
-                responseMeta.set('carry', { request, response });
+                responseMeta.set('carry', args);
             }
             return responseInstance;
         }
@@ -436,12 +454,5 @@ export function renderCookieObjToString(cookieObj) {
         if (_attrName === 'MaxAge') { _attrName = 'Max-Age' };
         attrsArr.push(cookieObj[attrName] === true ? _attrName : `${_attrName}=${cookieObj[attrName]}`);
     }
-    return attrsArr.join(';');
-}
-
-// ----- shim
-
-const importUrl = new URL(import.meta.url);
-if (importUrl.searchParams.has('shim')) {
-    shim(importUrl.searchParams.get('shim')?.trim());
+    return attrsArr.join('; ');
 }
