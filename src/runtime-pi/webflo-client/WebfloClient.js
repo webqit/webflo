@@ -7,9 +7,6 @@ import { response as responseShim } from '../webflo-fetch/index.js';
 import { LiveResponse } from '../webflo-fetch/LiveResponse.js';
 import { WQStarPort } from '../webflo-messaging/WQStarPort.js';
 import { ClientSideCookies } from './ClientSideCookies.js';
-import { HttpSession } from '../webflo-routing/HttpSession.js';
-import { HttpEvent } from '../webflo-routing/HttpEvent.js';
-import { HttpUser } from '../webflo-routing/HttpUser.js';
 import { Url } from '../webflo-url/Url.js';
 import { _wq } from '../../util.js';
 import '../webflo-fetch/index.js';
@@ -17,13 +14,7 @@ import '../webflo-url/index.js';
 
 export class WebfloClient extends WebfloRuntime {
 
-    static get HttpEvent() { return HttpEvent; }
-
     static get HttpCookies() { return ClientSideCookies; }
-
-    static get HttpSession() { return HttpSession; }
-
-    static get HttpUser() { return HttpUser; }
 
     #host;
     get host() { return this.#host; }
@@ -68,19 +59,23 @@ export class WebfloClient extends WebfloRuntime {
         // Bind prompt handlers
         const promptsHandler = (e) => {
             const message = e.data?.message
-                ? e.data.message + (e.data.details ? `\r\n${e.data.details}` : '')
+                ? e.data.message
                 : e.data;
             const execPromp = () => {
+                if (e.defaultPrevented) return;
                 if (e.type === 'confirm') {
                     e.wqRespondWith(confirm(message));
                 } else if (e.type === 'prompt') {
                     e.wqRespondWith(prompt(message));
+                } else if (e.type === 'alert') {
+                    alert(message);
                 }
             };
             window.queueMicrotask(execPromp);
         };
         this.background.addEventListener('confirm', promptsHandler, { signal: instanceController.signal });
         this.background.addEventListener('prompt', promptsHandler, { signal: instanceController.signal });
+        this.background.addEventListener('alert', promptsHandler, { signal: instanceController.signal });
         await this.setupCapabilities();
         this.control();
         await this.hydrate();
@@ -242,7 +237,8 @@ export class WebfloClient extends WebfloRuntime {
     #prevEvent;
     createHttpEvent(init, singleton = true) {
         if (singleton && this.#prevEvent) {
-            this.#prevEvent.abort();
+            // TODO
+            //this.#prevEvent.abort();
         }
         const httpEvent = super.createHttpEvent(init);
         this.$instanceController.signal.addEventListener('abort', () => httpEvent.abort(), { once: true });
@@ -266,20 +262,30 @@ export class WebfloClient extends WebfloRuntime {
         }
         // Create and route request
         scopeObj.request = this.createRequest(scopeObj.url, scopeObj.init);
+        scopeObj.thread = this.createHttpThread({
+            store: this.createStorage('thread'),
+            threadId: scopeObj.url.searchParams.get('_thread'),
+            realm: 1
+        });
         scopeObj.cookies = this.createHttpCookies({
-            request: scopeObj.request
+            request: scopeObj.request,
+            thread: scopeObj.thread,
+            realm: 1
         });
         scopeObj.session = this.createHttpSession({
-			store: this.createStorage('session'),
-			request: scopeObj.request
-		});
+            store: this.createStorage('session'),
+            request: scopeObj.request,
+            thread: scopeObj.thread,
+            realm: 1
+        });
         const wqMessageChannel = new WQMessageChannel;
         scopeObj.clientRequestRealtime = wqMessageChannel.port1;
         scopeObj.user = this.createHttpUser({
             store: this.createStorage('user'),
             request: scopeObj.request,
+            thread: scopeObj.thread,
             client: scopeObj.clientRequestRealtime,
-            session: scopeObj.session,
+            realm: 1
         });
         if (window.webqit?.oohtml?.configs) {
             const { BINDINGS_API: { api: bindingsConfig } = {}, } = window.webqit.oohtml.configs;
@@ -287,6 +293,7 @@ export class WebfloClient extends WebfloRuntime {
         }
         scopeObj.httpEvent = this.createHttpEvent({
             request: scopeObj.request,
+            thread: scopeObj.thread,
             client: scopeObj.clientRequestRealtime,
             cookies: scopeObj.cookies,
             session: scopeObj.session,
@@ -294,6 +301,7 @@ export class WebfloClient extends WebfloRuntime {
             detail: scopeObj.detail,
             signal: init.signal,
             state: scopeObj.UIState,
+            realm: 1
         }, true);
         // Set pre-request states
         Observer.set(this.navigator, {
@@ -434,15 +442,18 @@ export class WebfloClient extends WebfloRuntime {
     async transitionUI(updateCallback) {
         if (document.startViewTransition && this.withViewTransitions) {
             const synthesizeWhile = window.webqit?.realdom?.synthesizeWhile || ((callback) => callback());
-            await synthesizeWhile(async () => {
-                Observer.set(this.transition, 'phase', 1);
-                const viewTransition = document.startViewTransition(updateCallback);
-                try { await viewTransition.updateCallbackDone; } catch (e) { console.log(e); }
-                Observer.set(this.transition, 'phase', 2);
-                try { await viewTransition.ready; } catch (e) { console.log(e); }
-                Observer.set(this.transition, 'phase', 3);
-                try { await viewTransition.finished; } catch (e) { console.log(e); }
-                Observer.set(this.transition, 'phase', 0);
+            return new Promise(async (resolve) => {
+                await synthesizeWhile(async () => {
+                    Observer.set(this.transition, 'phase', 1);
+                    const viewTransition = document.startViewTransition(updateCallback);
+                    try { await viewTransition.updateCallbackDone; } catch (e) { console.log(e); }
+                    Observer.set(this.transition, 'phase', 2);
+                    try { await viewTransition.ready; } catch (e) { console.log(e); }
+                    Observer.set(this.transition, 'phase', 3);
+                    try { await viewTransition.finished; } catch (e) { console.log(e); }
+                    Observer.set(this.transition, 'phase', 0);
+                    resolve();
+                });
             });
         } else await updateCallback();
     }

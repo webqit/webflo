@@ -2,6 +2,10 @@ import { WebfloRouter } from './webflo-routing/WebfloRouter.js';
 import { response as responseShim, headers as headersShim } from './webflo-fetch/index.js';
 import { LiveResponse } from './webflo-fetch/LiveResponse.js';
 import { AppBootstrap } from './AppBootstrap.js';
+import { HttpEvent } from './webflo-routing/HttpEvent.js';
+import { HttpThread } from './webflo-routing/HttpThread.js';
+import { HttpSession } from './webflo-routing/HttpSession.js';
+import { HttpUser } from './webflo-routing/HttpUser.js';
 import { _wq } from '../util.js';
 
 export class WebfloRuntime {
@@ -10,6 +14,14 @@ export class WebfloRuntime {
     get $instanceController() { return this.#instanceController; }
 
     static get Router() { return WebfloRouter; }
+
+	static get HttpEvent() { return HttpEvent; }
+
+	static get HttpThread() { return HttpThread; }
+
+	static get HttpSession() { return HttpSession; }
+
+	static get HttpUser() { return HttpUser; }
 
     static create(bootstrap) { return new this(bootstrap); }
 
@@ -72,34 +84,33 @@ export class WebfloRuntime {
         return new Request(href, init);
     }
 
-    createHttpCookies({ request, ...rest }) {
-        return this.constructor.HttpCookies.create({ request, ...rest });
+    createHttpThread({ store, threadID, ...rest }) {
+        return this.constructor.HttpThread.create({ store, threadID, ...rest });
     }
 
-    createHttpSession({ store, request, ...rest }) {
-        return this.constructor.HttpSession.create({ store, request, ...rest });
+    createHttpCookies({ request, thread, ...rest }) {
+        return this.constructor.HttpCookies.create({ request, thread, ...rest });
     }
 
-    createHttpUser({ store, request, session, client, ...rest }) {
-        return this.constructor.HttpUser.create({ store, request, session, client, ...rest });
+    createHttpSession({ store, request, thread, ...rest }) {
+        return this.constructor.HttpSession.create({ store, request, thread, ...rest });
     }
 
-    createHttpEvent({ request, cookies, session, user, client, detail, signal, state, ...rest }) {
-        return this.constructor.HttpEvent.create(null, { request, cookies, session, user, client, detail, signal, state, ...rest });
+    createHttpUser({ store, request, thread, client, ...rest }) {
+        return this.constructor.HttpUser.create({ store, request, thread, client, ...rest });
+    }
+
+    createHttpEvent({ request, thread, cookies, session, user, client, detail, signal, state, ...rest }) {
+        return this.constructor.HttpEvent.create(null, { request, thread, cookies, session, user, client, detail, signal, state, ...rest });
     }
 
     async dispatchNavigationEvent({ httpEvent, crossLayerFetch, clientPortB }) {
         const { flags: FLAGS, logger: LOGGER } = this.cx;
-        // Resolve rid before dispatching
-        if (httpEvent.request.method === 'GET' && httpEvent.url.query['_rid']) {
-            const requestMeta = _wq(httpEvent.request, 'meta');
-            requestMeta.set('redirectID', httpEvent.url.query['_rid']);
-            requestMeta.set('carries', [].concat(await httpEvent.session.get(`carry-store:${requestMeta.get('redirectID')}`) || []));
-            await httpEvent.session.delete(`carry-store:${requestMeta.get('redirectID')}`);
-        }
+
         // Dispatch event
         const router = new this.constructor.Router(this, httpEvent.url.pathname);
-        await router.route(['SETUP'], httpEvent.extend(false));
+        await router.route(['SETUP'], httpEvent);
+
         // Do proper routing for respone
         const response = await new Promise(async (resolve) => {
             let autoLiveResponse, response;
@@ -113,6 +124,7 @@ export class WebfloRuntime {
                 return await router.route(routeMethods, httpEvent, crossLayerFetch, remoteFetch);
             };
             const fullRoutingPipeline = this.bootstrap.middlewares.concat(route);
+
             try {
                 response = await fullRoutingPipeline.reverse().reduce((next, fn) => {
                     return () => fn.call(this.cx, httpEvent, next);
@@ -121,14 +133,17 @@ export class WebfloRuntime {
                 console.error(e);
                 response = new Response(null, { status: 500, statusText: e.message });
             }
+
             if (!/Response/.test(LiveResponse.test(response))) {
-                const isLifecyleComplete = httpEvent.lifeCycleComplete();
+                const isLifecyleComplete = httpEvent.lifeCycleComplete() ?? true;
                 response = LiveResponse.test(response) !== 'Default' || !isLifecyleComplete
                     ? await LiveResponse.from(response, { done: isLifecyleComplete })
                     : responseShim.from.value(response);
             }
+
             // Any "carry" data?
             await this.handleCarries(httpEvent, response);
+
             // Resolve now...
             if (autoLiveResponse) {
                 await autoLiveResponse.replaceWith(response, { done: true });
@@ -148,7 +163,7 @@ export class WebfloRuntime {
 
         // Send the X-Background-Messaging-Port header
         // This server's event lifecycle management
-        if (!httpEvent.lifeCycleComplete()) {
+        if (!(httpEvent.lifeCycleComplete() ?? true)) {
             if (this.isClientSide) {
                 const responseMeta = _wq(response, 'meta');
                 responseMeta.set('background_port', clientPortB);
@@ -191,44 +206,17 @@ export class WebfloRuntime {
     }
 
     async handleCarries(httpEvent, response) {
-        const requestMeta = _wq(httpEvent.request, 'meta');
-        const responseMeta = _wq(response, 'meta');
-        if (response.headers.get('Location')) {
-            // Don't emit the supposedly incoming "carries"
-            // Save back to URL
-            if (requestMeta.get('carries')?.length) {
-                await httpEvent.session.set(`carry-store:${requestMeta.get('redirectID')}`, requestMeta.get('carries'));
-                requestMeta.set('carries', []);
-            }
-            // Stash current byte of "carry"
-            if (responseMeta.has('carry')) {
-                const $url = new URL(response.headers.get('Location'), httpEvent.request.url);
-                if ($url.searchParams.has('_rid')) {
-                    // If the URL already has a rid, append the new one
-                    const existingRedirectID = $url.searchParams.get('_rid');
-                    const existingData = await httpEvent.session.get(`carry-store:${existingRedirectID}`);
-                    const combinedData = [].concat(responseMeta.get('carry'), existingData || []);
-                    // Save the combined data back to the session
-                    await httpEvent.session.set(`carry-store:${existingRedirectID}`, combinedData);
-                } else {
-                    // If not, create a new rid
-                    const redirectID = (0 | Math.random() * 9e6).toString(36);
-                    $url.searchParams.set('_rid', redirectID);
-                    await httpEvent.session.set(`carry-store:${redirectID}`, [].concat(responseMeta.get('carry')));
-                }
-            }
-        } else {
+        if (!response.headers.get('Location')) {
+            const status = await httpEvent.thread.consume('status');
+            await httpEvent.thread.clear();
+            if (!status) return;
             // Fire redirect message?
-            const flashResponses = requestMeta.get('carries')?.filter((c) => ['message', 'error', 'success', 'alert', 'info', 'tip', 'warning'].includes(c.type));
-            if (flashResponses?.length) {
-                httpEvent.waitUntil(new Promise((resolve) => {
-                    httpEvent.client.wqLifecycle.open.then(() => {
-                        httpEvent.client.postMessage(flashResponses, { wqEventOptions: { type: 'flash' } });
-                        resolve();
-                    }, { once: true });
-                }));
-            }
-            requestMeta.set('carries', []);
+            httpEvent.waitUntil(new Promise((resolve) => {
+                httpEvent.client.wqLifecycle.open.then(async () => {
+                    httpEvent.client.postMessage(status, { wqEventOptions: { type: 'alert' } });
+                    resolve();
+                }, { once: true });
+            }));
         }
     }
 

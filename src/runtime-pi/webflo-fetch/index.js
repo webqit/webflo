@@ -140,40 +140,6 @@ export const response = {
             return instance;
         }
     },
-    redirect: {
-        value: function (url, status = 302) {
-            if (typeof url !== 'string' && !(url instanceof URL)) {
-                throw new Error('Redirect URL must be a string or URL!');
-            }
-            if (typeof status !== 'number') {
-                throw new Error('Redirect code must be a number!');
-            }
-            return new Response(null, { status, headers: { Location: url } });
-        }
-    },
-    redirectWith: {
-        value: function (url, ...args) {
-            if (typeof url !== 'string' && !(url instanceof URL)) {
-                throw new Error('Redirect URL must be a string or URL!');
-            }
-            let status = 302;
-            if (!_isObject(args[0])) {
-                status = args.shift();
-            }
-            if (typeof status !== 'number') {
-                throw new Error('Redirect code must be a number!');
-            }
-            if (args.some((arg) => !_isObject(arg))) {
-                throw new Error('Redirect arguments must be objects!');
-            }
-            const responseInstance = new Response(null, { status, headers: { Location: url } });
-            if (args.length) {
-                const responseMeta = _wq(responseInstance, 'meta');
-                responseMeta.set('carry', args);
-            }
-            return responseInstance;
-        }
-    },
     prototype: {
         status: {
             get: function () {
@@ -393,6 +359,7 @@ export function renderHttpMessageInit(httpMessageInit) {
 }
 
 export async function parseHttpMessage(httpMessage) {
+    if (!httpMessage.body) return null;
     let result;
     const contentType = httpMessage.headers.get('Content-Type') || '';
     if (contentType === 'application/x-www-form-urlencoded' || contentType.startsWith('multipart/form-data')) {

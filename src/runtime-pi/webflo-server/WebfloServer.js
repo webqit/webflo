@@ -20,8 +20,6 @@ import { WebfloRuntime } from '../WebfloRuntime.js';
 import { WQSockPort } from '../webflo-messaging/WQSockPort.js';
 import { ServerSideCookies } from './ServerSideCookies.js';
 import { ServerSideSession } from './ServerSideSession.js';
-import { HttpEvent } from '../webflo-routing/HttpEvent.js';
-import { HttpUser } from '../webflo-routing/HttpUser.js';
 import { response as responseShim, headers as headersShim } from '../webflo-fetch/index.js';
 import { UseLiveTransform } from '../../build-pi/esbuild-plugin-uselive-transform.js';
 import { createWindow } from '@webqit/oohtml-ssr';
@@ -31,13 +29,9 @@ import '../webflo-url/index.js';
 
 export class WebfloServer extends WebfloRuntime {
 
-    static get HttpEvent() { return HttpEvent; }
-
     static get HttpCookies() { return ServerSideCookies; }
 
     static get HttpSession() { return ServerSideSession; }
-
-    static get HttpUser() { return HttpUser; }
 
     static create(bootstrap) {
         return new this(bootstrap);
@@ -648,33 +642,45 @@ export class WebfloServer extends WebfloRuntime {
         // Request processing
         scopeObj.autoHeaders = HEADERS.entries.filter((entry) => (new URLPattern(entry.url, url.origin)).exec(url.href)) || [];
         scopeObj.request = this.createRequest(scopeObj.url.href, scopeObj.init, scopeObj.autoHeaders.filter((header) => header.type === 'request'));
-        scopeObj.cookies = this.createHttpCookies({
-            request: scopeObj.request
-        });
         scopeObj.clientID = this.identifyIncoming(scopeObj.request, true);
         scopeObj.client = this.#clients.getClient(scopeObj.clientID, true);
         scopeObj.clientPortID = crypto.randomUUID();
         scopeObj.clientRequestRealtime = scopeObj.client.createRequestRealtime(scopeObj.clientPortID, scopeObj.request.url);
         scopeObj.sessionTTL = this.env('SESSION_TTL') || 2592000/*30days*/;
+        scopeObj.thread = this.createHttpThread({
+            store: this.createStorage(`${scopeObj.url.host}/thread:${scopeObj.clientID}`, scopeObj.sessionTTL),
+            threadID: scopeObj.url.searchParams.get('_thread'),
+            realm: 3
+        });
+        scopeObj.cookies = this.createHttpCookies({
+            request: scopeObj.request,
+            thread: scopeObj.thread,
+            realm: 3
+        });
         scopeObj.session = this.createHttpSession({
             store: this.createStorage(`${scopeObj.url.host}/session:${scopeObj.clientID}`, scopeObj.sessionTTL),
             request: scopeObj.request,
+            thread: scopeObj.thread,
             sessionID: scopeObj.clientID,
-            ttl: scopeObj.sessionTTL
+            ttl: scopeObj.sessionTTL,
+            realm: 3
         });
         scopeObj.user = this.createHttpUser({
             store: this.createStorage(`${scopeObj.url.host}/user:${scopeObj.clientID}`, scopeObj.sessionTTL),
             request: scopeObj.request,
+            thread: scopeObj.thread,
             client: scopeObj.clientRequestRealtime,
-            session: scopeObj.session,
+            realm: 3
         });
         scopeObj.httpEvent = this.createHttpEvent({
             request: scopeObj.request,
+            thread: scopeObj.thread,
             client: scopeObj.clientRequestRealtime,
             cookies: scopeObj.cookies,
             session: scopeObj.session,
             user: scopeObj.user,
             detail: scopeObj.detail,
+            realm: 3
         });
         // Dispatch for response
         scopeObj.response = await this.dispatchNavigationEvent({

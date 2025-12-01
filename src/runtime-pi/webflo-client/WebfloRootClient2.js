@@ -48,7 +48,7 @@ export class WebfloRootClient2 extends WebfloRootClient1 {
 			const init = {
 				method: formData && 'POST' || 'GET',
 				body: formData,
-				signal
+				//signal TODO: auto-aborts on a redirect response which thus fails to parse
 			};
 			this.updateCurrentEntry({
 				state: {

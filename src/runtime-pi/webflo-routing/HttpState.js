@@ -2,16 +2,16 @@ import { _isObject } from '@webqit/util/js/index.js';
 import { _even } from '@webqit/util/obj/index.js';
 
 export class HttpState {
-    
+
     #store;
     #request;
-    #session;
+    #thread;
     #modified = false;
 
-    constructor({ store, request, session = null }) {
+    constructor({ store, request, thread }) {
         this.#store = store || new Map;
         this.#request = request;
-        this.#session = session === true ? this : session;
+        this.#thread = thread === true ? this : thread;
     }
 
     async has(key) { return await this.#store.has(key); }
@@ -59,7 +59,7 @@ export class HttpState {
 
     async forEach(callback) { (await this.entries()).forEach(([key, value], i) => callback(value, key, i)); }
 
-    [ Symbol.iterator ]() { return this.entries().then((entries) => entries[ Symbol.iterator ]()); }
+    [Symbol.iterator]() { return this.entries().then((entries) => entries[Symbol.iterator]()); }
 
     get size() { return this.#store.sizs; }
 
@@ -97,8 +97,14 @@ export class HttpState {
                 handler = { callback: handler };
             } else if (typeof handler === 'string') {
                 handler = { url: handler };
-            } else if (typeof handler?.callback !== 'function' && typeof handler?.url !== 'string') {
+            } else if (!(_isObject(handler) && (handler = { ...handler })) 
+                || typeof handler.callback !== 'function' && typeof handler.url !== 'string') {
                 throw new Error(`Handler must be either an URL or a function or an object specifying either an URL (handler.url) or a function (handler.callback)`);
+            }
+            if (_isObject(handler.with)) {
+                handler.with = { ...handler.with };
+            } else if (handler.with) {
+                throw new Error(`The "with" parameter must be a valid JSON object`);
             }
             $handlers.push(handler);
         }
@@ -115,7 +121,7 @@ export class HttpState {
                 if (!handlers) {
                     throw new Error(`No handler defined for the user attribute: ${attr}`);
                 }
-                for (let i = 0; i < handlers.length; i ++) {
+                for (let i = 0; i < handlers.length; i++) {
                     const handler = handlers[i];
                     if (handler.callback) {
                         const returnValue = await handler.callback(this, attr);
@@ -129,20 +135,19 @@ export class HttpState {
                         continue main;
                     }
                     const urlRewrite = new URL(handler.url, this.#request.url);
-                    if (!urlRewrite.searchParams.has('success-redirect')) {
-                        urlRewrite.searchParams.set('success-redirect', this.#request.url.replace(urlRewrite.origin, ''));
-                    }
-                    if (handler.message) {
-                        if (!this.#session) {
-                            throw new Error('Storage type does not support redirect messages');
+                    const newThread = this.#thread.extend(urlRewrite.searchParams.get('_thread'));
+                    urlRewrite.searchParams.set('_thread', newThread.threadID);
+                    await newThread.append('back', this.#request.url.replace(urlRewrite.origin, ''));
+                    if (handler.with) {
+                        for (const [key, value] of Object.entries(handler.with)) {
+                            await newThread.append(key, value);
                         }
-                        const messageID = (0 | Math.random() * 9e6).toString(36);
-                        urlRewrite.searchParams.set('redirect-message', messageID);
-                        await this.#session.set(`redirect-message:${messageID}`, { status: { type: handler.type || 'info', message: handler.message }});
                     }
-                    return new Response(null, { status: 302, headers: {
-                        Location: urlRewrite
-                    }});
+                    return new Response(null, {
+                        status: 302, headers: {
+                            Location: urlRewrite
+                        }
+                    });
                 }
             }
             entries.push(await this.get(attr));

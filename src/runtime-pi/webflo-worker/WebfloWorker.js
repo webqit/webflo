@@ -4,21 +4,12 @@ import { response as responseShim } from '../webflo-fetch/index.js';
 import { WQBroadcastChannel } from '../webflo-messaging/WQBroadcastChannel.js';
 import { WorkerSideWorkport } from './WorkerSideWorkport.js';
 import { WorkerSideCookies } from './WorkerSideCookies.js';
-import { HttpSession } from '../webflo-routing/HttpSession.js';
-import { HttpEvent } from '../webflo-routing/HttpEvent.js';
-import { HttpUser } from '../webflo-routing/HttpUser.js';
 import '../webflo-fetch/index.js';
 import '../webflo-url/index.js';
 
 export class WebfloWorker extends WebfloRuntime {
 
-	static get HttpEvent() { return HttpEvent; }
-
 	static get HttpCookies() { return WorkerSideCookies; }
-
-	static get HttpSession() { return HttpSession; }
-
-	static get HttpUser() { return HttpUser; }
 
 	static get Workport() { return WorkerSideWorkport; }
 
@@ -106,28 +97,40 @@ export class WebfloWorker extends WebfloRuntime {
 		}
 		// Create and route request
 		scopeObj.request =  this.createRequest(scopeObj.url, scopeObj.init);
+		scopeObj.thread = this.createHttpThread({
+            store: this.createStorage('thread'),
+            threadId: scopeObj.url.searchParams.get('_thread'),
+            realm: 2
+        });
 		scopeObj.cookies = this.createHttpCookies({
-			request: scopeObj.request
+			request: scopeObj.request,
+			thread: scopeObj.thread,
+			realm: 2
 		});
 		scopeObj.session = this.createHttpSession({
 			store: this.createStorage('session'),
-			request: scopeObj.request
+			request: scopeObj.request,
+			thread: scopeObj.thread,
+			realm: 2
 		});
 		const requestID = crypto.randomUUID();
 		scopeObj.clientRequestRealtime = new WQBroadcastChannel(requestID);
 		scopeObj.user = this.createHttpUser({
 			store: this.createStorage('user'),
 			request: scopeObj.request,
+			thread: scopeObj.thread,
 			client: scopeObj.clientRequestRealtime,
-			session: scopeObj.session,
+			realm: 2
 		});
 		scopeObj.httpEvent = this.createHttpEvent({
 			request: scopeObj.request,
+			thread: scopeObj.thread,
 			client: scopeObj.clientRequestRealtime,
 			cookies: scopeObj.cookies,
 			session: scopeObj.session,
 			user: scopeObj.user,
 			detail: scopeObj.detail,
+			realm: 2
 		});
 		// Dispatch for response
 		scopeObj.response = await this.dispatchNavigationEvent({

@@ -15,6 +15,13 @@ export class WebfloRouter {
 
     async route(method, event, _default = null, remoteFetch = null) {
         const $this = this;
+        const callWebfloDefault = async (thisContext, thisTick) => {
+            let returnValue;
+            if (_default) {
+                returnValue = await _default.call(thisContext, thisTick.event, remoteFetch);
+            }
+            return returnValue;
+        };
         // ----------------
         // The loop
         // ----------------
@@ -33,10 +40,7 @@ export class WebfloRouter {
                         return next(thisTick);
                     }
                     // Exports not found and directory not found
-                    if (_default) {
-                        return await _default.call(thisContext, thisTick.event, remoteFetch);
-                    }
-                    return;
+                    return callWebfloDefault(thisContext, thisTick);
                 }
                 // -------------
                 // Broadcast any hints exported by handler
@@ -190,15 +194,7 @@ export class WebfloRouter {
                     }
                 });
             }
-            let returnValue;
-            if (_default) {
-                returnValue = await _default.call(thisContext, thisTick.event, remoteFetch);
-            }
-            try {
-                // IMPORTANT: Explicitly terminate the event lifecycle if nothing extends it
-                await thisTick.event.waitUntil();
-            } catch(e) {}
-            return returnValue;
+            return callWebfloDefault(thisContext, thisTick);
         };
 
         return next({

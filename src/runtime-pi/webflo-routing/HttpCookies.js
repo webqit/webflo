@@ -1,5 +1,5 @@
-import { _isObject } from '@webqit/util/js/index.js';
 import { _even } from '@webqit/util/obj/index.js';
+import { _isObject } from '@webqit/util/js/index.js';
 import { renderCookieObjToString } from '../webflo-fetch/index.js';
 import { HttpState } from './HttpState.js';
 
@@ -7,9 +7,9 @@ export class HttpCookies extends HttpState {
 
     #originals;
 
-    constructor({ request, entries = [] }) {
+    constructor({ request, thread = null, entries = [] }) {
         entries = [...entries].map(([key, value]) => [key, !_isObject(value) ? { name: key, value } : value]);
-        super({ store: new Map(entries), request, session: null });
+        super({ store: new Map(entries), request, thread });
         this.#originals = new Map(entries);
     }
 

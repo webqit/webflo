@@ -26,9 +26,13 @@ export class HttpEvent {
         });
     }
 
+    get signal() { return this.#abortController.signal; }
+
     get url() { return this.#url; }
 
     get request() { return this.#init.request; }
+
+    get thread() { return this.#init.thread; }
 
     get client() { return this.#init.client; }
 
@@ -39,8 +43,6 @@ export class HttpEvent {
     get user() { return this.#init.user; }
 
     get detail() { return this.#init.detail; }
-
-    get signal() { return this.#abortController.signal; }
 
     get state() { return { ...(this.#init.state || {}) }; }
 
@@ -57,6 +59,9 @@ export class HttpEvent {
     #extendLifecycle(promise) {
         if (this.#lifecyclePromises.dirty && !this.#lifecyclePromises.size) {
             throw new Error('Event lifecycle already complete.');
+        }
+        if (this.#parentEvent) {
+            this.#parentEvent.waitUntil(promise);
         }
         promise = Promise.resolve(promise);
         this.#lifecyclePromises.add(promise);
@@ -78,8 +83,11 @@ export class HttpEvent {
         if (returningThePromise) {
             return this.#lifeCycleResolutionPromise;
         }
-        return this.#lifecyclePromises.dirty // IMPORTANT
-            && !this.#lifecyclePromises.size;
+        if (this.#lifecyclePromises.dirty === undefined) {
+            // Hasn't been initialized yet
+            return null;
+        }
+        return !this.#lifecyclePromises.size;
     }
 
     async waitUntil(promise) {
@@ -97,13 +105,49 @@ export class HttpEvent {
         await this.#internalLiveResponse.replaceWith(data, ...args);
     }
 
+    async redirect(url, status = 302) {
+        if (typeof url !== 'string' && !(url instanceof URL)) {
+            throw new Error('Redirect URL must be a string or URL!');
+        }
+        let options = {};
+        if (_isObject(status)) {
+            ({ status = 302, ...options } = status);
+        }
+        if (typeof status !== 'number') {
+            throw new Error('Redirect code must be a number!');
+        }
+        return await this.respondWith(null, { status, ...options, headers: { Location: url } });
+    }
+
+    async redirectWith(url, data, status = 302) {
+        if (typeof url !== 'string' && !(url instanceof URL)) {
+            throw new Error('Redirect URL must be a string or URL!');
+        }
+        let options = {};
+        if (_isObject(status)) {
+            ({ status = 302, ...options } = status);
+        }
+        if (typeof status !== 'number') {
+            throw new Error('Redirect code must be a number!');
+        }
+        //-----
+        const urlRewrite = new URL(url, this.request.url);
+        const newThread = this.thread.extend(urlRewrite.searchParams.get('_thread'));
+        urlRewrite.searchParams.set('_thread', newThread.threadID);
+        await newThread.append('back', this.request.url.replace(urlRewrite.origin, ''));
+        for (const [key, value] of Object.entries(data)) {
+            await newThread.append(key, value);
+        }
+        //-----
+        return await this.respondWith(null, { status, ...options, headers: { Location: urlRewrite.href } });
+    }
+
     clone(init = {}) {
         return this.constructor.create(this.#parentEvent, { ...this.#init, ...init });
     }
 
     extend(init = {}) {
         const instance = this.constructor.create(this/*Main difference from clone*/, { ...this.#init, ...(init || {}) });
-        if (init !== false) this.#extendLifecycle(instance.lifeCycleComplete(true));
         return instance;
     }
 

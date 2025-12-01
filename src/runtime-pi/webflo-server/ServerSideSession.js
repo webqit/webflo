@@ -3,10 +3,11 @@ import { headers as headersShim } from '../webflo-fetch/index.js';
 
 export class ServerSideSession extends HttpSession {
 
-    static create({ store, request, sessionID, ttl }) {
+    static create({ store, request, thread, sessionID, ttl }) {
         return new this({
             store,
             request,
+            thread,
             sessionID,
             ttl
         });
@@ -16,14 +17,14 @@ export class ServerSideSession extends HttpSession {
     get sessionID() { return this.#sessionID; }
     #ttl;
     
-    constructor({ store, request, sessionID, ttl }) {
+    constructor({ store, request, thread, sessionID, ttl }) {
         if (!sessionID) {
             throw new Error(`sessionID is required`);
         }
         super({
             store,
             request,
-            session: true
+            thread,
         });
         this.#sessionID = sessionID;
         this.#ttl = ttl;

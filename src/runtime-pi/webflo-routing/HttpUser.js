@@ -2,17 +2,17 @@ import { HttpState } from './HttpState.js';
 
 export class HttpUser extends HttpState {
 
-    static create({ store, request, client, session }) {
-        return new this({ store, request, client, session });
+    static create({ store, request, thread, client }) {
+        return new this({ store, request, thread, client });
     }
 
     #client;
 
-    constructor({ store, request, client, session }) {
+    constructor({ store, request, thread, client }) {
         super({
             store,
             request,
-            session
+            thread
         });
         this.#client = client;
     }

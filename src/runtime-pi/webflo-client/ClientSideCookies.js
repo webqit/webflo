@@ -1,9 +1,10 @@
 import { HttpCookies } from '../webflo-routing/HttpCookies.js';
 
 export class ClientSideCookies extends HttpCookies {
-    static create({ request }) {
+    static create({ request, thread }) {
         return new this({
             request,
+            thread,
             entries: document.cookie.split(';').map((c) => c.split('=').map((s) => s.trim()))
         });
     }
