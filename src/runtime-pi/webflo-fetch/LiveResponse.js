@@ -1,4 +1,4 @@
-import { Observer, LiveMode } from '@webqit/use-live';
+import { Observer, LiveProgramHandle } from '@webqit/use-live';
 import { _isObject, _isTypeObject } from '@webqit/util/js/index.js';
 import { publishMutations, applyMutations } from '../webflo-messaging/wq-message-port.js';
 import { WQBroadcastChannel } from '../webflo-messaging/WQBroadcastChannel.js';
@@ -22,9 +22,9 @@ export class LiveResponse extends EventTarget {
         if (isGenerator(data)) {
             return 'Generator';
         }
-        if (data instanceof LiveMode
-            || data?.[Symbol.toStringTag] === 'LiveMode') {
-            return 'LiveMode';
+        if (data instanceof LiveProgramHandle
+            || data?.[Symbol.toStringTag] === 'LiveProgramHandle') {
+            return 'LiveProgramHandle';
         }
         return 'Default';
     }
@@ -39,8 +39,8 @@ export class LiveResponse extends EventTarget {
         if (this.test(data) === 'Generator') {
             return await this.fromGenerator(data, ...args);
         }
-        if (this.test(data) === 'LiveMode') {
-            return this.fromLiveMode(data, ...args);
+        if (this.test(data) === 'LiveProgramHandle') {
+            return this.fromLiveProgramHandle(data, ...args);
         }
         return new this(data, ...args);
     }
@@ -137,18 +137,18 @@ export class LiveResponse extends EventTarget {
         return instance;
     }
 
-    static async fromLiveMode(liveMode, options = {}) {
-        if (!this.test(liveMode) === 'LiveMode') {
-            throw new Error('Argument must be a UseLive LiveMode instance.');
+    static async fromLiveProgramHandle(liveProgramHandle, options = {}) {
+        if (!this.test(liveProgramHandle) === 'LiveProgramHandle') {
+            throw new Error('Argument must be a UseLive LiveProgramHandle instance.');
         }
         const instance = new this;
-        await instance.replaceWith(liveMode.value, { done: false, ...options });
+        await instance.replaceWith(liveProgramHandle.value, { done: false, ...options });
         if (instance.#generatorType === 'Default') {
-            instance.#generator = liveMode;
-            instance.#generatorType = 'LiveMode';
+            instance.#generator = liveProgramHandle;
+            instance.#generatorType = 'LiveProgramHandle';
         }
         Observer.observe(
-            liveMode,
+            liveProgramHandle,
             'value',
             (e) => instance.#replaceWith(e.value),
             { signal: instance.#abortController.signal }
@@ -446,8 +446,8 @@ export class LiveResponse extends EventTarget {
         }));
     }
 
-    toLiveMode({ signal: abortSignal } = {}) {
-        const state = new LiveModeX;
+    toLiveProgramHandle({ signal: abortSignal } = {}) {
+        const state = new LiveProgramHandleX;
         const replaceHandler = () => Observer.defineProperty(state, 'value', { value: this.body, enumerable: true, configurable: true });
         this.addEventListener('replace', replaceHandler, { signal: abortSignal });
         replaceHandler();
@@ -469,7 +469,7 @@ export const isGenerator = (obj) => {
         typeof obj?.return === 'function';
 };
 
-class LiveModeX extends LiveMode {
+class LiveProgramHandleX extends LiveProgramHandle {
     constructor() { }
     abort() { }
 }

@@ -68,25 +68,23 @@ The service worker as a new routing site exposes this underutilized layer of the
 
 | Category                   | Examples & Notes                                                                                                 |
 | :------------------------- | :--------------------------------------------------------------------------------------------------------------- |
-| **Web apps**               | From classic MPAs to rich SPAs, hybrid SSR/CSR experiences, and full PWAs — all built on one unified framework. |
-| **API backends**           | REST endpoints, serverless-style handlers, and webhooks with streaming, partial responses, and live messaging.   |
-| **Static sites**           | Static-first or fully pre-rendered sites that seamlessly upgrade sections to live or interactive behavior.        |
-| **Mobile experiences**     | Installable, offline-capable PWAs with background sync, worker routing, and native-feeling navigation.            |
-| **Realtime & multiplayer** | Chats, presence, dashboards, live docs, notifications — realtime channels and dialogs available out of the box.  |
-| **AI & agents**            | Multi-step AI workflows, background agents, and automation powered by Webflo’s live request lifecycle.           |
+| **Web apps**               | Anything from classic MPAs to rich SPAs – with SSR/CSR/hybrid rendering patterns.                                |
+| **API backends**           | REST endpoints and webhooks – with streaming, partial responses, and live messaging.                             |
+| **Static sites**           | Static-first or fully pre-rendered sites – with the same client-side richness of a Webflo app.                    |
+| **Mobile experiences**     | Installable, offline-capable PWAs – with background sync, push notifications, and more.                           |
+| **Realtime & multiplayer** | Chats, presence, dashboards, live docs, notifications – realtime channels and dialogs available out of the box.   |
+| **AI & agents**            | Multi-step AI workflows, background agents, and automation – powered by Webflo’s realtime capabilities.           |
 
 ## Features
 
 | Feature                               | Description                                                                                         |
 | :------------------------------------ | :-------------------------------------------------------------------------------------------------- |
-| 📁 **Folder-based routing**           | Filesystem routing across client, worker, and server layers, with seamless interception and flow.   |
-| 🌍 **Full-stack routing & lifecycle** | Every request flows through browser, worker, and server layers using the same handler model.         |
-| 🔗 **Internal API composition**        | Reuse your own routes as local function calls via `next(path)` — no extra networking required.       |
+| 📁 **Folder-based routing**           | Filesystem routing across client, service worker, and server layers.                                 |
+| 🌍 **Service Worker routing**         | Support for route handlers in the service worker.                                                   |
 | 🔐 **Sessions & auth**                | Built-in cookie handling, session utilities, and helpers for gated routes and user-aware flows.     |
-| ⚡ **Realtime capabilities**           | Live responses, incremental updates, dialogs, and background channels — no explicit WebSocket setup. |
+| ⚡ **Realtime capabilities**           | Live responses, mutable/differential responses, two-way background messaging — all built in.       |
 | 🧠 **Mutation-based reactivity**       | State is plain objects and arrays; mutations drive reactivity via the Observer API.                 |
 | 🧱 **OOHTML integration**              | HTML-native templates, imports, and composition without a component DSL or build-heavy toolchain.   |
-| 📦 **Offline & worker features**       | Worker-side routing, caching, background sync, and offline-first behaviors built in.                |
 | 🧩 **Dev mode & HMR**                 | Fast development server with fine-grained rebuilds and hot updates for HTML, JS, and CSS.           |
 
 ## Get Started
