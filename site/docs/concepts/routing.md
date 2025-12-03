@@ -73,7 +73,7 @@ Use these for conditional delegation, or per-segment rules.
 ### Your First Handler (Again)
 
 Your application's routes may be designed with as many or as few handlers as desired.<br>
-In fact, if it calls for it, the contextual parameters `next.stepname` and `next.pathname` totally make it possible to fit routing logic into a single handler.
+In fact, if it calls for it, it is possible to fit routing logic for multiple routes into a single handler – using the contextual parameters `next.stepname` and `next.pathname` for conditional branching.
 
 ```js
 export default function(event, next) {
@@ -142,7 +142,7 @@ export default async function () {
 ```
 
 * The request enters at the top level (`app/handler.server.js`).
-* Each handler may perform logic and either return a response or call `next()`.
+* Each handler performs logic and either return a response or call `next()`.
 * `next()` advances the request to the next directory level in the URL.
 * Delegation stops when there are no further segments (`next.stepname` is falsy).
 
@@ -152,7 +152,7 @@ export default async function () {
 Beyond the default parent-child flow, a handler can explicitly **reroute** a request to another path within the app by calling `next({ redirect: path })`, or `next(path)`, for short.
 
 This is simulated below for a URL like `/products/stickers`.<br>
-Here, the root handler conditionally reroutes the request to `/api/inventory`, all within the same app.
+Here, the root handler conditionally reroutes the request to `/api/inventory`, as an internal call.
 
 ```js
 // app/handler.server.js
@@ -236,9 +236,9 @@ Through this mechanism, Webflo lets handlers **reshape requests or responses inl
 
 ## The Client-Server Flow
 
-In addition to the handler-to-handler model, Webflo also has the **client-server flow** which represents the _vertical_ flow of the same request through the application stack (client → server).
+In addition to the handler-to-handler model, Webflo also has the **client-server flow** as the request travels through the application stack – from the client to the server.
 
-Webflo follows a model that supports request handling and routing at all three layers in this stack: the browser window layer (**client**), the service worker layer (**worker**), the server layer (**server**).
+Webflo lets you do routing at all three layers in this flow: in the browser window (**client**), in the service worker (**worker**), and on the server (**server**).
 
 Handlers fit into this stack by their filename suffix:
 
@@ -251,7 +251,7 @@ handler.js        → Executes anywhere (default handler)
 
 Together, these form a vertical routing pipeline.
 
-Below is a conceptual diagram of how a navigation request flows donw the layers:
+Below is a conceptual diagram of how a navigation request flows down the routing layers:
 
 ```js
 ┌─────────────┐   │   ┌─────────────────────────────────┐
@@ -265,17 +265,16 @@ Below is a conceptual diagram of how a navigation request flows donw the layers:
                   ▼   └─────────────────────────────────┘
 ```
 
-Handlers across this vertical stack are optional; if a layer-specific file doesn’t exist, Webflo automatically falls back to the unsuffixed one `handler.js`,
-if defined. Otherwise, the request continues to the next layer. Each request gets a graceful path from local logic to remote fulfillment.
+Routing in any of these layers is optional; if a layer-specific handler does not exist, Webflo checks for the unsuffixed one `handler.js`,
+if defined. Otherwise, the request continues to the next layer until reaching the server.
 
-As with the horizontal flow, each layer may intercept, fulfill, or delegate down the request.<br>
-Handlers at higher layers (like the browser) are able to respond instantly or hand the request down the stack.
+Handlers at higher routing layers (like the browser) are able to respond instantly or hand the request down the stack.
 
 This model grants profound flexibility — enabling progressive enhancement, offline support, and universal routing, all through the same `next()` interface.
 
 ### Layer Semantics
 
-These layers are differentiated by various factors and use cases.
+These routing layers are differentiated by their scope and use cases.
 
 | Scope                  | Purpose                                        | Typical Usage                               |
 | :--------------------- | :--------------------------------------------- | :------------------------------------------ |
@@ -286,7 +285,7 @@ These layers are differentiated by various factors and use cases.
 
 #### Client-Side Handlers
 
-Client handlers intercept navigations directly in the browser — the first layer that sees user-initiated requests.
+Client-side route handlers intercept user navigations directly in the browser — the first layer that sees user-initiated requests.
 
 ```js
 // app/handler.client.js
@@ -305,13 +304,13 @@ export default async function (event, next) {
 * Optionally calls `next()` to delegate the request
 
 ::: info Handler Lifecycle
-- Client handlers begin their lifecycle *after* the initial page load.
+- Client-side handlers begin their lifecycle *after* the initial page load.
 - They therefore cannot intercept the first page load or page reloads.
 :::
 
 #### Worker-Side Handlers
 
-Worker handlers run in the Service Worker context, bridging offline and network behavior.
+Worker-side route handlers run in the Service Worker context, bridging offline and network behavior.
 They are the connective tissue between local interactivity and remote resources.
 
 ```js
@@ -335,14 +334,14 @@ export default async function (event, next) {
 * Can delegates to the server when offline handling isn’t possible
 
 ::: info Handler Lifecycle
-- Worker handlers start intercepting once the app’s Service Worker is installed and activated.
+- Worker-side handlers start intercepting once the app’s Service Worker is installed and activated.
 - They therefore cannot intercept the very first page load that installs the app.
 - They continue working even when the page isn’t open, making them ideal for offline logic.
 :::
 
 #### Server-Side Handlers
 
-Server handlers perform the heavy lifting — database queries, integrations, etc.
+Server-side route handlers perform the heavy lifting — database queries, integrations, etc.
 They represent the final dynamic layer before static content resolution.
 
 ```js
@@ -362,7 +361,7 @@ export default async function (event, next) {
 
 #### Universal Handlers
 
-Universal handlers (`handler.js`) are handlers declared without any layer binding. They represent the default handler for a route. And they imply logic that can run anywhere in the client-server stack.
+Universal route handlers (`handler.js`) are handlers declared without any layer binding. They represent the default handler for a route. And they imply logic that can run anywhere in the client-server stack.
 They execute wherever no layer-specific handler exists for the current layer, making them perfect for universal logic.
 
 ```js
@@ -543,7 +542,8 @@ export default async function (event, next) {
 export default async function (event, next) {
     // Using event.user.isSignedIn() to check authentication
     if (!await event.user.isSignedIn()) {
-        return new Response(null, { status: 302, headers: { Location: '/login' } });
+        await event.redirect('/login');
+        return;
     }
     return next();
 }

@@ -8,7 +8,7 @@ Webflo apps work this way by default.
 They're powered by a rich set of APIs designed for every use case:
 
 ```js
-return new LiveResponse(data, { done: false });
+return new LiveResponse({ progress: 10 }, { done: false });
 ```
 
 ```js
@@ -16,6 +16,7 @@ event.respondWith({ progress: 10 }, { done: false });
 ```
 
 ```js
+event.waitUntil(promise);
 event.waitUntilNavigate();
 ```
 
@@ -153,7 +154,7 @@ Typical Port B clients in Webflo are:
 
 ::: info LiveResponse
 `LiveResponse` is the "live" version of the standard `Response` API.
-It extends the native `Response` object with a live body, headers, and status — all of which can be mutated in-place.
+It extends the native `Response` object to support mutable response – with a live body, headers, and status that can be mutated in-place.
 :::
 
 #### The App UI
@@ -192,8 +193,13 @@ The background connection comes along with the upstream response obtained via `n
 export default async function (event, next) {
   if (next.stepname) return await next(); // The conventional delegation line
 
+  // Since next.stepname is falsey, this next() call falls through to the server. Response is thus a normal HTTP response from the server
   const response = await next();
+
+  // LiveResponse.from() converts the response to a live response using the connection details embedded in the original response
   const liveResponse = await LiveResponse.from(response);
+
+  // The background port is then used to listen to messages from the upstream
   liveResponse.background.addEventListener("message", (message) => {
     console.log(message);
   });
@@ -209,13 +215,13 @@ The handler’s own `event.client` port remains its own _Port A_ for communicati
 ---
 
 ::: tip
-While not explicitly mentioned, external Webflo servers are just as accessible and interactive as the local server. A server-to-server interaction, for example, is just a matter of `await LiveResponse.from(await fetch('https://api.example.com/data'))`.
+While not explicitly mentioned, external Webflo servers – like Webflo-based API backends – are just as accessible and interactive as the local Webflo instance. A server-to-server request, for example, supports the same live interaction as a normal client-server request. It is just a matter of `await LiveResponse.from(await fetch('https://api.example.com/data'))`.
 :::
 
 ## Entering Background Mode
 
 A handler **enters background mode** when it responds to a request interactively as any of the below scenarios.
-Webflo automatically upgrades the connection to a realtime connection — initiating the _handshake sequence_ with the client and keeping the communication open until _termination_ is triggered — as in [the Realtime Lifecycle](#appendix-a-–-the-realtime-lifecycle).
+Webflo automatically upgrades the connection to a realtime connection — initiating the _handshake sequence_ with the client and keeping the communication open until _termination_ is triggered — as detailed in [the Realtime Lifecycle](#appendix-a-–-the-realtime-lifecycle).
 
 ### _Handler sends a message at any point in its lifecycle_
 
@@ -227,11 +233,13 @@ A handler may send a message at any point in its lifecycle by either:
 event.client.postMessage({ progress: 10 });
 ```
 
-2. or achieving the same through higher-level APIs like `event.user.confirm()`:
+2. or doing the equivalent via higher-level APIs like `event.user.confirm()`:
 
 ```js
 const result = await event.user.confirm({ message: "Are you sure?" });
 ```
+
+The handler automatically enters background mode.
 
 ### _Handler returns a response and explicitly marks it **not done**_
 
@@ -245,6 +253,8 @@ event.respondWith(data, { done: false });
 return new LiveResponse(data, { done: false });
 ```
 
+The handler automatically enters background mode.
+
 ### _Handler holds down the event lifecycle via promises_
 
 A handler may hold down the event lifecycle via promises by either:
@@ -252,12 +262,12 @@ A handler may hold down the event lifecycle via promises by either:
 1. explicitly calling `event.waitUntil()` or `event.waitUntilNavigate()` before returning a response:
 
 ```js
-event.waitUntilNavigate();
+event.waitUntil(new Promise(() => {}));
 event.respondWith(data);
 ```
 
 ```js
-event.waitUntil(new Promise(() => {}));
+event.waitUntilNavigate();
 return data;
 ```
 
@@ -283,6 +293,8 @@ event.respondWith(data, async ($data /* reactive copy of data */) => {
   $data.someProp = "someOtherValue";
 });
 ```
+
+The handler automatically enters background mode.
 
 ### _Handler returns a `Generator` object_
 
@@ -310,12 +322,16 @@ export default async function (event) {
 }
 ```
 
-### _Handler returns a `State` object_
+The handler automatically enters background mode.
 
-A handler may return a `State` object by declaring a `live` function:
+### _Handler returns a `LiveProgramHandle` object_
+
+A handler may return a `LiveProgramHandle` object by being a ["live" function](https://github.com/webqit/use-live):
 
 ```js
-export default async live function(event) {
+export default async function(event) {
+    "use live";
+
     const data = { progress: 0 };
 
     setInterval(() => {
@@ -326,7 +342,7 @@ export default async live function(event) {
 }
 ```
 
-The `live` keyword is a shorthand for defining a quantum function that returns a `State` object.
+The handler automatically enters background mode.
 
 ---
 
@@ -359,7 +375,7 @@ import { LiveResponse } from '@webqit/webflo/apis';
 export async function GET(event, next) {
   if (next.stepname) return await next(); // The conventional delegation line
 
-  const res = await LiveResponse.from({ step: 1 }, { done: false });
+  const res = new LiveResponse({ step: 1 }, { done: false });
   setTimeout(() => res.replaceWith({ step: 2 }), 200); // [!code highlight]
 
   return res;
@@ -368,7 +384,7 @@ export async function GET(event, next) {
 
 #### Example — Mutate state in place
 
-This handler returns a skeleton object immediately for fast page load and then builds the object tree progressively as data arrives; the UI reflects every step of the object's construction.
+This handler returns a skeleton object immediately for fast page load and then builds the object tree progressively as it fetches data from the relevant sources; the UI reflects every step of the object's construction.
 
 **_Result_:** The UI renders a skeleton first, then progressively fills in as the object tree is built from the server.
 
@@ -483,7 +499,7 @@ export async function DELETE(event, next) {
 
 The Webflo UI client shows the dialog (native `confirm()/prompt()` or custom UI if configured) and returns the user's response.
 
-Customization is as simple as intercepting these via `preventDefault()` to render your own modals.
+The prompt UI that the user sees can be customized in as simple as intercepting these via `app.background.addEventListener("prompt", ...)` to render your own modals.
 
 ```javascript
 // Intercept at window.webqit.app.background
@@ -503,6 +519,8 @@ window.webqit.app.background.addEventListener("prompt", (e) => {
 These handlers establish a chat channel and broadcast messages to all participants.
 
 **_Result_:** Messages appear in the chat trail every few seconds; incoming vs outgoing messages are styled differently.
+
+On the server:
 
 ```js
 export async function GET(event, next) {
@@ -524,7 +542,7 @@ export async function GET(event, next) {
 }
 ```
 
-Then on the client:
+On the client:
 
 ```js
 export default async function (event, next) {
