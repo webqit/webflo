@@ -155,7 +155,7 @@ async function bundleScript({ $context, $source, which, outfile, asModule = true
         plugins: [UseLiveTransform()],
         ...(restParams.buildParams || {})
     };
-    if (!asModule) {
+    if (asModule && which !== 'server') {
         // Support top-level await
         // See: https://github.com/evanw/esbuild/issues/253#issuecomment-826147115
         bundlingConfig.banner.js += '(async () => {';

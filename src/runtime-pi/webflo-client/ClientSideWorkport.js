@@ -11,7 +11,7 @@ export class ClientSideWorkport extends EventTarget {
 
     static async initialize(parentNode, file, params = {}) {
         const registration = (await navigator.serviceWorker.getRegistration())
-            || (await navigator.serviceWorker.register(file, { scope: '/', ...params }));
+            || (await navigator.serviceWorker.register(file, { scope: '/', type: 'module', ...params }));
         return new this(parentNode, registration, params);
     }
 
