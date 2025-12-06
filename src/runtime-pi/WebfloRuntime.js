@@ -109,7 +109,7 @@ export class WebfloRuntime {
 
         // Dispatch event
         const router = new this.constructor.Router(this, httpEvent.url.pathname);
-        await router.route(['SETUP'], httpEvent);
+        await router.route(['SETUP'], httpEvent.extend());
 
         // Do proper routing for respone
         const response = await new Promise(async (resolve) => {

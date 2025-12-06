@@ -144,9 +144,9 @@ export const response = {
         status: {
             get: function () {
                 return _wq(this, 'meta').get('status')
-                    || this instanceof Response
-                    ? responseOriginals.prototype.status.get.call(this)
-                    : this.status;
+                    || (this instanceof Response
+                        ? responseOriginals.prototype.status.get.call(this)
+                        : this.status);
             }
         },
         carry: { get: function () { return _wq(this, 'meta').get('carry'); } },

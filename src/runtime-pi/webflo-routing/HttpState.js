@@ -1,5 +1,6 @@
 import { _isObject } from '@webqit/util/js/index.js';
 import { _even } from '@webqit/util/obj/index.js';
+import { HttpEvent } from './HttpEvent.js';
 
 export class HttpState {
 
@@ -134,6 +135,10 @@ export class HttpState {
                         entries.push(returnValue);
                         continue main;
                     }
+                    if (callback instanceof HttpEvent) {
+                        await callback.redirectWith(handler.url, handler.with || {});
+                        return new Promise(() => { });
+                    }
                     const urlRewrite = new URL(handler.url, this.#request.url);
                     const newThread = this.#thread.extend(urlRewrite.searchParams.get('_thread'));
                     urlRewrite.searchParams.set('_thread', newThread.threadID);
@@ -152,7 +157,9 @@ export class HttpState {
             }
             entries.push(await this.get(attr));
         }
-        if (callback) return await callback(...entries);
+        if (callback && !(callback instanceof HttpEvent)) {
+            return await callback(...entries);
+        }
         return entries;
     }
 }

@@ -172,7 +172,7 @@ export class WebfloRouter {
 
                     // Call the handler
                     const returnValue = await handler.call(thisContext, thisTick.event, $next/*next*/, $fetch/*fetch*/);
-
+                    
                     // Handle cleanup on abort
                     if (LiveResponse.test(returnValue) === 'LiveProgramHandle') {
                         thisTick.event.signal.addEventListener('abort', () => {
