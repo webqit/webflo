@@ -364,7 +364,7 @@ export async function parseHttpMessage(httpMessage) {
     const contentType = httpMessage.headers.get('Content-Type') || '';
     if (contentType === 'application/x-www-form-urlencoded' || contentType.startsWith('multipart/form-data')) {
         const fd = await httpMessage.formData();
-        result = fd && await formData.json.value(fd);
+        result = fd && await formData.prototype.json.value.call(fd);
     } else if (contentType.startsWith('application/json')/*can include charset*/) {
         result = await httpMessage.json();
     } else /*if (contentType === 'text/plain')*/ {

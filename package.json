@@ -44,7 +44,7 @@
   "dependencies": {
     "@octokit/webhooks": "^7.15.1",
     "@webqit/backpack": "^0.1.12",
-    "@webqit/oohtml-ssr": "^2.2.1",
+    "@webqit/oohtml-ssr": "^2.2.2",
     "@webqit/use-live": "^0.5.44",
     "@webqit/util": "^0.8.11",
     "chokidar": "^4.0.3",
