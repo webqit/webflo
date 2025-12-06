@@ -208,7 +208,7 @@ export class WebfloRuntime {
     async handleCarries(httpEvent, response) {
         if (!response.headers.get('Location')) {
             const status = await httpEvent.thread.consume('status');
-            await httpEvent.thread.clear();
+            //await httpEvent.thread.clear();
             if (!status) return;
             // Fire redirect message?
             httpEvent.waitUntil(new Promise((resolve) => {
