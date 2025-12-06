@@ -10,6 +10,7 @@ export class HttpThread {
     #store;
     #threadID;
     #realm;
+    #extended = false;
 
     get threadID() { return this.#threadID; }
 
@@ -19,7 +20,7 @@ export class HttpThread {
         this.#realm = realm;
     }
 
-    extend(_threadID = null) {
+    spawn(_threadID = null) {
         return this.constructor.create({
             store: this.#store,
             threadID: _threadID,
@@ -78,4 +79,8 @@ export class HttpThread {
         await this.#store.delete(this.#threadID);
         return this;
     }
+
+    get extended() { return this.#extended; }
+
+    extend(set = true) { this.#extended = !!set; }
 }

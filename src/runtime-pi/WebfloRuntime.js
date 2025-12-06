@@ -15,13 +15,13 @@ export class WebfloRuntime {
 
     static get Router() { return WebfloRouter; }
 
-	static get HttpEvent() { return HttpEvent; }
+    static get HttpEvent() { return HttpEvent; }
 
-	static get HttpThread() { return HttpThread; }
+    static get HttpThread() { return HttpThread; }
 
-	static get HttpSession() { return HttpSession; }
+    static get HttpSession() { return HttpSession; }
 
-	static get HttpUser() { return HttpUser; }
+    static get HttpUser() { return HttpUser; }
 
     static create(bootstrap) { return new this(bootstrap); }
 
@@ -109,7 +109,7 @@ export class WebfloRuntime {
 
         // Dispatch event
         const router = new this.constructor.Router(this, httpEvent.url.pathname);
-        await router.route(['SETUP'], httpEvent.extend());
+        await router.route(['SETUP'], httpEvent.spawn());
 
         // Do proper routing for respone
         const response = await new Promise(async (resolve) => {
@@ -141,8 +141,8 @@ export class WebfloRuntime {
                     : responseShim.from.value(response);
             }
 
-            // Any "carry" data?
-            await this.handleCarries(httpEvent, response);
+            // Any "status" in thread?
+            await this.handleThreadStatus(httpEvent, response);
 
             // Resolve now...
             if (autoLiveResponse) {
@@ -192,8 +192,11 @@ export class WebfloRuntime {
 
             // On ROOT event complete:
             // Close httpEvent.client
-            httpEvent.lifeCycleComplete(true).then(() => {
+            httpEvent.lifeCycleComplete(true).then(async () => {
                 httpEvent.client.close();
+                if (!httpEvent.thread.extended) {
+                    await httpEvent.thread.clear();
+                }
             });
         }
 
@@ -205,16 +208,17 @@ export class WebfloRuntime {
         return response;
     }
 
-    async handleCarries(httpEvent, response) {
+    async handleThreadStatus(httpEvent, response) {
         if (!response.headers.get('Location')) {
-            const status = await httpEvent.thread.consume('status');
-            //await httpEvent.thread.clear();
-            if (!status) return;
+            const status = await httpEvent.thread.consume('status', true);
+            if (!status.length) return;
             // Fire redirect message?
             httpEvent.waitUntil(new Promise((resolve) => {
                 httpEvent.client.wqLifecycle.open.then(async () => {
-                    httpEvent.client.postMessage(status, { wqEventOptions: { type: 'alert' } });
-                    resolve();
+                    setTimeout(() => {
+                        httpEvent.client.postMessage(status, { wqEventOptions: { type: 'alert' } });
+                        resolve();
+                    }, 500); // half a sec
                 }, { once: true });
             }));
         }

@@ -132,7 +132,7 @@ export class WebfloRouter {
 
                         // Set context parameters
                         nextTick.method = request.method;
-                        nextTick.event = await thisTick.event.extend({ request });
+                        nextTick.event = await thisTick.event.spawn({ request });
                         nextTick.source = thisTick.destination.join('/');
                         nextTick.destination = url.pathname.split('/').map((a) => a.trim()).filter((a) => a);
                         nextTick.trail = !urlStr_isRelative ? [] : thisTick.trail.reduce((_commonRoot, _seg, i) => _commonRoot.length === i && _seg === nextTick.destination[i] ? _commonRoot.concat(_seg) : _commonRoot, []);
@@ -141,7 +141,7 @@ export class WebfloRouter {
                         if (isFetch) {
                             throw new Error('fetch() cannot be called without arguments!');
                         }
-                        nextTick.event = thisTick.event.extend();
+                        nextTick.event = thisTick.event.spawn();
                     }
                     const result = await next(nextTick);
                     if (asResponse) {

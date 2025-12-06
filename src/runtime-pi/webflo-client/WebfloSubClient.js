@@ -90,16 +90,18 @@ export class WebfloSubClient extends WebfloClient {
 		(this.host.querySelector('[autofocus]') || this.host).focus();
 	}
 
-	redirect(location, responseBackground = null) {
+	redirect(location, response = null) {
 		location = typeof location === 'string' ? new URL(location, this.location.origin) : location;
 		const width = Math.min(800, window.innerWidth);
 		const height = Math.min(600, window.innerHeight);
 		const left = (window.outerWidth - width) / 2;
 		const top = (window.outerHeight - height) / 2;
 		const popup = window.open(location, '_blank', `popup=true,width=${width},height=${height},left=${left},top=${top}`);
-		if (responseBackground) {
+		if (response && LiveResponse.hasBackground(response)) {
 			Observer.set(this.navigator, 'redirecting', new Url/*NOT URL*/(location), { diff: true });
-			responseBackground.addEventListener('close', (e) => {
+			const backgroundPort = LiveResponse.getBackground(response);
+			backgroundPort.postMessage('keep-alive');
+ 			backgroundPort.addEventListener('close', (e) => {
 				window.removeEventListener('message', windowMessageHandler);
 				Observer.set(this.navigator, 'redirecting', null);
 				popup.postMessage('timeout:5');
@@ -109,10 +111,12 @@ export class WebfloSubClient extends WebfloClient {
 			}, { once: true });
 			const windowMessageHandler = (e) => {
 				if (e.source === popup && e.data === 'close') {
-					responseBackground.close();
+					backgroundPort.close();
 				}
 			};
 			window.addEventListener('message', windowMessageHandler);
 		}
+		
+		return 3; // keep-alive
 	}
 }

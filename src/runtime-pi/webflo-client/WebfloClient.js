@@ -58,20 +58,24 @@ export class WebfloClient extends WebfloRuntime {
         const instanceController = await super.initialize();
         // Bind prompt handlers
         const promptsHandler = (e) => {
-            const message = e.data?.message
-                ? e.data.message
-                : e.data;
-            const execPromp = () => {
+            window.queueMicrotask(() => {
                 if (e.defaultPrevented) return;
                 if (e.type === 'confirm') {
-                    e.wqRespondWith(confirm(message));
+                    if (e.data?.message) {
+                        e.wqRespondWith(confirm(e.data.message));
+                    }
                 } else if (e.type === 'prompt') {
-                    e.wqRespondWith(prompt(message));
+                    if (e.data?.message) {
+                        e.wqRespondWith(prompt(e.data.message));
+                    }
                 } else if (e.type === 'alert') {
-                    alert(message);
+                    for (const item of [].concat(e.data)) {
+                        if (item?.message) {
+                            alert(item.message);
+                        }
+                    }
                 }
-            };
-            window.queueMicrotask(execPromp);
+            });
         };
         this.background.addEventListener('confirm', promptsHandler, { signal: instanceController.signal });
         this.background.addEventListener('prompt', promptsHandler, { signal: instanceController.signal });
@@ -374,22 +378,41 @@ export class WebfloClient extends WebfloRuntime {
     }
 
     async dispatchNavigationEvent({ httpEvent, crossLayerFetch, clientPortB, originalRequestInit, processObj = {} }) {
-        const response = await super.dispatchNavigationEvent({ httpEvent, crossLayerFetch, clientPortB });
-        // Obtain and connect clientPortB as first thing
-        const backgroundPort = LiveResponse.getBackground(response);
-        if (backgroundPort) {
-            this.background.addPort(backgroundPort);
-        }
+        let response = await super.dispatchNavigationEvent({ httpEvent, crossLayerFetch, clientPortB });
+        
+        // Extract interactive. mode handling
+        const handleInteractiveMode = async (resolve) => {
+            const liveResponse = await LiveResponse.from(response);
+            this.background.addPort(liveResponse.background);
+            liveResponse.addEventListener('replace', () => {
+                if (liveResponse.headers.get('Location')) {
+                    this.processRedirect(liveResponse);
+                } else {
+                    resolve?.(liveResponse);
+                }
+            }, { signal: httpEvent.signal });
+            return liveResponse;
+        };
+
         // Await a response with an "Accepted" or redirect status
         const statusCode = responseShim.prototype.status.get.call(response);
-        if (statusCode === 202 || (response.headers.get('Location') && this.processRedirect(response))) {
+        if (statusCode === 202 && LiveResponse.hasBackground(response)) {
+            return new Promise(handleInteractiveMode);
+        }
+
+        // Handle redirects
+        if (response.headers.get('Location')) {
+            // Never resolves...
             return new Promise(async (resolve) => {
-                if (LiveResponse.hasBackground(response)) {
-                    const liveResponse = await LiveResponse.from(response);
-                    liveResponse.addEventListener('replace', () => resolve(liveResponse), { once: true, signal: httpEvent.signal });
-                } // Never resolves otherwise
+                const redirectHandlingMode = this.processRedirect(response);
+                // ...except processRedirect() says keep-alive
+                if (redirectHandlingMode === 3/* keep-alive */
+                    && LiveResponse.hasBackground(response)) {
+                    await handleInteractiveMode(resolve);
+                }
             });
         }
+
         // Handle "retry" directives
         if (response.headers.has('Retry-After')) {
             if (!processObj.recurseController) {
@@ -400,13 +423,21 @@ export class WebfloClient extends WebfloRuntime {
             // Ensure a previous recursion hasn't aborted the process
             if (!processObj.recurseController.signal.aborted) {
                 await new Promise((res) => setTimeout(res, parseInt(response.headers.get('Retry-After')) * 1000));
-                const eventClone = httpEvent.cloneWith({ request: this.createRequest(httpEvent.url, originalRequestInit) });
+                const eventClone = httpEvent.clone({ request: this.createRequest(httpEvent.url, originalRequestInit) });
                 return await this.dispatchNavigationEvent({ httpEvent: eventClone, crossLayerFetch, clientPortB, originalRequestInit, processObj });
             }
-        } else if (processObj.recurseController) {
-            // Abort the signal. This is the end of the loop
-            processObj.recurseController.abort();
+        } else {
+            if (processObj.recurseController) {
+                // Abort the signal. This is the end of the loop
+                processObj.recurseController.abort();
+            }
+
+            // Obtain and connect clientPortB as first thing
+            if (LiveResponse.hasBackground(response)) {
+                response = await handleInteractiveMode();
+            }
         }
+
         return response;
     }
 
@@ -419,24 +450,23 @@ export class WebfloClient extends WebfloRuntime {
             responseMeta.set('status', xActualRedirectCode); // @NOTE 1
             statusCode = xActualRedirectCode;
         }
+
         // Trigger redirect
         if ([302, 301].includes(statusCode)) {
             const location = new URL(response.headers.get('Location'), this.location.origin);
             if (this.isSpaRoute(location)) {
                 this.navigate(location, {}, { navigationType: 'rdr' });
-            } else {
-                this.redirect(location, LiveResponse.getBackground(response));
+                return 1;
             }
-            return true;
+            return this.redirect(location, response);
         }
+
+        return 0; // No actual redirect
     }
 
-    redirect(location, responseBackground) {
-        if (responseBackground) {
-            // Redundant as this is a window reload anyways
-            responseBackground.close();
-        }
+    redirect(location) {
         window.location = location;
+        return 2; // Window reload
     }
 
     async transitionUI(updateCallback) {
@@ -482,8 +512,9 @@ export class WebfloClient extends WebfloRuntime {
                     transition: this.transition,
                 }, { diff: true, merge });
                 $response.addEventListener('replace', (e) => {
-                    if ($response.headers.get('Location') && this.processRedirect($response)) return;
-                    this.host[bindingsConfig.bindings].data = $response.body;
+                    if (!$response.headers.get('Location')) {
+                        this.host[bindingsConfig.bindings].data = $response.body;
+                    }
                 });
             }
             if (modulesContextAttrs) {

@@ -132,7 +132,7 @@ export class HttpEvent {
         }
         //-----
         const urlRewrite = new URL(url, this.request.url);
-        const newThread = this.thread.extend(urlRewrite.searchParams.get('_thread'));
+        const newThread = this.thread.spawn(urlRewrite.searchParams.get('_thread'));
         urlRewrite.searchParams.set('_thread', newThread.threadID);
         await newThread.append('back', this.request.url.replace(urlRewrite.origin, ''));
         for (const [key, value] of Object.entries(data)) {
@@ -146,9 +146,8 @@ export class HttpEvent {
         return this.constructor.create(this.#parentEvent, { ...this.#init, ...init });
     }
 
-    extend(init = {}) {
-        const instance = this.constructor.create(this/*Main difference from clone*/, { ...this.#init, ...(init || {}) });
-        return instance;
+    spawn(init = {}) {
+        return this.constructor.create(this/*Main difference from clone*/, { ...this.#init, ...(init || {}) });
     }
 
     abort() {

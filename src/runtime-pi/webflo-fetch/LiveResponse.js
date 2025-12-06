@@ -50,7 +50,8 @@ export class LiveResponse extends EventTarget {
             throw new Error('Argument must be a Response instance.');
         }
 
-        const body = await responseShim.prototype.parse.value.call(response);
+        let body = null;
+        try { body = await responseShim.prototype.parse.value.call(response); } catch(e) {}
 
         // Instance
         const instance = new this(body, {

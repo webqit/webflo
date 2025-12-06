@@ -140,7 +140,7 @@ export class HttpState {
                         return new Promise(() => { });
                     }
                     const urlRewrite = new URL(handler.url, this.#request.url);
-                    const newThread = this.#thread.extend(urlRewrite.searchParams.get('_thread'));
+                    const newThread = this.#thread.spawn(urlRewrite.searchParams.get('_thread')/* show */);
                     urlRewrite.searchParams.set('_thread', newThread.threadID);
                     await newThread.append('back', this.#request.url.replace(urlRewrite.origin, ''));
                     if (handler.with) {

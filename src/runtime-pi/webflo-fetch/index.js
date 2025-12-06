@@ -87,11 +87,6 @@ export const request = {
         }
     },
     prototype: {
-        carries: {
-            get: function () {
-                return _wq(this, 'meta').get('carries') || [];
-            }
-        },
         parse: { value: async function () { return await parseHttpMessage(this); } },
         clone: {
             value: function (init = {}) {
@@ -149,7 +144,6 @@ export const response = {
                         : this.status);
             }
         },
-        carry: { get: function () { return _wq(this, 'meta').get('carry'); } },
         parse: { value: async function () { return await parseHttpMessage(this); } },
         clone: {
             value: function (init = {}) {
