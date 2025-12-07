@@ -48,6 +48,20 @@ export class HttpThread {
         return this;
     }
 
+    async get(key, filter = null) {
+        const thread = await this.#store.get(this.#threadID) || {};
+        const values = [].concat(thread[key] ?? []);
+
+        let value;
+        if (filter === true) {
+            value = values;
+        } else if (filter) {
+            value = values.find(filter);
+        } else { value = values[values.length - 1]; }
+
+        return value;
+    }
+
     async consume(key, filter = null) {
         const thread = await this.#store.get(this.#threadID) || {};
         const values = [].concat(thread[key] ?? []);
