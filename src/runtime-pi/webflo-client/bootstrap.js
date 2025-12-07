@@ -6,7 +6,7 @@ import {
     readClientConfig,
     readWorkerConfig,
     scanRoots,
-    scanRouteHandlers,
+    scanRouteHandlers, 
 } from '../../deployment-pi/util.js';
 
 export async function bootstrap(cx, offset = '') {
