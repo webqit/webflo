@@ -3,7 +3,7 @@ import Url from 'url';
 import Path from 'path';
 import Http from 'http';
 import Https from 'https';
-import WebSocket from 'ws';
+import { WebSocketServer } from 'ws';
 import Mime from 'mime-types';
 import crypto from 'crypto';
 import 'dotenv/config';
@@ -226,7 +226,7 @@ export class WebfloServer extends WebfloRuntime {
             });
         }
 
-        const wss = new WebSocket.Server({ noServer: true });
+        const wss = new WebSocketServer({ noServer: true });
 
         process.on('uncaughtException', (err) => {
             console.error('Uncaught Exception:', err);
