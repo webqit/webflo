@@ -498,7 +498,7 @@ export class WebfloServer extends WebfloRuntime {
         const xRedirectCode = httpEvent.request.headers.get('X-Redirect-Code') || 300;
         const destinationURL = new URL(response.headers.get('Location'), httpEvent.url.origin);
         const isSameOriginRedirect = destinationURL.origin === httpEvent.url.origin;
-        let isSameSpaRedirect = false;
+        let isSameSpaRedirect = true;
         if (isSameOriginRedirect && xRedirectPolicy === 'manual-when-cross-spa' && $sparoots.length) {
             // Longest-first sorting
             const sparoots = $sparoots.sort((a, b) => a.length > b.length ? -1 : 1);

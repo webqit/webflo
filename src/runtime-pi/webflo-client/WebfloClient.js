@@ -331,8 +331,6 @@ export class WebfloClient extends WebfloRuntime {
             this.#background.postMessage(url, { wqEventOptions: { type: 'navigate' } });
         }
 
-        console.log('_______,', scopeObj.detail.navigationType);
-
         // Dispatch for response
         scopeObj.response = await this.dispatchNavigationEvent({
             httpEvent: scopeObj.httpEvent,
