@@ -100,7 +100,7 @@ export class WebfloSubClient extends WebfloClient {
 		if (response && LiveResponse.hasBackground(response)) {
 			Observer.set(this.navigator, 'redirecting', new Url/*NOT URL*/(location), { diff: true });
 			const backgroundPort = LiveResponse.getBackground(response);
-			backgroundPort.postMessage('keep-alive');
+			backgroundPort.postMessage(true, { wqEventOptions: { type: 'keep-alive' } });
  			backgroundPort.addEventListener('close', (e) => {
 				window.removeEventListener('message', windowMessageHandler);
 				Observer.set(this.navigator, 'redirecting', null);

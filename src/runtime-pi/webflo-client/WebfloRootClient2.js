@@ -24,12 +24,16 @@ export class WebfloRootClient2 extends WebfloRootClient1 {
 			if (!e.canIntercept 
 				|| e.downloadRequest !== null 
 				|| !this.isSpaRoute(e.destination.url)
-				|| e.navigationType === 'reload') return;
+				|| ['reload'].includes(e.navigationType)) return;
 			if (e.hashChange) {
 				Observer.set(this.location, 'href', e.destination.url);
 				return;
 			}
-			const { navigationType, destination, signal, formData, info, userInitiated } = e;
+			if (e.navigationType === 'replace') {
+				e.intercept({});
+				return;
+			}
+			const { navigationType, destination, signal, formData, info, userInitiated, hasUAVisualTransition } = e;
 			if (formData && navigationOrigins[1]?.hasAttribute('webflo-no-intercept')) return;
 			if (formData && (navigationOrigins[0] || {}).name) { formData.set(navigationOrigins[0].name, navigationOrigins[0].value); }
 			// Navigation details
@@ -39,6 +43,7 @@ export class WebfloRootClient2 extends WebfloRootClient1 {
 				destination,
 				source: this.currentEntry(),
 				userInitiated,
+				hasUAVisualTransition,
 				info
 			};
 			navigationOrigins = [];
@@ -50,18 +55,11 @@ export class WebfloRootClient2 extends WebfloRootClient1 {
 				body: formData,
 				//signal TODO: auto-aborts on a redirect response which thus fails to parse
 			};
-			this.updateCurrentEntry({
-				state: {
-					...(this.currentEntry().getState() || {}),
-					scrollPosition: [window.scrollX, window.scrollY],
-				}
-			});
 			const runtime = this;
 			e.intercept({
 				scroll: 'after-transition',
 				focusReset: 'after-transition',
 				async handler() {
-					if (navigationType === 'replace') return;
 					await runtime.navigate(url, init, detail);
 				},
 			});

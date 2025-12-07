@@ -322,6 +322,7 @@ export class WebfloClient extends WebfloRuntime {
                 method: null
             });
         };
+
         // Ping existing background processes
         // !IMPORTANT: Posting to the group when empty will keep the event until next addition
         // and we don't want that
@@ -329,6 +330,9 @@ export class WebfloClient extends WebfloRuntime {
             const url = { ...Url.copy(scopeObj.url), method: scopeObj.request.method };
             this.#background.postMessage(url, { wqEventOptions: { type: 'navigate' } });
         }
+
+        console.log('_______,', scopeObj.detail.navigationType);
+
         // Dispatch for response
         scopeObj.response = await this.dispatchNavigationEvent({
             httpEvent: scopeObj.httpEvent,
@@ -342,20 +346,15 @@ export class WebfloClient extends WebfloRuntime {
             clientPortB: wqMessageChannel.port2,
             originalRequestInit: scopeObj.init
         });
+
         // Decode response
         scopeObj.finalUrl = scopeObj.response.url || scopeObj.request.url;
         if (scopeObj.response.redirected || scopeObj.detail.navigationType === 'rdr' || scopeObj.detail.isHoisted) {
             const stateData = { ...(this.currentEntry()?.getState() || {}), redirected: true, };
             await this.updateCurrentEntry({ state: stateData }, scopeObj.finalUrl);
         }
+        
         // Transition UI
-        Observer.set(this.transition.from, Url.copy(this.location));
-        Observer.set(this.transition.to, 'href', scopeObj.finalUrl);
-        Observer.set(this.transition, 'rel', this.transition.from.pathname === this.transition.to.pathname ? 'unchanged' : (
-            `${this.transition.from.pathname}/`.startsWith(`${this.transition.to.pathname}/`) ? 'parent' : (
-                `${this.transition.to.pathname}/`.startsWith(`${this.transition.from.pathname}/`) ? 'child' : 'unrelated'
-            )
-        ));
         await this.transitionUI(async () => {
             // Set post-request states
             Observer.set(this.location, 'href', scopeObj.finalUrl);
@@ -374,12 +373,12 @@ export class WebfloClient extends WebfloRuntime {
                 !(['GET'].includes(scopeObj.request.method) || scopeObj.response.redirected || scopeObj.detail.navigationType === 'rdr')
             );
             await this.applyPostRenderState(scopeObj.httpEvent);
-        });
+        }, scopeObj.finalUrl, scopeObj.detail);
     }
 
     async dispatchNavigationEvent({ httpEvent, crossLayerFetch, clientPortB, originalRequestInit, processObj = {} }) {
         let response = await super.dispatchNavigationEvent({ httpEvent, crossLayerFetch, clientPortB });
-        
+
         // Extract interactive. mode handling
         const handleInteractiveMode = async (resolve) => {
             const liveResponse = await LiveResponse.from(response);
@@ -469,19 +468,29 @@ export class WebfloClient extends WebfloRuntime {
         return 2; // Window reload
     }
 
-    async transitionUI(updateCallback) {
-        if (document.startViewTransition && this.withViewTransitions) {
+    async transitionUI(updateCallback, finalUrl, detail) {
+        // Set initial states
+        Observer.set(this.transition.from, Url.copy(this.location));
+        Observer.set(this.transition.to, 'href', finalUrl);
+        const viewTransitionRel = this.transition.from.pathname === this.transition.to.pathname ? 'same' : (
+            `${this.transition.from.pathname}/`.startsWith(`${this.transition.to.pathname}/`) ? 'out' : (
+                `${this.transition.to.pathname}/`.startsWith(`${this.transition.from.pathname}/`) ? 'in' : 'other'
+            )
+        );
+        Observer.set(this.transition, 'rel', viewTransitionRel);
+        // Trigger transition
+        if (document.startViewTransition && this.withViewTransitions && !detail.hasUAVisualTransition) {
             const synthesizeWhile = window.webqit?.realdom?.synthesizeWhile || ((callback) => callback());
             return new Promise(async (resolve) => {
                 await synthesizeWhile(async () => {
-                    Observer.set(this.transition, 'phase', 1);
-                    const viewTransition = document.startViewTransition(updateCallback);
+                    Observer.set(this.transition, 'phase', 'old');
+                    const viewTransition = document.startViewTransition({ update: updateCallback, styles: ['navigation', viewTransitionRel] });
                     try { await viewTransition.updateCallbackDone; } catch (e) { console.log(e); }
-                    Observer.set(this.transition, 'phase', 2);
+                    Observer.set(this.transition, 'phase', 'new');
                     try { await viewTransition.ready; } catch (e) { console.log(e); }
-                    Observer.set(this.transition, 'phase', 3);
+                    Observer.set(this.transition, 'phase', 'start');
                     try { await viewTransition.finished; } catch (e) { console.log(e); }
-                    Observer.set(this.transition, 'phase', 0);
+                    Observer.set(this.transition, 'phase', 'end');
                     resolve();
                 });
             });
