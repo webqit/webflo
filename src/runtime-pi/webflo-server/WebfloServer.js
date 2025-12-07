@@ -505,7 +505,7 @@ export class WebfloServer extends WebfloRuntime {
             const matchRoot = path => sparoots.reduce((prev, root) => prev || (`${path}/`.startsWith(`${root}/`) && root), null);
             isSameSpaRedirect = matchRoot(destinationURL.pathname) === matchRoot(httpEvent.url.pathname);
         }
-        if (xRedirectPolicy === 'manual' || (!isSameOriginRedirect && xRedirectPolicy === 'manual-when-cross-origin') || (!isSameSpaRedirect && xRedirectPolicy === 'manual-when-cross-spa')) {
+        if (xRedirectPolicy === 'manual' || (!isSameOriginRedirect && (xRedirectPolicy === 'manual-when-cross-origin' || xRedirectPolicy === 'manual-when-cross-spa')) || (!isSameSpaRedirect && xRedirectPolicy === 'manual-when-cross-spa')) {
             response.headers.set('X-Redirect-Code', responseShim.prototype.status.get.call(response));
             response.headers.set('Access-Control-Allow-Origin', '*');
             response.headers.set('Cache-Control', 'no-store');
