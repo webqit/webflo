@@ -379,7 +379,7 @@ async function generateWorkerScript({ $context, bootstrap, ...restParams }) {
             }, [[], []]);
             if (patterns.length) {
                 function scanDir(dir) {
-                    Fs.readdirSync(dir).reduce((result, f) => {
+                    return Fs.readdirSync(dir).reduce((result, f) => {
                         const resource = Path.join(dir, f);
                         if (f.startsWith('.')) return result;
                         return result.concat(
