@@ -152,28 +152,165 @@ export class WebfloServer extends WebfloRuntime {
             || !this.bootstrap.init.redis) {
             return super.initCreateStorage();
         }
+
+        // ns -> field -> { value, subscriptions: Set<fn> }
+        const local = new Map();
+        const fire = (state, value, key, namespace, scopeReference = false) => {
+            const returnValues = [];
+            for (const subscription of state.subscriptions) {
+                const { callback, options } = subscription;
+                
+                const scope = subscription.scopeReference === scopeReference ? 0 : scopeReference ? 1 : 2;
+                // For options.scope === 0, only include same-request cycle mutations
+                // For options.scope === 1, only include local mutations
+                // For options.scope === 2, include remote mutations
+                if ((options.scope || 0) !== scope) continue;
+                
+                returnValues.push(callback(value, scope));
+                if (options.once) state.subscriptions.delete(subscription);
+                const ns = local.get(namespace);
+                if (!state.subscriptions.size) ns.delete(key);
+                if (!ns.size) local.delete(namespace);
+            }
+            return Promise.all(returnValues);
+        };
+
+        // Initialize storage
         const redis = this.bootstrap.init.redis;
-        this.bootstrap.init.createStorage = (namespace, ttl = null) => ({
-            async has(key) { return await redis.hexists(namespace, key); },
-            async get(key) {
-                const value = await redis.hget(namespace, key);
-                return typeof value === 'undefined' ? value : JSON.parse(value);
-            },
-            async set(key, value) {
-                const returnValue = await redis.hset(namespace, key, JSON.stringify(value));
-                if (!this.ttlApplied && ttl) {
-                    await redis.expire(namespace, ttl);
-                    this.ttlApplied = true;
+        this.bootstrap.init.createStorage = (namespace, ttl = null, scopeReference = {}) => {
+            const cleanups = [];
+            return {
+                async has(key) { return await redis.hexists(namespace, key); },
+                async get(key) {
+                    const jsonValue = await redis.hget(namespace, key);
+                    return jsonValue === null ? undefined : JSON.parse(jsonValue);
+                },
+                async set(key, value) {
+                    const jsonValue = JSON.stringify(value);
+                    const returnValue = await redis.hset(namespace, key, jsonValue);
+                    if (!this.ttlApplied && ttl) {
+                        await redis.expire(namespace, ttl);
+                        this.ttlApplied = true;
+                    }
+                    const state = local.get(namespace)?.get(key);
+                    if (state) {
+                        state.jsonValue = jsonValue;
+                        state.initialized = true;
+                        await fire(state, value, key, namespace, scopeReference);
+                    }
+                    return returnValue;
+                },
+                async delete(key) {
+                    const returnValue = await redis.hdel(namespace, key);
+                    const state = local.get(namespace)?.get(key);
+                    if (state) {
+                        state.jsonValue = null;
+                        state.initialized = true;
+                        await fire(state, undefined, key, namespace, scopeReference);
+                    }
+                    return returnValue;
+                },
+                async clear() {
+                    const returnValue = await redis.del(namespace);
+                    const nsLocal = local.get(namespace);
+                    if (nsLocal) {
+                        for (const [key, state] of nsLocal.entries()) {
+                            state.jsonValue = null;
+                            state.initialized = true;
+                            await fire(state, undefined, key, namespace, scopeReference);
+                        }
+                    }
+                    return returnValue;
+                },
+                async keys() { return await redis.hkeys(namespace); },
+                async values() { return (await redis.hvals(namespace) || []).map((value) => value === null ? undefined : JSON.parse(value)); },
+                async entries() { return Object.entries(await redis.hgetall(namespace) || {}).map(([key, value]) => [key, value === null ? undefined : JSON.parse(value)]); },
+                get size() { return redis.hlen(namespace); },
+                observe(key, callback, options = {}) {
+                    // Prepare local data structure
+                    let ns = local.get(namespace);
+                    if (!ns) {
+                        ns = new Map();
+                        local.set(namespace, ns);
+                    }
+
+                    let state = ns.get(key);
+                    if (!state) {
+                        state = { jsonValue: null, initialized: false, subscriptions: new Set() };
+                        ns.set(key, state);
+                        // Prime initial value only once
+                        redis.hget(namespace, key).then((jsonValue) => {
+                            if (state.initialized) return;
+                            state.jsonValue = jsonValue;
+                            state.initialized = true;
+                        });
+                    }
+
+                    const subscription = { callback, options, scopeReference };
+                    state.subscriptions.add(subscription);
+                    if (options.signal) {
+                        options.signal.addEventListener('abort', () => {
+                            state.subscriptions.delete(subscription);
+                            if (state.subscriptions.size === 0) ns.delete(key);
+                            if (ns.size === 0) local.delete(namespace);
+                        });
+                    }
+
+                    // Unsubscribe logic
+                    const cleanup = () => {
+                        state.subscriptions.delete(subscription);
+                        if (state.subscriptions.size === 0) ns.delete(key);
+                        if (ns.size === 0) local.delete(namespace);
+                    };
+                    cleanups.push(cleanup);
+                    return cleanup;
+                },
+                cleanup() {
+                    for (const cleanup of cleanups) cleanup();
+                    cleanups.length = 0;
+                },
+            };
+        };
+
+        // Watch for changes
+        const redisWatch = this.bootstrap.init.redisWatch;
+        if (redisWatch) {
+            // Subscribe to all events
+            redisWatch.psubscribe('__keyevent@0__:*');
+            redisWatch.on('pmessage', async (pattern, channel, redisKey) => {
+                const [, , event] = channel.split(':'); // -> "hset", "hdel", "expire", "del"
+                const namespace = redisKey;
+
+                const nsLocal = local.get(namespace);
+                if (!nsLocal) return;
+
+                const emitDiff = async () => {
+                    for (const [field, state] of nsLocal) {
+                        const jsonValue = await redis.hget(namespace, field);
+                        if (jsonValue !== state.jsonValue) {
+                            state.jsonValue = jsonValue;
+                            const value = jsonValue === null ? undefined : JSON.parse(jsonValue);
+                            fire(state, value, field, namespace);
+                        }
+                    }
                 }
-                return returnValue;
-            },
-            async delete(key) { return await redis.hdel(namespace, key); },
-            async clear() { return await redis.del(namespace); },
-            async keys() { return await redis.hkeys(namespace); },
-            async values() { return (await redis.hvals(namespace) || []).map((value) => typeof value === 'undefined' ? value : JSON.parse(value)); },
-            async entries() { return Object.entries(await redis.hgetall(namespace) || {}).map(([key, value]) => [key, typeof value === 'undefined' ? value : JSON.parse(value)]); },
-            get size() { return redis.hlen(namespace); },
-        });
+
+                // Field updates
+                if (event === 'hset') await emitDiff();
+                if (event === 'hdel') await emitDiff();
+
+                // Namespace removal (expire or del)
+                if (event === 'expire' || event === 'del') {
+                    for (const [key, state] of nsLocal) {
+                        if (state.jsonValue !== null) {
+                            state.jsonValue = null;
+                            fire(state, undefined, key, namespace);
+                        }
+                    }
+                    local.delete(namespace);
+                }
+            });
+        }
     }
 
     control() {

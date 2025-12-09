@@ -17,8 +17,15 @@ export class HttpUser extends HttpState {
         this.#client = client;
     }
 
-    async isSignedIn() {
-        return await this.has('id');
+    async isSignedIn(callback = null, options = {}) {
+        const isSignedIn = await this.get('id');
+        if (callback) {
+            await callback(isSignedIn);
+            return options.once
+                ? undefined
+                : this.observe('id', callback, options);
+        }
+        return !!isSignedIn;
     }
 
     async signIn(...args) {

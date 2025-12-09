@@ -17,11 +17,11 @@ export class Client extends WQStarPort {
 
     createRequestRealtime(portID, url = null) {
         const requestPort = new ClientRequestRealtime(portID, url);
-        const cleanup = this.addPort(requestPort);
+        this.addPort(requestPort);
         setTimeout(() => {
             if (requestPort.length || !this.findPort((port) => port === requestPort)) return;
-            cleanup();
-        }, 30000/*30sec*/);
+            requestPort.close(true);
+        }, 15000/*15sec*/);
         return requestPort;
     }
 }

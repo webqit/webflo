@@ -69,25 +69,42 @@ export class HttpState {
     }
 
     #listeners = new Set;
-    observe(attr, handler) {
-        const args = { attr, handler };
-        this.#listeners.add(args);
-        return () => {
-            this.#listeners.delete(args);
-        }
-    }
-
     async emit(attr, value) {
         const returnValues = [];
-        for (const { attr: $attr, handler } of this.#listeners) {
+        for (const subscription of this.#listeners) {
+            const { attr: $attr, handler, options } = subscription;
             if (arguments.length && $attr !== attr) continue;
             if (arguments.length > 1) {
                 returnValues.push(handler(value));
             } else {
                 returnValues.push(handler());
             }
+            if (options.once) this.#listeners.delete(subscription);
         }
-        return Promise.all(returnValues);
+        await Promise.all(returnValues);
+    }
+
+    observe(attr, handler, options = {}) {
+        if (typeof this.#store.observe === 'function') {
+            return this.#store.observe(attr, handler, options);
+        }
+        const subscription = { attr, handler, options };
+        this.#listeners.add(subscription);
+        if (options.signal) {
+            options.signal.addEventListener('abort', () => {
+                this.#listeners.delete(subscription);
+            });
+        }
+        return () => {
+            this.#listeners.delete(subscription);
+        }
+    }
+
+    cleanup() {
+        if (typeof this.#store.cleanup === 'function') {
+            this.#store.cleanup();
+        }
+        this.#listeners.clear();
     }
 
     #handlers = new Map;

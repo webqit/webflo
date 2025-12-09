@@ -156,6 +156,17 @@ export class WebfloRuntime {
         for (const storage of [httpEvent.user, httpEvent.session, httpEvent.cookies]) {
             await storage?.commit?.(response, FLAGS['dev']);
         }
+
+        // End-of-life cleanup
+        const cleanup = async () => {
+            for (const storage of [httpEvent.user, httpEvent.session, httpEvent.cookies]) {
+                storage.cleanup();
+            }
+            if (!httpEvent.thread.extended) {
+                await httpEvent.thread.clear();
+            }
+        };
+
         // Wait for any whileLive promises to resolve
         if (LiveResponse.test(response) === 'LiveResponse' && response.whileLive()) {
             httpEvent.waitUntil(response.whileLive(true));
@@ -194,11 +205,9 @@ export class WebfloRuntime {
             // Close httpEvent.client
             httpEvent.lifeCycleComplete(true).then(async () => {
                 httpEvent.client.close();
-                if (!httpEvent.thread.extended) {
-                    await httpEvent.thread.clear();
-                }
+                cleanup();
             });
-        }
+        } else cleanup();
 
         if (!this.isClientSide && LiveResponse.test(response) === 'LiveResponse') {
             // Must convert to Response on the server-side before returning
