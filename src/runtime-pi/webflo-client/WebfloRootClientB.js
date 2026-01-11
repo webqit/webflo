@@ -1,7 +1,7 @@
-import { Observer } from '@webqit/use-live';
-import { WebfloRootClient1 } from './WebfloRootClient1.js';
+import { Observer } from '@webqit/observer';
+import { WebfloRootClientA } from './WebfloRootClientA.js';
 
-export class WebfloRootClient2 extends WebfloRootClient1 {
+export class WebfloRootClientB extends WebfloRootClientA {
 
 	control() {
 		const instanceController = super.controlSuper/*IMPORTANT*/();

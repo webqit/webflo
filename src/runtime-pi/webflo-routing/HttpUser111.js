@@ -1,21 +1,8 @@
-import { HttpState } from './HttpState.js';
+import { HttpKeyvalInterface } from './HttpKeyvalInterface.js';
 
-export class HttpUser extends HttpState {
+export class HttpUser111 extends HttpKeyvalInterface {
 
-    static create({ store, request, thread, client }) {
-        return new this({ store, request, thread, client });
-    }
-
-    #client;
-
-    constructor({ store, request, thread, client }) {
-        super({
-            store,
-            request,
-            thread
-        });
-        this.#client = client;
-    }
+    get _client() { return this._parentEvent.client; }
 
     async isSignedIn(callback = null, options = {}) {
         const isSignedIn = await this.get('id');
@@ -23,7 +10,7 @@ export class HttpUser extends HttpState {
             await callback(isSignedIn);
             return options.once
                 ? undefined
-                : this.observe('id', callback, options);
+                : this.subscribe('id', callback, options);
         }
         return !!isSignedIn;
     }
@@ -41,20 +28,20 @@ export class HttpUser extends HttpState {
 
     async confirm(data, callback, options = {}) {
         return await new Promise((resolve) => {
-            this.#client.postRequest(
+            this._client.postRequest(
                 data,
                 (event) => resolve(callback ? callback(event) : event),
-                { ...options, wqEventOptions: { type: 'confirm' } }
+                { ...options, type: 'confirm' }
             );
         });
     }
 
     async prompt(data, callback, options = {}) {
         return await new Promise((resolve) => {
-            this.#client.postRequest(
+            this._client.postRequest(
                 data,
                 (event) => resolve(callback ? callback(event) : event),
-                { ...options, wqEventOptions: { type: 'prompt' } }
+                { ...options, type: 'prompt' }
             );
         });
     }

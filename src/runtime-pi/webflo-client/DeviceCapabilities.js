@@ -1,4 +1,4 @@
-import { Observer } from '@webqit/use-live';
+import { Observer } from '@webqit/observer';
 
 export class DeviceCapabilities {
 

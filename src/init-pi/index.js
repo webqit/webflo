@@ -5,7 +5,6 @@ import { exec } from 'child_process';
 import { _toTitle } from '@webqit/util/str/index.js';
 import { readInitConfig } from '../deployment-pi/util.js';
 import { CLIContext } from '../CLIContext.js';
-import * as deployment from '../deployment-pi/index.js';
 
 export const desc = {
     init: 'Generate a preset Webflo starter app.',

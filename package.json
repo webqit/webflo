@@ -33,9 +33,6 @@
     "site:build": "vitepress build site",
     "site:preview": "vitepress preview site --port 4173"
   },
-  "exports": {
-    "./apis": "./src/runtime-pi/apis.js"
-  },
   "bin": {
     "webflo": "src/webflo-cli.js",
     "webflo-certbot-http-auth-hook": "src/services-pi/cert/http-auth-hook.js",
@@ -44,13 +41,19 @@
   "dependencies": {
     "@octokit/webhooks": "^7.15.1",
     "@webqit/backpack": "^0.1.12",
+    "@webqit/fetch-plus": "^0.1.16",
+    "@webqit/keyval": "^0.2.17",
+    "@webqit/observer": "^3.8.14",
     "@webqit/oohtml-ssr": "^2.2.2",
-    "@webqit/use-live": "^0.5.44",
+    "@webqit/port-plus": "^0.1.17",
+    "@webqit/url-plus": "^0.1.4",
+    "@webqit/use-live": "^0.5.49",
     "@webqit/util": "^0.8.11",
     "chokidar": "^4.0.3",
     "dotenv": "^16.4.7",
     "esbuild": "^0.14.38",
     "fast-glob": "^3.3.3",
+    "idb": "^8.0.3",
     "mime-types": "^2.1.33",
     "simple-git": "^2.20.1",
     "urlpattern-polyfill": "^4.0.3"

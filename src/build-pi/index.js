@@ -7,12 +7,12 @@ import { gzipSync, brotliCompressSync } from 'zlib';
 import { _afterLast, _beforeLast } from '@webqit/util/str/index.js';
 import { _isObject, _isArray } from '@webqit/util/js/index.js';
 import { jsFile } from '@webqit/backpack/src/dotfile/index.js';
+import { URLPatternPlus } from '@webqit/url-plus';
 import { bootstrap as serverBootstrap } from '../runtime-pi/webflo-server/bootstrap.js';
 import { bootstrap as clientBootstrap } from '../runtime-pi/webflo-client/bootstrap.js';
 import { bootstrap as workerBootstrap } from '../runtime-pi/webflo-worker/bootstrap.js';
 import { UseLiveTransform } from './esbuild-plugin-uselive-transform.js';
 import { CLIContext } from '../CLIContext.js';
-import '../runtime-pi/webflo-url/urlpattern.js';
 
 function declareConfig({ $source, configExport, indentation = 0 }) {
     const varName = 'config';
@@ -370,11 +370,13 @@ async function generateWorkerScript({ $context, bootstrap, ...restParams }) {
     for (const strategy of ['cache_first_urls', 'cache_only_urls']) {
         if (configExport.WORKER[strategy].length) {
             const [urls, patterns] = configExport.WORKER[strategy].reduce(([urls, patterns], url) => {
-                const patternInstance = new URLPattern(url, 'http://localhost');
+                const patternInstance = new URLPatternPlus(url, 'http://localhost');
                 const isPattern = patternInstance.isPattern();
-                if (isPattern && (patternInstance.pattern.hostname !== 'localhost' || patternInstance.pattern.port)) {
+                
+                if (isPattern && (patternInstance.hostname !== 'localhost' || patternInstance.port)) {
                     throw new Error(`Pattern URLs must have no origin part. Recieved "${url}".`);
                 }
+
                 return isPattern ? [urls, patterns.concat(patternInstance)] : [urls.concat(url), patterns];
             }, [[], []]);
             if (patterns.length) {
@@ -391,7 +393,7 @@ async function generateWorkerScript({ $context, bootstrap, ...restParams }) {
                 configExport.WORKER[strategy] = patterns.reduce((all, pattern) => {
                     const matchedFiles = files.filter((file) => pattern.test(file, 'http://localhost'));
                     if (matchedFiles.length) return all.concat(matchedFiles);
-                    throw new Error(`The pattern "${pattern.pattern.pathname}" didn't match any files.`);
+                    throw new Error(`The pattern "${pattern.pathname}" didn't match any files.`);
                 }, urls);
             }
         }

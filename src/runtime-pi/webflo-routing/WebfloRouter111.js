@@ -1,10 +1,9 @@
 import { _isFunction, _isArray, _isObject } from '@webqit/util/js/index.js';
 import { _from as _arrFrom } from '@webqit/util/arr/index.js';
-import { LiveResponse } from '../webflo-fetch/LiveResponse.js';
-import { request as requestShim } from '../webflo-fetch/index.js';
-import { path as Path } from '../webflo-url/util.js';
+import { LiveResponse, RequestPlus } from '@webqit/fetch-plus';
+import { Path } from '@webqit/url-plus';
 
-export class WebfloRouter {
+export class WebfloRouter111 {
 
     #runtime;
     #path;
@@ -103,7 +102,7 @@ export class WebfloRouter {
                         // Build request inheritance chain
                         const requestInheritanceChain = [url];
                         if (!isFetch && thisTick.event.request instanceof Request) {
-                            const { url: _, ...init } = await requestShim.copy.value(thisTick.event.request);
+                            const { url: _, ...init } = await RequestPlus.copy(thisTick.event.request);
                             requestInheritanceChain.push(init);
                         }
                         const noArg2 = () => {
@@ -111,7 +110,7 @@ export class WebfloRouter {
                         };
                         if (args[0] instanceof Request) {
                             if (args[1]) noArg2();
-                            const { url: _, ...init } = await requestShim.copy.value(args[0]);
+                            const { url: _, ...init } = await RequestPlus.copy(args[0]);
                             requestInheritanceChain.push(init);
                         } else if (!isFetch && _isObject(args[0])) {
                             if (args[1]) noArg2();

@@ -1,20 +1,24 @@
 import { _before, _toTitle } from '@webqit/util/str/index.js';
-import { _isObject } from '@webqit/util/js/index.js';
-import { Observer } from '@webqit/use-live';
-import { WebfloRuntime } from '../WebfloRuntime.js';
-import { WQMessageChannel } from '../webflo-messaging/WQMessageChannel.js';
-import { response as responseShim } from '../webflo-fetch/index.js';
-import { LiveResponse } from '../webflo-fetch/LiveResponse.js';
-import { WQStarPort } from '../webflo-messaging/WQStarPort.js';
-import { ClientSideCookies } from './ClientSideCookies.js';
-import { Url } from '../webflo-url/Url.js';
-import { _wq } from '../../util.js';
-import '../webflo-fetch/index.js';
-import '../webflo-url/index.js';
+import { LiveResponse, RequestPlus } from '@webqit/fetch-plus';
+import { MessageChannelPlus, StarPort } from '@webqit/port-plus';
+import { HttpThread111 } from '../webflo-routing/HttpThread111.js';
+import { HttpCookies101 } from '../webflo-routing/HttpCookies101.js';
+import { HttpCookies110 } from '../webflo-routing/HttpCookies110.js';
+import { HttpSession110 } from '../webflo-routing/HttpSession110.js';
+import { HttpUser111 } from '../webflo-routing/HttpUser111.js';
+import { HttpEvent111 } from '../webflo-routing/HttpEvent111.js';
+import { WebfloRouter111 } from '../webflo-routing/WebfloRouter111.js';
+import { KeyvalsFactory110 } from '../webflo-routing/KeyvalsFactory110.js';
+import { ClientRequestPort100 } from '../webflo-messaging/ClientRequestPort100.js';
+import { AppRuntime } from '../AppRuntime.js';
+import { Observer } from '@webqit/observer';
+import { URLPlus } from '@webqit/url-plus';
+import { _meta } from '../../util.js';
 
-export class WebfloClient extends WebfloRuntime {
+export class WebfloClient extends AppRuntime {
 
-    static get HttpCookies() { return ClientSideCookies; }
+    #keyvals;
+    get keyvals() { return this.#keyvals; }
 
     #host;
     get host() { return this.#host; }
@@ -37,7 +41,7 @@ export class WebfloClient extends WebfloRuntime {
         super(bootstrap);
         this.#host = host;
         Object.defineProperty(this.host, 'webfloRuntime', { get: () => this });
-        this.#location = new Url/*NOT URL*/(this.host.location);
+        this.#location = new URLPlus(this.host.location);
         this.#navigator = {
             requesting: null,
             redirecting: null,
@@ -46,27 +50,35 @@ export class WebfloClient extends WebfloRuntime {
             error: null,
         };
         this.#transition = {
-            from: new Url/*NOT URL*/({}),
-            to: new Url/*NOT URL*/(this.host.location),
+            from: new URLPlus(window.origin),
+            to: new URLPlus(this.host.location),
             rel: 'unrelated',
             phase: 0
         };
-        this.#background = new WQStarPort;
+        this.#background = new StarPort({ handshake: 1, autoClose: false });
     }
 
     async initialize() {
+        // ----------
+        // The keyvals API
+        this.#keyvals = new KeyvalsFactory110;
+
+        // ----------
+        // Call default-init
         const instanceController = await super.initialize();
+
+        // ----------
         // Bind prompt handlers
         const promptsHandler = (e) => {
             window.queueMicrotask(() => {
                 if (e.defaultPrevented) return;
                 if (e.type === 'confirm') {
                     if (e.data?.message) {
-                        e.wqRespondWith(confirm(e.data.message));
+                        e.respondWith(confirm(e.data.message));
                     }
                 } else if (e.type === 'prompt') {
                     if (e.data?.message) {
-                        e.wqRespondWith(prompt(e.data.message));
+                        e.respondWith(prompt(e.data.message));
                     }
                 } else if (e.type === 'alert') {
                     for (const item of [].concat(e.data)) {
@@ -80,9 +92,13 @@ export class WebfloClient extends WebfloRuntime {
         this.background.addEventListener('confirm', promptsHandler, { signal: instanceController.signal });
         this.background.addEventListener('prompt', promptsHandler, { signal: instanceController.signal });
         this.background.addEventListener('alert', promptsHandler, { signal: instanceController.signal });
+
+        // ----------
+        // Call default-init
         await this.setupCapabilities();
         this.control();
         await this.hydrate();
+
         return instanceController;
     }
 
@@ -94,7 +110,7 @@ export class WebfloClient extends WebfloRuntime {
         const instanceController = super.control();
         const setStates = (url, detail, method = 'GET') => {
             Observer.set(this.navigator, {
-                requesting: new Url/*NOT URL*/(url),
+                requesting: new URL(url),
                 origins: detail.navigationOrigins || [],
                 method,
                 error: null
@@ -239,12 +255,12 @@ export class WebfloClient extends WebfloRuntime {
     }
 
     #prevEvent;
-    createHttpEvent(init, singleton = true) {
+    createHttpEvent111(init, singleton = true) {
         if (singleton && this.#prevEvent) {
             // TODO
             //this.#prevEvent.abort();
         }
-        const httpEvent = super.createHttpEvent(init);
+        const httpEvent = super.createHttpEvent111(init);
         this.$instanceController.signal.addEventListener('abort', () => httpEvent.abort(), { once: true });
         return this.#prevEvent = httpEvent;
     }
@@ -259,57 +275,95 @@ export class WebfloClient extends WebfloRuntime {
     }
 
     async navigate(url, init = {}, detail = {}) {
-        // Resolve inputs
-        const scopeObj = { url, init, detail };
+        // Scope object
+        const scopeObj = {
+            url,
+            init,
+            detail,
+            requestID: (0 | Math.random() * 9e6).toString(36),
+            tenantID: 'anon',
+        };
         if (typeof scopeObj.url === 'string') {
-            scopeObj.url = new URL(scopeObj.url, self.location.origin);
+            scopeObj.url = new URL(scopeObj.url, window.location.origin);
         }
-        // Create and route request
-        scopeObj.request = this.createRequest(scopeObj.url, scopeObj.init);
-        scopeObj.thread = this.createHttpThread({
-            store: this.createStorage('thread'),
-            threadId: scopeObj.url.searchParams.get('_thread'),
+
+        // Request
+        scopeObj.request = scopeObj.init instanceof Request && scopeObj.init.url === scopeObj.url.href
+            ? scopeObj.init
+            : this.createRequest(scopeObj.url, scopeObj.init);
+        RequestPlus.upgradeInPlace(scopeObj.request);
+
+        // Origins
+        const origins = [scopeObj.requestID];
+
+        // Thread
+        scopeObj.thread = HttpThread111.create({
+            context: {},
+            store: this.#keyvals.create({ path: ['thread', scopeObj.tenantID], origins }),
+            threadID: scopeObj.url.searchParams.get('_thread'),
             realm: 1
         });
-        scopeObj.cookies = this.createHttpCookies({
-            request: scopeObj.request,
-            thread: scopeObj.thread,
+
+        // Cookies
+        if (typeof cookieStore === 'undefined') {
+            const entries = document.cookie.split(';').map((c) => c.split('=').map((s) => s.trim()));
+            const store = this.#keyvals.create({ type: 'inmemory', path: ['cookies', scopeObj.tenantID], origins });
+            entries.forEach(([key, value]) => store.set(key, { value }));
+            const initial = Object.fromEntries(entries);
+            scopeObj.cookies = HttpCookies101.create({
+                context: { handlersRegistry: this.#keyvals.getHandlers('cookies', true) },
+                store,
+                initial,
+                realm: 1
+            });
+        } else {
+            scopeObj.cookies = HttpCookies110.create({
+                context: { handlersRegistry: this.#keyvals.getHandlers('cookies', true) },
+                store: this.#keyvals.create({ type: 'cookiestore', path: ['cookies', scopeObj.tenantID], origins }),
+                realm: 1
+            });
+        }
+
+        // Session
+        scopeObj.session = HttpSession110.create({
+            context: { handlersRegistry: this.#keyvals.getHandlers('session', true) },
+            store: this.#keyvals.create({ type: 'indexeddb', path: ['session', scopeObj.tenantID], origins }),
             realm: 1
         });
-        scopeObj.session = this.createHttpSession({
-            store: this.createStorage('session'),
-            request: scopeObj.request,
-            thread: scopeObj.thread,
+
+        // User
+        scopeObj.user = HttpUser111.create({
+            context: { handlersRegistry: this.#keyvals.getHandlers('user', true) },
+            store: this.#keyvals.create({ type: 'indexeddb', path: ['user', scopeObj.tenantID], origins }),
             realm: 1
         });
-        const wqMessageChannel = new WQMessageChannel;
-        scopeObj.clientRequestRealtime = wqMessageChannel.port1;
-        scopeObj.user = this.createHttpUser({
-            store: this.createStorage('user'),
-            request: scopeObj.request,
-            thread: scopeObj.thread,
-            client: scopeObj.clientRequestRealtime,
-            realm: 1
-        });
+
+        // UIState
         if (window.webqit?.oohtml?.configs) {
             const { BINDINGS_API: { api: bindingsConfig } = {}, } = window.webqit.oohtml.configs;
             scopeObj.UIState = (this.host[bindingsConfig.bindings] || {}).state;
         }
-        scopeObj.httpEvent = this.createHttpEvent({
+
+        // ClientPort
+        scopeObj.clientRequestPort = new ClientRequestPort100({ handshake: 1, postAwaitsOpen: true });
+
+        // HttpEvent111
+        scopeObj.httpEvent = HttpEvent111.create({
+            detail: scopeObj.detail,
+            signal: init.signal,
             request: scopeObj.request,
             thread: scopeObj.thread,
-            client: scopeObj.clientRequestRealtime,
             cookies: scopeObj.cookies,
             session: scopeObj.session,
             user: scopeObj.user,
-            detail: scopeObj.detail,
-            signal: init.signal,
+            client: scopeObj.clientRequestPort.port1,
             state: scopeObj.UIState,
             realm: 1
         }, true);
+
         // Set pre-request states
         Observer.set(this.navigator, {
-            requesting: new Url/*NOT URL*/(scopeObj.url),
+            requesting: new URL(scopeObj.url),
             origins: scopeObj.detail.navigationOrigins || [],
             method: scopeObj.request.method,
             error: null
@@ -327,8 +381,8 @@ export class WebfloClient extends WebfloRuntime {
         // !IMPORTANT: Posting to the group when empty will keep the event until next addition
         // and we don't want that
         if (this.#background.length) {
-            const url = { ...Url.copy(scopeObj.url), method: scopeObj.request.method };
-            this.#background.postMessage(url, { wqEventOptions: { type: 'navigate' } });
+            const url = { ...URLPlus.copy(scopeObj.url), method: scopeObj.request.method };
+            this.#background.postMessage(url, { type: 'navigate' });
         }
 
         // Dispatch for response
@@ -341,9 +395,17 @@ export class WebfloClient extends WebfloRuntime {
                 }
                 return await this.remoteFetch(event.request);
             },
-            clientPortB: wqMessageChannel.port2,
+            clientPortB: scopeObj.clientRequestPort.port2,
             originalRequestInit: scopeObj.init
         });
+
+        // Commit cookies
+        if (typeof cookieStore === 'undefined') {
+            for (const cookieStr of await scopeObj.cookies.render()) {
+                document.cookie = cookieStr;
+            }
+            await scopeObj.cookies._commit();
+        }
 
         // Decode response
         scopeObj.finalUrl = scopeObj.response.url || scopeObj.request.url;
@@ -351,25 +413,28 @@ export class WebfloClient extends WebfloRuntime {
             const stateData = { ...(this.currentEntry()?.getState() || {}), redirected: true, };
             await this.updateCurrentEntry({ state: stateData }, scopeObj.finalUrl);
         }
-        
+
         // Transition UI
         await this.transitionUI(async () => {
             // Set post-request states
             Observer.set(this.location, 'href', scopeObj.finalUrl);
             scopeObj.resetStates();
+
             // Error?
-            const statusCode = responseShim.prototype.status.get.call(scopeObj.response);
+            const statusCode = scopeObj.response.status;
             if ([404, 500].includes(statusCode)) {
                 const error = new Error(scopeObj.response.statusText, { code: statusCode });
                 Object.defineProperty(error, 'retry', { value: async () => await this.navigate(scopeObj.url, scopeObj.init, scopeObj.detail) });
                 Observer.set(this.navigator, 'error', error);
             }
+
             // Render response
             await this.render(
                 scopeObj.httpEvent,
                 scopeObj.response,
                 !(['GET'].includes(scopeObj.request.method) || scopeObj.response.redirected || scopeObj.detail.navigationType === 'rdr')
             );
+
             await this.applyPostRenderState(scopeObj.httpEvent);
         }, scopeObj.finalUrl, scopeObj.detail);
     }
@@ -378,36 +443,37 @@ export class WebfloClient extends WebfloRuntime {
         let response = await super.dispatchNavigationEvent({ httpEvent, crossLayerFetch, clientPortB });
 
         // Extract interactive. mode handling
-        const handleInteractiveMode = async (resolve) => {
-            const liveResponse = await LiveResponse.from(response);
-            this.background.addPort(liveResponse.background);
-            liveResponse.addEventListener('replace', () => {
-                if (liveResponse.headers.get('Location')) {
-                    this.processRedirect(liveResponse);
-                } else {
-                    resolve?.(liveResponse);
-                }
-            }, { signal: httpEvent.signal });
-            return liveResponse;
+        const handleInteractiveMode = () => {
+            return new Promise(async (resolve) => {
+                const liveResponse = LiveResponse.from(response);
+                await liveResponse.readyStateChange('live');
+
+                this.background.addPort(liveResponse.port);
+                liveResponse.addEventListener('replace', () => {
+                    if (liveResponse.headers.get('Location')) {
+                        this.processRedirect(liveResponse);
+                    } else {
+                        resolve(liveResponse);
+                    }
+                }, { signal: httpEvent.signal });
+
+                return liveResponse;
+            });
         };
 
         // Await a response with an "Accepted" or redirect status
-        const statusCode = responseShim.prototype.status.get.call(response);
-        if (statusCode === 202 && LiveResponse.hasBackground(response)) {
-            return new Promise(handleInteractiveMode);
+        const statusCode = response.status;
+        if (statusCode === 202
+            && LiveResponse.hasPort(response)) {
+            return await handleInteractiveMode();
         }
 
         // Handle redirects
         if (response.headers.get('Location')) {
-            // Never resolves...
-            return new Promise(async (resolve) => {
-                const redirectHandlingMode = this.processRedirect(response);
-                // ...except processRedirect() says keep-alive
-                if (redirectHandlingMode === 3/* keep-alive */
-                    && LiveResponse.hasBackground(response)) {
-                    await handleInteractiveMode(resolve);
-                }
-            });
+            await this.processRedirect(response);
+            if (LiveResponse.hasPort(response)) {
+                return await handleInteractiveMode();
+            }
         }
 
         // Handle "retry" directives
@@ -430,7 +496,7 @@ export class WebfloClient extends WebfloRuntime {
             }
 
             // Obtain and connect clientPortB as first thing
-            if (LiveResponse.hasBackground(response)) {
+            if (LiveResponse.hasPort(response)) {
                 response = await handleInteractiveMode();
             }
         }
@@ -438,12 +504,13 @@ export class WebfloClient extends WebfloRuntime {
         return response;
     }
 
-    processRedirect(response) {
+    async processRedirect(response) {
         // Normalize redirect
-        let statusCode = responseShim.prototype.status.get.call(response);
+        let statusCode = response.status;
         const xActualRedirectCode = parseInt(response.headers.get('X-Redirect-Code'));
+
         if (xActualRedirectCode && statusCode === this.#xRedirectCode) {
-            const responseMeta = _wq(response, 'meta');
+            const responseMeta = _meta(response);
             responseMeta.set('status', xActualRedirectCode); // @NOTE 1
             statusCode = xActualRedirectCode;
         }
@@ -453,22 +520,22 @@ export class WebfloClient extends WebfloRuntime {
             const location = new URL(response.headers.get('Location'), this.location.origin);
             if (this.isSpaRoute(location)) {
                 this.navigate(location, {}, { navigationType: 'rdr' });
-                return 1;
+                return;
             }
-            return this.redirect(location, response);
-        }
 
-        return 0; // No actual redirect
+            // External redirect
+            await this.redirect(location, response);
+        }
     }
 
-    redirect(location) {
+    async redirect(location) {
         window.location = location;
-        return 2; // Window reload
+        await new Promise(() => { });
     }
 
     async transitionUI(updateCallback, finalUrl, detail) {
         // Set initial states
-        Observer.set(this.transition.from, Url.copy(this.location));
+        Observer.set(this.transition.from, URLPlus.copy(this.location));
         Observer.set(this.transition.to, 'href', finalUrl);
         const viewTransitionRel = this.transition.from.pathname === this.transition.to.pathname ? 'same' : (
             `${this.transition.from.pathname}/`.startsWith(`${this.transition.to.pathname}/`) ? 'out' : (
@@ -496,7 +563,7 @@ export class WebfloClient extends WebfloRuntime {
     }
 
     async render(httpEvent, response, merge = false) {
-        const router = new this.constructor.Router(this, this.location.pathname);
+        const router = new WebfloRouter111(this, this.location.pathname);
         await router.route('render', httpEvent, async (httpEvent) => {
             if (!window.webqit?.oohtml?.configs) return;
             if (window.webqit?.dom) {
@@ -507,7 +574,7 @@ export class WebfloClient extends WebfloRuntime {
                 HTML_IMPORTS: { attr: modulesContextAttrs } = {},
             } = window.webqit.oohtml.configs;
             if (bindingsConfig) {
-                const $response = await LiveResponse.from(response);
+                const $response = await LiveResponse.from(response).readyStateChange('live');
                 this.host[bindingsConfig.bind]({
                     state: {},
                     data: $response.body,

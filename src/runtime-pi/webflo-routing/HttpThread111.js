@@ -1,43 +1,82 @@
-export class HttpThread {
+import { KV } from '@webqit/keyval/inmemory';
 
-    static create({ store, threadID, realm }) {
+export class HttpThread111 {
+
+    // ------ factory
+
+    static create({ context = {}, store, threadID, realm = 0 }) {
+        let hydrationMode = true;
         if (!threadID || !(new RegExp(`^wq\\.${realm}\\.`)).test(threadID)) {
-            threadID = `wq.${realm}.${crypto.randomUUID()}`;
+            threadID = `wq.${realm}.${(0 | Math.random() * 9e6).toString(36)}`;//`wq.${realm}.${crypto.randomUUID()}`;
+            hydrationMode = false;
         }
-        return new this({ store, threadID, realm });
+        return new this({ context, store, threadID, realm, lifecycle: { dirty: hydrationMode, extended: false } });
     }
 
+    // ------
+
+    #context = {};
     #store;
     #threadID;
     #realm;
-    #extended = false;
+    #lifecycle;
 
     get threadID() { return this.#threadID; }
+    get dirty() { return !!this.#lifecycle.dirty; }
+    get extended() { return !!this.#lifecycle.extended; }
 
-    constructor({ store, threadID, realm }) {
-        this.#store = store || new Map;
+    get _context() { return this.#context; }
+    get _parentEvent() { return this.#context?.parentEvent; }
+
+    constructor({ context = {}, store, threadID, realm = 0, lifecycle = { dirty: false, extended: false } }) {
+        if (!(store instanceof KV)) {
+            throw new Error('HttpKeyval expects a valid store instance!');
+        }
+        if (context) Object.assign(this.#context, context);
+        this.#store = store;
         this.#threadID = threadID;
         this.#realm = realm;
+        this.#lifecycle = lifecycle;
     }
 
-    get extended() { return this.#extended; }
+    // ------ lifecycle
 
-    extend(set = true) { this.#extended = !!set; }
+    extend(set = true) { this.#lifecycle.extended = !!set; }
 
-    spawn(_threadID = null) {
-        return this.constructor.create({
+    clone() {
+        return new this.constructor({
+            context: this.#context,
             store: this.#store,
-            threadID: _threadID,
+            threadID: this.#threadID,
+            realm: this.#realm,
+            lifecycle: this.#lifecycle,
+        });
+    }
+
+    spawn(threadID = null) {
+        return this.constructor.create({
+            context: this.#context,
+            store: this.#store,
+            threadID: threadID,
             realm: this.#realm
         });
     }
 
+    async _cleanup() {
+        if (this.#lifecycle.extended) return;
+        await this.clear();
+    }
+
+    // ------ standard methods
+
     async keys() {
+        if (!this.#lifecycle.dirty) return [];
         const thread = await this.#store.get(this.#threadID) || {};
         return Object.keys(thread);
     }
 
     async has(key, filter = null) {
+        if (!this.#lifecycle.dirty) return false;
         if (filter === true || !filter) return (await this.keys()).includes(key);
         const thread = await this.#store.get(this.#threadID) || {};
         const values = [].concat(thread[key] ?? []);
@@ -45,14 +84,15 @@ export class HttpThread {
     }
 
     async append(key, value) {
+        this.#lifecycle.dirty = true;
         const thread = await this.#store.get(this.#threadID) || {};
         thread[key] = [].concat(thread[key] ?? []);
         thread[key].push(value);
         await this.#store.set(this.#threadID, thread);
-        return this;
     }
 
     async get(key, filter = null) {
+        if (!this.#lifecycle.dirty) return filter === true ? [] : undefined;
         const thread = await this.#store.get(this.#threadID) || {};
         const values = [].concat(thread[key] ?? []);
 
@@ -67,6 +107,7 @@ export class HttpThread {
     }
 
     async consume(key, filter = null) {
+        if (!this.#lifecycle.dirty) return filter === true ? [] : undefined;
         const thread = await this.#store.get(this.#threadID) || {};
         const values = [].concat(thread[key] ?? []);
 
@@ -94,7 +135,7 @@ export class HttpThread {
     }
 
     async clear() {
+        if (!this.#lifecycle.dirty) return;
         await this.#store.delete(this.#threadID);
-        return this;
     }
 }

@@ -1,33 +1,18 @@
-import { WebfloRouter } from './webflo-routing/WebfloRouter.js';
-import { response as responseShim, headers as headersShim } from './webflo-fetch/index.js';
-import { LiveResponse } from './webflo-fetch/LiveResponse.js';
+import { LiveResponse, ResponsePlus } from '@webqit/fetch-plus';
+import { WebfloRouter111 } from './webflo-routing/WebfloRouter111.js';
 import { AppBootstrap } from './AppBootstrap.js';
-import { HttpEvent } from './webflo-routing/HttpEvent.js';
-import { HttpThread } from './webflo-routing/HttpThread.js';
-import { HttpSession } from './webflo-routing/HttpSession.js';
-import { HttpUser } from './webflo-routing/HttpUser.js';
-import { _wq } from '../util.js';
+import { _meta } from '../util.js';
 
-export class WebfloRuntime {
+export class AppRuntime {
 
     #instanceController = new AbortController;
     get $instanceController() { return this.#instanceController; }
 
-    static get Router() { return WebfloRouter; }
-
-    static get HttpEvent() { return HttpEvent; }
-
-    static get HttpThread() { return HttpThread; }
-
-    static get HttpSession() { return HttpSession; }
-
-    static get HttpUser() { return HttpUser; }
-
     static create(bootstrap) { return new this(bootstrap); }
 
     #bootstrap;
-
     get bootstrap() { return this.#bootstrap; }
+
     get cx() { return this.bootstrap.cx; }
     get config() { return this.bootstrap.config; }
     get routes() { return this.bootstrap.routes; }
@@ -47,20 +32,6 @@ export class WebfloRuntime {
         if (this.bootstrap.init.SETUP) {
             await this.bootstrap.init.SETUP(this);
         }
-        await this.initCreateStorage();
-        return this.#instanceController;
-    }
-
-    async initCreateStorage() {
-        if (!this.bootstrap.init.createStorage) {
-            const inmemSessionRegistry = new Map;
-            this.bootstrap.init.createStorage = (namespace) => {
-                if (!inmemSessionRegistry.has(namespace)) {
-                    inmemSessionRegistry.set(namespace, new Map);
-                }
-                return inmemSessionRegistry.get(namespace);
-            };
-        }
         return this.#instanceController;
     }
 
@@ -76,45 +47,21 @@ export class WebfloRuntime {
         return this.#instanceController;
     }
 
-    createStorage(namespace, ttl) {
-        return this.bootstrap.init.createStorage(namespace, ttl);
-    }
-
     createRequest(href, init = {}) {
         return new Request(href, init);
-    }
-
-    createHttpThread({ store, threadID, ...rest }) {
-        return this.constructor.HttpThread.create({ store, threadID, ...rest });
-    }
-
-    createHttpCookies({ request, thread, ...rest }) {
-        return this.constructor.HttpCookies.create({ request, thread, ...rest });
-    }
-
-    createHttpSession({ store, request, thread, ...rest }) {
-        return this.constructor.HttpSession.create({ store, request, thread, ...rest });
-    }
-
-    createHttpUser({ store, request, thread, client, ...rest }) {
-        return this.constructor.HttpUser.create({ store, request, thread, client, ...rest });
-    }
-
-    createHttpEvent({ request, thread, cookies, session, user, client, detail, signal, state, ...rest }) {
-        return this.constructor.HttpEvent.create(null, { request, thread, cookies, session, user, client, detail, signal, state, ...rest });
     }
 
     async dispatchNavigationEvent({ httpEvent, crossLayerFetch, clientPortB }) {
         const { flags: FLAGS, logger: LOGGER } = this.cx;
 
         // Dispatch event
-        const router = new this.constructor.Router(this, httpEvent.url.pathname);
+        const router = new WebfloRouter111(this, httpEvent.url.pathname);
         await router.route(['SETUP'], httpEvent.spawn());
 
         // Do proper routing for respone
         const response = await new Promise(async (resolve) => {
             let autoLiveResponse, response;
-            httpEvent.client.wqLifecycle.messaging.then(() => {
+            httpEvent.client.readyStateChange('messaging').then(() => {
                 autoLiveResponse = new LiveResponse(null, { status: 202, statusText: 'Accepted', done: false });
                 resolve(autoLiveResponse);
             });
@@ -134,11 +81,13 @@ export class WebfloRuntime {
                 response = new Response(null, { status: 500, statusText: e.message });
             }
 
-            if (!/Response/.test(LiveResponse.test(response))) {
-                const isLifecyleComplete = httpEvent.lifeCycleComplete() ?? true;
+            if (response instanceof Response) {
+                ResponsePlus.upgradeInPlace(response);
+            } else if (!(response instanceof LiveResponse)) {
+                const isLifecyleComplete = httpEvent.readyState === 'done' ?? true;
                 response = LiveResponse.test(response) !== 'Default' || !isLifecyleComplete
-                    ? await LiveResponse.from(response, { done: isLifecyleComplete })
-                    : responseShim.from.value(response);
+                    ? LiveResponse.from(response, { done: isLifecyleComplete })
+                    : ResponsePlus.from(response);
             }
 
             // Any "status" in thread?
@@ -152,35 +101,24 @@ export class WebfloRuntime {
             }
         });
 
-        // Commit data in the exact order. Reason: in how they depend on each other
-        for (const storage of [httpEvent.user, httpEvent.session, httpEvent.cookies]) {
-            await storage?.commit?.(response, FLAGS['dev']);
-        }
-
         // End-of-life cleanup
         const cleanup = async () => {
-            for (const storage of [httpEvent.user, httpEvent.session, httpEvent.cookies]) {
-                storage.cleanup();
-            }
-            if (!httpEvent.thread.extended) {
-                await httpEvent.thread.clear();
-            }
+            await Promise.all([httpEvent.thread, httpEvent.user, httpEvent.session, httpEvent.cookies].map((x) => x._cleanup()));
         };
 
-        // Wait for any whileLive promises to resolve
-        if (LiveResponse.test(response) === 'LiveResponse' && response.whileLive()) {
-            httpEvent.waitUntil(response.whileLive(true));
+        // Wait for any "live" response to resolve
+        if (response instanceof LiveResponse
+            && response.readyState !== 'done') {
+            httpEvent.waitUntil(response.readyStateChange('done'));
         }
 
-        // Send the X-Background-Messaging-Port header
+        // Send the X-Message-Port header
         // This server's event lifecycle management
-        if (!(httpEvent.lifeCycleComplete() ?? true)) {
+        if (httpEvent.readyState === 'live') {
             if (this.isClientSide) {
-                const responseMeta = _wq(response, 'meta');
-                responseMeta.set('background_port', clientPortB);
+                LiveResponse.attachPort(response, clientPortB);
             } else {
-                const upstreamBackgroundPort = response.headers.get('X-Background-Messaging-Port');
-                response.headers.set('X-Background-Messaging-Port', clientPortB);
+                response.headers.set('X-Message-Port', clientPortB);
             }
 
             // On navigation:
@@ -197,21 +135,22 @@ export class WebfloRuntime {
             });
             // On close:
             // Abort httpEvent itself
-            httpEvent.client.wqLifecycle.close.then(() => {
+            httpEvent.client.readyStateChange('close').then(() => {
                 httpEvent.abort();
             });
 
             // On ROOT event complete:
             // Close httpEvent.client
-            httpEvent.lifeCycleComplete(true).then(async () => {
+            httpEvent.readyStateChange('done').then(async () => {
                 httpEvent.client.close();
-                cleanup();
+                await cleanup();
             });
-        } else cleanup();
+        } else await cleanup();
 
-        if (!this.isClientSide && LiveResponse.test(response) === 'LiveResponse') {
+        if (!this.isClientSide
+            && response instanceof LiveResponse) {
             // Must convert to Response on the server-side before returning
-            return await response.toResponse({ client: httpEvent.client });
+            return await response.toResponse({ port: httpEvent.client });
         }
 
         return response;
@@ -222,13 +161,12 @@ export class WebfloRuntime {
             const status = await httpEvent.thread.consume('status', true);
             if (!status.length) return;
             // Fire redirect message?
-            httpEvent.waitUntil(new Promise((resolve) => {
-                httpEvent.client.wqLifecycle.open.then(async () => {
-                    setTimeout(() => {
-                        httpEvent.client.postMessage(status, { wqEventOptions: { type: 'alert' } });
-                        resolve();
-                    }, 500); // half a sec
-                }, { once: true });
+            httpEvent.waitUntil(new Promise(async (resolve) => {
+                await httpEvent.client.readyStateChange('open');
+                setTimeout(() => {
+                    httpEvent.client.postMessage(status, { type: 'alert' });
+                    resolve();
+                }, 500); // half a sec
             }));
         }
     }
@@ -328,13 +266,13 @@ export class WebfloRuntime {
 
     createStreamingResponse(httpEvent, readStream, stats) {
         let response;
-        const requestRange = headersShim.get.value.call(httpEvent.request.headers, 'Range', true); // Parses the Range header
+        const requestRange = httpEvent.request.headers.get('Range', true); // Parses the Range header
         if (requestRange.length) {
             const streams = requestRange.reduce((streams, range) => {
                 if (!streams) return;
-                const [start, end] = range.render(stats.size); // Resolve offsets
+                const [start, end] = range.resolveAgainst(stats.size); // Resolve offsets
                 const currentStart = (streams[streams.length - 1]?.end || -1) + 1;
-                if (!range.isValid(currentStart, stats.size)) return; // Only after rendering()
+                if (!range.canResolveAgainst(currentStart, stats.size)) return; // Only after rendering()
                 return streams.concat({ start, end, stream: readStream({ start, end }) });
             }, []);
             if (!streams) {

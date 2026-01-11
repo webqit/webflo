@@ -1,7 +1,8 @@
-import { WQStarPort } from '../../webflo-messaging/WQStarPort.js';
-import { _wq } from '../../../util.js';
+import { ClientPortMixin } from './ClientPortMixin.js';
+import { StarPort } from '@webqit/port-plus';
+import { _meta } from '../../util.js';
 
-export class ClientRequestRealtime extends WQStarPort {
+export class ClientRequestPort001 extends ClientPortMixin(StarPort) {
 
     #portID;
     get portID() { return this.#portID; }
@@ -15,8 +16,8 @@ export class ClientRequestRealtime extends WQStarPort {
     #navigatedAway = false;
     navigatedAway() { return this.#navigatedAway; }
 
-    constructor(portID, url) {
-        super();
+    constructor(portID, url, options = {}) {
+        super(options);
         this.#portID = portID;
         this.#url = url;
         const $url = new URL(url);
@@ -38,13 +39,16 @@ export class ClientRequestRealtime extends WQStarPort {
     }
 
     enterChannel(channelID, { resolveData = null } = {}) {
-        const client = _wq(this, 'meta').get('parentNode');
-        const clients = client && _wq(client, 'meta').get('parentNode');
+        const webfloTenant = _meta(this).get('parentNode');
+        const clients = webfloTenant && _meta(webfloTenant).get('parentNode');
+
         if (!clients) {
             throw new Error('Instance seem not connected to the messaging system.');
         }
+
         const channel = clients.getChannel(channelID, true);
-        const leave = channel.addPort(client, { resolveData });
+        const leave = channel.addPort(webfloTenant, { resolveData });
+        
         return { channel, leave };
     }
 }

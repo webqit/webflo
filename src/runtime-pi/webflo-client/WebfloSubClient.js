@@ -1,8 +1,8 @@
-import { Observer } from '@webqit/use-live';
+import { Observer } from '@webqit/observer';
+import { LiveResponse } from '@webqit/fetch-plus';
 import { WebfloClient } from './WebfloClient.js';
 import { defineElement } from './webflo-embedded.js';
-import { Url } from '../webflo-url/Url.js';
-import { _wq } from '../../util.js';
+import { _meta } from '../../util.js';
 
 export class WebfloSubClient extends WebfloClient {
 
@@ -40,21 +40,26 @@ export class WebfloSubClient extends WebfloClient {
 		if (this.host.location.origin !== window.location.origin) {
 			throw new Error(`Webflo embeddable origin violation in "${window.location}"`);
 		}
+
 		const instanceController = await super.initialize();
-		_wq(this.background, 'meta').set('parentNode', this.#superRuntime.background);
+
+		_meta(this.background).set('parentNode', this.#superRuntime.background);
 		instanceController.signal.addEventListener('abort', () => {
-			if (_wq(this.background, 'meta').get('parentNode') === this.#superRuntime.background) {
-				_wq(this.background, 'meta').set('parentNode', null);
+			if (_meta(this.background).get('parentNode') === this.#superRuntime.background) {
+				_meta(this.background).set('parentNode', null);
 			}
 		}, { once: true });
+
 		return instanceController;
 	}
 
 	async hydrate() {
 		const instanceController = await super.hydrate();
+
 		if (this.host.hasAttribute('location')) {
 			await this.navigate(this.location.href);
 		}
+
 		return instanceController;
 	}
 
@@ -62,6 +67,7 @@ export class WebfloSubClient extends WebfloClient {
 		const locationCallback = (newHref) => {
 			this.host.reflectLocation(newHref);
 		};
+		
 		return super.controlClassic/*IMPORTANT*/(locationCallback);
 	}
 
@@ -87,36 +93,43 @@ export class WebfloSubClient extends WebfloClient {
 		if (httpEvent.url.hash) {
 			this.host.querySelector(httpEvent.url.hash)?.scrollIntoView();
 		} else await super.applyPostRenderState(httpEvent);
+
 		(this.host.querySelector('[autofocus]') || this.host).focus();
 	}
 
-	redirect(location, response = null) {
+	async redirect(location, response = null) {
 		location = typeof location === 'string' ? new URL(location, this.location.origin) : location;
+		
 		const width = Math.min(800, window.innerWidth);
 		const height = Math.min(600, window.innerHeight);
 		const left = (window.outerWidth - width) / 2;
 		const top = (window.outerHeight - height) / 2;
 		const popup = window.open(location, '_blank', `popup=true,width=${width},height=${height},left=${left},top=${top}`);
-		if (response && LiveResponse.hasBackground(response)) {
-			Observer.set(this.navigator, 'redirecting', new Url/*NOT URL*/(location), { diff: true });
-			const backgroundPort = LiveResponse.getBackground(response);
-			backgroundPort.postMessage(true, { wqEventOptions: { type: 'keep-alive' } });
- 			backgroundPort.addEventListener('close', (e) => {
+		
+		const backgroundPort = response instanceof LiveResponse 
+			? response.port
+			: LiveResponse.getPort(response);
+		if (backgroundPort) {
+			Observer.set(this.navigator, 'redirecting', new URL(location), { diff: true });
+			
+ 			backgroundPort.readyStateChange('close').then((e) => {
 				window.removeEventListener('message', windowMessageHandler);
+
 				Observer.set(this.navigator, 'redirecting', null);
 				popup.postMessage('timeout:5');
+
 				setTimeout(() => {
 					popup.close();
 				}, 5000);
-			}, { once: true });
+			});
+			
 			const windowMessageHandler = (e) => {
 				if (e.source === popup && e.data === 'close') {
 					backgroundPort.close();
 				}
 			};
+
 			window.addEventListener('message', windowMessageHandler);
 		}
-		
-		return 3; // keep-alive
 	}
 }

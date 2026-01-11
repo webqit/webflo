@@ -1,12 +1,12 @@
-import { Observer } from '@webqit/use-live';
-import { WebfloClient } from './WebfloClient.js';
+import { Observer } from '@webqit/observer';
+import { LiveResponse } from '@webqit/fetch-plus';
+import { HttpEvent111 } from '../webflo-routing/HttpEvent111.js';
 import { ClientSideWorkport } from './ClientSideWorkport.js';
 import { DeviceCapabilities } from './DeviceCapabilities.js';
-import { response as responseShim } from '../webflo-fetch/index.js';
-import { LiveResponse } from '../webflo-fetch/LiveResponse.js';
+import { WebfloClient } from './WebfloClient.js';
 import { WebfloHMR } from './webflo-devmode.js';
 
-export class WebfloRootClient1 extends WebfloClient {
+export class WebfloRootClientA extends WebfloClient {
 
 	static get Workport() { return ClientSideWorkport; }
 
@@ -42,55 +42,38 @@ export class WebfloRootClient1 extends WebfloClient {
 	async initialize() {
 		// INITIALIZATIONS
 		const instanceController = await super.initialize();
+		
 		// Bind network status handlers
 		const onlineHandler = () => Observer.set(this.network, 'status', window.navigator.onLine);
 		window.addEventListener('online', onlineHandler, { signal: instanceController.signal });
 		window.addEventListener('offline', onlineHandler, { signal: instanceController.signal });
+		
 		// Window opener pinging
 		if (window.opener) {
 			const beforeunloadHandler = () => window.opener.postMessage('close');
 			window.addEventListener('beforeunload', beforeunloadHandler, { signal: instanceController.signal });
 		}
+
 		// Bind top-level User-Agent requests
-		this.background.handleRequests('ua:query', async (e) => {
+		this.background.addRequestListener('query', async (e) => {
 			if (e.data?.query === 'push_registration') {
 				const pushManager = (await navigator.serviceWorker.getRegistration()).pushManager;
 				return await pushManager.getSubscription();
 			}
 		}, { signal: instanceController.signal });
-		// Bind top-level Storage requests
-		this.background.handleRequests('storage:query', (e) => {
-			const { source, namespace, query, key, value } = e.data;
-			const storage = source === 'session' ? sessionStorage : (source === 'local' ? localStorage : null);
-			if (!storage) return;
-			const data = JSON.parse(storage.getItem(namespace) || (query === 'set' ? '{}' : 'null'));
-			switch (query) {
-				case 'has': return !!data && Reflect.has(data, key);
-				case 'get': return data && Reflect.get(data, key);
-				case 'set':
-					Reflect.set(data, key, value);
-					return storage.setItem(namespace, JSON.stringify(data))
-				case 'delete':
-					if (!data) return;
-					Reflect.deleteProperty(data, key);
-					return storage.setItem(namespace, JSON.stringify(data));
-				case 'clear': return storage.removeItem(namespace);
-				case 'keys': return data && Reflect.ownKeys(data) || [];
-				case 'values': return data && Object.values(data) || [];
-				case 'entries': return data && Object.entries(data) || [];
-				case 'size': return data && Object.keys(data).length || 0;
-			}
-		}, { signal: instanceController.signal });
+
 		return instanceController;
 	}
 
 	async setupCapabilities() {
 		const instanceController = await super.setupCapabilities();
-		// Service Worker && Capabilities
 		const cleanups = [];
+
+		// Service Worker && Capabilities
 		instanceController.signal.addEventListener('abort', () => cleanups.forEach((c) => c()), { once: true });
 		this.#capabilities = await this.constructor.DeviceCapabilities.initialize(this, this.config.CLIENT.capabilities);
 		cleanups.push(() => this.#capabilities.close());
+
 		if (this.config.CLIENT.capabilities?.service_worker) {
 			const { filename, ...restServiceWorkerParams } = this.config.WORKER;
 			this.constructor.Workport.initialize(null, filename, restServiceWorkerParams).then((workport) => {
@@ -98,33 +81,40 @@ export class WebfloRootClient1 extends WebfloClient {
 				cleanups.push(() => this.#workport.close());
 			});
 		}
+
 		return instanceController;
 	}
 
 	async hydrate() {
 		const instanceController = await super.hydrate();
 		const scopeObj = {};
-		scopeObj.data = this.host.querySelector(`script[rel="hydration"][type="application/json"]`)?.textContent?.trim() || null;
-		scopeObj.response = responseShim.from.value(scopeObj.data, { headers: { 'Content-Type': 'application/json' } });
-		for (const name of ['X-Background-Messaging-Port', 'X-Live-Response-Message-ID', 'X-Webflo-Dev-Mode']) {
+
+		try {
+			scopeObj.data = JSON.parse(this.host.querySelector(`script[rel="hydration"][type="application/json"]`)?.textContent?.trim() || 'null');
+		} catch (e) { }
+		scopeObj.response = new LiveResponse(scopeObj.data, { headers: { 'Content-Type': 'application/json' } });
+		
+		for (const name of ['X-Message-Port', 'X-Webflo-Dev-Mode']) {
 			const metaElement = this.host.querySelector(`meta[name="${name}"]`);
 			if (!metaElement) continue;
 			scopeObj.response.headers.set(name, metaElement.content?.trim() || '');
 		}
-		const backgroundPort = LiveResponse.getBackground(scopeObj.response);
-		if (backgroundPort) {
-			this.background.addPort(backgroundPort);
-		}
-		if (scopeObj.response.body || backgroundPort) {
 
-			const httpEvent = this.createHttpEvent({ request: this.createRequest(this.location.href) }, true);
+		if (scopeObj.response.port) {
+			this.background.addPort(scopeObj.response.port);
+		}
+
+		if (scopeObj.response.body || scopeObj.response.port) {
+			const httpEvent = HttpEvent111.create({ request: this.createRequest(this.location.href) }, true);
 			await this.render(httpEvent, scopeObj.response);
 		} else {
 			await this.navigate(this.location.href);
 		}
+
 		if (scopeObj.response.headers.get('X-Webflo-Dev-Mode') === 'true') {
 			this.enterDevMode();
 		}
+
 		return instanceController;
 	}
 
@@ -142,15 +132,18 @@ export class WebfloRootClient1 extends WebfloClient {
 				const state = { ...(this.currentEntry()?.getState?.() || {}), scrollPosition };
 				window.history.replaceState(state, '', this.location.href);
 			} catch (e) { }
+
 			try { window.history.pushState({}, '', newHref); } catch (e) { }
 		};
 		const instanceController = super.controlClassic/*IMPORTANT*/(locationCallback);
+		
 		// ONPOPSTATE
 		const popstateHandler = (e) => {
 			if (this.isHashChange(location)) {
 				Observer.set(this.location, 'href', location.href);
 				return;
 			}
+
 			// Navigation details
 			const detail = {
 				navigationType: 'traverse',
@@ -159,29 +152,23 @@ export class WebfloRootClient1 extends WebfloClient {
 				source: this.currentEntry(),
 				userInitiated: true,
 			};
+
 			// Traversal?
 			// Push
 			this.navigate(location.href, {}, detail);
 		};
 		window.addEventListener('popstate', popstateHandler, { signal: instanceController.signal });
+		
 		return instanceController;
 	}
 
-	reload() {
-		return window.history.reload();
-	}
+	reload() { return window.history.reload(); }
 
-	back() {
-		return window.history.back();
-	}
+	back() { return window.history.back(); }
 
-	forward() {
-		return window.history.forward();
-	}
+	forward() { return window.history.forward(); }
 
-	traverseTo(...args) {
-		return window.history.go(...args);
-	}
+	traverseTo(...args) { return window.history.go(...args); }
 
 	async push(url, state = {}) {
 		if (typeof url === 'string' && url.startsWith('&')) { url = this.location.href.split('#')[0] + (this.location.href.includes('?') ? url : url.replace('&', '?')); }
@@ -190,13 +177,9 @@ export class WebfloRootClient1 extends WebfloClient {
 		Observer.set(this.location, 'href', url.href);
 	}
 
-	entries() {
-		return window.history;
-	}
+	entries() { return window.history; }
 
-	currentEntry() {
-		return this._asEntry(history.state);
-	}
+	currentEntry() { return this._asEntry(history.state); }
 
 	async updateCurrentEntry(params, url = null) {
 		window.history.replaceState(params.state, '', url);

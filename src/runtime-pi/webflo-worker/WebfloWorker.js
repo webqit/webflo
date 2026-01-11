@@ -1,35 +1,62 @@
 import { _any } from '@webqit/util/arr/index.js';
-import { WebfloRuntime } from '../WebfloRuntime.js';
-import { response as responseShim } from '../webflo-fetch/index.js';
-import { WQBroadcastChannel } from '../webflo-messaging/WQBroadcastChannel.js';
+import { RequestPlus } from '@webqit/fetch-plus';
+import { URLPatternPlus } from '@webqit/url-plus';
 import { WorkerSideWorkport } from './WorkerSideWorkport.js';
-import { WorkerSideCookies } from './WorkerSideCookies.js';
-import '../webflo-fetch/index.js';
-import '../webflo-url/index.js';
+import { HttpThread111 } from '../webflo-routing/HttpThread111.js';
+import { HttpCookies110 } from '../webflo-routing/HttpCookies110.js';
+import { HttpSession110 } from '../webflo-routing/HttpSession110.js';
+import { HttpUser111 } from '../webflo-routing/HttpUser111.js';
+import { HttpEvent111 } from '../webflo-routing/HttpEvent111.js';
+import { KeyvalsFactory110 } from '../webflo-routing/KeyvalsFactory110.js';
+import { ClientRequestPort010 } from '../webflo-messaging/ClientRequestPort010.js';
+import { AppRuntime } from '../AppRuntime.js';
 
-export class WebfloWorker extends WebfloRuntime {
-
-	static get HttpCookies() { return WorkerSideCookies; }
+export class WebfloWorker extends AppRuntime {
 
 	static get Workport() { return WorkerSideWorkport; }
 
+	#keyvals;
+	get keyvals() { return this.#keyvals; }
+
 	async initialize() {
-		const instanceController = super.initialize();
+		// ----------
+		// The keyvals API
+		this.#keyvals = new KeyvalsFactory110;
+
+		// ----------
+		// Call default-init
+		const instanceController = await super.initialize();
+
 		// ONINSTALL
 		const installHandler = (event) => {
 			if (this.config.WORKER.skip_waiting) self.skipWaiting();
 			// Manage CACHE
-			if (this.config.WORKER.cache_name && (this.config.WORKER.cache_only_urls || []).length) {
+			if (this.config.WORKER.cache_name && (
+				(this.config.WORKER.cache_first_urls || []).length || (this.config.WORKER.cache_only_urls || []).length
+			)) {
 				// Add files to cache
 				event.waitUntil(self.caches.open(this.config.WORKER.cache_name).then(async cache => {
 					if (this.cx.logger) { this.cx.logger.log('[ServiceWorker] Pre-caching resources.'); }
-					for (const urls of ['cache_first_urls', 'cache_only_urls']) {
-						const _urls = (this.config.WORKER[urls] || []).map(c => c.trim()).filter(c => c && !(new URLPattern(c, self.origin)).isPattern());
-						await cache.addAll(_urls);
+					const promises = [];
+					for (const key of ['cache_first_urls', 'cache_only_urls']) {
+						const urls = this.config.WORKER[key];
+						if (!urls?.length) continue;
+						const _urls = urls.map((c) => c.trim()).filter(c => c && !(new URLPatternPlus(c, self.origin)).isPattern());
+						for (let url of _urls) {
+							//url = new URL(url, self.origin).href;
+							promises.push(fetch(url).then(async (res) => {
+								if (!res.ok) return 0;
+								await cache.put(url, res);
+								return 1;
+							}).catch(() => -1));
+						}
 					}
+					await Promise.all(promises);
 				}));
 			}
 		};
+		self.addEventListener('install', installHandler, { signal: instanceController.signal });
+
 		// ONACTIVATE
 		const activateHandler = (event) => {
 			event.waitUntil(new Promise(async resolve => {
@@ -49,9 +76,10 @@ export class WebfloWorker extends WebfloRuntime {
 				resolve();
 			}));
 		};
-		self.addEventListener('install', installHandler, { signal: instanceController.signal });
 		self.addEventListener('activate', activateHandler, { signal: instanceController.signal });
+
 		this.control();
+
 		return instanceController;
 	}
 
@@ -77,7 +105,7 @@ export class WebfloWorker extends WebfloRuntime {
 			let data;
 			try {
 				data = event.data?.json() ?? {};
-			} catch(e) { return; }
+			} catch (e) { return; }
 			const { type, title, ...params } = data;
 			if (type !== 'notification') return;
 			self.registration.showNotification(title, params);
@@ -90,48 +118,73 @@ export class WebfloWorker extends WebfloRuntime {
 	}
 
 	async navigate(url, init = {}, detail = {}) {
-		// Resolve inputs
-		const scopeObj = { url, init, detail };
+		// Scope object
+		const scopeObj = {
+			url,
+			init,
+			detail,
+			requestID: (0 | Math.random() * 9e6).toString(36),
+			tenantID: 'anon',
+		};
 		if (typeof scopeObj.url === 'string') {
 			scopeObj.url = new URL(scopeObj.url, self.location.origin);
 		}
-		// Create and route request
-		scopeObj.request =  this.createRequest(scopeObj.url, scopeObj.init);
-		scopeObj.thread = this.createHttpThread({
-            store: this.createStorage('thread'),
-            threadId: scopeObj.url.searchParams.get('_thread'),
-            realm: 2
-        });
-		scopeObj.cookies = this.createHttpCookies({
-			request: scopeObj.request,
-			thread: scopeObj.thread,
+
+		// Request
+		scopeObj.request = scopeObj.init instanceof Request && scopeObj.init.url === scopeObj.url.href
+			? scopeObj.init
+			: this.createRequest(scopeObj.url, scopeObj.init);
+		RequestPlus.upgradeInPlace(scopeObj.request);
+
+		// Origins
+		const origins = [scopeObj.requestID];
+
+		// Thread
+		scopeObj.thread = HttpThread111.create({
+			context: {},
+			store: this.#keyvals.create({ path: ['thread', scopeObj.tenantID], origins }),
+			threadID: scopeObj.url.searchParams.get('_thread'),
 			realm: 2
 		});
-		scopeObj.session = this.createHttpSession({
-			store: this.createStorage('session'),
-			request: scopeObj.request,
-			thread: scopeObj.thread,
+
+		// Cookies
+		const type = typeof cookieStore === 'undefined' ? 'inmemory' : 'cookiestore';
+		scopeObj.cookies = HttpCookies110.create({
+			context: { handlersRegistry: this.#keyvals.getHandlers('cookies', true) },
+			store: this.#keyvals.create({ type, path: ['cookies', scopeObj.tenantID], origins }),
 			realm: 2
 		});
-		const requestID = crypto.randomUUID();
-		scopeObj.clientRequestRealtime = new WQBroadcastChannel(requestID);
-		scopeObj.user = this.createHttpUser({
-			store: this.createStorage('user'),
-			request: scopeObj.request,
-			thread: scopeObj.thread,
-			client: scopeObj.clientRequestRealtime,
+
+		// Session
+		scopeObj.session = HttpSession110.create({
+			context: { handlersRegistry: this.#keyvals.getHandlers('session', true) },
+			store: this.#keyvals.create({ path: ['session', scopeObj.tenantID], origins }),
 			realm: 2
 		});
-		scopeObj.httpEvent = this.createHttpEvent({
+
+		// User
+		scopeObj.user = HttpUser111.create({
+			context: { handlersRegistry: this.#keyvals.getHandlers('user', true) },
+			store: this.#keyvals.create({ path: ['user', scopeObj.tenantID], origins }),
+			realm: 2
+		});
+
+		// Client
+		scopeObj.clientRequestRealtime = new ClientRequestPort010(scopeObj.requestID, { handshake: 1, postAwaitsOpen: true, clientServerMode: 'server', autoClose: true });
+
+		// HttpEvent
+		scopeObj.httpEvent = HttpEvent111.create({
+			detail: scopeObj.detail,
+			signal: init.signal,
 			request: scopeObj.request,
 			thread: scopeObj.thread,
-			client: scopeObj.clientRequestRealtime,
 			cookies: scopeObj.cookies,
 			session: scopeObj.session,
 			user: scopeObj.user,
-			detail: scopeObj.detail,
+			client: scopeObj.clientRequestRealtime,
 			realm: 2
 		});
+
 		// Dispatch for response
 		scopeObj.response = await this.dispatchNavigationEvent({
 			httpEvent: scopeObj.httpEvent,
@@ -142,7 +195,7 @@ export class WebfloWorker extends WebfloRuntime {
 				}
 				return await this.remoteFetch(event.request);
 			},
-			clientPortB: `br:${scopeObj.httpEvent.client.name}`
+			clientPortB: `channel://${scopeObj.httpEvent.client.name}`
 		});
 		return scopeObj.response;
 	}
@@ -209,7 +262,7 @@ export class WebfloWorker extends WebfloRuntime {
 
 	async refreshCache(request, response) {
 		// Check if we received a valid response
-		const statusCode = responseShim.prototype.status.get.call(response);
+		const statusCode = response.status;
 		if (request.method !== 'GET' || !response || statusCode !== 200 || (response.type !== 'basic' && response.type !== 'cors')) {
 			return response;
 		}
