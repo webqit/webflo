@@ -363,7 +363,7 @@ export class WebfloServer extends AppRuntime {
                 `\r\n` +
                 body + `\r\n`
             );
-            socket.destroy();
+            socket.end();
         };
         const proxy = async (destinationURL) => {
             const isSecure = destinationURL.protocol === 'wss:';
@@ -390,10 +390,10 @@ export class WebfloServer extends AppRuntime {
             // Handle errors
             proxySocket.on('error', err => {
                 LOGGER.error('Proxy socket error:', err);
-                socket.destroy();
+                socket.end();
             });
             socket.on('error', () => {
-                proxySocket.destroy();
+                proxySocket.end();
             });
         };
         const handle = (requestURL) => {
@@ -817,7 +817,7 @@ export class WebfloServer extends AppRuntime {
 
         if (requestAccept && asHTML > asIs && !responseMeta.get('static')) {
             response = await this.render(httpEvent, response);
-        } else if (requestAccept && response.headers.get('Content-Type') && !asIs) {
+        } else if (requestAccept && response.body && response.headers.get('Content-Type') && !asIs) {
             return new Response(response.body, { status: 406, statusText: 'Not Acceptable', headers: response.headers });
         }
 
@@ -829,7 +829,7 @@ export class WebfloServer extends AppRuntime {
 
         // Satisfy "Range" header
         const requestRange = httpEvent.request.headers.get('Range', true);
-        if (requestRange.length && response.headers.get('Content-Length')) {
+        if (requestRange.length && response.body && response.headers.get('Content-Length')) {
             const stats = {
                 size: parseInt(response.headers.get('Content-Length')),
                 mime: response.headers.get('Content-Type') || 'application/octet-stream',
@@ -989,6 +989,9 @@ export class WebfloServer extends AppRuntime {
         if (response.headers.get('Content-Encoding')) log.push(`(${style.comment(response.headers.get('Content-Encoding'))})`);
         if (errorCode) log.push(style.err(`${errorCode} ${response.statusText}`));
         else log.push(style.val(`${_statusCode} ${response.statusText}`));
+        if (response.headers.get('X-Message-Port')) {
+            log.push(style.keyword(`[${style.keyword('L')}]`));
+        }
 
         if (isRedirect) log.push(`- ${style.url(response.headers.get('Location'))}`);
 

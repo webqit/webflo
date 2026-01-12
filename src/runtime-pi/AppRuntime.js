@@ -61,10 +61,12 @@ export class AppRuntime {
         // Do proper routing for respone
         const response = await new Promise(async (resolve) => {
             let autoLiveResponse, response;
+
             httpEvent.client.readyStateChange('messaging').then(() => {
                 autoLiveResponse = new LiveResponse(null, { status: 202, statusText: 'Accepted', done: false });
                 resolve(autoLiveResponse);
             });
+
             const route = async () => {
                 const routeMethods = [httpEvent.request.method, 'default'];
                 const remoteFetch = (...args) => this.remoteFetch(...args);
@@ -81,10 +83,16 @@ export class AppRuntime {
                 response = new Response(null, { status: 500, statusText: e.message });
             }
 
+            if (autoLiveResponse) {
+                await this.handleThreadStatus(httpEvent, response);
+                await autoLiveResponse.replaceWith(response, { done: true });
+                return;
+            }
+
             if (response instanceof Response) {
                 ResponsePlus.upgradeInPlace(response);
             } else if (!(response instanceof LiveResponse)) {
-                const isLifecyleComplete = httpEvent.readyState === 'done' ?? true;
+                const isLifecyleComplete = ['waiting', 'done'].includes(httpEvent.readyState);
                 response = LiveResponse.test(response) !== 'Default' || !isLifecyleComplete
                     ? LiveResponse.from(response, { done: isLifecyleComplete })
                     : ResponsePlus.from(response);
@@ -92,13 +100,7 @@ export class AppRuntime {
 
             // Any "status" in thread?
             await this.handleThreadStatus(httpEvent, response);
-
-            // Resolve now...
-            if (autoLiveResponse) {
-                await autoLiveResponse.replaceWith(response, { done: true });
-            } else {
-                resolve(response);
-            }
+            resolve(response);
         });
 
         // End-of-life cleanup
@@ -107,14 +109,16 @@ export class AppRuntime {
         };
 
         // Wait for any "live" response to resolve
-        if (response instanceof LiveResponse
-            && response.readyState !== 'done') {
+        if (response instanceof LiveResponse && response.readyState !== 'done') {
             httpEvent.waitUntil(response.readyStateChange('done'));
+            httpEvent.waitUntil(httpEvent.client.readyStateChange('open').then(async () => {
+                await new Promise((r) => setTimeout(r, 100));
+            }));
         }
 
         // Send the X-Message-Port header
         // This server's event lifecycle management
-        if (httpEvent.readyState === 'live') {
+        if (!['waiting', 'done'].includes(httpEvent.readyState)) {
             if (this.isClientSide) {
                 LiveResponse.attachPort(response, clientPortB);
             } else {
@@ -133,6 +137,7 @@ export class AppRuntime {
                     }
                 }, 0);
             });
+
             // On close:
             // Abort httpEvent itself
             httpEvent.client.readyStateChange('close').then(() => {
@@ -150,25 +155,26 @@ export class AppRuntime {
         if (!this.isClientSide
             && response instanceof LiveResponse) {
             // Must convert to Response on the server-side before returning
-            return await response.toResponse({ port: httpEvent.client });
+            const outgoingResponse = response.toResponse({ port: httpEvent.client });
+            return outgoingResponse;
         }
 
         return response;
     }
 
     async handleThreadStatus(httpEvent, response) {
-        if (!response.headers.get('Location')) {
-            const status = await httpEvent.thread.consume('status', true);
-            if (!status.length) return;
-            // Fire redirect message?
-            httpEvent.waitUntil(new Promise(async (resolve) => {
-                await httpEvent.client.readyStateChange('open');
-                setTimeout(() => {
-                    httpEvent.client.postMessage(status, { type: 'alert' });
-                    resolve();
-                }, 500); // half a sec
-            }));
-        }
+        if ((response instanceof Response
+            || response instanceof LiveResponse)
+            && response.headers.get('Location')) return;
+
+        const status = await httpEvent.thread.consume('status', true);
+        if (!status.length) return;
+
+        httpEvent.waitUntil(httpEvent.client.readyStateChange('open').then(async () => {
+            await new Promise((r) => setTimeout(r, 100));
+            httpEvent.client.postMessage(status, { type: 'alert' });
+            await new Promise((r) => setTimeout(r, 100));
+        }));
     }
 
     streamSlice(stream, { start, end }) {

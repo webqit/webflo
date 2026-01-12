@@ -1,6 +1,6 @@
 import { _before, _toTitle } from '@webqit/util/str/index.js';
 import { LiveResponse, RequestPlus } from '@webqit/fetch-plus';
-import { MessageChannelPlus, StarPort } from '@webqit/port-plus';
+import { StarPort } from '@webqit/port-plus';
 import { HttpThread111 } from '../webflo-routing/HttpThread111.js';
 import { HttpCookies101 } from '../webflo-routing/HttpCookies101.js';
 import { HttpCookies110 } from '../webflo-routing/HttpCookies110.js';
@@ -445,26 +445,27 @@ export class WebfloClient extends AppRuntime {
         // Extract interactive. mode handling
         const handleInteractiveMode = () => {
             return new Promise(async (resolve) => {
-                const liveResponse = LiveResponse.from(response);
-                await liveResponse.readyStateChange('live');
+                // Must come as first thing
+                const backgroundPort = LiveResponse.getPort(response);
+                this.background.addPort(backgroundPort);
+                 
+                const liveResponse = response instanceof LiveResponse
+                    ? response
+                    : LiveResponse.from(response);
 
-                this.background.addPort(liveResponse.port);
-                liveResponse.addEventListener('replace', () => {
+                liveResponse.addEventListener('replace', (e) => {
                     if (liveResponse.headers.get('Location')) {
                         this.processRedirect(liveResponse);
                     } else {
                         resolve(liveResponse);
                     }
                 }, { signal: httpEvent.signal });
-
-                return liveResponse;
             });
         };
 
         // Await a response with an "Accepted" or redirect status
         const statusCode = response.status;
-        if (statusCode === 202
-            && LiveResponse.hasPort(response)) {
+        if (statusCode === 202 && LiveResponse.hasPort(response)) {
             return await handleInteractiveMode();
         }
 

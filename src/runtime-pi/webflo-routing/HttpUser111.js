@@ -30,7 +30,7 @@ export class HttpUser111 extends HttpKeyvalInterface {
         return await new Promise((resolve) => {
             this._client.postRequest(
                 data,
-                (event) => resolve(callback ? callback(event) : event),
+                (event) => resolve(callback ? callback(event.data) : event.data),
                 { ...options, type: 'confirm' }
             );
         });
@@ -40,7 +40,7 @@ export class HttpUser111 extends HttpKeyvalInterface {
         return await new Promise((resolve) => {
             this._client.postRequest(
                 data,
-                (event) => resolve(callback ? callback(event) : event),
+                (event) => resolve(callback ? callback(event.data) : event.data),
                 { ...options, type: 'prompt' }
             );
         });
