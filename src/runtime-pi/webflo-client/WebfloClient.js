@@ -237,8 +237,6 @@ export class WebfloClient extends AppRuntime {
 
     _canIntercept(e) { return !(e.metaKey || e.altKey || e.ctrlKey || e.shiftKey); }
 
-    #xRedirectCode = 200;
-
     isHashChange(urlObj) { return _before(this.location.href, '#') === _before(urlObj.href, '#') && (this.location.href.includes('#') || urlObj.href.includes('#')); }
 
     isSpaRoute(urlObj) {
@@ -269,7 +267,6 @@ export class WebfloClient extends AppRuntime {
         const request = super.createRequest(href, init);
         request.headers.set('Accept', 'application/json');
         request.headers.set('X-Redirect-Policy', 'manual-when-cross-spa');
-        request.headers.set('X-Redirect-Code', this.#xRedirectCode);
         request.headers.set('X-Powered-By', '@webqit/webflo');
         return request;
     }
@@ -448,7 +445,7 @@ export class WebfloClient extends AppRuntime {
                 // Must come as first thing
                 const backgroundPort = LiveResponse.getPort(response);
                 this.background.addPort(backgroundPort);
-                 
+
                 const liveResponse = response instanceof LiveResponse
                     ? response
                     : LiveResponse.from(response);
@@ -507,14 +504,9 @@ export class WebfloClient extends AppRuntime {
 
     async processRedirect(response) {
         // Normalize redirect
-        let statusCode = response.status;
-        const xActualRedirectCode = parseInt(response.headers.get('X-Redirect-Code'));
-
-        if (xActualRedirectCode && statusCode === this.#xRedirectCode) {
-            const responseMeta = _meta(response);
-            responseMeta.set('status', xActualRedirectCode); // @NOTE 1
-            statusCode = xActualRedirectCode;
-        }
+        const statusCode = response.headers.has('X-Redirect-Code')
+            ? parseInt(response.headers.get('X-Redirect-Code'))
+            : response.status;
 
         // Trigger redirect
         if ([302, 301].includes(statusCode)) {

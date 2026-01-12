@@ -520,7 +520,6 @@ export class WebfloServer extends AppRuntime {
     writeRedirectHeaders(httpEvent, response) {
         const $sparoots = this.bootstrap.$sparoots;
         const xRedirectPolicy = httpEvent.request.headers.get('X-Redirect-Policy');
-        const xRedirectCode = httpEvent.request.headers.get('X-Redirect-Code') || 300;
         const destinationURL = new URL(response.headers.get('Location'), httpEvent.url.origin);
         const isSameOriginRedirect = destinationURL.origin === httpEvent.url.origin;
         let isSameSpaRedirect = true;
@@ -536,8 +535,6 @@ export class WebfloServer extends AppRuntime {
             response.headers.set('X-Redirect-Code', response.status);
             response.headers.set('Access-Control-Allow-Origin', '*');
             response.headers.set('Cache-Control', 'no-store');
-            const responseMeta = _meta(response);
-            responseMeta.set('status', xRedirectCode);
         }
     }
 
@@ -973,7 +970,7 @@ export class WebfloServer extends AppRuntime {
         const errorCode = statusCode >= 400 && statusCode < 500 ? statusCode : 0;
         const xRedirectCode = response.headers.get('X-Redirect-Code');
         const isRedirect = (xRedirectCode || statusCode + '').startsWith('3') && (xRedirectCode || statusCode) !== 304;
-        const _statusCode = xRedirectCode && `${xRedirectCode} (${statusCode})` || statusCode;
+        const _statusCode = xRedirectCode && `${statusCode} (${xRedirectCode})` || statusCode;
         const responseMeta = _meta(response);
         // ---------------
 
