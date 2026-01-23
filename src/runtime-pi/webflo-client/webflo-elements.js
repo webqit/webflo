@@ -266,6 +266,7 @@ export class ToastElement extends HTMLElement {
                 align-items: center;
                 justify-content: center;
                 appearance: none;
+                font-size: inherit;
                 color: gray;
                 cursor: pointer;
                 border: none;
@@ -569,14 +570,15 @@ export class ModalElement extends HTMLElement {
                 --color-error: var(--modal-color-error, whitesmoke);
                 --color-warning: var(--modal-color-warning, whitesmoke);
 
-                --header-color-default: var(--modal-header-color-default, whitesmoke);
+                --header-color-default: var(--modal-header-color-default, var(--color-default));
                 --header-color-info: var(--modal-header-color-info, skyblue);
                 --header-color-success: var(--modal-header-color-success, lightgreen);
                 --header-color-error: var(--modal-header-color-error, coral);
                 --header-background: var(--modal-header-background, var(--background));
+
                 --header-open-background: var(--modal-header-open-background, var(--header-background));
 
-                --footer-color-default: var(--modal-footer-color-default, whitesmoke);
+                --footer-color-default: var(--modal-footer-color-default, var(--color-default));
                 --footer-color-info: var(--modal-footer-color-info, skyblue);
                 --footer-color-success: var(--modal-footer-color-success, lightgreen);
                 --footer-color-error: var(--modal-footer-color-error, coral);
@@ -1194,6 +1196,7 @@ export class ModalElement extends HTMLElement {
                 align-items: center;
                 justify-content: center;
                 appearance: none;
+                font-size: inherit;
                 color: gray;
                 cursor: pointer;
                 border: none;
@@ -1354,6 +1357,7 @@ export class DialogElement extends ModalElement {
                 padding: 0.5rem 1rem;
                 cursor: pointer;
                 transition: all 0.2s;
+                font-size: inherit;
                 font-weight: bold;
                 flex-grow: 1;
             }
