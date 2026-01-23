@@ -330,13 +330,13 @@ export class ModalElement extends HTMLElement {
 
     updateScrollViewDimensions() {
         const viewElement = this.shadowRoot.querySelector('.view');
-        const beaderBoxElement = this.shadowRoot.querySelector('.header-box');
-        const beaderBarElement = this.shadowRoot.querySelector('.header-bar');
-        const footerBarElement = this.shadowRoot.querySelector('.footer-bar');
+        const headerElement = this.shadowRoot.querySelector('header');
+        const headerBoxElement = this.shadowRoot.querySelector('.header-box');
+        const footerElement = this.shadowRoot.querySelector('footer');
         requestAnimationFrame(() => {
-            viewElement.style.setProperty('--header-box-height', beaderBoxElement.offsetHeight + 'px');
-            viewElement.style.setProperty('--header-bar-height', beaderBarElement.offsetHeight + 'px');
-            viewElement.style.setProperty('--footer-bar-height', footerBarElement.offsetHeight + 'px');
+            viewElement.style.setProperty('--header-box-height', headerBoxElement.offsetHeight + 'px');
+            viewElement.style.setProperty('--header-max-height', headerElement.offsetHeight + 'px');
+            viewElement.style.setProperty('--footer-max-height', footerElement.offsetHeight + 'px');
             if (this.classList.contains('_container')) return;
             viewElement.style.setProperty('--view-width', viewElement.clientWidth/* instead of offsetHeight; safari reasons */ + 'px');
             viewElement.style.setProperty('--view-height', viewElement.clientHeight/* instead of offsetHeight; safari reasons */ + 'px');
@@ -480,7 +480,7 @@ export class ModalElement extends HTMLElement {
                             <div class="_content" style="flex-grow: 1">
                                 <slot
                                     name="header"
-                                    onslotchange="this.closest('.view').style.setProperty('--header-bar-height', this.closest('.header-bar').offsetHeight + 'px');"
+                                    onslotchange="this.closest('.view').style.setProperty('--header-max-height', this.closest('header').offsetHeight + 'px');"
                                 >${this.headerHTML}</slot>
                             </div>
                         </div>
@@ -513,7 +513,7 @@ export class ModalElement extends HTMLElement {
                     <div class="footer-bar" part="footer-bar">
                         <slot
                             name="footer"
-                            onslotchange="this.classList.toggle('has-slotted', !!this.assignedElements().length); this.closest('.view').style.setProperty('--footer-bar-height', this.closest('.footer-bar').offsetHeight + 'px');"
+                            onslotchange="this.classList.toggle('has-slotted', !!this.assignedElements().length); this.closest('.view').style.setProperty('--footer-max-height', this.closest('footer').offsetHeight + 'px');"
                         >${this.footerHTML}</slot>
                     </div>
                 </footer>
@@ -620,11 +620,14 @@ export class ModalElement extends HTMLElement {
             /* -------- internal, dynamic props (view) -------- */
 
             .view {
+                --header-max-height: 1.6rem;
                 --header-box-height: 0px;
-                --header-bar-height: 1.6rem;
-                --footer-bar-height: 0px;
+                --footer-max-height: 0px;
 
-                --view-inner-height: calc(var(--view-height) - var(--header-bar-height) - var(--footer-bar-height));
+                --header-min-height: calc(var(--header-max-height) - var(--header-box-height));
+                --footer-min-height: var(--footer-max-height);
+
+                --view-inner-height: calc(var(--view-height) - var(--header-min-height) - var(--footer-min-height));
                 --total-minmax-length: calc(var(--minmax-length) + var(--swipe-dismiss-length));
                 
                 --y-scroll-effect-exclude: var(--total-minmax-length);
@@ -997,8 +1000,8 @@ export class ModalElement extends HTMLElement {
 
             .main {
                 flex-grow: 1;
-                scroll-margin-top: var(--header-bar-height);
-                scroll-margin-bottom: var(--footer-bar-height);
+                scroll-margin-top: var(--header-min-height);
+                scroll-margin-bottom: var(--footer-min-height);
                 scroll-snap-align: var(--scroll-snap-start);
             }
 
@@ -1032,7 +1035,7 @@ export class ModalElement extends HTMLElement {
 
             .scrollport {
                 position: sticky;
-                top: var(--header-bar-height);
+                top: var(--header-min-height);
                 left: 0;
                 right: 0;
                 
