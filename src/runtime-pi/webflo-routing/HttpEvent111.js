@@ -30,7 +30,7 @@ export class HttpEvent111 {
             node._context.parentEvent = this;
         });
 
-        this.#url = new URLPlus(this.#init.request.url);
+        this.#url = new URLPlus(this.#init.request.url, undefined, { immutable: true });
 
         this._parentEvent?.signal.addEventListener('abort', () => this.#abortController.abort(), { once: true });
         this.#init.request.signal?.addEventListener('abort', () => this.#abortController.abort(), { once: true });
@@ -168,9 +168,12 @@ export class HttpEvent111 {
         const urlRewrite = new URL(url, this.request.url);
         const newThread = this.thread.spawn(urlRewrite.searchParams.get('_thread'));
         urlRewrite.searchParams.set('_thread', newThread.threadID);
-        await newThread.append('back', this.request.url.replace(urlRewrite.origin, ''));
-        for (const [key, value] of Object.entries(data)) {
-            await newThread.append(key, value);
+
+        const back = this.request.url.replace(urlRewrite.origin, '');
+        await newThread.appendEach({ back, ...data });
+
+        if (this.url.query['_thread']) {
+            this.thread.extend();
         }
         //-----
         return await this.respondWith(null, { status, ...options, headers: { Location: urlRewrite.href } });

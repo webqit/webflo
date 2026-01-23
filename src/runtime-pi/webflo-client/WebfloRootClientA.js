@@ -100,9 +100,9 @@ export class WebfloRootClientA extends WebfloClient {
 			scopeObj.response.headers.set(name, metaElement.content?.trim() || '');
 		}
 
-		if (scopeObj.response.port) {
-			this.background.addPort(scopeObj.response.port);
-		}
+		// Must come as first thing
+		const backgroundPort = LiveResponse.getPort(scopeObj.response);
+		if (backgroundPort) this.background.addPort(backgroundPort);
 
 		if (scopeObj.response.body || scopeObj.response.port) {
 			const httpEvent = HttpEvent111.create({ request: this.createRequest(this.location.href) }, true);

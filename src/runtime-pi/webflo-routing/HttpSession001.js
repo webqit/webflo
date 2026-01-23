@@ -4,9 +4,8 @@ export class HttpSession001 extends HttpKeyvalInterface {
 
     #sessionID;
     get sessionID() { return this.#sessionID; }
-    #ttl;
     
-    constructor({ context = {}, store, request, thread, sessionID, ttl }) {
+    constructor({ context = {}, store, request, thread, sessionID }) {
         if (!sessionID) {
             throw new Error(`sessionID is required`);
         }
@@ -16,9 +15,7 @@ export class HttpSession001 extends HttpKeyvalInterface {
             request,
             thread,
             sessionID,
-            ttl
         });
         this.#sessionID = sessionID;
-        this.#ttl = ttl;
     }
 }

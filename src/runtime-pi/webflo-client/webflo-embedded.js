@@ -1,5 +1,9 @@
-export function defineElement(WebfloSubClient, embedTagNames = 'webflo-embedded') {
-    window.customElements.define(embedTagNames, class extends HTMLElement {
+import { WebfloSubClient } from './WebfloSubClient.js';
+
+export function defineElement() {
+    const embedTagName = 'webflo-embedded';
+
+    window.customElements.define(embedTagName, class extends HTMLElement {
 
         #superRuntime;
         #lifecycleController;
@@ -39,7 +43,7 @@ export function defineElement(WebfloSubClient, embedTagNames = 'webflo-embedded'
         }
 
         async connectedCallback() {
-            this.#superRuntime = (this.parentNode?.closest(embedTagNames) || document).webfloRuntime;
+            this.#superRuntime = (this.parentNode?.closest(embedTagName) || document).webfloRuntime;
             this.#lifecycleController = await WebfloSubClient.create(this.#superRuntime, this).initialize();
         }
 

@@ -1,14 +1,9 @@
 import { Observer } from '@webqit/observer';
 import { LiveResponse } from '@webqit/fetch-plus';
 import { WebfloClient } from './WebfloClient.js';
-import { defineElement } from './webflo-embedded.js';
 import { _meta } from '../../util.js';
 
 export class WebfloSubClient extends WebfloClient {
-
-	static defineElement() {
-		defineElement(this);
-	}
 
 	static create(superRuntime, host) {
 		return new this(superRuntime, host);
@@ -67,7 +62,7 @@ export class WebfloSubClient extends WebfloClient {
 		const locationCallback = (newHref) => {
 			this.host.reflectLocation(newHref);
 		};
-		
+
 		return super.controlClassic/*IMPORTANT*/(locationCallback);
 	}
 
@@ -99,33 +94,35 @@ export class WebfloSubClient extends WebfloClient {
 
 	async redirect(location, response = null) {
 		location = typeof location === 'string' ? new URL(location, this.location.origin) : location;
-		
+
 		const width = Math.min(800, window.innerWidth);
 		const height = Math.min(600, window.innerHeight);
 		const left = (window.outerWidth - width) / 2;
 		const top = (window.outerHeight - height) / 2;
 		const popup = window.open(location, '_blank', `popup=true,width=${width},height=${height},left=${left},top=${top}`);
-		
-		const backgroundPort = response instanceof LiveResponse 
+
+		const backgroundPort = response instanceof LiveResponse
 			? response.port
 			: LiveResponse.getPort(response);
+
 		if (backgroundPort) {
 			Observer.set(this.navigator, 'redirecting', new URL(location), { diff: true });
-			
- 			backgroundPort.readyStateChange('close').then((e) => {
-				window.removeEventListener('message', windowMessageHandler);
-
+			backgroundPort.readyStateChange('close').then(() => {
 				Observer.set(this.navigator, 'redirecting', null);
-				popup.postMessage('timeout:5');
-
-				setTimeout(() => {
-					popup.close();
-				}, 5000);
 			});
-			
+
 			const windowMessageHandler = (e) => {
-				if (e.source === popup && e.data === 'close') {
-					backgroundPort.close();
+				if (e.source === popup) {
+					window.removeEventListener('message', windowMessageHandler);
+					if (e.data === 'canclose') {
+						popup.postMessage('timeout:5');
+						setTimeout(() => {
+							popup.close();
+						}, 5000);
+					}
+					if (e.data === 'closed') {
+						backgroundPort.close();
+					}
 				}
 			};
 

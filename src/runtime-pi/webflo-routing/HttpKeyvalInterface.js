@@ -46,10 +46,11 @@ export class HttpKeyvalInterface {
     async keys() { return [...await this.#store.keys()]; }
     async values() { return [...await this.#store.values()]; }
     async entries() { return [...await this.#store.entries()]; }
-    async has(key) { return await this.#store.has(key); }
-    async get(key) { return await this.#store.get(key); }
-    async set(key, value) { await this.#store.set(key, value); }
-    async delete(key) { await this.#store.delete(key); }
+    async has(...args) { return await this.#store.has(...args); }
+    async get(...args) { return await this.#store.get(...args); }
+    async set(...args) { await this.#store.set(...args); }
+    async patch(...args) { await this.#store.patch(...args); }
+    async delete(...args) { await this.#store.delete(...args); }
     async clear() { await this.#store.clear(); }
     async json(...args) { return await this.#store.json(...args); }
 

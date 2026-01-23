@@ -142,7 +142,7 @@ export class WebfloWorker extends AppRuntime {
 		// Thread
 		scopeObj.thread = HttpThread111.create({
 			context: {},
-			store: this.#keyvals.create({ path: ['thread', scopeObj.tenantID], origins }),
+			store: this.#keyvals.create({ path: ['thread', scopeObj.tenantID], origins, ttl: 60*60*24*30/* 30 days */ }),
 			threadID: scopeObj.url.searchParams.get('_thread'),
 			realm: 2
 		});

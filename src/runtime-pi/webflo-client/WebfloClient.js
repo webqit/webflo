@@ -1,6 +1,8 @@
 import { _before, _toTitle } from '@webqit/util/str/index.js';
-import { LiveResponse, RequestPlus } from '@webqit/fetch-plus';
+import { Observer } from '@webqit/observer';
+import { URLPlus } from '@webqit/url-plus';
 import { StarPort } from '@webqit/port-plus';
+import { LiveResponse, RequestPlus } from '@webqit/fetch-plus';
 import { HttpThread111 } from '../webflo-routing/HttpThread111.js';
 import { HttpCookies101 } from '../webflo-routing/HttpCookies101.js';
 import { HttpCookies110 } from '../webflo-routing/HttpCookies110.js';
@@ -11,8 +13,6 @@ import { WebfloRouter111 } from '../webflo-routing/WebfloRouter111.js';
 import { KeyvalsFactory110 } from '../webflo-routing/KeyvalsFactory110.js';
 import { ClientRequestPort100 } from '../webflo-messaging/ClientRequestPort100.js';
 import { AppRuntime } from '../AppRuntime.js';
-import { Observer } from '@webqit/observer';
-import { URLPlus } from '@webqit/url-plus';
 import { _meta } from '../../util.js';
 
 export class WebfloClient extends AppRuntime {
@@ -69,29 +69,52 @@ export class WebfloClient extends AppRuntime {
 
         // ----------
         // Bind prompt handlers
-        const promptsHandler = (e) => {
+        const dialogHandler = (e) => {
             window.queueMicrotask(() => {
                 if (e.defaultPrevented) return;
+
                 if (e.type === 'confirm') {
-                    if (e.data?.message) {
-                        e.respondWith(confirm(e.data.message));
-                    }
+                    const dialogElement = document.createElement('wq-confirm');
+                    dialogElement.toggleAttribute('wq-default', true);
+
+                    dialogElement.render(e.data);
+                    document.body.append(dialogElement);
+                    dialogElement.showPopover();
+
+                    dialogElement.addEventListener('response', (r) => {
+                        e.respondWith(r.data);
+                        setTimeout(() => dialogElement.remove(), 300);
+                    }, { once: true });
                 } else if (e.type === 'prompt') {
-                    if (e.data?.message) {
-                        e.respondWith(prompt(e.data.message));
-                    }
-                } else if (e.type === 'alert') {
-                    for (const item of [].concat(e.data)) {
-                        if (item?.message) {
-                            alert(item.message);
-                        }
-                    }
+                    const dialogElement = document.createElement('wq-prompt');
+                    dialogElement.toggleAttribute('wq-default', true);
+
+                    dialogElement.render(e.data);
+                    document.body.append(dialogElement);
+                    dialogElement.showPopover();
+
+                    dialogElement.addEventListener('response', (r) => {
+                        e.respondWith(r.data);
+                        setTimeout(() => dialogElement.remove(), 300);
+                    }, { once: true });
+                } else if (e.type === 'status') {
+                    const dialogElement = document.createElement('wq-toast');
+                    dialogElement.toggleAttribute('wq-default', true);
+
+                    dialogElement.render(e.data);
+                    document.body.append(dialogElement);
+                    dialogElement.showPopover();
+
+                    dialogElement.addEventListener('toggle', (t) => {
+                        if (t.newState !== 'closed') return;
+                        dialogElement.remove();
+                    }, { once: true });
                 }
             });
         };
-        this.background.addEventListener('confirm', promptsHandler, { signal: instanceController.signal });
-        this.background.addEventListener('prompt', promptsHandler, { signal: instanceController.signal });
-        this.background.addEventListener('alert', promptsHandler, { signal: instanceController.signal });
+        this.background.addEventListener('confirm', dialogHandler, { signal: instanceController.signal });
+        this.background.addEventListener('prompt', dialogHandler, { signal: instanceController.signal });
+        this.background.addEventListener('status', dialogHandler, { signal: instanceController.signal });
 
         // ----------
         // Call default-init
@@ -305,7 +328,7 @@ export class WebfloClient extends AppRuntime {
         if (typeof cookieStore === 'undefined') {
             const entries = document.cookie.split(';').map((c) => c.split('=').map((s) => s.trim()));
             const store = this.#keyvals.create({ type: 'inmemory', path: ['cookies', scopeObj.tenantID], origins });
-            entries.forEach(([key, value]) => store.set(key, { value }));
+            entries.forEach(([key, value]) => store.set({ key, value }));
             const initial = Object.fromEntries(entries);
             scopeObj.cookies = HttpCookies101.create({
                 context: { handlersRegistry: this.#keyvals.getHandlers('cookies', true) },
@@ -440,7 +463,7 @@ export class WebfloClient extends AppRuntime {
         let response = await super.dispatchNavigationEvent({ httpEvent, crossLayerFetch, clientPortB });
 
         // Extract interactive. mode handling
-        const handleInteractiveMode = () => {
+        const handleInteractiveMode = (returnImmediate = false) => {
             return new Promise(async (resolve) => {
                 // Must come as first thing
                 const backgroundPort = LiveResponse.getPort(response);
@@ -450,13 +473,18 @@ export class WebfloClient extends AppRuntime {
                     ? response
                     : LiveResponse.from(response);
 
-                liveResponse.addEventListener('replace', (e) => {
+                await liveResponse.readyStateChange('live');
+                // IMPORTANT: ensures we're listening to subsequent changes.
+
+                liveResponse.addEventListener('replace', () => {
                     if (liveResponse.headers.get('Location')) {
                         this.processRedirect(liveResponse);
                     } else {
                         resolve(liveResponse);
                     }
                 }, { signal: httpEvent.signal });
+
+                if (returnImmediate) resolve(liveResponse);
             });
         };
 
@@ -495,7 +523,7 @@ export class WebfloClient extends AppRuntime {
 
             // Obtain and connect clientPortB as first thing
             if (LiveResponse.hasPort(response)) {
-                response = await handleInteractiveMode();
+                response = await handleInteractiveMode(true);
             }
         }
 

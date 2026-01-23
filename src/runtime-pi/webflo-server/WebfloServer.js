@@ -249,7 +249,9 @@ export class WebfloServer extends AppRuntime {
 
     identifyIncoming(request, autoGenerateID = false) {
         const secret = this.env('SESSION_KEY');
+
         let tenantID = request.headers.get('Cookie', true).find((c) => c.name === '__sessid')?.value;
+        
         if (tenantID?.includes('.')) {
             if (secret) {
                 const [rand, signature] = tenantID.split('.');
@@ -262,10 +264,12 @@ export class WebfloServer extends AppRuntime {
             } else {
                 tenantID = null;
             }
-        }
+        } else tenantID = null;
+
         if (!tenantID) {
             tenantID = request.headers.get('Authorization')?.replace(/\s+/, '_');
         }
+
         if (!tenantID && autoGenerateID) {
             if (secret) {
                 const rand = `${(0 | Math.random() * 9e6).toString(36)}`;
@@ -277,6 +281,7 @@ export class WebfloServer extends AppRuntime {
                 tenantID = crypto.randomUUID();
             }
         }
+
         return tenantID;
     }
 
@@ -708,15 +713,15 @@ export class WebfloServer extends AppRuntime {
         // Thread
         scopeObj.thread = HttpThread111.create({
             context: {},
-            store: this.#keyvals.create({ path: ['thread', scopeObj.tenantID], origins }),
+            store: this.#keyvals.create({ path: ['thread', scopeObj.tenantID], origins, ttl: 60*60*24*30/* 30 days */ }),
             threadID: scopeObj.url.searchParams.get('_thread'),
             realm: 3
         });
 
         // Cookies
-        const entries = scopeObj.request.headers.get('Cookie', true).map((c) => [c.name, c]);
+        const entries = scopeObj.request.headers.get('Cookie', true).map((c) => [c.name, c.value]);
         const store = InMemoryKV.create({ path: ['cookies', scopeObj.tenantID] });
-        entries.forEach(([key, value]) => store.set(key, { value }));
+        entries.forEach(([key, value]) => store.set({ key, value }));
         const initial = Object.fromEntries(entries);
         scopeObj.cookies = HttpCookies101.create({
             context: { handlersRegistry: this.#keyvals.getHandlers('cookies', true) },
@@ -730,7 +735,6 @@ export class WebfloServer extends AppRuntime {
             context: { handlersRegistry: this.#keyvals.getHandlers('session', true) },
             store: this.#keyvals.create({ path: ['session', scopeObj.tenantID], ttl: scopeObj.sessionTTL, origins }),
             sessionID: scopeObj.tenantID,
-            ttl: scopeObj.sessionTTL,
             realm: 3
         });
 

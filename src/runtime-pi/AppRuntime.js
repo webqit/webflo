@@ -155,7 +155,7 @@ export class AppRuntime {
         if (!this.isClientSide
             && response instanceof LiveResponse) {
             // Must convert to Response on the server-side before returning
-            const outgoingResponse = response.toResponse({ port: httpEvent.client });
+            const outgoingResponse = response.toResponse({ port: httpEvent.client, signal: httpEvent.signal });
             return outgoingResponse;
         }
 
@@ -168,11 +168,11 @@ export class AppRuntime {
             && response.headers.get('Location')) return;
 
         const status = await httpEvent.thread.consume('status', true);
-        if (!status.length) return;
+        if (!status) return;
 
         httpEvent.waitUntil(httpEvent.client.readyStateChange('open').then(async () => {
-            await new Promise((r) => setTimeout(r, 100));
-            httpEvent.client.postMessage(status, { type: 'alert' });
+            await new Promise((r) => setTimeout(r, 500));
+            httpEvent.client.postMessage(status, { type: 'status' });
             await new Promise((r) => setTimeout(r, 100));
         }));
     }

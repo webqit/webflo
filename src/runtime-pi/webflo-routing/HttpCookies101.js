@@ -20,7 +20,7 @@ export class HttpCookies101 extends HttpKeyvalInterface {
     // ------ extras
 
     async render() {
-        const json = await this.json(true);
+        const json = await this.json({ meta: true });
 
         const entries = Object.keys(json).concat(Object.keys(this.#initial)).map((key) => {
             const a = this.#initial[key];
@@ -45,8 +45,11 @@ export function renderCookieObjToString(cookieObj) {
     const attrsArr = [`${cookieObj.name}=${/*encodeURIComponent*/(cookieObj.value)}`];
     for (const attrName in cookieObj) {
         if (['name', 'value'].includes(attrName)) continue;
+        
         let _attrName = attrName[0].toUpperCase() + attrName.substring(1);
         if (_attrName === 'MaxAge') { _attrName = 'Max-Age' };
+
+        if (cookieObj[attrName] === false) continue;
         attrsArr.push(cookieObj[attrName] === true ? _attrName : `${_attrName}=${cookieObj[attrName]}`);
     }
     return attrsArr.join('; ');
