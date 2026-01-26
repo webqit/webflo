@@ -1,6 +1,18 @@
 // ---------------- ToastElement
 
-export class ToastElement extends HTMLElement {
+class ToastElement extends HTMLElement {
+
+    set type(value) {
+        if ([undefined, null].includes(value)) {
+            this.removeAttribute('type');
+        } else this.setAttribute('type', value);
+    }
+
+    get type() { return this.getAttribute('type'); }
+
+    get contentHTML() { return ''; }
+
+    get css() { return ''; }
 
     #childToast = null;
 
@@ -18,12 +30,6 @@ export class ToastElement extends HTMLElement {
             if (slot.assignedNodes().find((n) => n.nodeName !== '#text' || n.textContent.trim())) {
                 this.showPopover();
             } else this.hidePopover();
-        }
-    }
-
-    connectedCallback() {
-        if (!this.popover) {
-            this.popover = 'auto';
         }
     }
 
@@ -54,17 +60,11 @@ export class ToastElement extends HTMLElement {
         this.innerHTML = content.message;
     }
 
-    set type(value) {
-        if ([undefined, null].includes(value)) {
-            this.removeAttribute('type');
-        } else this.setAttribute('type', value);
+    connectedCallback() {
+        if (!this.popover) {
+            this.popover = 'auto';
+        }
     }
-
-    get type() { return this.getAttribute('type'); }
-
-    get contentHTML() { return ''; }
-
-    get css() { return ''; }
 
     constructor() {
         super();
@@ -315,7 +315,7 @@ export class ToastElement extends HTMLElement {
 
 // ---------------- ModalElement
 
-export class ModalMinmaxEvent extends Event {
+class ModalMinmaxEvent extends Event {
 
     #ratio;
     get ratio() { return this.#ratio; }
@@ -326,85 +326,7 @@ export class ModalMinmaxEvent extends Event {
     }
 }
 
-export class ModalElement extends HTMLElement {
-
-    updateScrollViewDimensions() {
-        const viewElement = this.shadowRoot.querySelector('.view');
-        const headerElement = this.shadowRoot.querySelector('header');
-        const headerBoxElement = this.shadowRoot.querySelector('.header-box');
-        const footerElement = this.shadowRoot.querySelector('footer');
-        requestAnimationFrame(() => {
-            viewElement.style.setProperty('--header-box-height', headerBoxElement.offsetHeight + 'px');
-            viewElement.style.setProperty('--header-max-height', headerElement.offsetHeight + 'px');
-            viewElement.style.setProperty('--footer-max-height', footerElement.offsetHeight + 'px');
-            if (this.classList.contains('_container')) return;
-            viewElement.style.setProperty('--view-width', viewElement.clientWidth/* instead of offsetHeight; safari reasons */ + 'px');
-            viewElement.style.setProperty('--view-height', viewElement.clientHeight/* instead of offsetHeight; safari reasons */ + 'px');
-        });
-    }
-
-    connectedCallback() {
-        if (!this.popover) {
-            this.popover = 'manual';
-        }
-        this.bindMinmaxWorker();
-
-        if (this.hasAttribute('open')) {
-            this.showPopover();
-        }
-
-        if (this.matches(':popover-open')) {
-            this.updateScrollViewDimensions();
-        }
-    }
-
-    disconnectedCallback() {
-        this.#unbindMinmaxWorker?.();
-        this.#unbindMinmaxWorker = null;
-    }
-
-    #unbindMinmaxWorker = null;
-
-    bindMinmaxWorker() {
-        const swipeDismiss = this.classList.contains('_swipe-dismiss');
-        const minmaxEvents = this.classList.contains('_minmax');
-
-        if (!swipeDismiss && !minmaxEvents) return;
-
-        const viewElement = this.shadowRoot.querySelector('.view');
-        const sentinelElement = this.shadowRoot.querySelector('.sentinel');
-        const spacingElement = viewElement.querySelector('.spacing');
-
-        const options = {
-            root: viewElement,
-            threshold: [0, 1]
-        };
-
-        const observer = new IntersectionObserver((entries) => {
-            for (const entry of entries) {
-                // Minmax events
-                if (entry.target === spacingElement) {
-                    const event = new ModalMinmaxEvent(1 - entry.intersectionRatio);
-                    this.dispatchEvent(event);
-
-                    let onminmax;
-                    if (onminmax = this.getAttribute('onminmax')?.trim()) {
-                        Function('event', onminmax).call(this, event);
-                    }
-                }
-
-                // For auto-closing
-                if (entry.target === sentinelElement && entry.isIntersecting) {
-                    this.hidePopover();
-                    setTimeout(() => spacingElement.scrollIntoView(), 300);
-                }
-            }
-        }, options);
-
-        if (minmaxEvents) observer.observe(spacingElement);
-        if (swipeDismiss) observer.observe(sentinelElement);
-        this.#unbindMinmaxWorker = () => observer.disconnect();
-    }
+class ModalElement extends HTMLElement {
 
     #onminmaxHandler = null;
 
@@ -442,17 +364,154 @@ export class ModalElement extends HTMLElement {
 
     get css() { return ''; }
 
+    #viewElement;
+    #sentinelElement;
+    #spacingElement;
+    #headerElement;
+    #headerBoxElement;
+    #footerElement;
+
+    updateScrollViewDimensions() {
+        requestAnimationFrame(() => {
+            let viewWidth, viewHeight;
+
+            const swipeDismiss = this.classList.contains('_swipe-dismiss');
+            const minmaxScroll = !!window.getComputedStyle(this).getPropertyValue('--modal-minmax-length');
+
+            if (swipeDismiss || minmaxScroll) {
+                requestAnimationFrame(() => {
+                    let left = 0, top = 0;
+                    if (!this.matches('._left._horz, ._top:not(._horz)')) {
+                        if (this.classList.contains('_horz')) {
+                            viewWidth = this.#viewElement.clientWidth/* instead of offsetHeight; safari reasons */;
+                            left = viewWidth - this.#spacingElement.clientWidth;
+                        } else {
+                            viewHeight = this.#viewElement.clientHeight/* instead of offsetHeight; safari reasons */;
+                            top = viewHeight - this.#spacingElement.clientHeight;
+                        }
+                    }
+                    if (this.#viewElement.scrollTop < top || this.#viewElement.scrollLeft < left) {
+                        this.#viewElement.scrollTo({ top, left });
+                    }
+                });
+            }
+
+            this.#viewElement.style.setProperty('--header-box-height', this.#headerBoxElement.offsetHeight + 'px');
+            this.#viewElement.style.setProperty('--header-max-height', this.#headerElement.offsetHeight + 'px');
+            this.#viewElement.style.setProperty('--footer-max-height', this.#footerElement.offsetHeight + 'px');
+
+            if (this.classList.contains('_container')) return;
+            if (viewWidth === undefined) viewWidth = this.#viewElement.clientWidth;
+            if (viewHeight === undefined) viewHeight = this.#viewElement.clientHeight;
+
+            this.#viewElement.style.setProperty('--view-width', viewWidth + 'px');
+            this.#viewElement.style.setProperty('--view-height', viewHeight + 'px');
+        });
+    }
+
+    #unbindMinmaxWorker = null;
+
+    bindMinmaxWorker() {
+        const swipeDismiss = this.classList.contains('_swipe-dismiss');
+        const minmaxEvents = this.classList.contains('_minmax-events');
+
+        if (!swipeDismiss && !minmaxEvents) return;
+
+        const options = {
+            root: this.#viewElement,
+            threshold: [0, 1]
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            if (!this.#userScrolled) return;
+
+            for (const entry of entries) {
+                // Minmax events
+                if (entry.target === this.#spacingElement) {
+                    const event = new ModalMinmaxEvent(1 - entry.intersectionRatio);
+                    this.dispatchEvent(event);
+
+                    let onminmax;
+                    if (onminmax = this.getAttribute('onminmax')?.trim()) {
+                        Function('event', onminmax).call(this, event);
+                    }
+                }
+
+                // For auto-closing
+                if (entry.target === this.#sentinelElement
+                    && entry.isIntersecting
+                    && entry.intersectionRatio >= 0.8) {
+                    this.hidePopover();
+                }
+            }
+        }, options);
+
+        setTimeout(() => {
+            if (minmaxEvents) observer.observe(this.#spacingElement);
+            if (swipeDismiss) observer.observe(this.#sentinelElement);
+        }, 200);
+
+        this.#unbindMinmaxWorker = () => observer.disconnect();
+    }
+
+    #userScrolled = false;
+    #unbindDimensionsWorker;
+
+    #bindDimensionsWorker() {
+        this.#userScrolled = false;
+        const handleUserScroll = () => this.#userScrolled = true;
+        this.#viewElement.addEventListener('scroll', handleUserScroll);
+
+
+        this.updateScrollViewDimensions();
+        const handleResize = () => this.updateScrollViewDimensions();
+        window.addEventListener('resize', handleResize);
+
+        this.#unbindDimensionsWorker?.();
+        this.#unbindDimensionsWorker = () => {
+            window.removeEventListener('resize', handleResize);
+            this.#viewElement.removeEventListener('scroll', handleUserScroll);
+        };
+    }
+
+    connectedCallback() {
+        if (!this.popover) {
+            this.popover = 'manual';
+        }
+        if (this.hasAttribute('open')) {
+            this.showPopover();
+        }
+    }
+
+    disconnectedCallback() {
+        this.#unbindDimensionsWorker?.();
+        this.#unbindDimensionsWorker = null;
+        this.#unbindMinmaxWorker?.();
+        this.#unbindMinmaxWorker = null;
+    }
+
+    static get observedAttributes() {
+        return ['class'];
+    }
+
+    attributeChangedCallback(name, old, _new) {
+        if (name === 'class') this.#bindDimensionsWorker();
+    }
+
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
 
         this.addEventListener('toggle', (e) => {
-            if (e.newState !== 'open') return;
-            this.updateScrollViewDimensions();
-        });
-
-        window.addEventListener('resize', () => {
-            this.updateScrollViewDimensions();
+            if (e.newState === 'open') {
+                this.#bindDimensionsWorker();
+                this.bindMinmaxWorker();
+            } else if (e.newState === 'closed') {
+                this.#unbindDimensionsWorker?.();
+                this.#unbindDimensionsWorker = null;
+                this.#unbindMinmaxWorker?.();
+                this.#unbindMinmaxWorker = null;
+            }
         });
 
         this.shadowRoot.innerHTML = `
@@ -489,27 +548,20 @@ export class ModalElement extends HTMLElement {
                         </button>
                     </div>
 
-                    <div class="scrollport-anchor">
-                        <div class="scrollport">
-                            <div class="scrollbar-track">
-                                <div class="scrollbar-thumb"></div>
-                            </div>
+                </header>
+
+                <div class="scrollport-anchor">
+                    <div class="scrollport">
+                        <div class="scrollbar-track">
+                            <div class="scrollbar-thumb"></div>
                         </div>
                     </div>
-                </header>
+                </div>
 
                 ${this.mainHTML || `<div class="main" part="main">${this.contentHTML || `<slot></slot>`
             }</div>`}
 
                 <footer part="footer">
-                    <div class="scrollport-anchor">
-                        <div class="scrollport">
-                            <div class="scrollbar-track">
-                                <div class="scrollbar-thumb"></div>
-                            </div>
-                        </div>
-                    </div>
-
                     <div class="footer-bar" part="footer-bar">
                         <slot
                             name="footer"
@@ -586,7 +638,6 @@ export class ModalElement extends HTMLElement {
 
                 --expanse-length: var(--modal-expanse-length, 0px);
                 --minmax-length: var(--modal-minmax-length, 0px);
-                --swipe-dismiss-length: var(--modal-swipe-dismiss-length, 0px);
 
                 --scrollbar-thumb-color: var(--modal-scrollbar-thumb-color, black);
                 --scrollbar-thumb-width: var(--modal-scrollbar-thumb-width, 4px);
@@ -602,6 +653,14 @@ export class ModalElement extends HTMLElement {
                 --dir: 1;
                 --entry-transform: translateY(var(--translation));
                 --exit-transform: translateY(calc(var(--translation) * var(--exit-factor)));
+            }
+
+            :host(._swipe-dismiss) .view {
+                --swipe-dismiss-length: var(--modal-swipe-dismiss-length, calc(var(--view-height) - var(--minmax-length)));
+            }
+
+            :host(._horz._swipe-dismiss) .view {
+                --swipe-dismiss-length: var(--modal-swipe-dismiss-length, calc(var(--view-width) - var(--minmax-length)));
             }
             
             /* transform reversal */
@@ -646,6 +705,11 @@ export class ModalElement extends HTMLElement {
             :host(._container) .view {
                 --view-height: calc(100cqh - var(--expanse-length));
                 --view-width: 100cqw;
+            }
+
+            :host(._container._horz) .view {
+                --view-height: 100cqh;
+                --view-width: calc(100cqw - var(--expanse-length));
             }
 
             /* transform reversal */
@@ -724,9 +788,8 @@ export class ModalElement extends HTMLElement {
 
             /* flex orientation */
 
-            :host(:popover-open),
+            :host,
             .view {
-                display: flex;
                 flex-direction: column;
                 align-items: stretch;
             }
@@ -748,7 +811,8 @@ export class ModalElement extends HTMLElement {
             /* spacing */
 
             :host>.spacing,
-            .view>.spacing {
+            .view>.spacing,
+            .view>.sentinel {
                 position: relative;
                 display: block;
                 flex-shrink: 0;
@@ -769,17 +833,15 @@ export class ModalElement extends HTMLElement {
             :host(:not(._horz)) .view>.spacing { height: var(--minmax-length); }
             :host(._horz) .view>.spacing { width: var(--minmax-length); }
 
-            :host(:not(._top, ._horz)) .view>.spacing { margin-top: var(--swipe-dismiss-length); }
-            :host(._top:not(._horz)) .view>.spacing { margin-bottom: var(--swipe-dismiss-length); }
-
-            :host(._horz:not(._left)) .view>.spacing { margin-left: var(--swipe-dismiss-length); }
-            :host(._horz._left) .view>.spacing { margin-right: var(--swipe-dismiss-length); }
+            :host(:not(._horz)) .view>.sentinel { height: var(--swipe-dismiss-length); }
+            :host(._horz) .view>.sentinel { width: var(--swipe-dismiss-length); }
 
             /* ----------- */
 
             .view {
                 position: relative;
                 flex-grow: 1;
+                display: flex;
 
                 pointer-events: none;
 
@@ -833,16 +895,13 @@ export class ModalElement extends HTMLElement {
                 position: relative;
                 flex-grow: 1;
 
-                min-height: 100%;
-                min-width: 100%;
-
                 pointer-events: auto;
 
                 display: flex;
                 flex-direction: column;
             }
 
-            :host(._swipe-dismiss) .container {
+            :host(._swipe-dismiss-fadeout) .container {
                 animation-timing-function: linear;
                 animation-fill-mode: both;
                 animation-name: appear;
@@ -850,7 +909,7 @@ export class ModalElement extends HTMLElement {
                 animation-range: 0 var(--swipe-dismiss-length);
             }
 
-            :host(._swipe-dismiss:is(._top:not(._horz), ._left._horz)) .container {
+            :host(._swipe-dismiss-fadeout:is(._top:not(._horz), ._left._horz)) .container {
                 animation-name: disappear;
                 animation-range: calc(100% - var(--swipe-dismiss-length)) 100%;
             }
@@ -860,7 +919,7 @@ export class ModalElement extends HTMLElement {
             header {
                 position: sticky;
                 top: calc(var(--header-box-height) * -1);
-                z-index: 1;
+                z-index: 2;
 
                 display: flex;
                 flex-direction: column;
@@ -870,6 +929,8 @@ export class ModalElement extends HTMLElement {
 
                 border-top-left-radius: var(--radius-top-left);
                 border-top-right-radius: var(--radius-top-right);
+
+                order: 1;
             }
 
             :host(:not(._horz)) header {
@@ -962,6 +1023,8 @@ export class ModalElement extends HTMLElement {
 
                 color: var(--footer-color-default);
                 background: var(--footer-background);
+
+                order: 5;
             }
 
             :host([type="info"]) footer {
@@ -986,15 +1049,16 @@ export class ModalElement extends HTMLElement {
 
             /* ----------- */
 
-            :host(:popover-open) .view {
+            .view {
                 scroll-snap-type: y mandatory;
             }
 
-            :host(._horz:popover-open) .view {
+            :host(._horz) .view {
                 scroll-snap-type: x mandatory;
             }
 
-            .view>.spacing {
+            .view>.spacing,
+            .view>.sentinel {
                 scroll-snap-align: var(--scroll-snap-start);
             }
 
@@ -1003,6 +1067,8 @@ export class ModalElement extends HTMLElement {
                 scroll-margin-top: var(--header-min-height);
                 scroll-margin-bottom: var(--footer-min-height);
                 scroll-snap-align: var(--scroll-snap-start);
+
+                order: 3;
             }
 
             :host(:is(._top, ._left._horz)) .main {
@@ -1024,41 +1090,107 @@ export class ModalElement extends HTMLElement {
             /* ----------- */
 
             .scrollport-anchor {
-                position: relative;
+                order: 2;
+
+                position: sticky;
+                top: var(--header-min-height);
+                bottom: var(--footer-min-height);
+                left: 0;
+                right: 0;
+                display: flex;
+                flex-direction: column;
+
                 height: 0;
+                width: var(--view-width);
             }
 
-            :host(:not(._top:not(._horz))) footer .scrollport-anchor,
-            :host(._top:not(._horz)) header .scrollport-anchor {
-                display: none;
+            :host(:is(._left._horz, ._top:not(._horz))) .scrollport-anchor {
+                justify-content: end;
+                order: 4;
             }
 
             .scrollport {
-                position: sticky;
-                top: var(--header-min-height);
-                left: 0;
-                right: 0;
-                
-                container-type: size;
+                position: relative;
+
                 height: var(--view-inner-height);
                 width: var(--view-width);
+                flex-shrink: 0;
 
                 pointer-events: none;
             }
 
-            footer .scrollport {
-                top: auto;
-                position: absolute;
-                bottom: 0;
-            }
-
-            :host(._scrollbars._top:not(._horz)) .scrollport {
+            :host(._top:not(._horz)) .scrollport {
                 height: calc(var(--view-inner-height) - var(--header-box-height));
             }
 
-            :host(._scrollbars._left._horz) .scrollport {
-                width: calc(var(--view-width) - var(--minmax-length));
+            /* -- scroll unfold -- */
+
+            :host(._scroll-unfold) .scrollport {
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                align-items: stretch;
             }
+
+            :host(._scroll-unfold._horz) .scrollport {
+                flex-direction: row;
+            }
+            
+            :host(._scroll-unfold) .scrollport::before,
+            :host(._scroll-unfold) .scrollport::after {
+                position: sticky;
+                display: block;
+                content: "";
+                opacity: 0;
+
+                background: var(--background);
+
+                mask-repeat: no-repeat;
+                mask-size: 100% 100%;
+
+                animation-timing-function: linear;
+                animation-fill-mode: forwards;
+                animation-name: appear;
+                animation-timeline: --view-scroll;
+
+                animation-range: var(--scrollbar-progress-range);
+            }
+
+            :host(._scroll-unfold:not(._horz)) .scrollport::before,
+            :host(._scroll-unfold:not(._horz)) .scrollport::after {
+                top: var(--header-min-height);
+                height: 25%;
+
+                mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
+                -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
+            }
+
+            :host(._scroll-unfold:not(._horz)) .scrollport::after {
+                bottom: var(--footer-min-height);
+                top: auto;
+                opacity: 1;
+                animation-name: disappear;
+                transform: scaleY(-1);
+            }
+
+            :host(._scroll-unfold._horz) .scrollport::before,
+            :host(._scroll-unfold._horz) .scrollport::after {
+                left: 0;
+                width: 25%;
+
+                mask-image: linear-gradient(to right, black 0%, transparent 100%);
+                -webkit-mask-image: linear-gradient(to right, black 0%, transparent 100%);
+            }
+
+            :host(._scroll-unfold._horz) .scrollport::after {
+                right: 0;
+                left: auto;
+                opacity: 1;
+                animation-name: disappear;
+                transform: scaleX(-1);
+            }
+
+            /* -- scrollbar -- */
 
             :host(._scrollbars) .scrollbar-track {
                 position: absolute;
@@ -1069,6 +1201,8 @@ export class ModalElement extends HTMLElement {
                 top: 0;
                 right: 0;
                 padding: 6px;
+
+                container-type: size;
 
                 opacity: 0;
 
@@ -1104,6 +1238,7 @@ export class ModalElement extends HTMLElement {
             :host(._scrollbars._horz) .scrollbar-thumb {
                 height: var(--scrollbar-thumb-width);
                 width: var(--scrollbar-thumb-height);
+
                 --scrollbar-thumb-start: translateX(0);
                 --scrollbar-thumb-length: translateX(calc(100cqw - 100%));
             }
@@ -1185,7 +1320,7 @@ export class ModalElement extends HTMLElement {
 
             .main {
                 color: var(--color-default);
-                background-color: var(--background);
+                background: var(--background);
             }
 
             .view:not(:has(footer slot:is(.has-slotted, :not(:empty)))) .main {
@@ -1227,12 +1362,19 @@ export class ModalElement extends HTMLElement {
             ${this.css}
         </style>
         `;
+
+        this.#viewElement = this.shadowRoot.querySelector('.view');
+        this.#sentinelElement = this.#viewElement.querySelector('.sentinel');
+        this.#spacingElement = this.#viewElement.querySelector('.spacing');
+        this.#headerElement = this.#viewElement.querySelector('header');
+        this.#headerBoxElement = this.#viewElement.querySelector('.header-box');
+        this.#footerElement = this.#viewElement.querySelector('footer');
     }
 }
 
 // ---------------- DialogElement
 
-export class DialogResponseEvent extends Event {
+class DialogResponseEvent extends Event {
 
     #data;
     get data() { return this.#data; }
@@ -1243,7 +1385,7 @@ export class DialogResponseEvent extends Event {
     }
 }
 
-export class DialogElement extends ModalElement {
+class DialogElement extends ModalElement {
 
     constructor() {
         super();
@@ -1336,6 +1478,7 @@ export class DialogElement extends ModalElement {
             }
 
             .main {
+                flex-shrink: 0;
                 display: flex;
                 flex-direction: column;
                 gap: 1rem;
@@ -1394,7 +1537,7 @@ export class DialogElement extends ModalElement {
 
 // ---------------- PromptElement
 
-export class PromptElement extends DialogElement {
+class PromptElement extends DialogElement {
 
     static get observedAttributes() {
         return ['value', 'placeholder'].concat(super.observedAttributes || []);
@@ -1403,8 +1546,8 @@ export class PromptElement extends DialogElement {
     attributeChangedCallback(name, old, _new) {
         super.attributeChangedCallback?.(...arguments);
         const input = this.shadowRoot.querySelector('input');
-        if (name === 'value') { input.value = _new; }
-        if (name === 'placeholder') { input.placeholder = _new; }
+        if (name === 'value') input.value = _new;
+        if (name === 'placeholder') input.placeholder = _new;
     }
 
     set placeholder(value) {
@@ -1473,7 +1616,7 @@ export class PromptElement extends DialogElement {
 
 // ---------------- ConfirmElement
 
-export class ConfirmElement extends DialogElement {
+class ConfirmElement extends DialogElement {
     get actionTexts() { return ['No', 'Yes']; }
 
     respondWith(response) { super.respondWith(!!response); }
@@ -1483,7 +1626,7 @@ export class ConfirmElement extends DialogElement {
 
 // ---------------- AlertElement
 
-export class AlertElement extends DialogElement {
+class AlertElement extends DialogElement {
     get actionTexts() { return ['', 'Got it']; }
 }
 

@@ -42,12 +42,12 @@ export class WebfloRootClientA extends WebfloClient {
 	async initialize() {
 		// INITIALIZATIONS
 		const instanceController = await super.initialize();
-		
+
 		// Bind network status handlers
 		const onlineHandler = () => Observer.set(this.network, 'status', window.navigator.onLine);
 		window.addEventListener('online', onlineHandler, { signal: instanceController.signal });
 		window.addEventListener('offline', onlineHandler, { signal: instanceController.signal });
-		
+
 		// Window opener pinging
 		if (window.opener) {
 			const beforeunloadHandler = () => window.opener.postMessage('close');
@@ -93,7 +93,7 @@ export class WebfloRootClientA extends WebfloClient {
 			scopeObj.data = JSON.parse(this.host.querySelector(`script[rel="hydration"][type="application/json"]`)?.textContent?.trim() || 'null');
 		} catch (e) { }
 		scopeObj.response = new LiveResponse(scopeObj.data, { headers: { 'Content-Type': 'application/json' } });
-		
+
 		for (const name of ['X-Message-Port', 'X-Webflo-Dev-Mode']) {
 			const metaElement = this.host.querySelector(`meta[name="${name}"]`);
 			if (!metaElement) continue;
@@ -136,7 +136,7 @@ export class WebfloRootClientA extends WebfloClient {
 			try { window.history.pushState({}, '', newHref); } catch (e) { }
 		};
 		const instanceController = super.controlClassic/*IMPORTANT*/(locationCallback);
-		
+
 		// ONPOPSTATE
 		const popstateHandler = (e) => {
 			if (this.isHashChange(location)) {
@@ -158,7 +158,7 @@ export class WebfloRootClientA extends WebfloClient {
 			this.navigate(location.href, {}, detail);
 		};
 		window.addEventListener('popstate', popstateHandler, { signal: instanceController.signal });
-		
+
 		return instanceController;
 	}
 

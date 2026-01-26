@@ -18,6 +18,8 @@ export class WebfloSubClient extends WebfloClient {
 
 	get capabilities() { return this.#superRuntime.capabilities; }
 
+	get viewport() { return this.#superRuntime.viewport; }
+
 	get withViewTransitions() { return this.host.hasAttribute('viewtransitions'); }
 
 	constructor(superRuntime, host) {
