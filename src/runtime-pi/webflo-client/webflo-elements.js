@@ -381,7 +381,9 @@ class ModalElement extends HTMLElement {
             if (swipeDismiss || minmaxScroll) {
                 requestAnimationFrame(() => {
                     let left = 0, top = 0;
-                    if (!this.matches('._left._horz, ._top:not(._horz)')) {
+                    if (this.matches('._left._horz, ._top:not(._horz)')) {
+                        this.#viewElement.scrollTo({ top, left });
+                    } else {
                         if (this.classList.contains('_horz')) {
                             viewWidth = this.#viewElement.clientWidth/* instead of offsetHeight; safari reasons */;
                             left = viewWidth - this.#spacingElement.clientWidth;
@@ -389,9 +391,9 @@ class ModalElement extends HTMLElement {
                             viewHeight = this.#viewElement.clientHeight/* instead of offsetHeight; safari reasons */;
                             top = viewHeight - this.#spacingElement.clientHeight;
                         }
-                    }
-                    if (this.#viewElement.scrollTop < top || this.#viewElement.scrollLeft < left) {
-                        this.#viewElement.scrollTo({ top, left });
+                        if (this.#viewElement.scrollTop < top || this.#viewElement.scrollLeft < left) {
+                            this.#viewElement.scrollTo({ top, left });
+                        }
                     }
                 });
             }
@@ -1266,6 +1268,39 @@ class ModalElement extends HTMLElement {
                     display 0.2s allow-discrete,
                     overlay 0.2s allow-discrete,
                     backdrop-filter 0.2s;
+            }
+
+            :host(._swipe-dismiss._container) {
+                timeline-scope: --view-scroll;
+            }
+
+            :host(._swipe-dismiss._container)::backdrop {
+                opacity: 0;
+
+                animation-timing-function: linear;
+                animation-fill-mode: forwards;
+                animation-name: appear;
+                animation-timeline: --view-scroll;
+
+                animation-range: 0 calc(100cqh - var(--expanse-length) - var(--minmax-length));
+            }
+
+            :host(._swipe-dismiss._container._horz)::backdrop {
+                animation-range: 0 calc(100cqw - var(--expanse-length) - var(--minmax-length));
+            }
+
+            :host(._swipe-dismiss._container._top:not(._horz))::backdrop,
+            :host(._swipe-dismiss._container._left._horz)::backdrop {
+                opacity: 1;
+                animation-name: disappear;
+            }
+
+            :host(._swipe-dismiss._container._top:not(._horz))::backdrop {
+                animation-range: calc(100% - (100cqh - var(--expanse-length) - var(--minmax-length))) 100%;
+            }
+
+            :host(._swipe-dismiss._container._left._horz)::backdrop {
+                animation-range: calc(100% - (100cqw - var(--expanse-length) - var(--minmax-length))) 100%;
             }
 
             :host(:popover-open)::backdrop {
