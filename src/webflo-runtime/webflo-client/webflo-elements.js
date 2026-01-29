@@ -498,8 +498,6 @@ export class ModalElement extends BaseElement {
         };
 
         const observer = new IntersectionObserver((entries) => {
-            if (!this.#userScrolled) return;
-
             for (const entry of entries) {
                 // Minmax events
                 if (entry.target === this.#spacingElement) {
@@ -508,7 +506,8 @@ export class ModalElement extends BaseElement {
                 }
 
                 // For auto-closing
-                if (entry.target === this.#sentinelElement
+                if (this.#userScrolled
+                    && entry.target === this.#sentinelElement
                     && entry.isIntersecting
                     && entry.intersectionRatio >= 0.8) {
                     this.hidePopover();
