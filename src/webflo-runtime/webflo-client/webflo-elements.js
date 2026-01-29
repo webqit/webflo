@@ -1370,7 +1370,8 @@ export class ModalElement extends BaseElement {
                 transition:
                     display 0.2s allow-discrete,
                     overlay 0.2s allow-discrete,
-                    backdrop-filter 0.2s;
+                    backdrop-filter 0.2s,
+                    background 0.2s;
             }
 
             :host(._swipe-dismiss._container) {
