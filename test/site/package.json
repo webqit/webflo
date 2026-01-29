@@ -1,9 +1,0 @@
-{
-  "title": "Webflo Test",
-  "type": "module",
-  "scripts": {
-    "generate": "webflo generate::client --recursive --compression --auto-embed",
-    "bundle": "cd public && oohtml bundle --recursive --auto-embed=routes",
-    "build": "npm run generate && npm run bundle"
-  }
-}

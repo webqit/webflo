@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Webflo Browser Tests</title>
+    <script src="./elements.src.build.js"></script>
+</head>
+
+<body>
+
+    <wq-toast oncontent></wq-toast>
+
+    <wq-modal type="success" id="pop1" style="width: 200px; text-align: center;" popover="manual" open
+        onminmax="console.log('1------', event.ratio)"
+        class="_bottom _scroll-unfold _minmax-events _swipe-dismiss _edge-tight _alt-edge-tight _scrollbars">
+        <span slot="header-box" style="display: flex; flex-direction: column; align-items: center; padding-top: 1rem;">
+            <svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+                <!-- Background Circle -->
+                <circle cx="60" cy="60" r="40" stroke="#4CAF50" stroke-width="8" fill="none" stroke-dasharray="251.2"
+                    stroke-dashoffset="251.2">
+                    <animate attributeName="stroke-dashoffset" from="251.2" to="0" dur="0.8s" fill="freeze" />
+                    <!--
+                    <animate attributeName="fill" from="none" to="#4CAF50" begin="0.8s" dur="0.3s" fill="freeze"/>
+                    -->
+                </circle>
+                <!-- Checkmark -->
+                <g transform="translate(60,60)">
+                    <polyline points="-15,5 -5,15 15,-10" stroke="white" stroke-width="8" fill="none"
+                        stroke-linecap="round" stroke-linejoin="round" transform="scale(0)">
+                        <animateTransform attributeName="transform" type="scale" from="0" to="1" begin="1s" dur="0.3s"
+                            fill="freeze" />
+                    </polyline>
+                </g>
+            </svg>
+            <span>Success</span>
+        </span>
+        <span slot="header">Success</span>
+        <span>JJjdj djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd
+            djdjd
+            djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd
+            djdjd
+            djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd
+            djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd
+            djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd
+            djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd
+            djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd
+            djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd
+            djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd
+            djdjd
+            djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd
+            djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd
+            djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd
+            djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd
+        </span>
+        <div slot="footer" style="padding: 1rem;">Footer</div>
+    </wq-modal>
+
+    <wq-dialog type="success" id="pop2" popover="manual" style="width: 600px; height: 700px; container-type: size;"
+        class="_bottom _container _minmax-events _scroll-unfold _swipe-dismiss _edge-tight _scrollbars"
+        onminmax="console.log('2------', event.ratio)">
+        <span slot="header">Success</span>
+        <span>JJjdj djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd
+            djdjd
+            djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd
+            djdjd
+            djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd
+            djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd
+            djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd
+            djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd
+            djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd
+            djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd
+            djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd
+            djdjd
+            djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd
+            djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd
+            djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd
+            djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd
+        </span>
+        <div slot="foot-er" style="padding: 1rem;">Success</div>
+    </wq-dialog>
+
+    <wq-prompt id="pop3" class="  _minmax-events" type="warning" popover="manual" value="dd"
+        onresponse="console.log(event.data)">
+        <span slot="header">Success</span>
+        Throw success
+    </wq-prompt>
+
+    <script>
+        const toast = document.querySelector('wq-toast');
+        toast.render({
+            content: {
+                type: 'success',
+                message: 'Success Toast'
+            },
+            context: {
+                content: {
+                    type: 'error',
+                    message: 'Error Toast'
+                },
+                context: {
+                    content: {
+                        type: 'info',
+                        message: 'Info Toast'
+                    },
+                }
+            }
+        });
+    </script>
+
+    <div class="container multi">
+        <div class="view" style="--sticky-header-shrink-height: 100px; --sticky-header-shrink-background: dimgray">
+
+            <div class="sticky-header shrinks" style="anchor-name: --a; ">
+                <div class="sticky-header-content">
+                    <div class="_shrinks-to-center">Sticky Header 1</div>
+                    <div class="_shrinks-out">Sticky Header 1</div>
+                    <div class="_shrinks-in">Sticky Header 1</div>
+                </div>
+                <div class="sticky-header-window">
+                    <div class="scrollbar-track">
+                        <div class="scrollbar-thumb"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content" style="anchor-name: --b;">
+                <button popovertarget="pop1">Show Modal 1</button>
+                <button popovertarget="pop2">Show Modal 2</button>
+                <button popovertarget="pop3">Show Modal 3</button>
+                Content Block 1
+            </div>
+
+        </div>
+
+        <div class="view">
+            <div class="sticky-header">
+                <div class="sticky-header-content">Sticky Header 2</div>
+                <div class="sticky-header-window">
+                    <div class="scrollbar-track">
+                        <div class="scrollbar-thumb"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="content">Content Block 2</div>
+        </div>
+    </div>
+
+    <style>
+        /* reset */
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        :is(#pop1, #pop2) {
+            --modal-minmax-length: 300px;
+            --modal-expanse-length: 100px;
+            --modal-header-open-background: blue;
+            --modal-header-background: black;
+        }
+
+        :is(#pop1, #pop2):not(._horz)::part(main) {
+            /*height: 150vh;*/
+        }
+
+        :is(#pop1, #pop2)._horz::part(main) {
+            width: 150vw;/**/
+        }
+
+        /* ----------- */
+
+        /* 1 */
+        .container {
+            height: 100vh;
+        }
+
+        /* 1.1 */
+        .view {
+            position: relative;
+            background: gray;
+        }
+
+        /* 1.2 */
+        .content {
+            min-height: 200vh;
+            padding: 20px;
+        }
+
+        /* 1.1.1 */
+        .sticky-header {
+            background-color: dimgray;
+        }
+
+        /* 1.1.1.1 */
+        .sticky-header-content {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            padding: 1rem;
+        }
+
+        .sticky-header.shrinks :is(._shrinks-in, ._shrinks-out) {
+            position: absolute;
+            bottom: 1rem;
+            right: 1rem;
+        }
+
+        .sticky-header.shrinks ._shrinks-out {
+            left: 1rem;
+        }
+
+        /* ----------- */
+
+        /* 1 */
+        .container {
+            /* overrideable styles */
+            position: relative;
+
+            /* styles */
+            overflow-y: auto;
+
+            /* measurements */
+            container-type: size;
+            --sticky-header-height: 25cqh;
+            --sticky-header-window-height: calc(100cqh - var(--sticky-header-height));
+        }
+
+        /* 1.1 */
+        .view:has(.sticky-header.shrinks, .scrollbar-track) {
+            /* scroll-tracking */
+            view-timeline: --view-scroll block;
+
+            /* vars */
+            --header-shrink-range: contain 0% contain var(--sticky-header-shrink-height, 0px);
+            --scrollbar-appear-range: contain var(--sticky-header-shrink-height, 0px) contain 10px;
+            --scrollbar-progress-range: contain var(--sticky-header-shrink-height, 0px) contain 100%;
+        }
+
+        /* 1.1.1 */
+        .sticky-header {
+            /* styles */
+            position: sticky;
+            top: calc(var(--sticky-header-shrink-height, 0px) * -1);
+            z-index: 1;
+
+            /* measurements */
+            margin-bottom: var(--sticky-header-window-height);
+        }
+
+        /* 1.1.2 */
+        .content {
+            /* measurements */
+            margin-top: calc(var(--sticky-header-window-height) * -1);
+        }
+
+        /* ----------- */
+
+        /* 1.1.1.1 */
+        .sticky-header-content {
+            /* measurements */
+            height: var(--sticky-header-height);
+        }
+
+        /* 1.1.1.1 */
+        .sticky-header.shrinks .sticky-header-content {
+            /* measurements */
+            height: calc(var(--sticky-header-height) + var(--sticky-header-shrink-height, 0px));
+            /* styles */
+            overflow: hidden;
+        }
+
+        /* 1.1.1.1.1 */
+        .sticky-header.shrinks,
+        .sticky-header.shrinks :is(._shrinks-to-center, ._shrinks-in, ._shrinks-out) {
+            /* scroll-animation */
+            animation-timing-function: linear;
+            animation-timeline: --view-scroll;
+            animation-range: var(--header-shrink-range);
+            animation-fill-mode: forwards;
+        }
+
+        /* 1.1.1.1.1 */
+        .sticky-header.shrinks {
+            /* scroll-animation */
+            animation-name: header-shrink-to-background;
+        }
+
+        .sticky-header.shrinks ._shrinks-to-center {
+            /* scroll-animation */
+            animation-name: header-shrink-to-center-effect;
+        }
+
+        .sticky-header.shrinks ._shrinks-in {
+            /* scroll-animation */
+            animation-name: header-shrink-in-effect;
+        }
+
+        .sticky-header.shrinks ._shrinks-out {
+            /* scroll-animation */
+            animation-name: header-shrink-out-effect;
+        }
+
+        /* 1.1.1.2 */
+        .sticky-header-window {
+            /* styles */
+            position: absolute;
+            width: 100%;
+            pointer-events: none;
+            display: flex;
+            justify-content: flex-end;
+
+            /* measurements */
+            height: var(--sticky-header-window-height);
+        }
+
+        /* 1.1.1.2.1 */
+        .scrollbar-track {
+            /* styles */
+            position: relative;
+            height: 100%;
+            opacity: 0;
+
+            /* default styles */
+            padding: 5px;
+
+            /* scroll-animation */
+            animation: appear linear;
+            animation-timeline: --view-scroll;
+            animation-range: var(--scrollbar-appear-range);
+            animation-fill-mode: forwards;
+        }
+
+        /* 1.1.1.2.1.1 */
+        .scrollbar-thumb {
+            /* overrideable styles */
+            width: 8px;
+            height: 40px;
+            background: #00d4ff;
+            border-radius: 4px;
+
+            /* scroll-animation */
+            animation: move-scrollbar-thumb linear both;
+            animation-timeline: --view-scroll;
+            animation-range: var(--scrollbar-progress-range);
+        }
+
+        /* ----------- */
+
+        @keyframes header-shrink-to-background {
+            from {
+                background-color: transparent;
+            }
+
+            to {
+                background-color: var(--sticky-header-shrink-background);
+            }
+        }
+
+        @keyframes header-shrink-to-center-effect {
+            from {
+                transform: translateY(0);
+                opacity: 1;
+            }
+
+            to {
+                transform: translateY(calc(var(--sticky-header-shrink-height, 0px) / 2));
+                opacity: 0;
+            }
+        }
+
+        @keyframes header-shrink-in-effect {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes header-shrink-out-effect {
+            from {
+                opacity: 1;
+            }
+
+            to {
+                opacity: 0;
+            }
+        }
+
+        @keyframes appear {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes move-scrollbar-thumb {
+            from {
+                transform: translateY(0);
+            }
+
+            to {
+                transform: translateY(calc(var(--sticky-header-window-height) - 40px - 20px));
+            }
+        }
+    </style>
+</body>
+
+</html>

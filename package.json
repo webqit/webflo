@@ -22,10 +22,16 @@
     "url": "https://github.com/webqit/webflo/issues"
   },
   "type": "module",
-  "main": "./src/index.js",
+  "main": "./src/webflo-exports/index.js",
+  "exports": {
+    ".": "./src/webflo-exports/index.js",
+    "./*": "./src/webflo-exports/*/index.js",
+    "./*.js": "./src/webflo-exports/*.js"
+  },
   "scripts": {
     "test": "echo \"Nothing to test yet\"",
     "build": "echo \"Nothing to build yet\"",
+    "build:test": "esbuild test/browser/*.src.js --bundle --minify --sourcemap --outdir=test/browser --entry-names=[name].build",
     "preversion": "npm run test",
     "postversion": "git push && git push --tags",
     "version:next": "npm version prerelease --preid=next",
@@ -51,7 +57,7 @@
     "@webqit/util": "^0.8.11",
     "chokidar": "^4.0.3",
     "dotenv": "^16.4.7",
-    "esbuild": "^0.14.38",
+    "esbuild": "^0.14.54",
     "fast-glob": "^3.3.3",
     "idb": "^8.0.3",
     "mime-types": "^2.1.33",
