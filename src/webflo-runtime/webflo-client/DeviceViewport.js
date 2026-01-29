@@ -69,7 +69,7 @@ export class DeviceViewport {
     #render() {
         const state = this.peek();
         const viewportDirectives = [];
-        const activeKeys = new Set(Object.keys(state).filter(k => !k.startsWith('_')));
+        const activeKeys = new Set(Object.keys(state).filter(k => k !== 'id' && !k.startsWith('_')));
 
         // 1. Handle Title
         if ('title' in state) {
@@ -131,18 +131,21 @@ export class DeviceViewport {
     #setAttr(jsKey, val, media = null) {
         const cacheKey = media ? `${jsKey}-${media}` : jsKey;
         const config = this.#specials[jsKey];
+        const attrName = config.type === 'link' ? 'href' : 'content';
 
         if (val !== undefined && val !== null) {
             const el = this.#getOrCreate(jsKey, media);
-            el.setAttribute(config.type === 'link' ? 'href' : 'content', val);
+            if (el.getAttribute(attrName) !== val) {
+                el.setAttribute(attrName, val);
+            }
         } else {
             const el = this.#elements[cacheKey];
             if (el) {
                 if (this.#ownedElements.has(el)) {
                     el.remove();
                     delete this.#elements[cacheKey];
-                } else {
-                    el.setAttribute(config.type === 'link' ? 'href' : 'content', '');
+                } else if (el.getAttribute(attrName) !== '') {
+                    el.setAttribute(attrName, '');
                 }
             }
         }
@@ -150,7 +153,7 @@ export class DeviceViewport {
 
     #parseViewport = (c) => Object.fromEntries(c.split(',').filter(Boolean).map(s => {
         const [k, v] = s.split('=').map(p => p.trim());
-        return [k.replace(/-([a-z])/g, g => g.toUpperCase()), v || true];
+        return [k.replace(/-([a-z])/g, g => g[1].toUpperCase()), v || true];
     }));
 
     push(id, config) {
