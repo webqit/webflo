@@ -293,6 +293,7 @@ export class ToastElement extends BaseElement {
             @starting-style {
                 :host(:is([popover="manual"], ._manual-dismiss):popover-open)::backdrop {
                     backdrop-filter: none;
+                    background: none;
                 }
             }
             
@@ -1418,6 +1419,7 @@ export class ModalElement extends BaseElement {
             @starting-style {
                 :host(:popover-open)::backdrop {
                     backdrop-filter: none;
+                    background: none;
                 }
             }
                 
