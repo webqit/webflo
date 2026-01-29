@@ -35,9 +35,6 @@ export class WebfloClient extends AppRuntime {
     #background;
     get background() { return this.#background; }
 
-    #viewport;
-    get viewport() { return this.#viewport; }
-
     get isClientSide() { return true; }
 
     constructor(bootstrap, host) {
@@ -59,68 +56,6 @@ export class WebfloClient extends AppRuntime {
             phase: 0
         };
         this.#background = new StarPort({ handshake: 1, autoClose: false });
-
-        // ---------------------
-        // Dynamic viewport styling
-
-        const oskToken = 'interactive-widget=resizes-content';
-        const hasOsk = (content) => content?.includes(oskToken);
-        const removeOsk = (content) => {
-            if (content?.includes('interactive-widget')) {
-                return content
-                    .split(',')
-                    .filter((s) => !s.includes('interactive-widget'))
-                    .map((s) => s.trim())
-                    .join(', ');
-            }
-            return content;
-        };
-        const addOsk = (content) => {
-            if (content?.includes('interactive-widget')) {
-                return content
-                    .split(',')
-                    .map((s) => s.includes('interactive-widget') ? oskToken : s.trim())
-                    .join(', ');
-            }
-            return content + ', ' + oskToken;
-        };
-
-        const viewportMeta = document.querySelector('meta[name="viewport"]');
-        const viewportMetaInitialContent = viewportMeta?.content;
-        const themeColorMeta = document.querySelector('meta[name="theme-color"]');
-        const renderViewportMetas = (entry) => {
-            viewportMeta?.setAttribute('content', entry.osk ? addOsk(viewportMetaInitialContent) : removeOsk(viewportMetaInitialContent));
-            themeColorMeta?.setAttribute('content', entry.themeColor);
-        };
-
-        const initial = {
-            themeColor: themeColorMeta?.content,
-            osk: hasOsk(viewportMetaInitialContent),
-        };
-        const viewportStack = [initial];
-
-        this.#viewport = {
-            push(entryId, { themeColor = viewportStack[0].themeColor, osk = viewportStack[0].osk }) {
-                if (typeof entryId !== 'string' || !entryId?.trim()) {
-                    throw new Error('entryId cannot be ommited');
-                }
-                if (viewportStack.find((e) => e.entryId === entryId)) return;
-                viewportStack.unshift({ entryId, themeColor, osk });
-                renderViewportMetas(viewportStack[0]);
-            },
-            pop(entryId) {
-                if (typeof entryId !== 'string' || !entryId?.trim()) {
-                    throw new Error('entryId cannot be ommited');
-                }
-                const index = viewportStack.findIndex((e) => e.entryId === entryId);
-                if (index === -1) return;
-                viewportStack.splice(index, 1);
-                renderViewportMetas(viewportStack[0]);
-            },
-            current() {
-                return viewportStack[0];
-            }
-        };
     }
 
     async initialize() {

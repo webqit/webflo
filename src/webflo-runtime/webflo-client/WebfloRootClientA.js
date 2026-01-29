@@ -3,6 +3,7 @@ import { LiveResponse } from '@webqit/fetch-plus';
 import { HttpEvent111 } from '../webflo-routing/HttpEvent111.js';
 import { ClientSideWorkport } from './ClientSideWorkport.js';
 import { DeviceCapabilities } from './DeviceCapabilities.js';
+import { DeviceViewport } from './DeviceViewport.js';
 import { WebfloClient } from './WebfloClient.js';
 import { WebfloHMR } from './webflo-devmode.js';
 
@@ -12,6 +13,8 @@ export class WebfloRootClientA extends WebfloClient {
 
 	static get DeviceCapabilities() { return DeviceCapabilities; }
 
+	static get DeviceViewport() { return DeviceViewport; }
+
 	static create(bootstrap, host) {
 		return new this(bootstrap, host);
 	}
@@ -19,11 +22,14 @@ export class WebfloRootClientA extends WebfloClient {
 	#network;
 	get network() { return this.#network; }
 
-	#workport;
-	get workport() { return this.#workport; }
+	#viewport;
+	get viewport() { return this.#viewport; }
 
 	#capabilities;
 	get capabilities() { return this.#capabilities; }
+
+	#workport;
+	get workport() { return this.#workport; }
 
 	#hmr;
 
@@ -67,10 +73,14 @@ export class WebfloRootClientA extends WebfloClient {
 
 	async setupCapabilities() {
 		const instanceController = await super.setupCapabilities();
-		const cleanups = [];
 
-		// Service Worker && Capabilities
+		const cleanups = [];
 		instanceController.signal.addEventListener('abort', () => cleanups.forEach((c) => c()), { once: true });
+
+		// DeviceViewport, DeviceCapabilities, & Service Worker
+
+		this.#viewport = new this.constructor.DeviceViewport();
+
 		this.#capabilities = await this.constructor.DeviceCapabilities.initialize(this, this.config.CLIENT.capabilities);
 		cleanups.push(() => this.#capabilities.close());
 

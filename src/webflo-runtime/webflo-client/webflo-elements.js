@@ -272,30 +272,31 @@ export class ToastElement extends BaseElement {
 
             /* ----------- */
 
-            :host(:not([popover="manual"]):popover-open)::backdrop {
+            :host(:not([popover="manual"], ._manual-dismiss):popover-open)::backdrop {
                 animation: flash 0.3s ease-in;
                 animation-iteration-count: 3;
             }
 
-            :host([popover="manual"])::backdrop {
+            :host(:is([popover="manual"], ._manual-dismiss))::backdrop {
                 /* Transition */
                 transition:
                     display 0.2s allow-discrete,
                     overlay 0.2s allow-discrete,
-                    backdrop-filter 0.2s;
+                    backdrop-filter 0.2s,
+                    background 0.2s;
             }
 
-            :host([popover="manual"]:popover-open)::backdrop {
+            :host(:is([popover="manual"], ._manual-dismiss):popover-open)::backdrop {
                 backdrop-filter: blur(3px);
             }
 
             @starting-style {
-                :host([popover="manual"]:popover-open)::backdrop {
+                :host(:is([popover="manual"], ._manual-dismiss):popover-open)::backdrop {
                     backdrop-filter: none;
                 }
             }
             
-            :host([popover="manual"]:popover-open)::before {
+            :host(:is([popover="manual"], ._manual-dismiss):popover-open)::before {
                 position: fixed;
                 inset: 0;
                 display: block;
@@ -345,7 +346,7 @@ export class ToastElement extends BaseElement {
                 transform: translateX(0.1rem);
             }
 
-            :host(:not([popover="manual"])) .close-button {
+            :host(:not([popover="manual"], ._manual-dismiss)) .close-button {
                 display: none;
             }
 
@@ -579,6 +580,11 @@ export class ModalElement extends BaseElement {
             if (e.newState === 'open') {
                 this.#bindDimensionsWorker();
                 this.bindMinmaxWorker();
+
+                if (!this.delegatesFocus
+                    && !this.querySelector('[autofocus]')) {
+                    this.shadowRoot.querySelector('[autofocus]')?.focus();
+                }
             } else if (e.newState === 'closed') {
                 this.#unbindDimensionsWorker?.();
                 this.#unbindDimensionsWorker = null;
@@ -1404,7 +1410,7 @@ export class ModalElement extends BaseElement {
                 backdrop-filter: blur(3px);
             }
 
-            :host(:not([popover="manual"]):popover-open)::backdrop {
+            :host(:not([popover="manual"], ._manual-dismiss):popover-open)::backdrop {
                 backdrop-filter: blur(0px);
             }
 
@@ -1472,12 +1478,8 @@ export class ModalElement extends BaseElement {
                 border: none;
                 background: none;
             }
-            
-            :host(:not([popover="manual"])) {
-                pointer-events: none;
-            }
 
-            :host(:not([popover="manual"])) .close-button {
+            :host(:not([popover="manual"], ._manual-dismiss)) .close-button {
                 display: none;
             }
 
