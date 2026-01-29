@@ -73,7 +73,10 @@ export class DeviceViewport {
 
         // 1. Handle Title
         if ('title' in state) {
-            document.title = state.title || '';
+            const val = state.title || '';
+            if (document.title !== val) {
+                document.title = val;
+            }
             activeKeys.delete('title');
         }
 
@@ -118,20 +121,12 @@ export class DeviceViewport {
         });
 
         const vContent = viewportDirectives.join(', ');
-        const vEl = this.#elements.viewport || (vContent ? this.#getOrCreate('viewport') : null);
-        if (vEl) {
-            vEl.setAttribute('content', vContent);
-            if (!vContent && this.#ownedElements.has(vEl)) {
-                vEl.remove();
-                delete this.#elements.viewport;
-            }
-        }
+        this.#setAttr('viewport', vContent);
     }
 
-    #setAttr(jsKey, val, media = null) {
-        const cacheKey = media ? `${jsKey}-${media}` : jsKey;
+    #setAttr(jsKey, val, media = '') {
         const config = this.#specials[jsKey];
-        const attrName = config.type === 'link' ? 'href' : 'content';
+        const attrName = config?.type === 'link' ? 'href' : 'content';
 
         if (val !== undefined && val !== null) {
             const el = this.#getOrCreate(jsKey, media);
@@ -139,6 +134,7 @@ export class DeviceViewport {
                 el.setAttribute(attrName, val);
             }
         } else {
+            const cacheKey = media ? `${jsKey}-${media}` : jsKey;
             const el = this.#elements[cacheKey];
             if (el) {
                 if (this.#ownedElements.has(el)) {
@@ -163,13 +159,15 @@ export class DeviceViewport {
         this.#scheduleRender();
     }
 
-    pop(id) {
-        if (!id) throw new Error("pop() requires a target ID");
-        const idx = this.#stack.findIndex(e => e.id === id);
-        if (idx > 0) { // Never pop the initial state at index 0
-            this.#stack.splice(idx, 1);
-            this.#scheduleRender();
-        }
+    pop(...ids) {
+        if (!ids.length) throw new Error("pop() requires a target ID");
+        ids.forEach((id) => {
+            const idx = this.#stack.findIndex(e => e.id === id);
+            if (idx > 0) { // Never pop the initial state at index 0
+                this.#stack.splice(idx, 1);
+            }
+        });
+        this.#scheduleRender();
     }
 
     peek() { return this.#stack[this.#stack.length - 1]; }
