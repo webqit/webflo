@@ -1,4 +1,4 @@
-class DeviceViewport {
+export class DeviceViewport {
 
     #stack = [];
     #ownedElements = new Set(); // Stores elements created by this class
