@@ -13,7 +13,7 @@ export class DeviceViewport {
     };
 
     constructor() {
-        const initialState = { _isInitial: true };
+        const initialState = { _priority: 1 };
 
         // 1. Ingest Viewport
         const vMeta = document.querySelector('meta[name="viewport"]');
@@ -152,10 +152,17 @@ export class DeviceViewport {
         return [k.replace(/-([a-z])/g, g => g[1].toUpperCase()), v || true];
     }));
 
-    push(id, config) {
+    push(id, config, priority = 1) {
         if (!id) throw new Error("push() requires a unique ID");
         if (this.#stack.some(e => e.id === id)) return;
-        this.#stack.push({ ...this.peek(), ...config, id, _isInitial: false });
+
+        const peek = this.peek();
+        if (peek._priority - priority >= 0.2) {
+            this.#stack.push({ ...config, ...peek, id, _priority: priority });
+        } else {
+            this.#stack.push({ ...peek, ...config, id, _priority: priority });
+        }
+        
         this.#scheduleRender();
     }
 
