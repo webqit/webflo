@@ -88,7 +88,7 @@ export class WebfloWorker extends AppRuntime {
 		// ONFETCH
 		const fetchHandler = (event) => {
 			// Handle special requests
-			if (!event.request.url.startsWith('http') || event.request.mode === 'navigate') {
+			if (!event.request.url.startsWith('http')) {
 				return event.respondWith(fetch(event.request));
 			}
 			// Handle external requests
@@ -96,7 +96,8 @@ export class WebfloWorker extends AppRuntime {
 				return event.respondWith(this.remoteFetch(event.request));
 			}
 			event.respondWith((async (event) => {
-				const response = await this.navigate(event.request.url, event.request, { event });
+				let request = event.request;
+				const response = await this.navigate(request.url, request, { event });
 				return response;
 			})(event));
 		};
@@ -278,8 +279,8 @@ export class WebfloWorker extends AppRuntime {
 	}
 
 	async getRequestCache(request) {
-		const cacheName = request.headers.get('X-Powered-By') === '@webqit/webflo'
-			? this.config.WORKER.cache_name + '_csr'
+		const cacheName = request.headers.get('Accept') === 'application/json'
+			? this.config.WORKER.cache_name + '_json'
 			: this.config.WORKER.cache_name;
 		return self.caches.open(cacheName);
 	}

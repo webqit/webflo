@@ -937,7 +937,7 @@ export class WebfloServer extends AppRuntime {
                 document.body.append(dataScript);
             }
 
-            const rendering = window.toString();
+            const rendering = window.document.toString();
             document.documentElement.remove();
             document.writeln('');
 

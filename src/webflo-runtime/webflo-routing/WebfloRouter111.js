@@ -17,6 +17,7 @@ export class WebfloRouter111 {
         const $this = this;
         const callWebfloDefault = async (thisContext, thisTick) => {
             let returnValue;
+
             if (_default) {
                 returnValue = await _default.call(thisContext, thisTick.event, remoteFetch);
             }
