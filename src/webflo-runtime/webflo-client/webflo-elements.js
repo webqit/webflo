@@ -973,11 +973,16 @@ export class ModalElement extends BaseElement {
 
             :host(._edge-tight._alt-edge-tight) .view {
                 animation-timing-function: linear;
-                animation-fill-mode: forwards;
+                animation-fill-mode: both;
                 animation-name: radius0;
                 animation-timeline: --view-scroll;
 
                 animation-range: calc(var(--total-minmax-length) - var(--wq-radius)) var(--total-minmax-length);
+            }
+
+            :host(._edge-tight._alt-edge-tight:is(._top:not(._horz), ._left._horz)) .view {
+                animation-direction: reverse;
+                animation-range: calc(100% - var(--total-minmax-length)) calc(100% - (var(--total-minmax-length) - var(--wq-radius)));
             }
 
             :host(._horz) .view {
