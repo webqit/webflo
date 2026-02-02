@@ -1304,6 +1304,10 @@ export class ModalElement extends BaseElement {
 
             /* -- scrollbar -- */
 
+            .scrollbar-track {
+                display: none;
+            }
+
             :host(._scrollbars) .scrollbar-track {
                 position: absolute;
                 display: block;
