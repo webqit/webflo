@@ -1074,19 +1074,19 @@ export class ModalElement extends BaseElement {
 
             /* ----------- swipe-dismiss ----------- */
             
-            :host(._swipe-dismiss:not(._horz)) {
+            :host(:not(._horz)) {
                 --swipe-dismiss-length: var(--modal-swipe-dismiss-length, calc(var(--view-height) - var(--minmax-length)));
             }
 
-            :host(._swipe-dismiss._horz) {
+            :host(._horz) {
                 --swipe-dismiss-length: var(--modal-swipe-dismiss-length, calc(var(--view-width) - var(--minmax-length)));
             }
 
-            :host(._swipe-dismiss:not(._top:not(._horz), ._left._horz)) {
+            :host(:not(._top:not(._horz), ._left._horz)) {
                 --swipe-dismiss-progress-range: 0% var(--swipe-dismiss-length);
             }
 
-            :host(._swipe-dismiss:is(._top:not(._horz), ._left._horz)) {
+            :host(:is(._top:not(._horz), ._left._horz)) {
                 --swipe-dismiss-progress-range:
                     calc(100% - var(--swipe-dismiss-length))
                     100%;
@@ -1322,7 +1322,7 @@ export class ModalElement extends BaseElement {
                 --scroll-snap-end: start;
             }
 
-            .view(:not(._horz)) {
+            :host(:not(._horz)) .view {
                 scroll-snap-type: y mandatory;
             }
 
