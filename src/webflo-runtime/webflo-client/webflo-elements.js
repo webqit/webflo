@@ -1433,7 +1433,7 @@ export class ModalElement extends BaseElement {
                 color: var(--header-color-default);
                 background: var(--header-background);
 
-                z-index: 2;
+                z-index: 3;
             }
 
             .header-box {
@@ -1482,7 +1482,7 @@ export class ModalElement extends BaseElement {
                 color: var(--footer-color-default);
                 background: var(--footer-background);
 
-                z-index: 3;
+                z-index: 2;
             }
                 
             footer .footer-bar {
