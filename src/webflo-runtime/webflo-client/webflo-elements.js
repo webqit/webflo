@@ -1482,7 +1482,7 @@ export class ModalElement extends BaseElement {
                 color: var(--footer-color-default);
                 background: var(--footer-background);
 
-                z-index: 1;
+                z-index: 3;
             }
                 
             footer .footer-bar {
