@@ -195,16 +195,16 @@ export class ToastElement extends BaseElement {
                 --color-error: var(--toast-color-error, coral);
                 --color-warning: var(--toast-color-warning, coral);
 
-                --wq-radius: var(--toast-radius, 1rem);
+                --radius: var(--toast-radius, 1rem);
                 --background: var(--toast-background, rgb(30, 30, 30));
                 --shadow: var(--toast-shadow, rgb(30, 30, 30));
 
-                --dir: 1;
-                --translation: calc(var(--toast-translation, 50px) * var(--dir));
-                --exit-factor: var(--toast-exit-factor, -1);
+                --entry-translation-polarity: var(--toast-entry-translation-polarity, 1);
+                --translation: calc(var(--toast-translation, 50px) * var(--entry-translation-polarity));
+                --exit-translation-polarity: var(--toast--exit-translation-polarity, -1);
 
                 --entry-transform: translateY(var(--translation));
-                --exit-transform: translateY(calc(var(--translation) * var(--exit-factor)));
+                --exit-transform: translateY(calc(var(--translation) * var(--exit-translation-polarity)));
             }
 
             :host {
@@ -232,7 +232,7 @@ export class ToastElement extends BaseElement {
             :host(._top) {
                 margin-bottom: auto;
                 margin-top: 0;
-                --dir: -1;
+                --entry-translation-polarity: var(--toast-entry-translation-polarity, -1);
             }
 
             /* ----------- */
@@ -246,7 +246,7 @@ export class ToastElement extends BaseElement {
 
                 padding-block: 0.8rem;
                 padding-inline: 1.2rem;
-                border-radius: var(--wq-radius);
+                border-radius: var(--radius);
 
                 color: var(--color-default);
                 background-color: var(--background);
@@ -410,6 +410,7 @@ export class ModalElement extends BaseElement {
     }
 
     get delegatesFocus() { return false; }
+    get autoFocus() { return true; }
 
     // ----------------
 
@@ -442,51 +443,61 @@ export class ModalElement extends BaseElement {
     #headerBoxElement;
     #footerElement;
 
-    updateScrollViewDimensions() {
+    _calcViewDimensions() {
+        const viewWidth = this.#viewElement.offsetWidth;
+        const viewHeight = this.#viewElement.offsetHeight;
+        this.style.setProperty('--view-width', viewWidth + 'px');
+        this.style.setProperty('--view-height', viewHeight + 'px');
+    }
+
+    _calcHeaderDimensions() {
+        this.style.setProperty('--header-box-height', this.#headerBoxElement.offsetHeight + 'px');
+        this.style.setProperty('--header-max-height', this.#headerElement.offsetHeight + 'px');
+    }
+
+    _calcFooterDimensions() {
+        this.style.setProperty('--footer-max-height', this.#footerElement.offsetHeight + 'px');
+    }
+
+    _calcScrollability() {
+        this.style.setProperty('--view-scroll-height', this.#viewElement.scrollHeight + 'px');
+        this.style.setProperty('--view-scroll-width', this.#viewElement.scrollWidth + 'px');
+    }
+
+    _updateScrollViewDimensions() {
         requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                let viewWidth, viewHeight;
+            const swipeDismiss = this.classList.contains('_swipe-dismiss');
+            const minmaxScroll = !!window.getComputedStyle(this).getPropertyValue('--modal-minmax-length');
 
-                const swipeDismiss = this.classList.contains('_swipe-dismiss');
-                const minmaxScroll = !!window.getComputedStyle(this).getPropertyValue('--modal-minmax-length');
-
-                if (swipeDismiss || minmaxScroll) {
-                    requestAnimationFrame(() => {
-                        let left = 0, top = 0;
-                        if (this.matches('._left._horz, ._top:not(._horz)')) {
-                            this.#viewElement.scrollTo({ top, left });
+            if (swipeDismiss || minmaxScroll) {
+                requestAnimationFrame(() => {
+                    let left = 0, top = 0;
+                    if (this.matches('._left._horz, ._top:not(._horz)')) {
+                        this.#viewElement.scrollTo({ top, left });
+                    } else {
+                        if (this.classList.contains('_horz')) {
+                            left = this.#sentinelElement.offsetWidth;
                         } else {
-                            if (this.classList.contains('_horz')) {
-                                viewWidth = this.#viewElement.offsetWidth;
-                                left = viewWidth - this.#spacingElement.offsetWidth;
-                            } else {
-                                viewHeight = this.#viewElement.offsetHeight;
-                                top = viewHeight - this.#spacingElement.offsetHeight;
-                            }
-                            if (this.#viewElement.scrollTop < top || this.#viewElement.scrollLeft < left) {
-                                this.#viewElement.scrollTo({ top, left });
-                            }
+                            top = this.#sentinelElement.offsetHeight;
                         }
-                    });
-                }
+                        if (this.#viewElement.scrollTop < top || this.#viewElement.scrollLeft < left) {
+                            this.#viewElement.scrollTo({ top, left });
+                        }
+                    }
+                });
+            }
 
-                this.#viewElement.style.setProperty('--header-box-height', this.#headerBoxElement.offsetHeight + 'px');
-                this.#viewElement.style.setProperty('--header-max-height', this.#headerElement.offsetHeight + 'px');
-                this.#viewElement.style.setProperty('--footer-max-height', this.#footerElement.offsetHeight + 'px');
-
-                if (this.classList.contains('_container')) return;
-                if (viewWidth === undefined) viewWidth = this.#viewElement.offsetWidth;
-                if (viewHeight === undefined) viewHeight = this.#viewElement.offsetHeight;
-
-                this.#viewElement.style.setProperty('--view-width', viewWidth + 'px');
-                this.#viewElement.style.setProperty('--view-height', viewHeight + 'px');
-            });
+            this._calcHeaderDimensions();
+            this._calcFooterDimensions();
+            this._calcScrollability();
+            if (this.classList.contains('_container')) return;
+            this._calcViewDimensions();
         });
     }
 
     #unbindMinmaxWorker = null;
 
-    bindMinmaxWorker() {
+    _bindMinmaxWorker() {
         const swipeDismiss = this.classList.contains('_swipe-dismiss');
         const minmaxEvents = this.classList.contains('_minmax-events');
 
@@ -531,9 +542,8 @@ export class ModalElement extends BaseElement {
         const handleUserScroll = () => this.#userScrolled = true;
         this.#viewElement.addEventListener('scroll', handleUserScroll);
 
-
-        this.updateScrollViewDimensions();
-        const handleResize = () => this.updateScrollViewDimensions();
+        this._updateScrollViewDimensions();
+        const handleResize = () => this._updateScrollViewDimensions();
         window.addEventListener('resize', handleResize);
 
         this.#unbindDimensionsWorker?.();
@@ -548,7 +558,7 @@ export class ModalElement extends BaseElement {
     attributeChangedCallback(name, old, _new) {
         super.attributeChangedCallback?.(name, old, _new);
 
-        if (name === 'class') this.#bindDimensionsWorker();
+        if (name === 'class' && old !== _new) this.#bindDimensionsWorker();
     }
 
     connectedCallback() {
@@ -578,10 +588,22 @@ export class ModalElement extends BaseElement {
 
         this.addEventListener('toggle', (e) => {
             if (e.newState === 'open') {
-                this.#bindDimensionsWorker();
-                this.bindMinmaxWorker();
 
-                if (!this.delegatesFocus
+                // Hack for chrome to force animation rebind on each open phase
+                const isBlink =
+                    CSS.supports('selector(:has(*))') &&
+                    'chrome' in globalThis &&
+                    !('safari' in globalThis);
+                if (isBlink) {
+                    this.style.animation = 'none';
+                    this.offsetHeight; // force style + layout flush
+                    this.style.animation = '';
+                }
+
+                this.#bindDimensionsWorker();
+                this._bindMinmaxWorker();
+
+                if (!this.delegatesFocus && this.autoFocus
                     && !this.querySelector('[autofocus]')) {
                     this.shadowRoot.querySelector('[autofocus]')?.focus();
                 }
@@ -605,7 +627,7 @@ export class ModalElement extends BaseElement {
                     <div class="header-box" part="header-box">
                         <slot
                             name="header-box"
-                            onslotchange="this.classList.toggle('has-slotted', !!this.assignedElements().length); this.closest('.view').style.setProperty('--header-box-height', this.closest('.header-box').offsetHeight + 'px');"
+                            onslotchange="this.classList.toggle('has-slotted', !!this.assignedElements().length); this.getRootNode().host._calcHeaderDimensions();"
                         >${this.headerBoxHTML}</slot>
                     </div>
 
@@ -618,7 +640,7 @@ export class ModalElement extends BaseElement {
                             <div class="_content" style="flex-grow: 1">
                                 <slot
                                     name="header"
-                                    onslotchange="this.closest('.view').style.setProperty('--header-max-height', this.closest('header').offsetHeight + 'px');"
+                                    onslotchange="this.getRootNode().host._calcHeaderDimensions();"
                                 >${this.headerHTML}</slot>
                             </div>
                         </div>
@@ -630,7 +652,7 @@ export class ModalElement extends BaseElement {
                     ${this.headerExtendedHTML || `
                         <slot
                             name="header-extended"
-                            onslotchange="this.closest('.view').style.setProperty('--header-max-height', this.closest('header').offsetHeight + 'px');"
+                            onslotchange="this.getRootNode().host._calcHeaderDimensions();"
                         ></slot>`}
 
                 </header>
@@ -645,14 +667,15 @@ export class ModalElement extends BaseElement {
                     </div>
                 </div>
 
-                ${this.mainHTML || `<div class="main" part="main">${this.contentHTML || `<slot></slot>`
-            }</div>`}
+                ${this.mainHTML || `<div class="main" part="main">${this.contentHTML || `
+                    <slot onslotchange="this.getRootNode().host._calcScrollability();"></slot>`
+                }</div>`}
 
                 <footer part="footer">
                     <div class="footer-bar" part="footer-bar">
                         <slot
                             name="footer"
-                            onslotchange="this.classList.toggle('has-slotted', !!this.assignedElements().length); this.closest('.view').style.setProperty('--footer-max-height', this.closest('footer').offsetHeight + 'px');"
+                            onslotchange="this.classList.toggle('has-slotted', !!this.assignedElements().length); this.getRootNode().host._calcFooterDimensions();"
                         >${this.footerHTML}</slot>
                     </div>
                 </footer>
@@ -662,46 +685,29 @@ export class ModalElement extends BaseElement {
         <span class="spacing-b"></span>
 
         <style>
+            /*
+             * Start: resets
+             */
+
             * {
                 box-sizing: border-box;
             }
 
-            @keyframes untransform {
-                to { transform: none; }
-            }
-
-            @keyframes transform-n {
-                to { transform: var(--transform); }
-            }
-
-            @keyframes appear {
-                from { opacity: 0; }
-                to { opacity: 1; }
-            }
-
-            @keyframes disappear {
-                from { opacity: 1; }
-                to { opacity: 0; }
-            }
-
-            @keyframes header-chrome {
-                from { background: var(--header-open-background); }
-                to { background: var(--header-background); }
-            }
-
-            @keyframes move-scrollbar-thumb {
-                from { transform: var(--scrollbar-thumb-start); }
-                to { transform: var(--scrollbar-thumb-length); }
-            }
-
-            @keyframes radius0 {
-                to { --wq-radius: 0; }
-            }
+            /*
+             * End: resets
+             * Start: general vars
+             */
 
             :host {
-                --wq-radius: var(--modal-radius, 1rem);
                 --aero-blur: var(--modal-aero-blur, 10px);
+                --backdrop-filter: var(--modal-backdrop-filter, blur(3px));
+                
+                --radius-length: var(--modal-radius, 1rem);
+
                 --background: var(--modal-background, rgba(80, 80, 80, 1));
+
+                --background-accent: var(--modal-background-accent, var(--background));
+                --color-accent: var(--modal-color-accent, var(--color-default));
 
                 --color-default: var(--modal-color-default, whitesmoke);
                 --color-info: var(--modal-color-info, whitesmoke);
@@ -723,6 +729,8 @@ export class ModalElement extends BaseElement {
                 --footer-color-error: var(--modal-footer-color-error, coral);
                 --footer-background: var(--modal-footer-background, var(--background));
 
+                --close-button-color: var(--modal-close-button-color, var(--color-default));
+
                 --expanse-length: var(--modal-expanse-length, 0px);
                 --minmax-length: var(--modal-minmax-length, 0px);
 
@@ -730,42 +738,11 @@ export class ModalElement extends BaseElement {
                 --scrollbar-thumb-width: var(--modal-scrollbar-thumb-width, 4px);
                 --scrollbar-thumb-height: var(--modal-scrollbar-thumb-height, 30px);
 
-                --translation: calc(var(--modal-translation, 50px) * var(--dir));
-                --exit-factor: var(--modal-exit-factor, -1);
-            }
+                --entry-exit-translation: calc(var(--modal-translation, 50px) * var(--entry-translation-polarity));
+                --exit-translation-polarity: var(--modal-exit-translation-polarity, -1);
 
-            /* -------- internal, dynamic props (root) -------- */
+                /* -------- box lengths -------- */
 
-            :host {
-                --dir: 1;
-                --entry-transform: translateY(var(--translation));
-                --exit-transform: translateY(calc(var(--translation) * var(--exit-factor)));
-            }
-
-            :host(._swipe-dismiss) .view {
-                --swipe-dismiss-length: var(--modal-swipe-dismiss-length, calc(var(--view-height) - var(--minmax-length)));
-            }
-
-            :host(._horz._swipe-dismiss) .view {
-                --swipe-dismiss-length: var(--modal-swipe-dismiss-length, calc(var(--view-width) - var(--minmax-length)));
-            }
-            
-            /* transform reversal */
-
-            :host(:is(._top, ._left)) { --dir: -1; }
-
-            /* horizontal axis */
-
-            :host(:is(._left, ._right, ._horz)) {                
-                --entry-transform: translateX(var(--translation));
-                --exit-transform: translateX(calc(var(--translation) * var(--exit-factor)));
-            }
-
-            :host(._edge-tight) { --exit-factor: var(--modal-exit-factor, 1); }
-
-            /* -------- internal, dynamic props (view) -------- */
-
-            .view {
                 --header-max-height: 1.6rem;
                 --header-box-height: 0px;
                 --footer-max-height: 0px;
@@ -774,95 +751,43 @@ export class ModalElement extends BaseElement {
                 --footer-min-height: var(--footer-max-height);
 
                 --view-inner-height: calc(var(--view-height) - var(--header-min-height) - var(--footer-min-height));
-                --total-minmax-length: var(--minmax-length);
                 
-                --y-scroll-effect-exclude: var(--total-minmax-length);
-                --scrollbar-appear-range: calc(var(--total-minmax-length) - 25px) var(--total-minmax-length);
-                
-                --scrollbar-progress-range-start: calc(var(--total-minmax-length) + var(--header-box-height));
-                --scrollbar-progress-range-end: 100%;
-                --scrollbar-progress-range: var(--scrollbar-progress-range-start) var(--scrollbar-progress-range-end);
-
-                --scroll-snap-start: start;
-                --scroll-snap-end: end;
-
-                --radius-top-left: var(--wq-radius);
-                --radius-top-right: var(--wq-radius);
-                --radius-bottom-left: var(--wq-radius);
-                --radius-bottom-right: var(--wq-radius);
+                --total-minmax-length: calc(var(--minmax-length) + var(--swipe-dismiss-length, 0));
             }
 
-            :host(._container) .view {
+            :host(._container:not(._horz)) {
                 --view-height: calc(100cqh - var(--expanse-length));
                 --view-width: 100cqw;
             }
 
-            :host(._container._horz) .view {
+            :host(._container._horz) {
                 --view-height: 100cqh;
                 --view-width: calc(100cqw - var(--expanse-length));
             }
 
-            :host(._swipe-dismiss:not(._horz)) .view {
-                --total-minmax-length: var(--view-height);
+            /*
+             * End: general vars
+             * Start: entry/exit transition
+            */
+
+            :host { --entry-translation-polarity: var(--modal-entry-translation-polarity, 1); }
+            :host(:is(._top, ._left)) { --entry-translation-polarity: var(--modal-entry-translation-polarity, -1); }
+            :host(._edge-tight) { --exit-translation-polarity: var(--modal-exit-translation-polarity, 1); }
+            :host(:not([popover="manual"], ._manual-dismiss):popover-open) { --backdrop-filter: blur(0px); }
+                
+            :host {
+                --entry-transform: translateY(var(--entry-exit-translation));
+                --exit-transform: translateY(calc(var(--entry-exit-translation) * var(--exit-translation-polarity)));
             }
 
-            :host(._swipe-dismiss._horz) .view {
-                --total-minmax-length: var(--view-width);
+            :host(:is(._left, ._right, ._horz)) {                
+                --entry-transform: translateX(var(--entry-exit-translation));
+                --exit-transform: translateX(calc(var(--entry-exit-translation) * var(--exit-translation-polarity)));
             }
 
-            /* transform reversal */
-
-            :host(:is(._top:not(._horz), ._left._horz)) .view {
-                --scroll-snap-start: end;
-                --scroll-snap-end: start;
-
-                --y-scroll-effect-exclude: 0px;
-                --scrollbar-appear-range: -25px 0;
-            }
-
-            :host(._top:not(._horz)) .view {
-                --scrollbar-progress-range-start: var(--header-box-height);
-                --scrollbar-progress-range-end: calc(100% - var(--total-minmax-length));
-            }
-
-            :host(._left._horz) .view {
-                --scrollbar-progress-range-start: 0;
-                --scrollbar-progress-range-end: calc(100% - var(--total-minmax-length));
-            }
-
-            /* curves */
-
-            :host(._top._edge-tight) .view {
-                --radius-top-left: 0px;
-                --radius-top-right: 0px;
-            }
-
-            :host(._bottom._edge-tight) .view {
-                --radius-bottom-left: 0px;
-                --radius-bottom-right: 0px;
-            }
-
-            :host(._left._edge-tight) .view {
-                --radius-top-left: 0px;
-                --radius-bottom-left: 0px;
-            }
-
-            :host(._right._edge-tight) .view {
-                --radius-top-right: 0px;
-                --radius-bottom-right: 0px;
-            }
-
-            /* --------- actual styling -------- */
+            /* ----------- */
 
             :host {
-                background: none;
-                border: none;
-                padding: 0;
-
-                max-height: 100vh;
-                max-width: 100vw;
-                
-                /* Transition */
                 transition:
                     opacity 0.2s,
                     transform 0.2s,
@@ -870,23 +795,458 @@ export class ModalElement extends BaseElement {
                     display 0.2s allow-discrete;
                 transition-timing-function: ease-out;
                 
-                /* Exit state */
                 transform: var(--exit-transform);
                 opacity: 0;
             }
-            
-            :host(:not(._horz, ._left, ._right, ._top, ._bottom)) {
-                max-width: 800px;
+
+            :host(:popover-open) {
+                display: flex;
+                opacity: 1;
+                transform: none;
             }
 
-            /* edge alignment */
+            @starting-style {
+                :host(:popover-open) {
+                    opacity: 0;
+                    transform: var(--entry-transform);
+                }
+            }
+
+            /* ----------- */
+
+            :host::backdrop {
+                transition:
+                    display 0.2s allow-discrete,
+                    overlay 0.2s allow-discrete,
+                    backdrop-filter 0.2s,
+                    background 0.2s;
+            }
+
+            :host(:popover-open)::backdrop {
+                backdrop-filter: var(--backdrop-filter);
+            }
+
+            @starting-style {
+                :host(:popover-open)::backdrop {
+                    backdrop-filter: none;
+                    background: none;
+                }
+            }
+
+            :host(:not([popover="manual"], ._manual-dismiss):popover-open)::backdrop {
+                backdrop-filter: blur(0px);
+            }
+
+            /*
+             * End: entry/exit transition
+             * Start: scroll-driven animations
+            */
+
+            @keyframes radius-progress {
+                from { --wq-internal-var-radius-progress: 0; }
+                to { --wq-internal-var-radius-progress: 1; }
+            }
+
+            @keyframes header-box-progress {
+                from { --wq-internal-var-header-box-progress: 0; }
+                to { --wq-internal-var-header-box-progress: 1; }
+            }
+
+            @keyframes header-box-progress-a {
+                from { --wq-internal-var-header-box-progress-a: 0; }
+                to { --wq-internal-var-header-box-progress-a: 1; }
+            }
+
+            @keyframes header-box-progress-b {
+                from { --wq-internal-var-header-box-progress-b: 0; }
+                to { --wq-internal-var-header-box-progress-b: 1; }
+            }
+
+            @keyframes minmax-progress {
+                from { --wq-internal-var-minmax-progress: 0; }
+                to { --wq-internal-var-minmax-progress: 1; }
+            }
+
+            @keyframes minmax-progress-a {
+                from { --wq-internal-var-minmax-progress-a: 0; }
+                to { --wq-internal-var-minmax-progress-a: 1; }
+            }
+
+            @keyframes minmax-progress-b {
+                from { --wq-internal-var-minmax-progress-b: 0; }
+                to { --wq-internal-var-minmax-progress-b: 1; }
+            }
+
+            @keyframes total-minmax-progress {
+                from { --wq-internal-var-total-minmax-progress: 0; }
+                to { --wq-internal-var-total-minmax-progress: 1; }
+            }
+
+            @keyframes swipe-dismiss-progress {
+                from { --wq-internal-var-swipe-dismiss-progress: 0; }
+                to { --wq-internal-var-swipe-dismiss-progress: 1; }
+            }
+
+            @keyframes scrollbar-appear-progress {
+                from { --wq-internal-var-scrollbar-appear-progress: 0; }
+                to { --wq-internal-var-scrollbar-appear-progress: 1; }
+            }
+
+            @keyframes scrollbar-progress {
+                from { --wq-internal-var-scrollbar-progress: 0; }
+                to { --wq-internal-var-scrollbar-progress: 1; }
+            }
+
+            @keyframes scrollbar-progress-a {
+                from { --wq-internal-var-scrollbar-progress-a: 0; }
+                to { --wq-internal-var-scrollbar-progress-a: 1; }
+            }
+
+            @keyframes scrollbar-progress-b {
+                from { --wq-internal-var-scrollbar-progress-b: 0; }
+                to { --wq-internal-var-scrollbar-progress-b: 1; }
+            }
+
+            :host {
+                timeline-scope: --view-scroll;
+                animation-timeline: --view-scroll;
+
+                animation-timing-function: linear;
+                animation-fill-mode: both;
+                
+                animation-name:
+                    radius-progress,
+                    header-box-progress,
+                    header-box-progress-a,
+                    header-box-progress-b,
+                    minmax-progress,
+                    minmax-progress-a,
+                    minmax-progress-b,
+                    total-minmax-progress,
+                    swipe-dismiss-progress,
+                    scrollbar-appear-progress,
+                    scrollbar-progress,
+                    scrollbar-progress-a,
+                    scrollbar-progress-b;
+
+                animation-range:
+                    var(--radius-progress-range, 0 0),
+                    var(--header-box-progress-range, 0 0),
+                    var(--header-box-progress-range-a, 0 0),
+                    var(--header-box-progress-range-b, 0 0),
+                    var(--minmax-progress-range, 0 0),
+                    var(--minmax-progress-range-a, 0 0),
+                    var(--minmax-progress-range-b, 0 0),
+                    var(--total-minmax-progress-range, 0 0),
+                    var(--swipe-dismiss-progress-range, 0 0),
+                    var(--scrollbar-appear-range, 0 0),
+                    var(--scrollbar-progress-range, 0 0),
+                    var(--scrollbar-progress-range-a, 0 0),
+                    var(--scrollbar-progress-range-b, 0 0);
+
+                animation-direction:
+                    var(--radius-progress-direction, normal),
+                    var(--header-box-progress-direction, normal),
+                    var(--header-box-progress-direction-a, normal),
+                    var(--header-box-progress-direction-b, normal),
+                    var(--minmax-progress-direction, normal),
+                    var(--minmax-progress-direction-a, normal),
+                    var(--minmax-progress-direction-b, normal),
+                    var(--total-minmax-progress-direction, normal),
+                    var(--swipe-dismiss-progress-direction, normal),
+                    var(--scrollbar-appear-direction, normal),
+                    var(--scrollbar-progress-direction, normal),
+                    var(--scrollbar-progress-direction-a, normal),
+                    var(--scrollbar-progress-direction-b, normal);
+            }
+
+            /* ----------- radius ----------- */
+
+            :host(._edge-tight._alt-edge-tight:not(._top:not(._horz), ._left._horz)) {
+                --radius-progress-range:
+                    calc(var(--total-minmax-length) - var(--radius-length))
+                    var(--total-minmax-length);
+            }
+
+            :host(._edge-tight._alt-edge-tight:is(._top:not(._horz), ._left._horz)) {
+                --radius-progress-range:
+                    calc(100% - var(--total-minmax-length))
+                    calc(100% - (var(--total-minmax-length) - var(--radius-length)));
+                --radius-progress-direction: reverse;
+            }
+
+            :host(._edge-tight._alt-edge-tight) {
+                --effective-radius: calc(var(--radius-length) * (1 - var(--wq-internal-var-radius-progress)));
+            }
+
+            :host(:not(._edge-tight._alt-edge-tight)) {
+                --effective-radius: var(--radius-length);
+            }
+
+            :host {
+                --effective-top-left-radius: var(--effective-radius);
+                --effective-top-right-radius: var(--effective-radius);
+                --effective-bottom-left-radius: var(--effective-radius);
+                --effective-bottom-right-radius: var(--effective-radius);
+            }
+
+            :host(._top._edge-tight) {
+                --effective-top-left-radius: 0px;
+                --effective-top-right-radius: 0px;
+            }
+
+            :host(._bottom._edge-tight) {
+                --effective-bottom-left-radius: 0px;
+                --effective-bottom-right-radius: 0px;
+            }
+
+            :host(._left._edge-tight) {
+                --effective-top-left-radius: 0px;
+                --effective-bottom-left-radius: 0px;
+            }
+
+            :host(._right._edge-tight) {
+                --effective-top-right-radius: 0px;
+                --effective-bottom-right-radius: 0px;
+            }
+
+            .view {
+                border-top-left-radius: var(--effective-top-left-radius);
+                border-top-right-radius: var(--effective-top-right-radius);
+                border-bottom-left-radius: var(--effective-bottom-left-radius);
+                border-bottom-right-radius: var(--effective-bottom-right-radius);
+            }
+
+            header {
+                border-top-left-radius: var(--effective-top-left-radius);
+                border-top-right-radius: var(--effective-top-right-radius);
+            }
+
+            .view:not(:has(footer slot:is(.has-slotted, :not(:empty)))) .main {
+                border-bottom-left-radius: var(--effective-bottom-left-radius);
+                border-bottom-right-radius: var(--effective-bottom-right-radius);
+            }
+
+            footer {
+                border-bottom-left-radius: var(--effective-bottom-left-radius);
+                border-bottom-right-radius: var(--effective-bottom-right-radius);
+            }
+
+            /* ----------- minmax ----------- */
+
+            :host {
+                --minmax-progress-range: var(--minmax-progress-range-start) var(--minmax-progress-range-end);
+                --minmax-progress-range-start: 0%;
+                --minmax-progress-range-end: var(--minmax-length);
+
+                --minmax-progress-range-a: var(--minmax-progress-range-a-start) var(--minmax-progress-range-a-end);
+                --minmax-progress-range-a-start: var(--minmax-progress-range-start);
+                --minmax-progress-range-a-end: calc(var(--minmax-progress-range-start) + (var(--minmax-progress-range-end) - var(--minmax-progress-range-start)) / 2);
+
+                --minmax-progress-range-b: var(--minmax-progress-range-b-start) var(--minmax-progress-range-b-end);
+                --minmax-progress-range-b-start: calc(var(--minmax-progress-range-start) + (var(--minmax-progress-range-end) - var(--minmax-progress-range-start)) / 2);
+                --minmax-progress-range-b-end: var(--minmax-progress-range-end);
+
+                --total-minmax-progress-range: var(--total-minmax-progress-range-start) var(--total-minmax-progress-range-end);
+                --total-minmax-progress-range-start: 0%;
+                --total-minmax-progress-range-end: var(--total-minmax-length);
+            }
+                
+            :host(:is(._top:not(._horz), ._left._horz)) {
+                --minmax-progress-range-start: calc(100% - var(--minmax-length));
+                --minmax-progress-range-end: 100%;
+
+                --total-minmax-progress-range-start: calc(100% - var(--total-minmax-length));
+                --total-minmax-progress-range-end: 100%;
+            }
+
+            :host {
+                --effective-minmax-balance-offset: calc(var(--total-minmax-length) / -2 * (1 - var(--wq-internal-var-total-minmax-progress)));
+            }
+
+            :host(:not(._horz, ._top, ._bottom)) .view {
+                transform: translateY(var(--effective-minmax-balance-offset));
+            }
+
+            :host(._horz:not(._left, ._right)) .view {
+                transform: translateX(var(--effective-minmax-balance-offset));
+            }
+
+            /* ----------- swipe-dismiss ----------- */
+            
+            :host(._swipe-dismiss:not(._horz)) {
+                --swipe-dismiss-length: var(--modal-swipe-dismiss-length, calc(var(--view-height) - var(--minmax-length)));
+            }
+
+            :host(._swipe-dismiss._horz) {
+                --swipe-dismiss-length: var(--modal-swipe-dismiss-length, calc(var(--view-width) - var(--minmax-length)));
+            }
+
+            :host(._swipe-dismiss:not(._top:not(._horz), ._left._horz)) {
+                --swipe-dismiss-progress-range: 0% var(--swipe-dismiss-length);
+            }
+
+            :host(._swipe-dismiss:is(._top:not(._horz), ._left._horz)) {
+                --swipe-dismiss-progress-range:
+                    calc(100% - var(--swipe-dismiss-length))
+                    100%;
+                --swipe-dismiss-progress-direction: reverse;
+            }
+
+            :host(._swipe-dismiss) {
+                --effective-swipe-dismiss-opacity: calc(1 * var(--wq-internal-var-swipe-dismiss-progress));
+            }
+
+            :host(._swipe-dismiss)::backdrop,
+            :host(._swipe-dismiss._swipe-dismiss-fadeout) .view {
+                opacity: var(--effective-swipe-dismiss-opacity);
+            }
+
+            /* ----------- header-box ----------- */
+
+            :host(:not(._horz)) {
+                --header-box-progress-range:
+                    var(--total-minmax-length)
+                    calc(var(--total-minmax-length) + var(--header-box-height));
+
+                --header-box-progress-range-a:
+                    var(--total-minmax-length)
+                    calc(var(--total-minmax-length) + (var(--header-box-height) / 2));
+
+                --header-box-progress-range-b:
+                    calc(var(--total-minmax-length) + (var(--header-box-height) / 2))
+                    calc(var(--total-minmax-length) + var(--header-box-height));
+
+                --effective-header-box-progress-transform: translateY(calc(35% * var(--wq-internal-var-header-box-progress-a)));
+                --effective-header-box-progress-a-opacity: calc(1 * (1 - var(--wq-internal-var-header-box-progress-a)));
+                --effective-header-box-progress-b-opacity: calc(1 * var(--wq-internal-var-header-box-progress-b));
+
+                .header-box {
+                    transform: var(--effective-header-box-progress-transform);
+                    opacity: var(--effective-header-box-progress-a-opacity);
+                }
+                
+                .header-left {
+                    opacity: var(--effective-header-box-progress-b-opacity);
+                }
+            }
+
+            /* ----------- scrollbars and scroll-unfold ----------- */
+
+            :host(:is(._scrollbars, ._scroll-unfold, ._horz)) {
+                --scrollable-length: calc(var(--view-scroll-width) - var(--total-minmax-length) - var(--view-width));
+            }
+
+            :host(:is(._scrollbars, ._scroll-unfold):not(._horz)) {
+                --scrollable-length: calc(var(--view-scroll-height) - var(--total-minmax-length) - var(--header-box-height) - var(--view-height));
+            }
+
+            :host(:is(._scrollbars, ._scroll-unfold)) {
+                --scrollability: calc(1 * min(1, calc(var(--scrollable-length) / 1px)));
+            }
+
+            :host {
+                --scrollbar-appear-range: var(--scrollbar-appear-range-start) var(--scrollbar-appear-range-end);
+                --scrollbar-appear-range-start: calc(var(--total-minmax-length) - 25px);
+                --scrollbar-appear-range-end: var(--total-minmax-length);
+
+                --scrollbar-progress-range: var(--scrollbar-progress-range-start) var(--scrollbar-progress-range-end);
+                --scrollbar-progress-range-start: var(--total-minmax-length);
+                --scrollbar-progress-range-end: 100%;
+
+                --scrollbar-progress-range-a: var(--scrollbar-progress-range-a-start) var(--scrollbar-progress-range-a-end);
+                --scrollbar-progress-range-a-start: var(--scrollbar-progress-range-start);
+                --scrollbar-progress-range-a-end: calc(var(--scrollbar-progress-range-start) + (var(--scrollbar-progress-range-end) - var(--scrollbar-progress-range-start)) / 2);
+
+                --scrollbar-progress-range-b: var(--scrollbar-progress-range-b-start) var(--scrollbar-progress-range-b-end);
+                --scrollbar-progress-range-b-start: calc(var(--scrollbar-progress-range-start) + (var(--scrollbar-progress-range-end) - var(--scrollbar-progress-range-start)) / 2);
+                --scrollbar-progress-range-b-end: var(--scrollbar-progress-range-end);
+            }
+
+            :host(:not(._horz)) {
+                --scrollbar-progress-range-start: calc(var(--total-minmax-length) + var(--header-box-height));
+            }
+
+            :host(._top:not(._horz)) {
+                --scrollbar-appear-range-start: -25px;
+                --scrollbar-appear-range-end: 0%;
+
+                --scrollbar-progress-range-start: var(--header-box-height);
+                --scrollbar-progress-range-end: calc(100% - var(--total-minmax-length));
+            }
+
+            :host(._left._horz) {
+                --scrollbar-appear-range-start: -25px;
+                --scrollbar-appear-range-end: 0%;
+
+                --scrollbar-progress-range-start: 0%;
+                --scrollbar-progress-range-end: calc(100% - var(--total-minmax-length));
+            }
+
+            :host(._scrollbars) {
+                --effective-scrollbar-appear-opacity: calc(1 * var(--wq-internal-var-scrollbar-appear-progress));
+
+                .scrollbar-track {
+                    opacity: calc(var(--effective-scrollbar-appear-opacity) * var(--scrollability));
+                }
+            }
+
+            :host(._scrollbars:not(._horz)) {
+                --effective-scrollbar-progress: calc((var(--view-inner-height) - 100%) * var(--wq-internal-var-scrollbar-progress));
+
+                .scrollbar-thumb {
+                    transform: translateY(var(--effective-scrollbar-progress));
+                }
+            }
+
+            :host(._scrollbars._horz) {
+                --effective-scrollbar-progress: calc((var(--view-width) - 100%) * var(--wq-internal-var-scrollbar-progress));
+
+                .scrollbar-thumb {
+                    transform: translateX(var(--effective-scrollbar-progress));
+                }
+            }
+
+            :host(._scroll-unfold) {
+                --effective-scroll-unfold-a-opacity: calc(1 * var(--wq-internal-var-scrollbar-progress-b));
+                --effective-scroll-unfold-b-opacity: calc(1 * (1 - var(--wq-internal-var-scrollbar-progress-a)));
+            }
+
+            :host(._scroll-unfold:is(._top:not(._horz), ._left._horz)) {
+                .scroll-fold-start {
+                    opacity: var(--effective-scroll-unfold-a-opacity);
+                }
+
+                .scroll-fold-end {
+                    opacity: calc(var(--effective-scroll-unfold-b-opacity) * var(--scrollability));
+                }
+            }
+
+            :host(._scroll-unfold:not(._top:not(._horz), ._left._horz)) {
+                .scroll-fold-start {
+                    opacity: calc(var(--effective-scroll-unfold-a-opacity) * var(--scrollability));
+                }
+
+                .scroll-fold-end {
+                    opacity: var(--effective-scroll-unfold-b-opacity);
+                }
+            }
+
+            /*
+             * End: scroll-driven animations
+             * Start: actual styling
+            */
+
+            /* ----------- anchoring, direction, ordering ----------- */
+
+            /* anchoring */
 
             :host(._top) { margin-top: 0; }
             :host(._bottom) { margin-bottom: 0; }
             :host(._left) { margin-left: 0; }
             :host(._right) { margin-right: 0; }
 
-            /* flex orientation */
+            /* direction */
 
             :host,
             .view {
@@ -899,16 +1259,30 @@ export class ModalElement extends BaseElement {
                 flex-direction: row;
             }
 
-            :host(:is(._top:not(._horz), ._left._horz)) .view,
-            :host(:is(._top:not(._horz), ._left._horz)) .view .container {
-                order: -1;
+            /* ordering */
+
+            header { order: 1; }
+            .scrollport-anchor { order: 2; justify-content: start; }
+            .main { order: 3; }
+            footer { order: 5; }
+
+            :host(:is(._top:not(._horz), ._left._horz)) {
+                .view,
+                .container {
+                    order: -1;
+                }
+
+                .sentinel {
+                    order: 1000;
+                }
+
+                .scrollport-anchor {
+                    order: 4;
+                    justify-content: end;
+                }
             }
 
-            :host(:is(._top:not(._horz), ._left._horz)) .view .sentinel {
-                order: 1000;
-            }
-
-            /* spacing */
+            /* ----------- spacing ----------- */
 
             :host>.spacing,
             .view>.spacing,
@@ -935,226 +1309,20 @@ export class ModalElement extends BaseElement {
 
             :host(:not(._horz)) .view>.sentinel { height: var(--swipe-dismiss-length); }
             :host(._horz) .view>.sentinel { width: var(--swipe-dismiss-length); }
-
-            /* ----------- */
-
-            .view {
-                position: relative;
-                flex-grow: 1;
-                display: flex;
-
-                pointer-events: none;
-
-                overflow-y: auto;
-                scrollbar-width: none;
-
-                border-top-left-radius: var(--radius-top-left);
-                border-top-right-radius: var(--radius-top-right);
-                border-bottom-left-radius: var(--radius-bottom-left);
-                border-bottom-right-radius: var(--radius-bottom-right);
-
-                scroll-timeline-name: --view-scroll;
-
-                animation-timing-function: linear;
-                animation-fill-mode: forwards;
-                animation-name: untransform;
-                animation-timeline: --view-scroll;
-
-                animation-range: 0 var(--total-minmax-length);
-            }
-
-            :host(:not(._horz, ._top, ._bottom, ._edge-tight._alt-edge-tight)) .view {
-                transform: translateY(calc(var(--total-minmax-length) / -2));
-            }
-
-            :host(._horz:not(._left, ._right, ._edge-tight._alt-edge-tight)) .view {
-                transform: translateX(calc(var(--total-minmax-length) / -2));
-            }
-
-            :host(._edge-tight._alt-edge-tight) .view {
-                animation-timing-function: linear;
-                animation-fill-mode: both;
-                animation-name: radius0;
-                animation-timeline: --view-scroll;
-
-                animation-range: calc(var(--total-minmax-length) - var(--wq-radius)) var(--total-minmax-length);
-            }
-
-            :host(._edge-tight._alt-edge-tight:is(._top:not(._horz), ._left._horz)) .view {
-                animation-direction: reverse;
-                animation-range: calc(100% - var(--total-minmax-length)) calc(100% - (var(--total-minmax-length) - var(--wq-radius)));
-            }
-
-            :host(._horz) .view {
-                overflow-y: hidden;
-                overflow-x: auto;
-
-                scroll-timeline-axis: inline;
-            }
-
-            .view::-webkit-scrollbar { display: none; }
-
-            /* ----------- */
-
-            .container {
-                position: relative;
-                flex-grow: 1;
-
-                pointer-events: auto;
-
-                display: flex;
-                flex-direction: column;
-            }
-
-            :host(._swipe-dismiss-fadeout) .container {
-                animation-timing-function: linear;
-                animation-fill-mode: both;
-                animation-name: appear;
-                animation-timeline: --view-scroll;
-                animation-range: 0 var(--swipe-dismiss-length);
-            }
-
-            :host(._swipe-dismiss-fadeout:is(._top:not(._horz), ._left._horz)) .container {
-                animation-name: disappear;
-                animation-range: calc(100% - var(--swipe-dismiss-length)) 100%;
-            }
-
-            /* ------------ */
             
-            header {
-                position: sticky;
-                top: calc(var(--header-box-height) * -1);
-                z-index: 2;
+            /* ----------- scroll-snapping ----------- */
 
-                display: flex;
-                flex-direction: column;
-
-                color: var(--header-color-default);
-                background: var(--header-background);
-
-                border-top-left-radius: var(--radius-top-left);
-                border-top-right-radius: var(--radius-top-right);
-
-                order: 1;
+            :host(:not(._top:not(._horz), ._left._horz)) .view {
+                --scroll-snap-start: start;
+                --scroll-snap-end: end;
             }
 
-            :host(:not(._horz)) header {
-                animation-timing-function: linear;
-                animation-fill-mode: both;
-                animation-name: header-chrome;
-                animation-timeline: --view-scroll;
-                animation-range: var(--y-scroll-effect-exclude) calc(var(--y-scroll-effect-exclude) + var(--header-box-height));
+            :host(:is(._top:not(._horz), ._left._horz)) .view {
+                --scroll-snap-start: end;
+                --scroll-snap-end: start;
             }
 
-            :host(._aero) :is(header, .main, footer) {
-                backdrop-filter: blur(var(--aero-blur));
-            } 
-
-            .header-box {
-                position: relative;
-
-                display: flex;
-                align-items: center;
-                justify-content: center;
-
-                --transform: translateY(35%);
-
-                animation-timing-function: linear;
-                animation-fill-mode: forwards;
-                animation-name: disappear, transform-n;
-                animation-timeline: --view-scroll;
-                animation-range: var(--y-scroll-effect-exclude) calc(var(--y-scroll-effect-exclude) + (var(--header-box-height) / 2));
-            }
-
-            :host(._horz) .header-box {
-                display: none;
-            }
-
-            .header-bar {
-                position: relative;
-                z-index: 1;
-
-                display: flex;
-                align-items: start;
-                justify-content: space-between;
-            }
-
-            .header-bar {
-                gap: 0.6rem;
-                padding-block: 0.8rem;
-                padding-inline: 1.2rem;
-            }
-
-            .header-left {
-                display: flex;
-                align-items: start;
-                gap: 0.6rem;
-
-                opacity: 0;
-
-                animation-timing-function: linear;
-                animation-fill-mode: forwards;
-                animation-name: appear;
-                animation-timeline: --view-scroll;
-                animation-range: calc(var(--y-scroll-effect-exclude) + (var(--header-box-height) / 2)) calc(var(--y-scroll-effect-exclude) + var(--header-box-height));
-            }
-
-            :host(._horz) .header-left,
-            header:not(:has(slot[name="header-box"]:is(.has-slotted, :not(:empty)))) .header-left {
-                opacity: 1;
-            }
-
-            :host([type="info"]) header {
-                color: var(--header-color-info);
-            }
-            
-            :host([type="success"]) header {
-                color: var(--header-color-success);
-            }
-
-            :host([type="error"]) header {
-                color: var(--header-color-error);
-            }
-            
-            /* ----------- */
-
-            footer {
-                position: sticky;
-                bottom: 0;
-                z-index: 1;
-
-                border-bottom-left-radius: var(--radius-bottom-left);
-                border-bottom-right-radius: var(--radius-bottom-right);
-
-                color: var(--footer-color-default);
-                background: var(--footer-background);
-
-                order: 5;
-            }
-
-            :host([type="info"]) footer {
-                color: var(--footer-color-info);
-            }
-            
-            :host([type="success"]) footer {
-                color: var(--footer-color-success);
-            }
-
-            :host([type="error"]) footer {
-                color: var(--footer-color-error);
-            }
-
-            /* ------------ */
-
-            footer .footer-bar {
-                position: sticky;
-                left: 0;
-                right: 0;
-            }
-
-            /* ----------- */
-
-            .view {
+            .view(:not(._horz)) {
                 scroll-snap-type: y mandatory;
             }
 
@@ -1168,16 +1336,9 @@ export class ModalElement extends BaseElement {
             }
 
             .main {
-                flex-grow: 1;
-
-                min-width: var(--view-width);
-                min-height: var(--view-inner-height);
-
                 scroll-margin-top: var(--header-min-height);
                 scroll-margin-bottom: var(--footer-min-height);
                 scroll-snap-align: var(--scroll-snap-start);
-
-                order: 3;
             }
 
             :host(:is(._top, ._left._horz)) .main {
@@ -1196,11 +1357,139 @@ export class ModalElement extends BaseElement {
                 scroll-snap-align: start;
             }
 
-            /* ----------- */
+            /* ----------- elements ----------- */
+
+            :host {
+                background: none;
+                border: none;
+                padding: 0;
+
+                max-height: 100vh;
+                max-width: 100vw;
+            }
+            
+            :host(:not(._horz, ._left, ._right, ._top, ._bottom)) {
+                max-width: 800px;
+            }
+
+            /* view */
+            
+            .view {
+                position: relative;
+                flex-grow: 1;
+                display: flex;
+
+                pointer-events: none;
+
+                scroll-timeline-name: --view-scroll;
+                
+                overflow-y: auto;
+                scrollbar-width: none;
+            }
+
+            :host(._horz) .view {
+                overflow-y: hidden;
+                overflow-x: auto;
+
+                scroll-timeline-axis: inline;
+            }
+
+            .view::-webkit-scrollbar { display: none; }
+
+            /* container */
+
+            .container {
+                position: relative;
+                flex-grow: 1;
+
+                pointer-events: auto;
+
+                display: flex;
+                flex-direction: column;
+            }
+
+            /* main */
+
+            .main {
+                flex-grow: 1;
+
+                min-width: var(--view-width);
+                min-height: var(--view-inner-height);
+            }
+
+            /* header */
+
+            header {
+                position: sticky;
+                top: calc(var(--header-box-height) * -1);
+
+                display: flex;
+                flex-direction: column;
+
+                color: var(--header-color-default);
+                background: var(--header-background);
+
+                z-index: 2;
+            }
+
+            .header-box {
+                position: relative;
+
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            :host(._horz) .header-box {
+                display: none;
+            }
+
+            .header-bar {
+                position: relative;
+
+                display: flex;
+                align-items: start;
+                justify-content: space-between;
+                gap: 0.6rem;
+
+                padding-block: 0.8rem;
+                padding-inline: 1.2rem;
+
+                z-index: 1;
+            }
+
+            .header-left {
+                display: flex;
+                align-items: start;
+                gap: 0.6rem;
+            }
+
+            :host(._horz) .header-left,
+            header:not(:has(slot[name="header-box"]:is(.has-slotted, :not(:empty)))) .header-left {
+                opacity: 1 !important;
+            }
+
+            /* footer */
+
+            footer {
+                position: sticky;
+                bottom: 0;
+
+                color: var(--footer-color-default);
+                background: var(--footer-background);
+
+                z-index: 1;
+            }
+                
+            footer .footer-bar {
+                position: sticky;
+                left: 0;
+                right: 0;
+            }
+            
+            /* scrollport */
 
             .scrollport-anchor {
-                order: 2;
-
                 position: sticky;
                 top: var(--header-min-height);
                 bottom: var(--footer-min-height);
@@ -1213,11 +1502,6 @@ export class ModalElement extends BaseElement {
                 width: var(--view-width);
 
                 z-index: 1;
-            }
-
-            :host(:is(._left._horz, ._top:not(._horz))) .scrollport-anchor {
-                justify-content: end;
-                order: 4;
             }
 
             .scrollport {
@@ -1234,75 +1518,7 @@ export class ModalElement extends BaseElement {
                 height: calc(var(--view-inner-height) - var(--header-box-height));
             }
 
-            /* -- scroll unfold -- */
-
-            :host(._scroll-unfold) .scrollport {
-                display: flex;
-                flex-direction: column;
-                justify-content: space-between;
-                align-items: stretch;
-            }
-
-            :host(._scroll-unfold._horz) .scrollport {
-                flex-direction: row;
-            }
-            
-            :host(._scroll-unfold) .scrollport .scroll-fold {
-                position: sticky;
-                opacity: 0;
-
-                background: var(--background);
-
-                mask-repeat: no-repeat;
-                mask-size: 100% 100%;
-
-                animation-timing-function: linear;
-                animation-fill-mode: forwards;
-                animation-name: appear;
-                animation-timeline: --view-scroll;
-
-                animation-range-start: var(--scrollbar-progress-range-start);
-                animation-range-end: calc(var(--scrollbar-progress-range-end) + 1px);
-            }
-
-            :host(._scroll-unfold) .scrollport .scroll-fold-end {
-                animation-range-start: calc(var(--scrollbar-progress-range-start) - 1px);
-                animation-range-end: var(--scrollbar-progress-range-end);
-            }
-
-            :host(._scroll-unfold:not(._horz)) .scrollport .scroll-fold {
-                top: var(--header-min-height);
-                height: 25%;
-
-                mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
-                -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
-            }
-
-            :host(._scroll-unfold:not(._horz)) .scrollport .scroll-fold-end {
-                bottom: var(--footer-min-height);
-                top: auto;
-                opacity: 1;
-                animation-name: disappear;
-                transform: scaleY(-1);
-            }
-
-            :host(._scroll-unfold._horz) .scrollport .scroll-fold {
-                left: 0;
-                width: 25%;
-
-                mask-image: linear-gradient(to right, black 0%, transparent 100%);
-                -webkit-mask-image: linear-gradient(to right, black 0%, transparent 100%);
-            }
-
-            :host(._scroll-unfold._horz) .scrollport .scroll-fold-end {
-                right: 0;
-                left: auto;
-                opacity: 1;
-                animation-name: disappear;
-                transform: scaleX(-1);
-            }
-
-            /* -- scrollbar -- */
+            /* -- scrollbars -- */
 
             .scrollbar-track {
                 display: none;
@@ -1317,13 +1533,6 @@ export class ModalElement extends BaseElement {
                 top: 0;
                 right: 0;
                 padding-inline: 2px;
-
-                opacity: 0;
-
-                animation: appear linear;
-                animation-timeline: --view-scroll;
-                animation-range: var(--scrollbar-appear-range);
-                animation-fill-mode: forwards;
             }
 
             :host(._scrollbars._horz) .scrollbar-track {
@@ -1340,116 +1549,71 @@ export class ModalElement extends BaseElement {
                 height: var(--scrollbar-thumb-height);
                 background: var(--scrollbar-thumb-color);
                 border-radius: 10px;
-
-                --scrollbar-thumb-start: translateY(0);
-                --scrollbar-thumb-length: translateY(calc(var(--view-inner-height) - 100%));
-
-                animation: move-scrollbar-thumb linear both;
-                animation-timeline: --view-scroll;
-                animation-range: var(--scrollbar-progress-range);
             }
 
             :host(._scrollbars._horz) .scrollbar-thumb {
                 height: var(--scrollbar-thumb-width);
                 width: var(--scrollbar-thumb-height);
-
-                --scrollbar-thumb-start: translateX(0);
-                --scrollbar-thumb-length: translateX(calc(var(--view-width) - 100%));
             }
 
-            /* ----------- */
+            /* scroll unfold */
 
-            :host(:popover-open) {
+            :host(._scroll-unfold) .scrollport {
                 display: flex;
-                opacity: 1;
-                transform: none;
+                flex-direction: column;
+                justify-content: space-between;
+                align-items: stretch;
             }
 
-            @starting-style {
-                :host(:popover-open) {
-                    opacity: 0;
-                    transform: var(--entry-transform);
+            :host(._scroll-unfold._horz) .scrollport {
+                flex-direction: row;
+            }
+            
+            :host(._scroll-unfold) .scroll-fold {
+                position: sticky;
+            }
+
+            :host(._scroll-unfold:not(._horz)) {
+                .scroll-fold {
+                    height: 25%;
+                }
+
+                .scroll-fold-start {
+                    top: var(--header-min-height);
+                    background: linear-gradient(to bottom, var(--background) 0%, transparent 100%);
+                }
+
+                .scroll-fold-end {
+                    bottom: var(--footer-min-height);
+                    background: linear-gradient(to top, var(--background) 0%, transparent 100%);
                 }
             }
 
-            /* ----------- */
+            :host(._scroll-unfold._horz) {
+                .scroll-fold {
+                    width: 25%;
+                }
 
-            :host::backdrop {
-                /* Transition */
-                transition:
-                    display 0.2s allow-discrete,
-                    overlay 0.2s allow-discrete,
-                    backdrop-filter 0.2s,
-                    background 0.2s;
-            }
+                .scroll-fold-start {
+                    left: 0;
+                    background: linear-gradient(to right, var(--background) 0%, transparent 100%);
+                }
 
-            :host(._swipe-dismiss._container) {
-                timeline-scope: --view-scroll;
-            }
-
-            :host(._swipe-dismiss._container)::backdrop {
-                opacity: 0;
-
-                animation-timing-function: linear;
-                animation-fill-mode: forwards;
-                animation-name: appear;
-                animation-timeline: --view-scroll;
-
-                animation-range: 0 calc(100cqh - var(--expanse-length) - var(--minmax-length));
-            }
-
-            :host(._swipe-dismiss._container._horz)::backdrop {
-                animation-range: 0 calc(100cqw - var(--expanse-length) - var(--minmax-length));
-            }
-
-            :host(._swipe-dismiss._container._top:not(._horz))::backdrop,
-            :host(._swipe-dismiss._container._left._horz)::backdrop {
-                opacity: 1;
-                animation-name: disappear;
-            }
-
-            :host(._swipe-dismiss._container._top:not(._horz))::backdrop {
-                animation-range: calc(100% - (100cqh - var(--expanse-length) - var(--minmax-length))) 100%;
-            }
-
-            :host(._swipe-dismiss._container._left._horz)::backdrop {
-                animation-range: calc(100% - (100cqw - var(--expanse-length) - var(--minmax-length))) 100%;
-            }
-
-            :host(:popover-open)::backdrop {
-                backdrop-filter: blur(3px);
-            }
-
-            :host(:not([popover="manual"], ._manual-dismiss):popover-open)::backdrop {
-                backdrop-filter: blur(0px);
-            }
-
-            @starting-style {
-                :host(:popover-open)::backdrop {
-                    backdrop-filter: none;
-                    background: none;
+                .scroll-fold-end {
+                    right: 0;
+                    background: linear-gradient(to left, var(--background) 0%, transparent 100%);
                 }
             }
-                
-            :host(:popover-open)::before {
-                position: fixed;
-                inset: 0;
-                display: block;
-                content: "";
-                z-index: -1;
+
+            /* ----------- theming ----------- */
+
+            /* aero-blur */
+
+            :host(._aero) :is(header, .main, footer) {
+                backdrop-filter: blur(var(--aero-blur));
             }
 
-            .icon {
-                display: none;
-                opacity: 0.6;
-            }
-
-            :host([type="info"]) .icon._info,
-            :host([type="success"]) .icon._success,
-            :host([type="error"]) .icon._error,
-            :host([type="warning"]) .icon._warning {
-                display: block;
-            }
+            /* coloring */
 
             :host([type="info"]) .container {
                 color: var(--color-info);
@@ -1472,10 +1636,45 @@ export class ModalElement extends BaseElement {
                 background: var(--background);
             }
 
-            .view:not(:has(footer slot:is(.has-slotted, :not(:empty)))) .main {
-                border-bottom-left-radius: var(--radius-bottom-left);
-                border-bottom-right-radius: var(--radius-bottom-right);
+            :host([type="info"]) header {
+                color: var(--header-color-info);
             }
+            
+            :host([type="success"]) header {
+                color: var(--header-color-success);
+            }
+
+            :host([type="error"]) header {
+                color: var(--header-color-error);
+            }
+            
+            :host([type="info"]) footer {
+                color: var(--footer-color-info);
+            }
+            
+            :host([type="success"]) footer {
+                color: var(--footer-color-success);
+            }
+
+            :host([type="error"]) footer {
+                color: var(--footer-color-error);
+            }
+
+            /* ----------- icons ----------- */
+
+            .icon {
+                display: none;
+                opacity: 0.6;
+            }
+
+            :host([type="info"]) .icon._info,
+            :host([type="success"]) .icon._success,
+            :host([type="error"]) .icon._error,
+            :host([type="warning"]) .icon._warning {
+                display: block;
+            }
+            
+            /* ----------- controls ----------- */
 
             .close-button {
                 padding-inline: 0;
@@ -1484,7 +1683,7 @@ export class ModalElement extends BaseElement {
                 justify-content: center;
                 appearance: none;
                 font-size: inherit;
-                color: gray;
+                color: var(--close-button-color);
                 cursor: pointer;
                 border: none;
                 background: none;
@@ -1759,14 +1958,128 @@ export class AlertElement extends DialogElement {
 // ---------------- define
 
 export function defineElements() {
+    // radius
+
     try {
         CSS.registerProperty({
-            name: '--wq-radius',
-            syntax: '<length-percentage>',
+            name: '--wq-internal-var-radius-progress',
+            syntax: '<number>',
             inherits: true,
             initialValue: '0'
         });
     } catch (e) { }
+
+    // header-box
+
+    try {
+        CSS.registerProperty({
+            name: '--wq-internal-var-header-box-progress',
+            syntax: '<number>',
+            inherits: true,
+            initialValue: '0'
+        });
+    } catch (e) { }
+    try {
+        CSS.registerProperty({
+            name: '--wq-internal-var-header-box-progress-a',
+            syntax: '<number>',
+            inherits: true,
+            initialValue: '0'
+        });
+    } catch (e) { }
+    try {
+        CSS.registerProperty({
+            name: '--wq-internal-var-header-box-progress-b',
+            syntax: '<number>',
+            inherits: true,
+            initialValue: '0'
+        });
+    } catch (e) { }
+
+    // minmax
+
+    try {
+        CSS.registerProperty({
+            name: '--wq-internal-var-minmax-progress',
+            syntax: '<number>',
+            inherits: true,
+            initialValue: '0'
+        });
+    } catch (e) { }
+    try {
+        CSS.registerProperty({
+            name: '--wq-internal-var-minmax-progress-a',
+            syntax: '<number>',
+            inherits: true,
+            initialValue: '0'
+        });
+    } catch (e) { }
+    try {
+        CSS.registerProperty({
+            name: '--wq-internal-var-minmax-progress-b',
+            syntax: '<number>',
+            inherits: true,
+            initialValue: '0'
+        });
+    } catch (e) { }
+
+    // minmax-balance
+
+    try {
+        CSS.registerProperty({
+            name: '--wq-internal-var-total-minmax-progress',
+            syntax: '<number>',
+            inherits: true,
+            initialValue: '0'
+        });
+    } catch (e) { }
+
+    // swipe-dismiss
+
+    try {
+        CSS.registerProperty({
+            name: '--wq-internal-var-swipe-dismiss-progress',
+            syntax: '<number>',
+            inherits: true,
+            initialValue: '0'
+        });
+    } catch (e) { }
+
+    // Scrollbars
+
+    try {
+        CSS.registerProperty({
+            name: '--wq-internal-var-scrollbar-appear-progress',
+            syntax: '<number>',
+            inherits: true,
+            initialValue: '0'
+        });
+    } catch (e) { }
+    try {
+        CSS.registerProperty({
+            name: '--wq-internal-var-scrollbar-progress',
+            syntax: '<number>',
+            inherits: true,
+            initialValue: '0'
+        });
+    } catch (e) { }
+    try {
+        CSS.registerProperty({
+            name: '--wq-internal-var-scrollbar-progress-a',
+            syntax: '<number>',
+            inherits: true,
+            initialValue: '0'
+        });
+    } catch (e) { }
+    try {
+        CSS.registerProperty({
+            name: '--wq-internal-var-scrollbar-progress-b',
+            syntax: '<number>',
+            inherits: true,
+            initialValue: '0'
+        });
+    } catch (e) { }
+
     customElements.define('wq-toast', ToastElement);
     customElements.define('wq-modal', ModalElement);
     customElements.define('wq-dialog', DialogElement);

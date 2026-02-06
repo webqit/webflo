@@ -55,8 +55,8 @@
         <div slot="footer" style="padding: 1rem;">Footer</div>
     </wq-modal>
 
-    <wq-dialog type="success" id="pop2" popover="manual" style="width: 600px; height: 700px; container-type: size;"
-        class="_bottom _container _minmax-events _scroll-unfold _swipe-dismiss _edge-tight _scrollbars"
+    <wq-dialog type="success" id="pop2" popover="manual" style="width: 430px; height: 600px; container-type: size;"
+        class="_right _horz _container _minmax-events _scroll-unfold _swipe-dismiss _edge-tight _alt-edge-tight _scrollbars"
         onminmax="console.log('2------', event.ratio)">
         <span slot="header">Success</span>
         <span>JJjdj djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd djdjd djdjdndjd
@@ -157,8 +157,9 @@
         }
 
         :is(#pop1, #pop2) {
-            --modal-minmax-length: 300px;
-            --modal-expanse-length: 100px;
+            --modal-minmax-length: 200px;
+            --modal-swipe-dismiss-length: 200px;
+            --modal-expanse-length: 0px;
             --modal-header-open-background: blue;
             --modal-header-background: black;
         }

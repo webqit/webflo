@@ -12,8 +12,10 @@ export class DeviceCapabilities {
 
     static async initialize(runtime, params) {
         const instance = new this;
+
         instance.#runtime = runtime;
         instance.#params = params;
+
         // --------
         // Custom install
         const onbeforeinstallprompt = (e) => {
@@ -69,6 +71,7 @@ export class DeviceCapabilities {
             instance.#exposed = permissions;
             instance.#cleanups.push(cleanup);
         }
+        
         return instance;
     }
 

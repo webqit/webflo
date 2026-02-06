@@ -1,4 +1,4 @@
-(()=>{var l=class extends HTMLElement{static get events(){return[]}static get observedAttributes(){return this.events.map(t=>`on${t}`)}#t={};#e(t,e){for(let o of this.constructor.events)t===`on${o}`&&(this.#t[t]&&(this.removeEventListener(o,this.#t[t]),this.#t[t]=null),e&&(this.#t[t]=Function("event",e).bind(this),this.addEventListener(o,this.#t[t])))}#o(){for(let t of this.constructor.events){let e=`on${t}`,o=null;Object.defineProperty(this,e,{get:()=>o,set:r=>{if(o&&(this.removeEventListener(t,o),o=null),typeof r=="function")this.addEventListener(t,r);else if(r!=null)throw new Error(`[${e}] handler must be null or a function`);o=r}})}}attributeChangedCallback(t,e,o){this.#e(t,o)}constructor(){super(),this.#o()}},h=class extends l{set type(t){[void 0,null].includes(t)?this.removeAttribute("type"):this.setAttribute("type",t)}get type(){return this.getAttribute("type")}get contentHTML(){return""}get css(){return""}#t=null;#e(){this.#t&&(this.shadowRoot.appendChild(this.#t),this.matches(":popover-open")&&this.#t.showPopover())}_processVisibility(t){this.hasAttribute("oncontent")&&(t.assignedNodes().find(e=>e.nodeName!=="#text"||e.textContent.trim())?this.showPopover():this.hidePopover())}render({content:t,context:e},o=null,r=1){if(e&&r>0){let a=document.createElement(this.tagName);a.setAttribute("popover",this.getAttribute("popover")||"auto"),this.classList.contains("_top")&&a.classList.add("_top"),a.render({content:t},o,0),this.render(e,a,r+1);return}this.#t?.remove(),this.#t=o,this.#e();let i=parseFloat(o?.style.getPropertyValue("--start-delay")||"0");this.style.setProperty("--start-delay",i+.1+"s"),this.type=t.type,this.innerHTML=t.message}connectedCallback(){this.popover||(this.popover="auto")}constructor(){super(),this.attachShadow({mode:"open"}),this.addEventListener("toggle",t=>{t.newState==="open"?this.#t?.showPopover():t.newState==="closed"&&(this.#t?.hidePopover(),this.getAttribute("oncontent")==="always"&&(this.innerHTML=""))}),this.shadowRoot.innerHTML=`
+(()=>{var n=class extends HTMLElement{static get events(){return[]}static get observedAttributes(){return this.events.map(r=>`on${r}`)}#r={};#e(r,e){for(let t of this.constructor.events)r===`on${t}`&&(this.#r[r]&&(this.removeEventListener(t,this.#r[r]),this.#r[r]=null),e&&(this.#r[r]=Function("event",e).bind(this),this.addEventListener(t,this.#r[r])))}#o(){for(let r of this.constructor.events){let e=`on${r}`,t=null;Object.defineProperty(this,e,{get:()=>t,set:s=>{if(t&&(this.removeEventListener(r,t),t=null),typeof s=="function")this.addEventListener(r,s);else if(s!=null)throw new Error(`[${e}] handler must be null or a function`);t=s}})}}attributeChangedCallback(r,e,t){this.#e(r,t)}constructor(){super(),this.#o()}},h=class extends n{set type(r){[void 0,null].includes(r)?this.removeAttribute("type"):this.setAttribute("type",r)}get type(){return this.getAttribute("type")}get contentHTML(){return""}get css(){return""}#r=null;#e(){this.#r&&(this.shadowRoot.appendChild(this.#r),this.matches(":popover-open")&&this.#r.showPopover())}_processVisibility(r){this.hasAttribute("oncontent")&&(r.assignedNodes().find(e=>e.nodeName!=="#text"||e.textContent.trim())?this.showPopover():this.hidePopover())}render({content:r,context:e},t=null,s=1){if(e&&s>0){let a=document.createElement(this.tagName);a.setAttribute("popover",this.getAttribute("popover")||"auto"),this.classList.contains("_top")&&a.classList.add("_top"),a.render({content:r},t,0),this.render(e,a,s+1);return}this.#r?.remove(),this.#r=t,this.#e();let c=parseFloat(t?.style.getPropertyValue("--start-delay")||"0");this.style.setProperty("--start-delay",c+.1+"s"),this.type=r.type,this.innerHTML=r.message}connectedCallback(){this.popover||(this.popover="auto")}constructor(){super(),this.attachShadow({mode:"open"}),this.addEventListener("toggle",r=>{r.newState==="open"?this.#r?.showPopover():r.newState==="closed"&&(this.#r?.hidePopover(),this.getAttribute("oncontent")==="always"&&(this.innerHTML=""))}),this.shadowRoot.innerHTML=`
         <div class="container">
 
             <svg class="icon _info" xmlns="http://www.w3.org/2000/svg" height="1.4em" width="1.4em" viewBox="0 -960 960 960" fill="currentColor"><path d="M444-296h72v-228h-72v228Zm36-312q20 0 33-13t13-33q0-20-13-33t-33-13q-20 0-33 13t-13 33q0 20 13 33t33 13Zm0 528q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Z"/></svg>
@@ -41,16 +41,16 @@
                 --color-error: var(--toast-color-error, coral);
                 --color-warning: var(--toast-color-warning, coral);
 
-                --wq-radius: var(--toast-radius, 1rem);
+                --radius: var(--toast-radius, 1rem);
                 --background: var(--toast-background, rgb(30, 30, 30));
                 --shadow: var(--toast-shadow, rgb(30, 30, 30));
 
-                --dir: 1;
-                --translation: calc(var(--toast-translation, 50px) * var(--dir));
-                --exit-factor: var(--toast-exit-factor, -1);
+                --entry-exit-translation-polarity: 1;
+                --translation: calc(var(--toast-translation, 50px) * var(--entry-exit-translation-polarity));
+                --exit-translation-polarity: var(--toast--exit-translation-polarity, -1);
 
                 --entry-transform: translateY(var(--translation));
-                --exit-transform: translateY(calc(var(--translation) * var(--exit-factor)));
+                --exit-transform: translateY(calc(var(--translation) * var(--exit-translation-polarity)));
             }
 
             :host {
@@ -78,7 +78,7 @@
             :host(._top) {
                 margin-bottom: auto;
                 margin-top: 0;
-                --dir: -1;
+                --entry-exit-translation-polarity: -1;
             }
 
             /* ----------- */
@@ -92,7 +92,7 @@
 
                 padding-block: 0.8rem;
                 padding-inline: 1.2rem;
-                border-radius: var(--wq-radius);
+                border-radius: var(--radius);
 
                 color: var(--color-default);
                 background-color: var(--background);
@@ -118,30 +118,32 @@
 
             /* ----------- */
 
-            :host(:not([popover="manual"]):popover-open)::backdrop {
+            :host(:not([popover="manual"], ._manual-dismiss):popover-open)::backdrop {
                 animation: flash 0.3s ease-in;
                 animation-iteration-count: 3;
             }
 
-            :host([popover="manual"])::backdrop {
+            :host(:is([popover="manual"], ._manual-dismiss))::backdrop {
                 /* Transition */
                 transition:
                     display 0.2s allow-discrete,
                     overlay 0.2s allow-discrete,
-                    backdrop-filter 0.2s;
+                    backdrop-filter 0.2s,
+                    background 0.2s;
             }
 
-            :host([popover="manual"]:popover-open)::backdrop {
+            :host(:is([popover="manual"], ._manual-dismiss):popover-open)::backdrop {
                 backdrop-filter: blur(3px);
             }
 
             @starting-style {
-                :host([popover="manual"]:popover-open)::backdrop {
+                :host(:is([popover="manual"], ._manual-dismiss):popover-open)::backdrop {
                     backdrop-filter: none;
+                    background: none;
                 }
             }
             
-            :host([popover="manual"]:popover-open)::before {
+            :host(:is([popover="manual"], ._manual-dismiss):popover-open)::before {
                 position: fixed;
                 inset: 0;
                 display: block;
@@ -191,7 +193,7 @@
                 transform: translateX(0.1rem);
             }
 
-            :host(:not([popover="manual"])) .close-button {
+            :host(:not([popover="manual"], ._manual-dismiss)) .close-button {
                 display: none;
             }
 
@@ -224,7 +226,7 @@
             }
             
             ${this.css}
-        </style>`,this.#e()}},d=class extends Event{#t;get ratio(){return this.#t}constructor(t){super("minmax"),this.#t=t}},c=class extends l{static get events(){return super.events.concat(["minmax"])}static get observedAttributes(){return super.observedAttributes.concat(["class"])}get delegatesFocus(){return!1}set type(t){[void 0,null].includes(t)?this.removeAttribute("type"):this.setAttribute("type",t)}get type(){return this.getAttribute("type")}get headerBoxHTML(){return""}get headerHTML(){return""}get headerExtendedHTML(){return""}get mainHTML(){return""}get contentHTML(){return""}get footerHTML(){return""}get css(){return""}#t;#e;#o;#i;#n;#l;updateScrollViewDimensions(){requestAnimationFrame(()=>{requestAnimationFrame(()=>{let t,e,o=this.classList.contains("_swipe-dismiss"),r=!!window.getComputedStyle(this).getPropertyValue("--modal-minmax-length");(o||r)&&requestAnimationFrame(()=>{let i=0,a=0;this.matches("._left._horz, ._top:not(._horz)")?this.#t.scrollTo({top:a,left:i}):(this.classList.contains("_horz")?(t=this.#t.offsetWidth,i=t-this.#o.offsetWidth):(e=this.#t.offsetHeight,a=e-this.#o.offsetHeight),(this.#t.scrollTop<a||this.#t.scrollLeft<i)&&this.#t.scrollTo({top:a,left:i}))}),this.#t.style.setProperty("--header-box-height",this.#n.offsetHeight+"px"),this.#t.style.setProperty("--header-max-height",this.#i.offsetHeight+"px"),this.#t.style.setProperty("--footer-max-height",this.#l.offsetHeight+"px"),!this.classList.contains("_container")&&(t===void 0&&(t=this.#t.offsetWidth),e===void 0&&(e=this.#t.offsetHeight),this.#t.style.setProperty("--view-width",t+"px"),this.#t.style.setProperty("--view-height",e+"px"))})})}#a=null;bindMinmaxWorker(){let t=this.classList.contains("_swipe-dismiss"),e=this.classList.contains("_minmax-events");if(!t&&!e)return;let o={root:this.#t,threshold:[0,1]},r=new IntersectionObserver(i=>{if(!!this.#s)for(let a of i){if(a.target===this.#o){let f=new d(1-a.intersectionRatio);this.dispatchEvent(f)}a.target===this.#e&&a.isIntersecting&&a.intersectionRatio>=.8&&this.hidePopover()}},o);setTimeout(()=>{e&&r.observe(this.#o),t&&r.observe(this.#e)},200),this.#a=()=>r.disconnect()}#s=!1;#r;#c(){this.#s=!1;let t=()=>this.#s=!0;this.#t.addEventListener("scroll",t),this.updateScrollViewDimensions();let e=()=>this.updateScrollViewDimensions();window.addEventListener("resize",e),this.#r?.(),this.#r=()=>{window.removeEventListener("resize",e),this.#t.removeEventListener("scroll",t)}}attributeChangedCallback(t,e,o){super.attributeChangedCallback?.(t,e,o),t==="class"&&this.#c()}connectedCallback(){super.connectedCallback?.(),this.popover||(this.popover="manual"),this.hasAttribute("open")&&this.showPopover()}disconnectedCallback(){super.disconnectedCallback?.(),this.#r?.(),this.#r=null,this.#a?.(),this.#a=null}constructor(){super(),this.attachShadow({mode:"open",delegatesFocus:this.delegatesFocus}),this.addEventListener("toggle",t=>{t.newState==="open"?(this.#c(),this.bindMinmaxWorker()):t.newState==="closed"&&(this.#r?.(),this.#r=null,this.#a?.(),this.#a=null)}),this.shadowRoot.innerHTML=`
+        </style>`,this.#e()}},d=class extends Event{#r;get ratio(){return this.#r}constructor(r){super("minmax"),this.#r=r}},l=class extends n{static get events(){return super.events.concat(["minmax"])}static get observedAttributes(){return super.observedAttributes.concat(["class"])}get delegatesFocus(){return!1}get autoFocus(){return!0}set type(r){[void 0,null].includes(r)?this.removeAttribute("type"):this.setAttribute("type",r)}get type(){return this.getAttribute("type")}get headerBoxHTML(){return""}get headerHTML(){return""}get headerExtendedHTML(){return""}get mainHTML(){return""}get contentHTML(){return""}get footerHTML(){return""}get css(){return""}#r;#e;#o;#i;#n;#l;calcViewDimensions(){let r=this.#r.offsetWidth,e=this.#r.offsetHeight;this.style.setProperty("--view-width",r+"px"),this.style.setProperty("--view-height",e+"px")}calcHeaderDimensions(){this.style.setProperty("--header-box-height",this.#n.offsetHeight+"px"),this.style.setProperty("--header-max-height",this.#i.offsetHeight+"px")}calcFooterDimensions(){this.style.setProperty("--footer-max-height",this.#l.offsetHeight+"px")}calcScrollability(){this.style.setProperty("--view-scroll-height",this.#r.scrollHeight+"px"),this.style.setProperty("--view-scroll-width",this.#r.scrollWidth+"px")}updateScrollViewDimensions(){requestAnimationFrame(()=>{let r=this.classList.contains("_swipe-dismiss"),e=!!window.getComputedStyle(this).getPropertyValue("--modal-minmax-length");(r||e)&&requestAnimationFrame(()=>{let t=0,s=0;this.matches("._left._horz, ._top:not(._horz)")?this.#r.scrollTo({top:s,left:t}):(this.classList.contains("_horz")?t=this.#e.offsetWidth:s=this.#e.offsetHeight,(this.#r.scrollTop<s||this.#r.scrollLeft<t)&&this.#r.scrollTo({top:s,left:t}))}),this.calcHeaderDimensions(),this.calcFooterDimensions(),this.calcScrollability(),!this.classList.contains("_container")&&this.calcViewDimensions()})}#s=null;bindMinmaxWorker(){let r=this.classList.contains("_swipe-dismiss"),e=this.classList.contains("_minmax-events");if(!r&&!e)return;let t={root:this.#r,threshold:[0,1]},s=new IntersectionObserver(c=>{for(let a of c){if(a.target===this.#o){let b=new d(1-a.intersectionRatio);this.dispatchEvent(b)}this.#a&&a.target===this.#e&&a.isIntersecting&&a.intersectionRatio>=.8&&this.hidePopover()}},t);setTimeout(()=>{e&&s.observe(this.#o),r&&s.observe(this.#e)},200),this.#s=()=>s.disconnect()}#a=!1;#t;#c(){this.#a=!1;let r=()=>this.#a=!0;this.#r.addEventListener("scroll",r),this.updateScrollViewDimensions();let e=()=>this.updateScrollViewDimensions();window.addEventListener("resize",e),this.#t?.(),this.#t=()=>{window.removeEventListener("resize",e),this.#r.removeEventListener("scroll",r)}}attributeChangedCallback(r,e,t){super.attributeChangedCallback?.(r,e,t),r==="class"&&e!==t&&this.#c()}connectedCallback(){super.connectedCallback?.(),this.popover||(this.popover="manual"),this.hasAttribute("open")&&this.showPopover()}disconnectedCallback(){super.disconnectedCallback?.(),this.#t?.(),this.#t=null,this.#s?.(),this.#s=null}constructor(){super(),this.attachShadow({mode:"open",delegatesFocus:this.delegatesFocus}),this.addEventListener("toggle",r=>{r.newState==="open"?(CSS.supports("selector(:has(*))")&&"chrome"in globalThis&&!("safari"in globalThis)&&(this.style.animation="none",this.offsetHeight,this.style.animation=""),this.#c(),this.bindMinmaxWorker(),!this.delegatesFocus&&this.autoFocus&&!this.querySelector("[autofocus]")&&this.shadowRoot.querySelector("[autofocus]")?.focus()):r.newState==="closed"&&(this.#t?.(),this.#t=null,this.#s?.(),this.#s=null)}),this.shadowRoot.innerHTML=`
         <div class="spacing"></div>
         <div class="view" part="view">
 
@@ -236,7 +238,7 @@
                     <div class="header-box" part="header-box">
                         <slot
                             name="header-box"
-                            onslotchange="this.classList.toggle('has-slotted', !!this.assignedElements().length); this.closest('.view').style.setProperty('--header-box-height', this.closest('.header-box').offsetHeight + 'px');"
+                            onslotchange="this.classList.toggle('has-slotted', !!this.assignedElements().length); this.getRootNode().host.calcHeaderDimensions();"
                         >${this.headerBoxHTML}</slot>
                     </div>
 
@@ -249,7 +251,7 @@
                             <div class="_content" style="flex-grow: 1">
                                 <slot
                                     name="header"
-                                    onslotchange="this.closest('.view').style.setProperty('--header-max-height', this.closest('header').offsetHeight + 'px');"
+                                    onslotchange="this.getRootNode().host.calcHeaderDimensions();"
                                 >${this.headerHTML}</slot>
                             </div>
                         </div>
@@ -261,7 +263,7 @@
                     ${this.headerExtendedHTML||`
                         <slot
                             name="header-extended"
-                            onslotchange="this.closest('.view').style.setProperty('--header-max-height', this.closest('header').offsetHeight + 'px');"
+                            onslotchange="this.getRootNode().host.calcHeaderDimensions();"
                         ></slot>`}
 
                 </header>
@@ -276,13 +278,14 @@
                     </div>
                 </div>
 
-                ${this.mainHTML||`<div class="main" part="main">${this.contentHTML||"<slot></slot>"}</div>`}
+                ${this.mainHTML||`<div class="main" part="main">${this.contentHTML||`
+                    <slot onslotchange="this.getRootNode().host.calcScrollability();"></slot>`}</div>`}
 
                 <footer part="footer">
                     <div class="footer-bar" part="footer-bar">
                         <slot
                             name="footer"
-                            onslotchange="this.classList.toggle('has-slotted', !!this.assignedElements().length); this.closest('.view').style.setProperty('--footer-max-height', this.closest('footer').offsetHeight + 'px');"
+                            onslotchange="this.classList.toggle('has-slotted', !!this.assignedElements().length); this.getRootNode().host.calcFooterDimensions();"
                         >${this.footerHTML}</slot>
                     </div>
                 </footer>
@@ -292,46 +295,29 @@
         <span class="spacing-b"></span>
 
         <style>
+            /*
+             * Start: resets
+             */
+
             * {
                 box-sizing: border-box;
             }
 
-            @keyframes untransform {
-                to { transform: none; }
-            }
-
-            @keyframes transform-n {
-                to { transform: var(--transform); }
-            }
-
-            @keyframes appear {
-                from { opacity: 0; }
-                to { opacity: 1; }
-            }
-
-            @keyframes disappear {
-                from { opacity: 1; }
-                to { opacity: 0; }
-            }
-
-            @keyframes header-chrome {
-                from { background: var(--header-open-background); }
-                to { background: var(--header-background); }
-            }
-
-            @keyframes move-scrollbar-thumb {
-                from { transform: var(--scrollbar-thumb-start); }
-                to { transform: var(--scrollbar-thumb-length); }
-            }
-
-            @keyframes radius0 {
-                to { --wq-radius: 0; }
-            }
+            /*
+             * End: resets
+             * Start: general vars
+             */
 
             :host {
-                --wq-radius: var(--modal-radius, 1rem);
                 --aero-blur: var(--modal-aero-blur, 10px);
+                --backdrop-filter: var(--modal-backdrop-filter, blur(3px));
+                
+                --radius-length: var(--modal-radius, 1rem);
+
                 --background: var(--modal-background, rgba(80, 80, 80, 1));
+
+                --background-accent: var(--modal-background-accent, var(--background));
+                --color-accent: var(--modal-color-accent, var(--color-default));
 
                 --color-default: var(--modal-color-default, whitesmoke);
                 --color-info: var(--modal-color-info, whitesmoke);
@@ -353,6 +339,8 @@
                 --footer-color-error: var(--modal-footer-color-error, coral);
                 --footer-background: var(--modal-footer-background, var(--background));
 
+                --close-button-color: var(--modal-close-button-color, var(--color-default));
+
                 --expanse-length: var(--modal-expanse-length, 0px);
                 --minmax-length: var(--modal-minmax-length, 0px);
 
@@ -360,42 +348,11 @@
                 --scrollbar-thumb-width: var(--modal-scrollbar-thumb-width, 4px);
                 --scrollbar-thumb-height: var(--modal-scrollbar-thumb-height, 30px);
 
-                --translation: calc(var(--modal-translation, 50px) * var(--dir));
-                --exit-factor: var(--modal-exit-factor, -1);
-            }
+                --entry-exit-translation: calc(var(--modal-translation, 50px) * var(--entry-exit-translation-polarity));
+                --exit-translation-polarity: var(--modal-exit-translation-polarity, -1);
 
-            /* -------- internal, dynamic props (root) -------- */
+                /* -------- box lengths -------- */
 
-            :host {
-                --dir: 1;
-                --entry-transform: translateY(var(--translation));
-                --exit-transform: translateY(calc(var(--translation) * var(--exit-factor)));
-            }
-
-            :host(._swipe-dismiss) .view {
-                --swipe-dismiss-length: var(--modal-swipe-dismiss-length, calc(var(--view-height) - var(--minmax-length)));
-            }
-
-            :host(._horz._swipe-dismiss) .view {
-                --swipe-dismiss-length: var(--modal-swipe-dismiss-length, calc(var(--view-width) - var(--minmax-length)));
-            }
-            
-            /* transform reversal */
-
-            :host(:is(._top, ._left)) { --dir: -1; }
-
-            /* horizontal axis */
-
-            :host(:is(._left, ._right, ._horz)) {                
-                --entry-transform: translateX(var(--translation));
-                --exit-transform: translateX(calc(var(--translation) * var(--exit-factor)));
-            }
-
-            :host(._edge-tight) { --exit-factor: var(--modal-exit-factor, 1); }
-
-            /* -------- internal, dynamic props (view) -------- */
-
-            .view {
                 --header-max-height: 1.6rem;
                 --header-box-height: 0px;
                 --footer-max-height: 0px;
@@ -404,95 +361,43 @@
                 --footer-min-height: var(--footer-max-height);
 
                 --view-inner-height: calc(var(--view-height) - var(--header-min-height) - var(--footer-min-height));
-                --total-minmax-length: var(--minmax-length);
                 
-                --y-scroll-effect-exclude: var(--total-minmax-length);
-                --scrollbar-appear-range: calc(var(--total-minmax-length) - 25px) var(--total-minmax-length);
-                
-                --scrollbar-progress-range-start: calc(var(--total-minmax-length) + var(--header-box-height));
-                --scrollbar-progress-range-end: 100%;
-                --scrollbar-progress-range: var(--scrollbar-progress-range-start) var(--scrollbar-progress-range-end);
-
-                --scroll-snap-start: start;
-                --scroll-snap-end: end;
-
-                --radius-top-left: var(--wq-radius);
-                --radius-top-right: var(--wq-radius);
-                --radius-bottom-left: var(--wq-radius);
-                --radius-bottom-right: var(--wq-radius);
+                --total-minmax-length: calc(var(--minmax-length) + var(--swipe-dismiss-length, 0));
             }
 
-            :host(._container) .view {
+            :host(._container:not(._horz)) {
                 --view-height: calc(100cqh - var(--expanse-length));
                 --view-width: 100cqw;
             }
 
-            :host(._container._horz) .view {
+            :host(._container._horz) {
                 --view-height: 100cqh;
                 --view-width: calc(100cqw - var(--expanse-length));
             }
 
-            :host(._swipe-dismiss:not(._horz)) .view {
-                --total-minmax-length: var(--view-height);
+            /*
+             * End: general vars
+             * Start: entry/exit transition
+            */
+
+            :host { --entry-exit-translation-polarity: 1; }
+            :host(:is(._top, ._left)) { --entry-exit-translation-polarity: -1; }
+            :host(._edge-tight) { --exit-translation-polarity: var(--modal-exit-translation-polarity, 1); }
+            :host(:not([popover="manual"], ._manual-dismiss):popover-open) { --backdrop-filter: blur(0px); }
+                
+            :host {
+                --entry-transform: translateY(var(--entry-exit-translation));
+                --exit-transform: translateY(calc(var(--entry-exit-translation) * var(--exit-translation-polarity)));
             }
 
-            :host(._swipe-dismiss._horz) .view {
-                --total-minmax-length: var(--view-width);
+            :host(:is(._left, ._right, ._horz)) {                
+                --entry-transform: translateX(var(--entry-exit-translation));
+                --exit-transform: translateX(calc(var(--entry-exit-translation) * var(--exit-translation-polarity)));
             }
 
-            /* transform reversal */
-
-            :host(:is(._top:not(._horz), ._left._horz)) .view {
-                --scroll-snap-start: end;
-                --scroll-snap-end: start;
-
-                --y-scroll-effect-exclude: 0px;
-                --scrollbar-appear-range: -25px 0;
-            }
-
-            :host(._top:not(._horz)) .view {
-                --scrollbar-progress-range-start: var(--header-box-height);
-                --scrollbar-progress-range-end: calc(100% - var(--total-minmax-length));
-            }
-
-            :host(._left._horz) .view {
-                --scrollbar-progress-range-start: 0;
-                --scrollbar-progress-range-end: calc(100% - var(--total-minmax-length));
-            }
-
-            /* curves */
-
-            :host(._top._edge-tight) .view {
-                --radius-top-left: 0px;
-                --radius-top-right: 0px;
-            }
-
-            :host(._bottom._edge-tight) .view {
-                --radius-bottom-left: 0px;
-                --radius-bottom-right: 0px;
-            }
-
-            :host(._left._edge-tight) .view {
-                --radius-top-left: 0px;
-                --radius-bottom-left: 0px;
-            }
-
-            :host(._right._edge-tight) .view {
-                --radius-top-right: 0px;
-                --radius-bottom-right: 0px;
-            }
-
-            /* --------- actual styling -------- */
+            /* ----------- */
 
             :host {
-                background: none;
-                border: none;
-                padding: 0;
-
-                max-height: 100vh;
-                max-width: 100vw;
-                
-                /* Transition */
                 transition:
                     opacity 0.2s,
                     transform 0.2s,
@@ -500,23 +405,450 @@
                     display 0.2s allow-discrete;
                 transition-timing-function: ease-out;
                 
-                /* Exit state */
                 transform: var(--exit-transform);
                 opacity: 0;
             }
-            
-            :host(:not(._horz, ._left, ._right, ._top, ._bottom)) {
-                max-width: 800px;
+
+            :host(:popover-open) {
+                display: flex;
+                opacity: 1;
+                transform: none;
             }
 
-            /* edge alignment */
+            @starting-style {
+                :host(:popover-open) {
+                    opacity: 0;
+                    transform: var(--entry-transform);
+                }
+            }
+
+            /* ----------- */
+
+            :host::backdrop {
+                transition:
+                    display 0.2s allow-discrete,
+                    overlay 0.2s allow-discrete,
+                    backdrop-filter 0.2s,
+                    background 0.2s;
+            }
+
+            :host(:popover-open)::backdrop {
+                backdrop-filter: var(--backdrop-filter);
+            }
+
+            @starting-style {
+                :host(:popover-open)::backdrop {
+                    backdrop-filter: none;
+                    background: none;
+                }
+            }
+
+            :host(:not([popover="manual"], ._manual-dismiss):popover-open)::backdrop {
+                backdrop-filter: blur(0px);
+            }
+
+            /*
+             * End: entry/exit transition
+             * Start: scroll-driven animations
+            */
+
+            @keyframes radius-progress {
+                from { --wq-internal-var-radius-progress: 0; }
+                to { --wq-internal-var-radius-progress: 1; }
+            }
+
+            @keyframes header-box-progress {
+                from { --wq-internal-var-header-box-progress: 0; }
+                to { --wq-internal-var-header-box-progress: 1; }
+            }
+
+            @keyframes header-box-progress-a {
+                from { --wq-internal-var-header-box-progress-a: 0; }
+                to { --wq-internal-var-header-box-progress-a: 1; }
+            }
+
+            @keyframes header-box-progress-b {
+                from { --wq-internal-var-header-box-progress-b: 0; }
+                to { --wq-internal-var-header-box-progress-b: 1; }
+            }
+
+            @keyframes minmax-progress {
+                from { --wq-internal-var-minmax-progress: 0; }
+                to { --wq-internal-var-minmax-progress: 1; }
+            }
+
+            @keyframes minmax-progress-a {
+                from { --wq-internal-var-minmax-progress-a: 0; }
+                to { --wq-internal-var-minmax-progress-a: 1; }
+            }
+
+            @keyframes minmax-progress-b {
+                from { --wq-internal-var-minmax-progress-b: 0; }
+                to { --wq-internal-var-minmax-progress-b: 1; }
+            }
+
+            @keyframes total-minmax-progress {
+                from { --wq-internal-var-total-minmax-progress: 0; }
+                to { --wq-internal-var-total-minmax-progress: 1; }
+            }
+
+            @keyframes swipe-dismiss-progress {
+                from { --wq-internal-var-swipe-dismiss-progress: 0; }
+                to { --wq-internal-var-swipe-dismiss-progress: 1; }
+            }
+
+            @keyframes scrollbar-appear-progress {
+                from { --wq-internal-var-scrollbar-appear-progress: 0; }
+                to { --wq-internal-var-scrollbar-appear-progress: 1; }
+            }
+
+            @keyframes scrollbar-progress {
+                from { --wq-internal-var-scrollbar-progress: 0; }
+                to { --wq-internal-var-scrollbar-progress: 1; }
+            }
+
+            @keyframes scrollbar-progress-a {
+                from { --wq-internal-var-scrollbar-progress-a: 0; }
+                to { --wq-internal-var-scrollbar-progress-a: 1; }
+            }
+
+            @keyframes scrollbar-progress-b {
+                from { --wq-internal-var-scrollbar-progress-b: 0; }
+                to { --wq-internal-var-scrollbar-progress-b: 1; }
+            }
+
+            :host {
+                timeline-scope: --view-scroll;
+                animation-timeline: --view-scroll;
+
+                animation-timing-function: linear;
+                animation-fill-mode: both;
+                
+                animation-name:
+                    radius-progress,
+                    header-box-progress,
+                    header-box-progress-a,
+                    header-box-progress-b,
+                    minmax-progress,
+                    minmax-progress-a,
+                    minmax-progress-b,
+                    total-minmax-progress,
+                    swipe-dismiss-progress,
+                    scrollbar-appear-progress,
+                    scrollbar-progress,
+                    scrollbar-progress-a,
+                    scrollbar-progress-b;
+
+                animation-range:
+                    var(--radius-progress-range, 0 0),
+                    var(--header-box-progress-range, 0 0),
+                    var(--header-box-progress-range-a, 0 0),
+                    var(--header-box-progress-range-b, 0 0),
+                    var(--minmax-progress-range, 0 0),
+                    var(--minmax-progress-range-a, 0 0),
+                    var(--minmax-progress-range-b, 0 0),
+                    var(--total-minmax-progress-range, 0 0),
+                    var(--swipe-dismiss-progress-range, 0 0),
+                    var(--scrollbar-appear-range, 0 0),
+                    var(--scrollbar-progress-range, 0 0),
+                    var(--scrollbar-progress-range-a, 0 0),
+                    var(--scrollbar-progress-range-b, 0 0);
+
+                animation-direction:
+                    var(--radius-progress-direction, normal),
+                    var(--header-box-progress-direction, normal),
+                    var(--header-box-progress-direction-a, normal),
+                    var(--header-box-progress-direction-b, normal),
+                    var(--minmax-progress-direction, normal),
+                    var(--minmax-progress-direction-a, normal),
+                    var(--minmax-progress-direction-b, normal),
+                    var(--total-minmax-progress-direction, normal),
+                    var(--swipe-dismiss-progress-direction, normal),
+                    var(--scrollbar-appear-direction, normal),
+                    var(--scrollbar-progress-direction, normal),
+                    var(--scrollbar-progress-direction-a, normal),
+                    var(--scrollbar-progress-direction-b, normal);
+            }
+
+            /* ----------- radius ----------- */
+
+            :host(._edge-tight._alt-edge-tight:not(._top:not(._horz), ._left._horz)) {
+                --radius-progress-range:
+                    calc(var(--total-minmax-length) - var(--radius-length))
+                    var(--total-minmax-length);
+            }
+
+            :host(._edge-tight._alt-edge-tight:is(._top:not(._horz), ._left._horz)) {
+                --radius-progress-range:
+                    calc(100% - var(--total-minmax-length))
+                    calc(100% - (var(--total-minmax-length) - var(--radius-length)));
+                --radius-progress-direction: reverse;
+            }
+
+            :host(._edge-tight._alt-edge-tight) {
+                --effective-radius: calc(var(--radius-length) * (1 - var(--wq-internal-var-radius-progress)));
+            }
+
+            :host(:not(._edge-tight._alt-edge-tight)) {
+                --effective-radius: var(--radius-length);
+            }
+
+            :host {
+                --effective-top-left-radius: var(--effective-radius);
+                --effective-top-right-radius: var(--effective-radius);
+                --effective-bottom-left-radius: var(--effective-radius);
+                --effective-bottom-right-radius: var(--effective-radius);
+            }
+
+            :host(._top._edge-tight) {
+                --effective-top-left-radius: 0px;
+                --effective-top-right-radius: 0px;
+            }
+
+            :host(._bottom._edge-tight) {
+                --effective-bottom-left-radius: 0px;
+                --effective-bottom-right-radius: 0px;
+            }
+
+            :host(._left._edge-tight) {
+                --effective-top-left-radius: 0px;
+                --effective-bottom-left-radius: 0px;
+            }
+
+            :host(._right._edge-tight) {
+                --effective-top-right-radius: 0px;
+                --effective-bottom-right-radius: 0px;
+            }
+
+            .view {
+                border-top-left-radius: var(--effective-top-left-radius);
+                border-top-right-radius: var(--effective-top-right-radius);
+                border-bottom-left-radius: var(--effective-bottom-left-radius);
+                border-bottom-right-radius: var(--effective-bottom-right-radius);
+            }
+
+            header {
+                border-top-left-radius: var(--effective-top-left-radius);
+                border-top-right-radius: var(--effective-top-right-radius);
+            }
+
+            .view:not(:has(footer slot:is(.has-slotted, :not(:empty)))) .main {
+                border-bottom-left-radius: var(--effective-bottom-left-radius);
+                border-bottom-right-radius: var(--effective-bottom-right-radius);
+            }
+
+            footer {
+                border-bottom-left-radius: var(--effective-bottom-left-radius);
+                border-bottom-right-radius: var(--effective-bottom-right-radius);
+            }
+
+            /* ----------- minmax ----------- */
+
+            :host {
+                --minmax-progress-range: var(--minmax-progress-range-start) var(--minmax-progress-range-end);
+                --minmax-progress-range-start: 0%;
+                --minmax-progress-range-end: var(--minmax-length);
+
+                --minmax-progress-range-a: var(--minmax-progress-range-a-start) var(--minmax-progress-range-a-end);
+                --minmax-progress-range-a-start: var(--minmax-progress-range-start);
+                --minmax-progress-range-a-end: calc(var(--minmax-progress-range-start) + (var(--minmax-progress-range-end) - var(--minmax-progress-range-start)) / 2);
+
+                --minmax-progress-range-b: var(--minmax-progress-range-b-start) var(--minmax-progress-range-b-end);
+                --minmax-progress-range-b-start: calc(var(--minmax-progress-range-start) + (var(--minmax-progress-range-end) - var(--minmax-progress-range-start)) / 2);
+                --minmax-progress-range-b-end: var(--minmax-progress-range-end);
+
+                --total-minmax-progress-range: var(--total-minmax-progress-range-start) var(--total-minmax-progress-range-end);
+                --total-minmax-progress-range-start: 0%;
+                --total-minmax-progress-range-end: var(--total-minmax-length);
+            }
+                
+            :host(:is(._top:not(._horz), ._left._horz)) {
+                --minmax-progress-range-start: calc(100% - var(--minmax-length));
+                --minmax-progress-range-end: 100%;
+
+                --total-minmax-progress-range-start: calc(100% - var(--total-minmax-length));
+                --total-minmax-progress-range-end: 100%;
+            }
+
+            :host {
+                --effective-minmax-balance-offset: calc(var(--total-minmax-length) / -2 * (1 - var(--wq-internal-var-total-minmax-progress)));
+            }
+
+            :host(:not(._horz, ._top, ._bottom)) .view {
+                transform: translateY(var(--effective-minmax-balance-offset));
+            }
+
+            :host(._horz:not(._left, ._right)) .view {
+                transform: translateX(var(--effective-minmax-balance-offset));
+            }
+
+            /* ----------- swipe-dismiss ----------- */
+            
+            :host(._swipe-dismiss:not(._horz)) {
+                --swipe-dismiss-length: var(--modal-swipe-dismiss-length, calc(var(--view-height) - var(--minmax-length)));
+            }
+
+            :host(._swipe-dismiss._horz) {
+                --swipe-dismiss-length: var(--modal-swipe-dismiss-length, calc(var(--view-width) - var(--minmax-length)));
+            }
+
+            :host(._swipe-dismiss:not(._top:not(._horz), ._left._horz)) {
+                --swipe-dismiss-progress-range: 0% var(--swipe-dismiss-length);
+            }
+
+            :host(._swipe-dismiss:is(._top:not(._horz), ._left._horz)) {
+                --swipe-dismiss-progress-range:
+                    calc(100% - var(--swipe-dismiss-length))
+                    100%;
+                --swipe-dismiss-progress-direction: reverse;
+            }
+
+            :host(._swipe-dismiss) {
+                --effective-swipe-dismiss-opacity: calc(1 * var(--wq-internal-var-swipe-dismiss-progress));
+            }
+
+            :host(._swipe-dismiss)::backdrop,
+            :host(._swipe-dismiss._swipe-dismiss-fadeout) .view {
+                opacity: var(--effective-swipe-dismiss-opacity);
+            }
+
+            /* ----------- header-box ----------- */
+
+            :host(:not(._horz)) {
+                --header-box-progress-range:
+                    var(--total-minmax-length)
+                    calc(var(--total-minmax-length) + var(--header-box-height));
+
+                --header-box-progress-range-a:
+                    var(--total-minmax-length)
+                    calc(var(--total-minmax-length) + (var(--header-box-height) / 2));
+
+                --header-box-progress-range-b:
+                    calc(var(--total-minmax-length) + (var(--header-box-height) / 2))
+                    calc(var(--total-minmax-length) + var(--header-box-height));
+
+                --effective-header-box-progress-transform: translateY(calc(35% * var(--wq-internal-var-header-box-progress-a)));
+                --effective-header-box-progress-a-opacity: calc(1 * (1 - var(--wq-internal-var-header-box-progress-a)));
+                --effective-header-box-progress-b-opacity: calc(1 * var(--wq-internal-var-header-box-progress-b));
+
+                .header-box {
+                    transform: var(--effective-header-box-progress-transform);
+                    opacity: var(--effective-header-box-progress-a-opacity);
+                }
+                
+                .header-left {
+                    opacity: var(--effective-header-box-progress-b-opacity);
+                }
+            }
+
+            /* ----------- scrollbars and scroll-unfold ----------- */
+
+            :host(:is(._scrollbars, ._scroll-unfold, ._horz)) {
+                --scrollable-length: calc(var(--view-scroll-width) - var(--total-minmax-length) - var(--view-width));
+            }
+
+            :host(:is(._scrollbars, ._scroll-unfold):not(._horz)) {
+                --scrollable-length: calc(var(--view-scroll-height) - var(--total-minmax-length) - var(--header-box-height) - var(--view-height));
+            }
+
+            :host(:is(._scrollbars, ._scroll-unfold)) {
+                --scrollability: calc(1 * min(1, calc(var(--scrollable-length) / 1px)));
+
+                .scrollport {
+                    opacity: var(--scrollability);
+                }
+            }
+
+            :host {
+                --scrollbar-appear-range: var(--scrollbar-appear-range-start) var(--scrollbar-appear-range-end);
+                --scrollbar-appear-range-start: calc(var(--total-minmax-length) - 25px);
+                --scrollbar-appear-range-end: var(--total-minmax-length);
+
+                --scrollbar-progress-range: var(--scrollbar-progress-range-start) var(--scrollbar-progress-range-end);
+                --scrollbar-progress-range-start: var(--total-minmax-length);
+                --scrollbar-progress-range-end: 100%;
+
+                --scrollbar-progress-range-a: var(--scrollbar-progress-range-a-start) var(--scrollbar-progress-range-a-end);
+                --scrollbar-progress-range-a-start: var(--scrollbar-progress-range-start);
+                --scrollbar-progress-range-a-end: calc(var(--scrollbar-progress-range-start) + (var(--scrollbar-progress-range-end) - var(--scrollbar-progress-range-start)) / 2);
+
+                --scrollbar-progress-range-b: var(--scrollbar-progress-range-b-start) var(--scrollbar-progress-range-b-end);
+                --scrollbar-progress-range-b-start: calc(var(--scrollbar-progress-range-start) + (var(--scrollbar-progress-range-end) - var(--scrollbar-progress-range-start)) / 2);
+                --scrollbar-progress-range-b-end: var(--scrollbar-progress-range-end);
+            }
+
+            :host(:not(._horz)) {
+                --scrollbar-progress-range-start: calc(var(--total-minmax-length) + var(--header-box-height));
+            }
+
+            :host(._top:not(._horz)) {
+                --scrollbar-appear-range-start: -25px;
+                --scrollbar-appear-range-end: 0%;
+
+                --scrollbar-progress-range-start: var(--header-box-height);
+                --scrollbar-progress-range-end: calc(100% - var(--total-minmax-length));
+            }
+
+            :host(._left._horz) {
+                --scrollbar-appear-range-start: -25px;
+                --scrollbar-appear-range-end: 0%;
+
+                --scrollbar-progress-range-start: 0%;
+                --scrollbar-progress-range-end: calc(100% - var(--total-minmax-length));
+            }
+
+            :host(._scrollbars) {
+                --effective-scrollbar-appear-opacity: calc(1 * var(--wq-internal-var-scrollbar-appear-progress));
+
+                .scrollbar-track {
+                    opacity: var(--effective-scrollbar-appear-opacity);
+                }
+            }
+
+            :host(._scrollbars:not(._horz)) {
+                --effective-scrollbar-progress: calc((var(--view-inner-height) - 100%) * var(--wq-internal-var-scrollbar-progress));
+
+                .scrollbar-thumb {
+                    transform: translateY(var(--effective-scrollbar-progress));
+                }
+            }
+
+            :host(._scrollbars._horz) {
+                --effective-scrollbar-progress: calc((var(--view-width) - 100%) * var(--wq-internal-var-scrollbar-progress));
+
+                .scrollbar-thumb {
+                    transform: translateX(var(--effective-scrollbar-progress));
+                }
+            }
+
+            :host(._scroll-unfold) {
+                --effective-scroll-unfold-a-opacity: calc(1 * var(--wq-internal-var-scrollbar-progress-b));
+                --effective-scroll-unfold-b-opacity: calc(1 * (1 - var(--wq-internal-var-scrollbar-progress-a)));
+
+                .scroll-fold-start {
+                    opacity: var(--effective-scroll-unfold-a-opacity);
+                }
+
+                .scroll-fold-end {
+                    opacity: var(--effective-scroll-unfold-b-opacity);
+                }
+            }
+
+            /*
+             * End: scroll-driven animations
+             * Start: actual styling
+            */
+
+            /* ----------- anchoring, direction, ordering ----------- */
+
+            /* anchoring */
 
             :host(._top) { margin-top: 0; }
             :host(._bottom) { margin-bottom: 0; }
             :host(._left) { margin-left: 0; }
             :host(._right) { margin-right: 0; }
 
-            /* flex orientation */
+            /* direction */
 
             :host,
             .view {
@@ -529,16 +861,30 @@
                 flex-direction: row;
             }
 
-            :host(:is(._top:not(._horz), ._left._horz)) .view,
-            :host(:is(._top:not(._horz), ._left._horz)) .view .container {
-                order: -1;
+            /* ordering */
+
+            header { order: 1; }
+            .scrollport-anchor { order: 2; justify-content: start; }
+            .main { order: 3; }
+            footer { order: 5; }
+
+            :host(:is(._top:not(._horz), ._left._horz)) {
+                .view,
+                .container {
+                    order: -1;
+                }
+
+                .sentinel {
+                    order: 1000;
+                }
+
+                .scrollport-anchor {
+                    order: 4;
+                    justify-content: end;
+                }
             }
 
-            :host(:is(._top:not(._horz), ._left._horz)) .view .sentinel {
-                order: 1000;
-            }
-
-            /* spacing */
+            /* ----------- spacing ----------- */
 
             :host>.spacing,
             .view>.spacing,
@@ -565,219 +911,18 @@
 
             :host(:not(._horz)) .view>.sentinel { height: var(--swipe-dismiss-length); }
             :host(._horz) .view>.sentinel { width: var(--swipe-dismiss-length); }
-
-            /* ----------- */
-
-            .view {
-                position: relative;
-                flex-grow: 1;
-                display: flex;
-
-                pointer-events: none;
-
-                overflow-y: auto;
-                scrollbar-width: none;
-
-                border-top-left-radius: var(--radius-top-left);
-                border-top-right-radius: var(--radius-top-right);
-                border-bottom-left-radius: var(--radius-bottom-left);
-                border-bottom-right-radius: var(--radius-bottom-right);
-
-                scroll-timeline-name: --view-scroll;
-
-                animation-timing-function: linear;
-                animation-fill-mode: forwards;
-                animation-name: untransform;
-                animation-timeline: --view-scroll;
-
-                animation-range: 0 var(--total-minmax-length);
-            }
-
-            :host(:not(._horz, ._top, ._bottom, ._edge-tight._alt-edge-tight)) .view {
-                transform: translateY(calc(var(--total-minmax-length) / -2));
-            }
-
-            :host(._horz:not(._left, ._right, ._edge-tight._alt-edge-tight)) .view {
-                transform: translateX(calc(var(--total-minmax-length) / -2));
-            }
-
-            :host(._edge-tight._alt-edge-tight) .view {
-                animation-timing-function: linear;
-                animation-fill-mode: forwards;
-                animation-name: radius0;
-                animation-timeline: --view-scroll;
-
-                animation-range: calc(var(--total-minmax-length) - var(--wq-radius)) var(--total-minmax-length);
-            }
-
-            :host(._horz) .view {
-                overflow-y: hidden;
-                overflow-x: auto;
-
-                scroll-timeline-axis: inline;
-            }
-
-            .view::-webkit-scrollbar { display: none; }
-
-            /* ----------- */
-
-            .container {
-                position: relative;
-                flex-grow: 1;
-
-                pointer-events: auto;
-
-                display: flex;
-                flex-direction: column;
-            }
-
-            :host(._swipe-dismiss-fadeout) .container {
-                animation-timing-function: linear;
-                animation-fill-mode: both;
-                animation-name: appear;
-                animation-timeline: --view-scroll;
-                animation-range: 0 var(--swipe-dismiss-length);
-            }
-
-            :host(._swipe-dismiss-fadeout:is(._top:not(._horz), ._left._horz)) .container {
-                animation-name: disappear;
-                animation-range: calc(100% - var(--swipe-dismiss-length)) 100%;
-            }
-
-            /* ------------ */
             
-            header {
-                position: sticky;
-                top: calc(var(--header-box-height) * -1);
-                z-index: 2;
+            /* ----------- scroll-snapping ----------- */
 
-                display: flex;
-                flex-direction: column;
-
-                color: var(--header-color-default);
-                background: var(--header-background);
-
-                border-top-left-radius: var(--radius-top-left);
-                border-top-right-radius: var(--radius-top-right);
-
-                order: 1;
+            :host(:not(._top:not(._horz), ._left._horz)) .view {
+                --scroll-snap-start: start;
+                --scroll-snap-end: end;
             }
 
-            :host(:not(._horz)) header {
-                animation-timing-function: linear;
-                animation-fill-mode: both;
-                animation-name: header-chrome;
-                animation-timeline: --view-scroll;
-                animation-range: var(--y-scroll-effect-exclude) calc(var(--y-scroll-effect-exclude) + var(--header-box-height));
+            :host(:is(._top:not(._horz), ._left._horz)) .view {
+                --scroll-snap-start: end;
+                --scroll-snap-end: start;
             }
-
-            :host(._aero) :is(header, .main, footer) {
-                backdrop-filter: blur(var(--aero-blur));
-            } 
-
-            .header-box {
-                position: relative;
-
-                display: flex;
-                align-items: center;
-                justify-content: center;
-
-                --transform: translateY(35%);
-
-                animation-timing-function: linear;
-                animation-fill-mode: forwards;
-                animation-name: disappear, transform-n;
-                animation-timeline: --view-scroll;
-                animation-range: var(--y-scroll-effect-exclude) calc(var(--y-scroll-effect-exclude) + (var(--header-box-height) / 2));
-            }
-
-            :host(._horz) .header-box {
-                display: none;
-            }
-
-            .header-bar {
-                position: relative;
-                z-index: 1;
-
-                display: flex;
-                align-items: start;
-                justify-content: space-between;
-            }
-
-            .header-bar {
-                gap: 0.6rem;
-                padding-block: 0.8rem;
-                padding-inline: 1.2rem;
-            }
-
-            .header-left {
-                display: flex;
-                align-items: start;
-                gap: 0.6rem;
-
-                opacity: 0;
-
-                animation-timing-function: linear;
-                animation-fill-mode: forwards;
-                animation-name: appear;
-                animation-timeline: --view-scroll;
-                animation-range: calc(var(--y-scroll-effect-exclude) + (var(--header-box-height) / 2)) calc(var(--y-scroll-effect-exclude) + var(--header-box-height));
-            }
-
-            :host(._horz) .header-left,
-            header:not(:has(slot[name="header-box"]:is(.has-slotted, :not(:empty)))) .header-left {
-                opacity: 1;
-            }
-
-            :host([type="info"]) header {
-                color: var(--header-color-info);
-            }
-            
-            :host([type="success"]) header {
-                color: var(--header-color-success);
-            }
-
-            :host([type="error"]) header {
-                color: var(--header-color-error);
-            }
-            
-            /* ----------- */
-
-            footer {
-                position: sticky;
-                bottom: 0;
-                z-index: 1;
-
-                border-bottom-left-radius: var(--radius-bottom-left);
-                border-bottom-right-radius: var(--radius-bottom-right);
-
-                color: var(--footer-color-default);
-                background: var(--footer-background);
-
-                order: 5;
-            }
-
-            :host([type="info"]) footer {
-                color: var(--footer-color-info);
-            }
-            
-            :host([type="success"]) footer {
-                color: var(--footer-color-success);
-            }
-
-            :host([type="error"]) footer {
-                color: var(--footer-color-error);
-            }
-
-            /* ------------ */
-
-            footer .footer-bar {
-                position: sticky;
-                left: 0;
-                right: 0;
-            }
-
-            /* ----------- */
 
             .view {
                 scroll-snap-type: y mandatory;
@@ -793,16 +938,9 @@
             }
 
             .main {
-                flex-grow: 1;
-
-                min-width: var(--view-width);
-                min-height: var(--view-inner-height);
-
                 scroll-margin-top: var(--header-min-height);
                 scroll-margin-bottom: var(--footer-min-height);
                 scroll-snap-align: var(--scroll-snap-start);
-
-                order: 3;
             }
 
             :host(:is(._top, ._left._horz)) .main {
@@ -821,11 +959,139 @@
                 scroll-snap-align: start;
             }
 
-            /* ----------- */
+            /* ----------- elements ----------- */
+
+            :host {
+                background: none;
+                border: none;
+                padding: 0;
+
+                max-height: 100vh;
+                max-width: 100vw;
+            }
+            
+            :host(:not(._horz, ._left, ._right, ._top, ._bottom)) {
+                max-width: 800px;
+            }
+
+            /* view */
+            
+            .view {
+                position: relative;
+                flex-grow: 1;
+                display: flex;
+
+                pointer-events: none;
+
+                scroll-timeline-name: --view-scroll;
+                
+                overflow-y: auto;
+                scrollbar-width: none;
+            }
+
+            :host(._horz) .view {
+                overflow-y: hidden;
+                overflow-x: auto;
+
+                scroll-timeline-axis: inline;
+            }
+
+            .view::-webkit-scrollbar { display: none; }
+
+            /* container */
+
+            .container {
+                position: relative;
+                flex-grow: 1;
+
+                pointer-events: auto;
+
+                display: flex;
+                flex-direction: column;
+            }
+
+            /* main */
+
+            .main {
+                flex-grow: 1;
+
+                min-width: var(--view-width);
+                min-height: var(--view-inner-height);
+            }
+
+            /* header */
+
+            header {
+                position: sticky;
+                top: calc(var(--header-box-height) * -1);
+
+                display: flex;
+                flex-direction: column;
+
+                color: var(--header-color-default);
+                background: var(--header-background);
+
+                z-index: 2;
+            }
+
+            .header-box {
+                position: relative;
+
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            :host(._horz) .header-box {
+                display: none;
+            }
+
+            .header-bar {
+                position: relative;
+
+                display: flex;
+                align-items: start;
+                justify-content: space-between;
+                gap: 0.6rem;
+
+                padding-block: 0.8rem;
+                padding-inline: 1.2rem;
+
+                z-index: 1;
+            }
+
+            .header-left {
+                display: flex;
+                align-items: start;
+                gap: 0.6rem;
+            }
+
+            :host(._horz) .header-left,
+            header:not(:has(slot[name="header-box"]:is(.has-slotted, :not(:empty)))) .header-left {
+                opacity: 1 !important;
+            }
+
+            /* footer */
+
+            footer {
+                position: sticky;
+                bottom: 0;
+
+                color: var(--footer-color-default);
+                background: var(--footer-background);
+
+                z-index: 1;
+            }
+                
+            footer .footer-bar {
+                position: sticky;
+                left: 0;
+                right: 0;
+            }
+            
+            /* scrollport */
 
             .scrollport-anchor {
-                order: 2;
-
                 position: sticky;
                 top: var(--header-min-height);
                 bottom: var(--footer-min-height);
@@ -838,11 +1104,6 @@
                 width: var(--view-width);
 
                 z-index: 1;
-            }
-
-            :host(:is(._left._horz, ._top:not(._horz))) .scrollport-anchor {
-                justify-content: end;
-                order: 4;
             }
 
             .scrollport {
@@ -859,75 +1120,11 @@
                 height: calc(var(--view-inner-height) - var(--header-box-height));
             }
 
-            /* -- scroll unfold -- */
+            /* -- scrollbars -- */
 
-            :host(._scroll-unfold) .scrollport {
-                display: flex;
-                flex-direction: column;
-                justify-content: space-between;
-                align-items: stretch;
+            .scrollbar-track {
+                display: none;
             }
-
-            :host(._scroll-unfold._horz) .scrollport {
-                flex-direction: row;
-            }
-            
-            :host(._scroll-unfold) .scrollport .scroll-fold {
-                position: sticky;
-                opacity: 0;
-
-                background: var(--background);
-
-                mask-repeat: no-repeat;
-                mask-size: 100% 100%;
-
-                animation-timing-function: linear;
-                animation-fill-mode: forwards;
-                animation-name: appear;
-                animation-timeline: --view-scroll;
-
-                animation-range-start: var(--scrollbar-progress-range-start);
-                animation-range-end: calc(var(--scrollbar-progress-range-end) + 1px);
-            }
-
-            :host(._scroll-unfold) .scrollport .scroll-fold-end {
-                animation-range-start: calc(var(--scrollbar-progress-range-start) - 1px);
-                animation-range-end: var(--scrollbar-progress-range-end);
-            }
-
-            :host(._scroll-unfold:not(._horz)) .scrollport .scroll-fold {
-                top: var(--header-min-height);
-                height: 25%;
-
-                mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
-                -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
-            }
-
-            :host(._scroll-unfold:not(._horz)) .scrollport .scroll-fold-end {
-                bottom: var(--footer-min-height);
-                top: auto;
-                opacity: 1;
-                animation-name: disappear;
-                transform: scaleY(-1);
-            }
-
-            :host(._scroll-unfold._horz) .scrollport .scroll-fold {
-                left: 0;
-                width: 25%;
-
-                mask-image: linear-gradient(to right, black 0%, transparent 100%);
-                -webkit-mask-image: linear-gradient(to right, black 0%, transparent 100%);
-            }
-
-            :host(._scroll-unfold._horz) .scrollport .scroll-fold-end {
-                right: 0;
-                left: auto;
-                opacity: 1;
-                animation-name: disappear;
-                transform: scaleX(-1);
-            }
-
-            /* -- scrollbar -- */
 
             :host(._scrollbars) .scrollbar-track {
                 position: absolute;
@@ -938,13 +1135,6 @@
                 top: 0;
                 right: 0;
                 padding-inline: 2px;
-
-                opacity: 0;
-
-                animation: appear linear;
-                animation-timeline: --view-scroll;
-                animation-range: var(--scrollbar-appear-range);
-                animation-fill-mode: forwards;
             }
 
             :host(._scrollbars._horz) .scrollbar-track {
@@ -961,114 +1151,71 @@
                 height: var(--scrollbar-thumb-height);
                 background: var(--scrollbar-thumb-color);
                 border-radius: 10px;
-
-                --scrollbar-thumb-start: translateY(0);
-                --scrollbar-thumb-length: translateY(calc(var(--view-inner-height) - 100%));
-
-                animation: move-scrollbar-thumb linear both;
-                animation-timeline: --view-scroll;
-                animation-range: var(--scrollbar-progress-range);
             }
 
             :host(._scrollbars._horz) .scrollbar-thumb {
                 height: var(--scrollbar-thumb-width);
                 width: var(--scrollbar-thumb-height);
-
-                --scrollbar-thumb-start: translateX(0);
-                --scrollbar-thumb-length: translateX(calc(var(--view-width) - 100%));
             }
 
-            /* ----------- */
+            /* scroll unfold */
 
-            :host(:popover-open) {
+            :host(._scroll-unfold) .scrollport {
                 display: flex;
-                opacity: 1;
-                transform: none;
+                flex-direction: column;
+                justify-content: space-between;
+                align-items: stretch;
             }
 
-            @starting-style {
-                :host(:popover-open) {
-                    opacity: 0;
-                    transform: var(--entry-transform);
+            :host(._scroll-unfold._horz) .scrollport {
+                flex-direction: row;
+            }
+            
+            :host(._scroll-unfold) .scroll-fold {
+                position: sticky;
+            }
+
+            :host(._scroll-unfold:not(._horz)) {
+                .scroll-fold {
+                    height: 25%;
+                }
+
+                .scroll-fold-start {
+                    top: var(--header-min-height);
+                    background: linear-gradient(to bottom, var(--background) 0%, transparent 100%);
+                }
+
+                .scroll-fold-end {
+                    bottom: var(--footer-min-height);
+                    background: linear-gradient(to top, var(--background) 0%, transparent 100%);
                 }
             }
 
-            /* ----------- */
+            :host(._scroll-unfold._horz) {
+                .scroll-fold {
+                    width: 25%;
+                }
 
-            :host::backdrop {
-                /* Transition */
-                transition:
-                    display 0.2s allow-discrete,
-                    overlay 0.2s allow-discrete,
-                    backdrop-filter 0.2s;
-            }
+                .scroll-fold-start {
+                    left: 0;
+                    background: linear-gradient(to right, var(--background) 0%, transparent 100%);
+                }
 
-            :host(._swipe-dismiss._container) {
-                timeline-scope: --view-scroll;
-            }
-
-            :host(._swipe-dismiss._container)::backdrop {
-                opacity: 0;
-
-                animation-timing-function: linear;
-                animation-fill-mode: forwards;
-                animation-name: appear;
-                animation-timeline: --view-scroll;
-
-                animation-range: 0 calc(100cqh - var(--expanse-length) - var(--minmax-length));
-            }
-
-            :host(._swipe-dismiss._container._horz)::backdrop {
-                animation-range: 0 calc(100cqw - var(--expanse-length) - var(--minmax-length));
-            }
-
-            :host(._swipe-dismiss._container._top:not(._horz))::backdrop,
-            :host(._swipe-dismiss._container._left._horz)::backdrop {
-                opacity: 1;
-                animation-name: disappear;
-            }
-
-            :host(._swipe-dismiss._container._top:not(._horz))::backdrop {
-                animation-range: calc(100% - (100cqh - var(--expanse-length) - var(--minmax-length))) 100%;
-            }
-
-            :host(._swipe-dismiss._container._left._horz)::backdrop {
-                animation-range: calc(100% - (100cqw - var(--expanse-length) - var(--minmax-length))) 100%;
-            }
-
-            :host(:popover-open)::backdrop {
-                backdrop-filter: blur(3px);
-            }
-
-            :host(:not([popover="manual"]):popover-open)::backdrop {
-                backdrop-filter: blur(0px);
-            }
-
-            @starting-style {
-                :host(:popover-open)::backdrop {
-                    backdrop-filter: none;
+                .scroll-fold-end {
+                    right: 0;
+                    background: linear-gradient(to left, var(--background) 0%, transparent 100%);
                 }
             }
-                
-            :host(:popover-open)::before {
-                position: fixed;
-                inset: 0;
-                display: block;
-                content: "";
-                z-index: -1;
+
+            /* ----------- theming ----------- */
+
+            /* aero-blur */
+
+            :host(._aero) :is(header, .main, footer) {
+                backdrop-filter: blur(var(--aero-blur));
             }
 
-            .icon {
-                display: none;
-                opacity: 0.6;
-            }
-
-            :host([type="info"]) .icon._info,
-            :host([type="success"]) .icon._success,
-            :host([type="error"]) .icon._error,
-            :host([type="warning"]) .icon._warning {
-                display: block;
-            }
+            /* coloring */
 
             :host([type="info"]) .container {
                 color: var(--color-info);
@@ -1091,10 +1238,45 @@
                 background: var(--background);
             }
 
-            .view:not(:has(footer slot:is(.has-slotted, :not(:empty)))) .main {
-                border-bottom-left-radius: var(--radius-bottom-left);
-                border-bottom-right-radius: var(--radius-bottom-right);
+            :host([type="info"]) header {
+                color: var(--header-color-info);
             }
+            
+            :host([type="success"]) header {
+                color: var(--header-color-success);
+            }
+
+            :host([type="error"]) header {
+                color: var(--header-color-error);
+            }
+            
+            :host([type="info"]) footer {
+                color: var(--footer-color-info);
+            }
+            
+            :host([type="success"]) footer {
+                color: var(--footer-color-success);
+            }
+
+            :host([type="error"]) footer {
+                color: var(--footer-color-error);
+            }
+
+            /* ----------- icons ----------- */
+
+            .icon {
+                display: none;
+                opacity: 0.6;
+            }
+
+            :host([type="info"]) .icon._info,
+            :host([type="success"]) .icon._success,
+            :host([type="error"]) .icon._error,
+            :host([type="warning"]) .icon._warning {
+                display: block;
+            }
+            
+            /* ----------- controls ----------- */
 
             .close-button {
                 padding-inline: 0;
@@ -1103,17 +1285,13 @@
                 justify-content: center;
                 appearance: none;
                 font-size: inherit;
-                color: gray;
+                color: var(--close-button-color);
                 cursor: pointer;
                 border: none;
                 background: none;
             }
-            
-            :host(:not([popover="manual"])) {
-                pointer-events: none;
-            }
 
-            :host(:not([popover="manual"])) .close-button {
+            :host(:not([popover="manual"], ._manual-dismiss)) .close-button {
                 display: none;
             }
 
@@ -1129,7 +1307,7 @@
             
             ${this.css}
         </style>
-        `,this.#t=this.shadowRoot.querySelector(".view"),this.#e=this.#t.querySelector(".sentinel"),this.#o=this.#t.querySelector(".spacing"),this.#i=this.#t.querySelector("header"),this.#n=this.#t.querySelector(".header-box"),this.#l=this.#t.querySelector("footer")}},p=class extends Event{#t;get data(){return this.#t}constructor(t){super("response"),this.#t=t}},n=class extends c{static get events(){return super.events.concat(["response"])}get delegatesFocus(){return!0}hidePopover(){this.respondWith(null)}respondWith(t){let e=new p(t);super.hidePopover(),this.dispatchEvent(e)}respondWithData(){let t=this.querySelector("form")||this.shadowRoot.querySelector("form");this.respondWith(t)}render(t={}){this.type=t.type;let e=[t.message];t.actions?.[0]&&e.push(`<span slot="action-0">${t.actions[0]}</span>`),t.actions?.[1]&&e.push(`<span slot="action-1">${t.actions[1]}</span>`),this.innerHTML=e.join(`
+        `,this.#r=this.shadowRoot.querySelector(".view"),this.#e=this.#r.querySelector(".sentinel"),this.#o=this.#r.querySelector(".spacing"),this.#i=this.#r.querySelector("header"),this.#n=this.#r.querySelector(".header-box"),this.#l=this.#r.querySelector("footer")}},p=class extends Event{#r;get data(){return this.#r}constructor(r){super("response"),this.#r=r}},i=class extends l{static get events(){return super.events.concat(["response"])}get delegatesFocus(){return!0}hidePopover(){this.respondWith(null)}respondWith(r){let e=new p(r);super.hidePopover(),this.dispatchEvent(e)}respondWithData(){let r=this.querySelector("form")||this.shadowRoot.querySelector("form");this.respondWith(r)}render(r={}){this.type=r.type;let e=[r.message];r.actions?.[0]&&e.push(`<span slot="action-0">${r.actions[0]}</span>`),r.actions?.[1]&&e.push(`<span slot="action-1">${r.actions[1]}</span>`),this.innerHTML=e.join(`
 `)}get actionTexts(){return["Cancel","Submit"]}get footerHTML(){return`                    
             <button
                 part="action-0"
@@ -1209,7 +1387,7 @@
             button.action:not(:has(slot:is(.has-slotted, :not(:empty)))) {
                 display: none;
             }
-        `}},m=class extends n{static get observedAttributes(){return super.observedAttributes.concat(["value","placeholder"])}attributeChangedCallback(t,e,o){super.attributeChangedCallback?.(t,e,o);let r=this.shadowRoot.querySelector("input");t==="value"&&(r.value=o),t==="placeholder"&&(r.placeholder=o)}set placeholder(t){[void 0,null].includes(t)?this.removeAttribute("placeholder"):this.setAttribute("placeholder",t)}get placeholder(){return this.getAttribute("placeholder")}set value(t){[void 0,null].includes(t)?this.removeAttribute("value"):this.setAttribute("value",t)}get value(){return this.getAttribute("value")}respondWithData(){let t=this.shadowRoot.querySelector("input").value;this.respondWith(t)}render(t={}){this.value=t.value,this.placeholder=t.placeholder,super.render(t)}get mainHTML(){return`
+        `}},g=class extends i{static get observedAttributes(){return super.observedAttributes.concat(["value","placeholder"])}attributeChangedCallback(r,e,t){super.attributeChangedCallback?.(r,e,t);let s=this.shadowRoot.querySelector("input");r==="value"&&(s.value=t),r==="placeholder"&&(s.placeholder=t)}set placeholder(r){[void 0,null].includes(r)?this.removeAttribute("placeholder"):this.setAttribute("placeholder",r)}get placeholder(){return this.getAttribute("placeholder")}set value(r){[void 0,null].includes(r)?this.removeAttribute("value"):this.setAttribute("value",r)}get value(){return this.getAttribute("value")}respondWithData(){let r=this.shadowRoot.querySelector("input").value;this.respondWith(r)}render(r={}){this.value=r.value,this.placeholder=r.placeholder,super.render(r)}get mainHTML(){return`
             <form class="main" part="main" onsubmit="this.getRootNode().host.respondWithData(); event.preventDefault();">
                 <slot></slot>
                 <slot name="input">
@@ -1235,5 +1413,5 @@
             input::placeholder {
                 color: currentColor;
             }
-        `}},g=class extends n{get actionTexts(){return["No","Yes"]}respondWith(t){super.respondWith(!!t)}respondWithData(){super.respondWith(!0)}},v=class extends n{get actionTexts(){return["","Got it"]}};function u(){try{CSS.registerProperty({name:"--wq-radius",syntax:"<length-percentage>",inherits:!0,initialValue:"0"})}catch{}customElements.define("wq-toast",h),customElements.define("wq-modal",c),customElements.define("wq-dialog",n),customElements.define("wq-prompt",m),customElements.define("wq-confirm",g),customElements.define("wq-alert",v)}u();})();
+        `}},m=class extends i{get actionTexts(){return["No","Yes"]}respondWith(r){super.respondWith(!!r)}respondWithData(){super.respondWith(!0)}},v=class extends i{get actionTexts(){return["","Got it"]}};function u(){try{CSS.registerProperty({name:"--wq-internal-var-radius-progress",syntax:"<number>",inherits:!0,initialValue:"0"})}catch{}try{CSS.registerProperty({name:"--wq-internal-var-header-box-progress",syntax:"<number>",inherits:!0,initialValue:"0"})}catch{}try{CSS.registerProperty({name:"--wq-internal-var-header-box-progress-a",syntax:"<number>",inherits:!0,initialValue:"0"})}catch{}try{CSS.registerProperty({name:"--wq-internal-var-header-box-progress-b",syntax:"<number>",inherits:!0,initialValue:"0"})}catch{}try{CSS.registerProperty({name:"--wq-internal-var-minmax-progress",syntax:"<number>",inherits:!0,initialValue:"0"})}catch{}try{CSS.registerProperty({name:"--wq-internal-var-minmax-progress-a",syntax:"<number>",inherits:!0,initialValue:"0"})}catch{}try{CSS.registerProperty({name:"--wq-internal-var-minmax-progress-b",syntax:"<number>",inherits:!0,initialValue:"0"})}catch{}try{CSS.registerProperty({name:"--wq-internal-var-total-minmax-progress",syntax:"<number>",inherits:!0,initialValue:"0"})}catch{}try{CSS.registerProperty({name:"--wq-internal-var-swipe-dismiss-progress",syntax:"<number>",inherits:!0,initialValue:"0"})}catch{}try{CSS.registerProperty({name:"--wq-internal-var-scrollbar-appear-progress",syntax:"<number>",inherits:!0,initialValue:"0"})}catch{}try{CSS.registerProperty({name:"--wq-internal-var-scrollbar-progress",syntax:"<number>",inherits:!0,initialValue:"0"})}catch{}try{CSS.registerProperty({name:"--wq-internal-var-scrollbar-progress-a",syntax:"<number>",inherits:!0,initialValue:"0"})}catch{}try{CSS.registerProperty({name:"--wq-internal-var-scrollbar-progress-b",syntax:"<number>",inherits:!0,initialValue:"0"})}catch{}customElements.define("wq-toast",h),customElements.define("wq-modal",l),customElements.define("wq-dialog",i),customElements.define("wq-prompt",g),customElements.define("wq-confirm",m),customElements.define("wq-alert",v)}u();})();
 //# sourceMappingURL=elements.src.build.js.map
