@@ -34,7 +34,7 @@ export class WebfloRootClientA extends WebfloClient {
 	#hmr;
 
 	get withViewTransitions() {
-		return document.querySelector('meta[name="webflo:viewtransitions"]')?.value;
+		return ['true', '1', 'yes'].includes(document.querySelector('meta[name="webflo:viewtransitions"]')?.content?.toLowerCase());
 	}
 
 	constructor(bootstrap, host) {

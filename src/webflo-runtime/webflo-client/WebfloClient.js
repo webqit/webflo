@@ -566,11 +566,11 @@ export class WebfloClient extends AppRuntime {
         Observer.set(this.transition, 'rel', viewTransitionRel);
         // Trigger transition
         if (document.startViewTransition && this.withViewTransitions && !detail.hasUAVisualTransition) {
-            const synthesizeWhile = window.webqit?.realdom?.synthesizeWhile || ((callback) => callback());
+            const synthesizeWhile = /*window.webqit?.realdom?.synthesizeWhile ||*/ ((callback) => callback());
             return new Promise(async (resolve) => {
                 await synthesizeWhile(async () => {
                     Observer.set(this.transition, 'phase', 'old');
-                    const viewTransition = document.startViewTransition({ update: updateCallback, styles: ['navigation', viewTransitionRel] });
+                    const viewTransition = document.startViewTransition({ update: updateCallback, types: ['navigation', viewTransitionRel] });
                     try { await viewTransition.updateCallbackDone; } catch (e) { console.log(e); }
                     Observer.set(this.transition, 'phase', 'new');
                     try { await viewTransition.ready; } catch (e) { console.log(e); }
