@@ -1396,6 +1396,7 @@ export class ModalElement extends BaseElement {
             :host(._horz) .view {
                 overflow-y: hidden;
                 overflow-x: auto;
+                scrollbar-width: none;
 
                 scroll-timeline-axis: inline;
             }

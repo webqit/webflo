@@ -571,6 +571,9 @@ export class WebfloClient extends AppRuntime {
                 await synthesizeWhile(async () => {
                     Observer.set(this.transition, 'phase', 'old');
                     const viewTransition = document.startViewTransition({ update: updateCallback, types: ['navigation', viewTransitionRel] });
+                    if (detail.navigationType) {
+                        viewTransition.types.add(detail.navigationType);
+                    }
                     try { await viewTransition.updateCallbackDone; } catch (e) { console.log(e); }
                     Observer.set(this.transition, 'phase', 'new');
                     try { await viewTransition.ready; } catch (e) { console.log(e); }

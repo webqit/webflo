@@ -600,6 +600,10 @@ export class WebfloServer extends AppRuntime {
             responseMeta.set('static', true);
             responseMeta.set('index', scopeObj.index);
 
+            if (FLAGS['dev'] && httpEvent.url.pathname === '/@hmr') {
+                response.headers.set('Cache-Control', 'no-store');
+            }
+
             return response;
         };
 
