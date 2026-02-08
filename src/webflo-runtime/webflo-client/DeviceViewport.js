@@ -58,12 +58,16 @@ export class DeviceViewport {
         return el;
     }
 
-    #scheduleRender() {
+    #scheduleRender(lag = 0) {
         if (this.#timer) return;
-        this.#timer = requestAnimationFrame(() => {
-            this.#render();
-            this.#timer = null;
-        });
+        const exec = () => {
+            this.#timer = requestAnimationFrame(() => {
+                this.#render();
+                this.#timer = null;
+            });
+        };
+        if (!lag) return exec();
+        setTimeout(exec, lag);
     }
 
     #render() {
@@ -152,29 +156,31 @@ export class DeviceViewport {
         return [k.replace(/-([a-z])/g, g => g[1].toUpperCase()), v || true];
     }));
 
-    push(id, config, priority = 1) {
+    push(id, config, { priority = 1, lag = 0 } = {}) {
         if (!id) throw new Error("push() requires a unique ID");
         if (this.#stack.some(e => e.id === id)) return;
 
         const peek = this.peek();
         if (peek._priority - priority >= 0.2) {
-            this.#stack.push({ ...config, ...peek, id, _priority: priority });
+            this.#stack.push({ ...config, ...peek, id, _priority: priority, _lag: lag });
         } else {
-            this.#stack.push({ ...peek, ...config, id, _priority: priority });
+            this.#stack.push({ ...peek, ...config, id, _priority: priority, _lag: lag });
         }
         
-        this.#scheduleRender();
+        this.#scheduleRender(lag);
     }
 
     pop(...ids) {
         if (!ids.length) throw new Error("pop() requires a target ID");
+        let lag = 0;
         ids.forEach((id) => {
             const idx = this.#stack.findIndex(e => e.id === id);
             if (idx > 0) { // Never pop the initial state at index 0
-                this.#stack.splice(idx, 1);
+                const [entry] = this.#stack.splice(idx, 1);
+                lag = Math.max(lag, entry._lag);
             }
         });
-        this.#scheduleRender();
+        this.#scheduleRender(lag);
     }
 
     peek() { return this.#stack[this.#stack.length - 1]; }

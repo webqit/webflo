@@ -41,7 +41,7 @@ export class WebfloClient extends AppRuntime {
         super(bootstrap);
         this.#host = host;
         Object.defineProperty(this.host, 'webfloRuntime', { get: () => this });
-        this.#location = new URLPlus(this.host.location);
+        this.#location = new URLPlus(decodeURI(this.host.location.href), undefined, { compatMode: false });
         this.#navigator = {
             requesting: null,
             redirecting: null,
@@ -51,7 +51,7 @@ export class WebfloClient extends AppRuntime {
         };
         this.#transition = {
             from: new URLPlus(window.origin),
-            to: new URLPlus(this.host.location),
+            to: new URLPlus(decodeURI(this.host.location.href)),
             rel: 'unrelated',
             phase: 0
         };
@@ -437,7 +437,7 @@ export class WebfloClient extends AppRuntime {
         // Transition UI
         await this.transitionUI(async () => {
             // Set post-request states
-            Observer.set(this.location, 'href', scopeObj.finalUrl);
+            Observer.set(this.location, 'href', decodeURI(scopeObj.finalUrl));
             scopeObj.resetStates();
 
             // Error?

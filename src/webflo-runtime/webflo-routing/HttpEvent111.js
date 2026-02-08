@@ -30,7 +30,7 @@ export class HttpEvent111 {
             node._context.parentEvent = this;
         });
 
-        this.#url = new URLPlus(this.#init.request.url, undefined, { immutable: true });
+        this.#url = new URLPlus(this.#init.request.url, undefined, { immutable: true, compatMode: false });
 
         this._parentEvent?.signal.addEventListener('abort', () => this.#abortController.abort(), { once: true });
         this.#init.request.signal?.addEventListener('abort', () => this.#abortController.abort(), { once: true });

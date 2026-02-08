@@ -529,7 +529,7 @@ export class ModalElement extends BaseElement {
         setTimeout(() => {
             if (minmaxEvents) observer.observe(this.#spacingElement);
             if (swipeDismiss) observer.observe(this.#sentinelElement);
-        }, 200);
+        }, 300);
 
         this.#unbindMinmaxWorker = () => observer.disconnect();
     }
@@ -703,11 +703,13 @@ export class ModalElement extends BaseElement {
                 --backdrop-filter: var(--modal-backdrop-filter, blur(3px));
                 
                 --radius-length: var(--modal-radius, 1rem);
+                --entry-exit-transition-duration: var(--modal-entry-exit-transition-duration, 0.3s);
 
                 --background: var(--modal-background, rgba(80, 80, 80, 1));
 
                 --background-accent: var(--modal-background-accent, var(--background));
                 --color-accent: var(--modal-color-accent, var(--color-default));
+                --radius-accent: var(--modal-radius-accent, 0px);
 
                 --color-default: var(--modal-color-default, whitesmoke);
                 --color-info: var(--modal-color-info, whitesmoke);
@@ -789,10 +791,10 @@ export class ModalElement extends BaseElement {
 
             :host {
                 transition:
-                    opacity 0.2s,
-                    transform 0.2s,
-                    overlay 0.2s allow-discrete,
-                    display 0.2s allow-discrete;
+                    opacity var(--entry-exit-transition-duration),
+                    transform var(--entry-exit-transition-duration),
+                    overlay var(--entry-exit-transition-duration) allow-discrete,
+                    display var(--entry-exit-transition-duration) allow-discrete;
                 transition-timing-function: ease-out;
                 
                 transform: var(--exit-transform);
@@ -816,10 +818,10 @@ export class ModalElement extends BaseElement {
 
             :host::backdrop {
                 transition:
-                    display 0.2s allow-discrete,
-                    overlay 0.2s allow-discrete,
-                    backdrop-filter 0.2s,
-                    background 0.2s;
+                    display var(--entry-exit-transition-duration) allow-discrete,
+                    overlay var(--entry-exit-transition-duration) allow-discrete,
+                    backdrop-filter var(--entry-exit-transition-duration),
+                    background var(--entry-exit-transition-duration);
             }
 
             :host(:popover-open)::backdrop {
