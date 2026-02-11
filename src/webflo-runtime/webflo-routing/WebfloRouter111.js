@@ -128,7 +128,7 @@ export class WebfloRouter111 {
                         }
 
                         // Compose new event parameters
-                        const request = requestInheritanceChain.reduce((prev, curr = {}) => new Request(prev, curr), requestInheritanceChain.shift());
+                        const request = requestInheritanceChain.reduce((prev, curr = {}) => new RequestPlus(prev, curr), requestInheritanceChain.shift());
 
                         // Set context parameters
                         nextTick.method = request.method;
