@@ -9,12 +9,6 @@ import { WebfloHMR } from './webflo-devmode.js';
 
 export class WebfloRootClientA extends WebfloClient {
 
-	static get Workport() { return ClientSideWorkport; }
-
-	static get DeviceCapabilities() { return DeviceCapabilities; }
-
-	static get DeviceViewport() { return DeviceViewport; }
-
 	static create(bootstrap, host) {
 		return new this(bootstrap, host);
 	}
@@ -77,16 +71,15 @@ export class WebfloRootClientA extends WebfloClient {
 		const cleanups = [];
 		instanceController.signal.addEventListener('abort', () => cleanups.forEach((c) => c()), { once: true });
 
-		// DeviceViewport, DeviceCapabilities, & Service Worker
+		this.#viewport = new DeviceViewport();
 
-		this.#viewport = new this.constructor.DeviceViewport();
-
-		this.#capabilities = await this.constructor.DeviceCapabilities.initialize(this, this.config.CLIENT.capabilities);
+		this.#capabilities = new DeviceCapabilities(this.config.CLIENT.capabilities, this);
+		await this.#capabilities.ready;
 		cleanups.push(() => this.#capabilities.close());
 
 		if (this.config.CLIENT.capabilities?.service_worker) {
 			const { filename, ...restServiceWorkerParams } = this.config.WORKER;
-			this.constructor.Workport.initialize(null, filename, restServiceWorkerParams).then((workport) => {
+			ClientSideWorkport.initialize(null, filename, restServiceWorkerParams).then((workport) => {
 				this.#workport = workport;
 				cleanups.push(() => this.#workport.close());
 			});

@@ -1,11 +1,13 @@
 import { ClientPortMixin } from './ClientPortMixin.js';
 import { StarPort } from '@webqit/port-plus';
-import { _meta } from '../../util.js';
+import { _meta, _portPlusMeta } from '../../util.js';
 
 export class ClientRequestPort001 extends ClientPortMixin(StarPort) {
 
     #portID;
     get portID() { return this.#portID; }
+
+    get broadcast() { return _portPlusMeta(this).get('parentPort'); }
 
     #url;
     get url() { return this.#url; }
@@ -39,14 +41,14 @@ export class ClientRequestPort001 extends ClientPortMixin(StarPort) {
     }
 
     enterChannel(channelID, { resolveData = null } = {}) {
-        const webfloTenant = _meta(this).get('parentNode');
-        const clients = webfloTenant && _meta(webfloTenant).get('parentNode');
+        const webfloTenant = _portPlusMeta(this).get('parentPort');
+        const webfloTenancy = webfloTenant && _portPlusMeta(webfloTenant).get('parentPort');
 
-        if (!clients) {
-            throw new Error('Instance seem not connected to the messaging system.');
+        if (!webfloTenancy) {
+            throw new Error('Instance is not connected to the multi-tenant system.');
         }
 
-        const channel = clients.getChannel(channelID, true);
+        const channel = webfloTenancy.getChannel(channelID, true);
         const leave = channel.addPort(webfloTenant, { resolveData });
         
         return { channel, leave };

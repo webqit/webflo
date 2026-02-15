@@ -1,6 +1,7 @@
 import Path from 'path';
 import chokidar from 'chokidar';
-import { exec, spawn } from 'child_process';
+import { exec } from 'child_process';
+import spawn from 'cross-spawn';
 import { platform } from 'os';
 
 export class WebfloHMR {
@@ -109,7 +110,7 @@ export class WebfloHMR {
                     await this.buildRoutes(this.#jsMeta.mustRevalidate/*fullBuild*/);
                     hasJustBeenRebuilt = true;
                 }
-                const affectedHandlers = this.#jsMeta.dependencyMap[target] || [];
+                const affectedHandlers = this.#jsMeta.dependencyMap?.[target] || [];
                 for (const affectedHandler of affectedHandlers) {
                     const [, dir, affectedRoute = '/', realm] = this.#handlerMatch.exec(affectedHandler) || [];
                     for (const r of ['client', 'worker', 'server']) {
@@ -277,7 +278,6 @@ export class WebfloHMR {
         return await new Promise((resolve, reject) => {
             const child = spawn(commandArr.shift(), commandArr, {
                 stdio: ['pipe', 'pipe', 'inherit', 'ipc'],
-                shell: true, // for Windows compatibility
             });
             child.on('message', (msg) => {
                 for (const file of msg?.outfiles || []) {

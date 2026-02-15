@@ -1,27 +1,35 @@
-import { RelayPort, StarPort } from '@webqit/port-plus';
+import { StarPort, RelayPort } from '@webqit/port-plus';
 import { WebfloTenant001 } from './WebfloTenant001.js';
 
 export class WebfloTenancy001 extends StarPort {
 
     #channels = new Map;
 
+    constructor() {
+        super({ handshake: 1, postAwaitsOpen: true, autoClose: false });
+    }
+
     getTenant(tenantID, autoCreate = false) {
-        if (autoCreate && !this.findPort((tenant) => tenant.tenantID === tenantID)) {
-            const tenant = new WebfloTenant001(tenantID, { handshake: 1, postAwaitsOpen: true, autoClose: false });
-            const cleanup = this.addPort(tenant);
-            tenant.readyStateChange('close').then(cleanup);
+        let tenant = this.findPort((tenant) => tenant.tenantID === tenantID);
+
+        if (!tenant && autoCreate) {
+            tenant = new WebfloTenant001(tenantID, { handshake: 1, postAwaitsOpen: true, autoClose: true });
+            this.addPort(tenant, { enableBubbling: true }); // auto-removed on close - given that handshake is 1, above
         }
-        return this.findPort((tenant) => tenant.tenantID === tenantID);
+
+        return tenant;
     }
 
     getChannel(channelName, autoCreate = false) {
-        if (!this.#channels.has(channelName) && autoCreate) {
-            const channel = new RelayPort(channelName, { handshake: 1, postAwaitsOpen: true, autoClose: true });
+        let channel = this.#channels.get(channelName);
+
+        if (!channel && autoCreate) {
+            channel = new RelayPort(channelName, { handshake: 1, postAwaitsOpen: true, autoClose: true });
 
             this.#channels.set(channelName, channel);
             channel.readyStateChange('close').then(() => this.#channels.delete(channelName));
         }
         
-        return this.#channels.get(channelName);
+        return channel;
     }
 }

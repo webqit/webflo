@@ -5,8 +5,10 @@ export class WebfloRootClientB extends WebfloRootClientA {
 
 	control() {
 		const instanceController = super.controlSuper/*IMPORTANT*/();
+
 		// Detect source elements
 		let navigationOrigins = [];
+
         // Capture all link-clicks
 		const clickHandler = (e) => {
 			if (!this._canIntercept(e) || e.defaultPrevented) return;
@@ -14,11 +16,13 @@ export class WebfloRootClientB extends WebfloRootClientA {
 			if (!anchorEl || !anchorEl.href || anchorEl.target) return;
 			navigationOrigins = [anchorEl, null, anchorEl.closest('[navigationcontext]')];
 		};
+
         // Capture all form-submits
 		const submitHandler = (e) => {
 			if (!this._canIntercept(e) || e.defaultPrevented) return;
 			navigationOrigins = [e.submitter, e.target.closest('form'), e.target.closest('[navigationcontext]')];
 		};
+
 		// Handle navigation event which happens after the above
 		const navigateHandler = (e) => {
 			if (!e.canIntercept 
@@ -47,6 +51,7 @@ export class WebfloRootClientB extends WebfloRootClientA {
 				info
 			};
 			navigationOrigins = [];
+
 			// Traversal?
 			// Push
 			const url = new URL(destination.url, this.location.href);
@@ -55,6 +60,7 @@ export class WebfloRootClientB extends WebfloRootClientA {
 				body: formData,
 				//signal TODO: auto-aborts on a redirect response which thus fails to parse
 			};
+
 			const runtime = this;
 			e.intercept({
 				scroll: 'after-transition',
@@ -64,10 +70,12 @@ export class WebfloRootClientB extends WebfloRootClientA {
 				},
 			});
 		};
+
 		window.addEventListener('click', clickHandler, { signal: instanceController.signal });
 		window.addEventListener('submit', submitHandler, { signal: instanceController.signal });
 		window.navigation.addEventListener('navigate', navigateHandler, { signal: instanceController.signal });
-        return instanceController;
+        
+		return instanceController;
 	}
 
     reload(params) {

@@ -39,7 +39,7 @@ export class WebfloServer extends AppRuntime {
     get keyvals() { return this.#keyvals; }
 
     #servers = new Map;
-    #tenancy = new WebfloTenancy001({ handshake: 1, postAwaitsOpen: true, autoClose: false });
+    #tenancy = new WebfloTenancy001;
     #hmr;
 
     #renderFileCache = new Map;
@@ -426,7 +426,7 @@ export class WebfloServer extends AppRuntime {
                 wss.handleUpgrade(nodeRequest, socket, head, (ws) => {
                     wss.emit('connection', ws, nodeRequest);
                     const wsw = new WebSocketPort(ws, { handshake: 1, postAwaitsOpen: true });
-                    clientRequestPort.addPort(wsw);
+                    clientRequestPort.addPort(wsw, { enableBubbling: true });
                 });
             }
         };

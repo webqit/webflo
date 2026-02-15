@@ -17,11 +17,15 @@ export class WebfloTenant001 extends StarPort {
 
     createRequestPort(portID, url = null) {
         const requestPort = new ClientRequestPort001(portID, url, { handshake: 1, postAwaitsOpen: true, autoClose: true });
-        this.addPort(requestPort);
+        this.addPort(requestPort, { enableBubbling: true });
+
         setTimeout(() => {
             if (requestPort.length || !this.findPort((port) => port === requestPort)) return;
-            requestPort.close(true);
-        }, 15000/*15sec*/);
+            if (requestPort.autoCloseXPromise) {
+                requestPort.autoCloseXPromise.then(() => requestPort.close(true));
+            } else requestPort.close(true);
+        }, 30000/*30sec*/);
+
         return requestPort;
     }
 }

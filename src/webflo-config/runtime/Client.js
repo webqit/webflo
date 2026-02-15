@@ -26,8 +26,8 @@ export default class Client extends Dotfile {
             capabilities: {
                 service_worker: false,
                 webpush: false,
-                custom_install: false,
-                exposed: ['display-mode', 'notifications'],
+                pwa_install: false,
+                exposed: [],
             },
         }, config, 'patch');
     }
@@ -89,7 +89,7 @@ export default class Client extends Dotfile {
                         inactive: 'NO',
                     },
                     {
-                        name: 'custom_install',
+                        name: 'pwa_install',
                         type: 'toggle',
                         message: 'Enable custom PWA install prompt?',
                         active: 'YES',
