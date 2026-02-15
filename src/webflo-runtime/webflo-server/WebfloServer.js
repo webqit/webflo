@@ -38,8 +38,10 @@ export class WebfloServer extends AppRuntime {
     #keyvals;
     get keyvals() { return this.#keyvals; }
 
-    #servers = new Map;
     #tenancy = new WebfloTenancy001;
+    get tenancy() { return this.#tenancy; }
+
+    #servers = new Map;
     #hmr;
 
     #renderFileCache = new Map;

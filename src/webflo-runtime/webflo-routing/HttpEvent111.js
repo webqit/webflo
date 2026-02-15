@@ -127,12 +127,38 @@ export class HttpEvent111 {
 
     // ------
 
-    async waitUntil(promise) {
-        return await this.#extendLifecycle(promise);
+    async waitUntil(promise, { surviveNavigation = false, authBound = false } = {}) {
+        let gcArray = [];
+        const gc = () => gcArray.forEach((unsub) => unsub());
+
+        if (surviveNavigation) {
+            const navHandler = (e) => e.preventDefault();
+            this.client.addEventListener('navigate', navHandler);
+            gcArray.push(() => this.client.removeEventListener('navigate', navHandler));
+        } else {
+            promise = Promise.race([promise, new Promise((res) => {
+                this.client.addEventListener('navigate', res, { once: true });
+                gcArray.push(() => this.client.removeEventListener('navigate', res));
+            })]);
+        }
+
+        if (authBound) {
+            promise = Promise.race([promise, new Promise((res) => {
+                gcArray.push(this.user.subscribe('id', (e) => {
+                    if (!e.value || e.oldValue && e.value !== e.oldValue) res(e);
+                }));
+            })]);
+        }
+
+        return await this.#extendLifecycle(promise).finally(gc);
     }
 
     async waitUntilNavigate() {
-        /* DO NOT AWAIT */this.waitUntil(new Promise(() => { }));
+        return this.waitUntil(new Promise(() => { }));
+    }
+
+    async waitUntilSignout() {
+        return this.waitUntil(new Promise(() => { }), { authBound: true });
     }
 
     async respondWith(data, ...args) {

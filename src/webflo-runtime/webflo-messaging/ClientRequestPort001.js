@@ -1,6 +1,6 @@
 import { ClientPortMixin } from './ClientPortMixin.js';
-import { StarPort } from '@webqit/port-plus';
-import { _meta, _portPlusMeta } from '../../util.js';
+import { StarPort, MessageEventPlus } from '@webqit/port-plus';
+import { _portPlusMeta } from '../../util.js';
 
 export class ClientRequestPort001 extends ClientPortMixin(StarPort) {
 
@@ -32,7 +32,7 @@ export class ClientRequestPort001 extends ClientPortMixin(StarPort) {
                 this.#navigatedAway = true;
                 lastNavigationEvent = 'navigateaway';
             }
-            const event = new Event(lastNavigationEvent);
+            const event = new MessageEventPlus(null, { type: lastNavigationEvent, target: this });
             this.dispatchEvent(event);
             if (event.defaultPrevented) {
                 e.preventDefault();

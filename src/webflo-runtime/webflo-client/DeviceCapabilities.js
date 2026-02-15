@@ -260,7 +260,6 @@ class GeolocationCapability extends DeviceCapability {
                     }
 
                     if (!Object.keys(coords).every((n) => coords[n] === locationData[n])) {
-                        console.log('_________________', coords);
                         Observer.set(locationData, coords);
                     }
 

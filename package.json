@@ -47,11 +47,11 @@
   "dependencies": {
     "@octokit/webhooks": "^7.15.1",
     "@webqit/backpack": "^0.1.12",
-    "@webqit/fetch-plus": "^0.1.28",
+    "@webqit/fetch-plus": "^0.1.29",
     "@webqit/keyval": "^0.2.17",
     "@webqit/observer": "^3.8.14",
     "@webqit/oohtml-ssr": "^2.2.4",
-    "@webqit/port-plus": "^0.1.21",
+    "@webqit/port-plus": "^0.1.22",
     "@webqit/url-plus": "^0.1.8",
     "@webqit/use-live": "^0.5.49",
     "@webqit/util": "^0.8.11",

@@ -8,9 +8,7 @@ export class HttpUser111 extends HttpKeyvalInterface {
         const isSignedIn = await this.get('id');
         if (callback) {
             await callback(isSignedIn);
-            return options.once
-                ? undefined
-                : this.subscribe('id', callback, options);
+            return this.subscribe('id', (e) => callback(e.value), options);
         }
         return !!isSignedIn;
     }
