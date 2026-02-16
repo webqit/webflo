@@ -161,14 +161,16 @@ export class WebfloRouter111 {
                     let resolved = 0;
 
                     // Monitor first respondWith()
-                    thisTick.event.internalLiveResponse.addEventListener('replace', () => {
+                    const internalLiveResponseHandler = () => {
                         if (!resolved) {
                             resolved = 1;
                             resolve(thisTick.event.internalLiveResponse);
                         } else if (resolved === 2) {
                             throw new Error(`Unexpected respondWith() after handler return.`);
                         }
-                    });
+                    };
+                    thisTick.event.internalLiveResponse.addEventListener('replace', internalLiveResponseHandler);
+                    const removeInternalLiveResponseHandler = () => thisTick.event.internalLiveResponse.removeEventListener('replace', internalLiveResponseHandler);
 
                     // Call the handler
                     const returnValue = await handler.call(thisContext, thisTick.event, $next/*next*/, $fetch/*fetch*/);
@@ -177,19 +179,20 @@ export class WebfloRouter111 {
                     if (LiveResponse.test(returnValue) === 'LiveProgramHandle') {
                         thisTick.event.signal.addEventListener('abort', () => {
                             returnValue.abort();
-                        });
+                        }, { once: true });
                     } else if (LiveResponse.test(returnValue) === 'Generator') {
                         thisTick.event.signal.addEventListener('abort', () => {
                             if (typeof returnValue.return === 'function') {
                                 returnValue.return();
                             }
-                        });
+                        }, { once: true });
                     }
 
                     // Handle return value
                     if (!resolved) {
                         resolved = 2;
                         resolve(returnValue);
+                        removeInternalLiveResponseHandler(); // Removing this line preserves error handling but introduces a memory leak
                     } else if (typeof returnValue !== 'undefined') {
                         thisTick.event.internalLiveResponse.replaceWith(returnValue, { done: true });
                     }

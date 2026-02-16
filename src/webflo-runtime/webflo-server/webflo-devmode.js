@@ -39,6 +39,9 @@ export class WebfloHMR {
     };
     get dirtiness() { return this.#dirtiness; }
 
+    #buildOutput;
+    get buildOutput() { return this.#buildOutput; }
+
     #ignoreList = new Set;
     get ignoreList() { return this.#ignoreList; }
 
@@ -143,8 +146,9 @@ export class WebfloHMR {
             } else if (event.realm === 'server') {
                 if (/^unlink/.test(event.actionableEffect)) {
                     delete this.#app.routes[event.affectedRoute];
-                } else if (event.realm === 'server') {
+                } else {
                     this.#app.routes[event.affectedRoute] = `${Path.join(this.#app.config.RUNTIME_DIR, event.affectedHandler)}?_webflohmrhash=${Date.now()}`;
+                    //this.#app.routes[event.affectedRoute] = `data:text/javascript;base64,${Buffer.from(this.#app.buildOutputs.server[event.affectedHandler]).toString('base64')}`;
                 }
             } else if (event.fileType === 'css') {
                 this.#dirtiness.CSSAffected = true;
@@ -173,31 +177,14 @@ export class WebfloHMR {
 
     async buildRoutes(fullBuild = false) {
         // 0. Generate graph
-        let buildResult;
-        try {
-            if (this.#jsMeta.prevBuildResult) {
-                if (fullBuild) await this.#jsMeta.prevBuildResult.rebuild.dispose();
-                else buildResult = await buildResult.rebuild();
-            }``
-            if (!buildResult) {
-                const bundlingConfig = {
-                    client: true,
-                    worker: true,
-                    server: true,
-                    metafile: true,      // This is key
-                    logLevel: 'silent',  // Suppress output
-                    incremental: true,
-                };
-                buildResult = await this.#app.buildRoutes(bundlingConfig);
-            }
-        } catch (e) {
-            //console.error(e);
-            return false;
-        }
+        const moduleGraph = await this.#app.buildRoutes(
+            ['server', 'client', 'worker'],
+            { revalidate: fullBuild },
+        );
 
         // 1. Forward dependency graph (file -> [imported files])
         const forward = {};
-        for (const [file, data] of Object.entries(buildResult.metafile.inputs)) {
+        for (const [file, data] of Object.entries(moduleGraph)) {
             forward[file] = data.imports?.map((imp) => Path.normalize(imp.path)) || [];
         }
 
@@ -211,7 +198,7 @@ export class WebfloHMR {
         }
 
         // 3. Trace from leaf file to roots (handler files)
-        const handlers = Object.keys(buildResult.metafile.inputs).filter((f) => this.#handlerMatch.test(f));
+        const handlers = Object.keys(moduleGraph).filter((f) => this.#handlerMatch.test(f));
         const handlerDepsMap = {};
 
         for (const handler of handlers) {
@@ -227,6 +214,7 @@ export class WebfloHMR {
                 stack.push(...deps);
             }
         }
+
         this.#jsMeta.dependencyMap = handlerDepsMap;
         this.#jsMeta.mustRevalidate = false;
         

@@ -121,15 +121,18 @@ function writeScriptBody({ $context, $source, bootstrap, configExport, which }) 
 
 async function bundleScript({ $context, $source, which, outfile, asModule = true, ...restParams }) {
     const { flags: FLAGS, logger: LOGGER } = $context;
+
     // >> Show banner...
     LOGGER?.log(LOGGER.style.keyword(`---`));
     LOGGER?.log(`Bundling ${which} build`);
     LOGGER?.log(LOGGER.style.keyword(`---`));
+
     // Apply compression?
     const compression = !FLAGS.compression ? false : (
         FLAGS.compression === true ? ['gz'] : FLAGS.compression.split(',').map(s => s.trim())
     );
     const moduleFile = `${_beforeLast(outfile, '.')}.esm.js`;
+
     // >> Show waiting...
     if (LOGGER) {
         const waiting = LOGGER.waiting(
@@ -141,26 +144,34 @@ async function bundleScript({ $context, $source, which, outfile, asModule = true
     } else {
         jsFile.write($source, moduleFile, 'ES Module file');
     }
+
     // >> esbuild config
     const bundlingConfig = {
         entryPoints: [moduleFile],
         outfile,
+        bundle: true,
+        treeShaking: true,
         format: asModule ? 'esm' : 'iife',
-        platform: which === 'server' ? 'node' : 'browser', // optional but good for clarity
-        bundle: which === 'server' ? false : true,
-        minify: which === 'server' ? false : true,
-        treeShaking: true,   // Important optimization
-        banner: { js: '/** @webqit/webflo */', },
-        footer: { js: '', },
+        ...(which === 'server' ? {
+            platform: 'node',
+            packages: 'external',
+        } : {
+            platform: 'browser',
+            minify: true,
+            banner: { js: '/** @webqit/webflo */', },
+            footer: { js: '', },
+        }),
         plugins: [UseLiveTransform()],
         ...(restParams.buildParams || {})
     };
+
     if (asModule && which !== 'server') {
         // Support top-level await
         // See: https://github.com/evanw/esbuild/issues/253#issuecomment-826147115
         bundlingConfig.banner.js += '(async () => {';
         bundlingConfig.footer.js += '})();';
     }
+
     // The bundling process
     let waiting;
     if (LOGGER) {
@@ -170,8 +181,10 @@ async function bundleScript({ $context, $source, which, outfile, asModule = true
         );
         waiting.start();
     }
+
     // Main
     await EsBuild.build(bundlingConfig);
+
     // Compress...
     const compressedFiles = [];
     const removals = [];
@@ -195,10 +208,12 @@ async function bundleScript({ $context, $source, which, outfile, asModule = true
         removals.push(bundlingConfig.outfile + '.gz');
         removals.push(bundlingConfig.outfile + '.br');
     }
+
     // Remove moduleFile build
     Fs.unlinkSync(bundlingConfig.entryPoints[0]);
     removals.forEach((file) => Fs.existsSync(file) && Fs.unlinkSync(file));
     if (waiting) waiting.stop();
+
     // ----------------
     // Stats
     if (LOGGER) {
@@ -208,6 +223,7 @@ async function bundleScript({ $context, $source, which, outfile, asModule = true
         });
         LOGGER.log('');
     }
+
     return [bundlingConfig.outfile].concat(compressedFiles);
 }
 
@@ -372,7 +388,7 @@ async function generateWorkerScript({ $context, bootstrap, ...restParams }) {
             const [urls, patterns] = configExport.WORKER[strategy].reduce(([urls, patterns], url) => {
                 const patternInstance = new URLPatternPlus(url, 'http://localhost');
                 const isPattern = patternInstance.isPattern();
-                
+
                 if (isPattern && (patternInstance.hostname !== 'localhost' || patternInstance.port)) {
                     throw new Error(`Pattern URLs must have no origin part. Recieved "${url}".`);
                 }
@@ -463,7 +479,7 @@ export async function build() {
         outfiles.push(..._outfiles);
     }
 
-    if (false) { // TODO: WebfloServer needs to be buildable first
+    if ($context.flags.server && false) { // TODO: WebfloServer needs to be buildable first
         const bootstrap = await serverBootstrap($context);
         const _outfiles = await generateServerScript({ $context, bootstrap, buildParams });
         outfiles.push(..._outfiles);

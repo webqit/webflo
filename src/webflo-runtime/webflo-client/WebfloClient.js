@@ -55,7 +55,11 @@ export class WebfloClient extends AppRuntime {
             rel: 'unrelated',
             phase: 0
         };
-        this.#background = new StarPort({ handshake: 1, postAwaitsOpen: true, autoClose: false });
+        this.#background = new StarPort({
+            handshake: 1,
+            postAwaitsOpen: false/* new additions shouldn't inherit old, initial messages */,
+            autoClose: false
+        });
     }
 
     async initialize() {

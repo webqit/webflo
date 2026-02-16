@@ -9,7 +9,7 @@ import $glob from 'fast-glob';
 import EsBuild from 'esbuild';
 import { Readable } from 'stream';
 import { WebSocketServer } from 'ws';
-import { spawn } from 'child_process';
+import spawn from 'cross-spawn';
 import { createWindow } from '@webqit/oohtml-ssr';
 import { RequestPlus } from '@webqit/fetch-plus';
 import { HttpThread111 } from '../webflo-routing/HttpThread111.js';
@@ -53,6 +53,12 @@ export class WebfloServer extends AppRuntime {
             : process.env[key];
     }
 
+    #buildContexts = {};
+    get buildContexts() { return this.#buildContexts; }
+
+    #buildOutputs = {};
+    get buildOutputs() { return this.#buildOutputs; }
+
     async initialize() {
         const { appMeta: APP_META, flags: FLAGS, logger: LOGGER, } = this.cx;
 
@@ -61,7 +67,7 @@ export class WebfloServer extends AppRuntime {
         if (FLAGS['dev']) {
             await this.enterDevMode();
         } else {
-            await this.buildRoutes({ server: true });
+            await this.buildRoutes(['server']);
         }
 
         // ----------
@@ -98,7 +104,6 @@ export class WebfloServer extends AppRuntime {
                     spawn('npx', ['webflo', 'start', ...flags], {
                         cwd: proxy.path,  // target directory
                         stdio: 'inherit', // inherit stdio so output streams to parent terminal
-                        shell: true       // for Windows compatibility
                     });
                 }
 
@@ -121,28 +126,61 @@ export class WebfloServer extends AppRuntime {
         return instanceController;
     }
 
-    async buildRoutes({ client = false, worker = false, server = false, ...options } = {}) {
-        const routeDirs = [...new Set([this.config.LAYOUT.CLIENT_DIR, this.config.LAYOUT.WORKER_DIR, this.config.LAYOUT.SERVER_DIR])];
-        const entryPoints = await $glob(routeDirs.map((d) => `${d}/**/handler{${client ? ',.client' : ''}${worker ? ',.worker' : ''}${server ? ',.server' : ''}}.js`), { absolute: true })
-            .then((files) => files.map((file) => file.replace(/\\/g, '/')));
-
-        const initFiles = await $glob(`${process.cwd()}/init.server.js`);
-
-        const bundlingConfig = {
-            entryPoints: entryPoints.concat(initFiles),
-            outdir: this.config.RUNTIME_DIR,
-            outbase: process.cwd(),
-            format: 'esm',
-            platform: server ? 'node' : 'browser',
-            bundle: server ? false : true,
-            minify: server ? false : true,
-            sourcemap: false,
-            treeShaking: true,
-            plugins: [UseLiveTransform()],
-            ...options,
+    async buildRoutes(realms = ['server'], { revalidate = false } = {}) {
+        const routeDirs = {
+            server: this.config.LAYOUT.SERVER_DIR,
+            client: this.config.LAYOUT.CLIENT_DIR,
+            worker: this.config.LAYOUT.WORKER_DIR
         };
+        let moduleGraph = {};
 
-        return await EsBuild.build(bundlingConfig);
+        for (const realm of realms) {
+            if (revalidate
+                || !this.#buildContexts[realm]) {
+                await this.#buildContexts[realm]?.dispose();
+
+                const entryPoints = await $glob(`${routeDirs[realm]}/**/handler{,.${realm}}.js`, { absolute: true })
+                    .then((files) => files.map((f) => f.replace(/\\/g, '/')));
+
+                const bundlingConfig = {
+                    entryPoints: entryPoints,
+                    outbase: process.cwd(),
+                    format: 'esm',
+                    bundle: true,
+                    ...(realm === 'server' ? {
+                        platform: 'node',
+                        packages: 'external',
+                        outdir: this.config.RUNTIME_DIR,
+                        write: true,
+                    } : {
+                        platform: 'browser',
+                        minify: true,
+                        outdir: '.',
+                        write: false,
+                    }),
+                    sourcemap: 'inline',
+                    splitting: false,
+                    treeShaking: true,
+                    plugins: [UseLiveTransform()],
+                    metafile: true,
+                    logLevel: 'silent',
+                };
+
+                this.#buildContexts[realm] = await EsBuild.context(bundlingConfig);
+            }
+
+            let buildResult;
+            try {
+                buildResult = await this.#buildContexts[realm].rebuild();
+            } catch (e) { continue; }
+
+            moduleGraph = { ...moduleGraph, ...buildResult.metafile.inputs };
+            this.#buildOutputs[realm] = Object.fromEntries(buildResult.outputFiles?.map((f) => {
+                return [Path.relative(process.cwd(), f.path), f.text];
+            }) ?? []);
+        }
+
+        return moduleGraph;
     }
 
     async enterDevMode() {
@@ -253,7 +291,7 @@ export class WebfloServer extends AppRuntime {
         const secret = this.env('SESSION_KEY');
 
         let tenantID = request.headers.get('Cookie', true).find((c) => c.name === '__sessid')?.value;
-        
+
         if (tenantID?.includes('.')) {
             if (secret) {
                 const [rand, signature] = tenantID.split('.');
@@ -570,13 +608,13 @@ export class WebfloServer extends AppRuntime {
 
         if (FLAGS['dev']) {
             if (httpEvent.url.pathname === '/@hmr') {
+                // This is purely a route handler source request from HMR
                 const filename = httpEvent.url.searchParams.get('src')?.split('?')[0] || '';
+                scopeObj.filename = Path.join(LAYOUT.PUBLIC_DIR, filename);
                 if (filename.endsWith('.js')) {
-                    // This is purely a route handler source request from HMR
-                    scopeObj.filename = Path.join(RUNTIME_LAYOUT.PUBLIC_DIR, filename);
-                } else {
-                    // This is a static asset (HTML) request from HMR
-                    scopeObj.filename = Path.join(LAYOUT.PUBLIC_DIR, filename);
+                    // Attempt reading from build output
+                    const buildOutputName = filename.replace('../', '');
+                    scopeObj.fileContents = this.#hmr.buildOutput[buildOutputName];
                 }
             } else {
                 if (this.#hmr.options.buildSensitivity === 1) {
@@ -656,7 +694,10 @@ export class WebfloServer extends AppRuntime {
         scopeObj.stats.mime = scopeObj.ext && (Mime.lookup(scopeObj.ext) || null)?.replace('application/javascript', 'text/javascript') || 'application/octet-stream';
 
         // Range support
-        const readStream = (params = {}) => Fs.createReadStream(scopeObj.filename, { ...params });
+        const readStream = (params = {}) => {
+            if (scopeObj.fileContents) return Readable.from(scopeObj.fileContents);
+            return Fs.createReadStream(scopeObj.filename, { ...params });
+        };
         scopeObj.response = this.createStreamingResponse(httpEvent, readStream, scopeObj.stats);
         const statusCode = scopeObj.response.status;
         if (statusCode === 416) return finalizeResponse(scopeObj.response);
@@ -719,7 +760,7 @@ export class WebfloServer extends AppRuntime {
         // Thread
         scopeObj.thread = HttpThread111.create({
             context: {},
-            store: this.#keyvals.create({ path: ['thread', scopeObj.tenantID], origins, ttl: 60*60*24*30/* 30 days */ }),
+            store: this.#keyvals.create({ path: ['thread', scopeObj.tenantID], origins, ttl: 60 * 60 * 24 * 30/* 30 days */ }),
             threadID: scopeObj.url.searchParams.get('_thread'),
             realm: 3
         });
