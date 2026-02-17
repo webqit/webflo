@@ -273,15 +273,22 @@ export class AppRuntime {
     createStreamingResponse(httpEvent, readStream, stats) {
         let response;
         const requestRange = httpEvent.request.headers.get('Range', true); // Parses the Range header
+        
         if (requestRange.length) {
             const streams = requestRange.reduce((streams, range) => {
                 if (!streams) return;
-                const [start, end] = range.resolveAgainst(stats.size); // Resolve offsets
-                console.log('_______', range, stats.size, [start, end]);
                 const currentStart = (streams[streams.length - 1]?.end || -1) + 1;
+
                 if (!range.canResolveAgainst(currentStart, stats.size)) return; // Only after rendering()
-                return streams.concat({ start, end, stream: readStream({ start, end }) });
+                const [start, end] = range.resolveAgainst(stats.size); // Resolve offsets
+
+                try {
+                    return streams.concat({ start, end, stream: readStream({ start, end }) });
+                } catch(e) {
+                    console.log('_______', httpEvent.request.headers.get('Range'), requestRange, stats.size, [start, end]);
+                }
             }, []);
+
             if (!streams) {
                 return new Response(null, {
                     status: 416, statusText: 'Requested Range Not Satisfiable', headers: {
@@ -289,6 +296,7 @@ export class AppRuntime {
                     }
                 });
             }
+
             const streamJoin = this.streamJoin(streams, stats.mime, stats.size);
             response = new Response(streamJoin.stream, { status: 206, statusText: 'Partial Content' });
             if (streamJoin.boundary) {
@@ -303,6 +311,7 @@ export class AppRuntime {
             response.headers.set('Content-Type', stats.mime);
             response.headers.set('Content-Length', stats.size);
         }
+        
         return response;
     }
 }
