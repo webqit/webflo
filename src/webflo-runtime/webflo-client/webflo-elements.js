@@ -616,6 +616,8 @@ export class ModalElement extends BaseElement {
                 this.#unbindDimensionsWorker = null;
                 this.#unbindMinmaxWorker?.();
                 this.#unbindMinmaxWorker = null;
+
+                this.removeAttribute('open');
             }
         });
 
