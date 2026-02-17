@@ -406,7 +406,7 @@ export class ModalElement extends BaseElement {
     }
 
     static get observedAttributes() {
-        return super.observedAttributes.concat(['class']);
+        return super.observedAttributes.concat(['class', 'open']);
     }
 
     get delegatesFocus() { return false; }
@@ -559,6 +559,13 @@ export class ModalElement extends BaseElement {
         super.attributeChangedCallback?.(name, old, _new);
 
         if (name === 'class' && old !== _new) this.#bindDimensionsWorker();
+        if (name === 'open' && this.isConnected) {
+            if (this.hasAttribute('open') && !this.matches(':popover-open')) {
+                this.showPopover();
+            } else if (!this.hasAttribute('open') && this.matches(':popover-open')) {
+                this.hidePopover();
+            }
+        }
     }
 
     connectedCallback() {
@@ -566,9 +573,6 @@ export class ModalElement extends BaseElement {
 
         if (!this.popover) {
             this.popover = 'manual';
-        }
-        if (this.hasAttribute('open')) {
-            this.showPopover();
         }
     }
 
