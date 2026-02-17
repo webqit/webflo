@@ -138,6 +138,7 @@ export class WebfloServer extends AppRuntime {
             if (revalidate
                 || !this.#buildContexts[realm]) {
                 await this.#buildContexts[realm]?.dispose();
+                console.info('Building routes...');
 
                 const entryPoints = await $glob(`${routeDirs[realm]}/**/handler{,.${realm}}.js`, { absolute: true })
                     .then((files) => files.map((f) => f.replace(/\\/g, '/')));
@@ -172,7 +173,10 @@ export class WebfloServer extends AppRuntime {
             let buildResult;
             try {
                 buildResult = await this.#buildContexts[realm].rebuild();
-            } catch (e) { continue; }
+            } catch (e) {
+                console.error(e);
+                continue;
+            }
 
             moduleGraph = { ...moduleGraph, ...buildResult.metafile.inputs };
             this.#buildOutputs[realm] = Object.fromEntries(buildResult.outputFiles?.map((f) => {
