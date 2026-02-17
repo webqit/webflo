@@ -138,7 +138,6 @@ export class WebfloServer extends AppRuntime {
             if (revalidate
                 || !this.#buildContexts[realm]) {
                 await this.#buildContexts[realm]?.dispose();
-                console.info('Building routes...');
 
                 const entryPoints = await $glob(`${routeDirs[realm]}/**/handler{,.${realm}}.js`, { absolute: true })
                     .then((files) => files.map((f) => f.replace(/\\/g, '/')));

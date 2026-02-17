@@ -277,6 +277,7 @@ export class AppRuntime {
             const streams = requestRange.reduce((streams, range) => {
                 if (!streams) return;
                 const [start, end] = range.resolveAgainst(stats.size); // Resolve offsets
+                console.log('_______', range, stats.size, [start, end]);
                 const currentStart = (streams[streams.length - 1]?.end || -1) + 1;
                 if (!range.canResolveAgainst(currentStart, stats.size)) return; // Only after rendering()
                 return streams.concat({ start, end, stream: readStream({ start, end }) });
