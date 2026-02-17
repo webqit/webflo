@@ -127,26 +127,45 @@ export class HttpEvent111 {
 
     // ------
 
-    async waitUntil(promise, { surviveNavigation = false, authBound = false } = {}) {
+    async waitUntil(promise, ...args) {
         let gcArray = [];
-        const gc = () => gcArray.forEach((unsub) => unsub());
+        const gc = () => {
+            gcArray.forEach((unsub) => unsub());
+            gcArray.splice(0);
+        };
 
-        if (surviveNavigation) {
-            const navHandler = (e) => e.preventDefault();
-            this.client.addEventListener('navigate', navHandler);
-            gcArray.push(() => this.client.removeEventListener('navigate', navHandler));
-        } else {
-            promise = Promise.race([promise, new Promise((res) => {
-                this.client.addEventListener('navigate', res, { once: true });
-                gcArray.push(() => this.client.removeEventListener('navigate', res));
-            })]);
-        }
+        if (args.length) {
+            promise = Promise.race([promise, new Promise((res, rej) => {
+                const timeout = typeof args[0] === 'number' ? args.shift() : null;
 
-        if (authBound) {
-            promise = Promise.race([promise, new Promise((res) => {
-                gcArray.push(this.user.subscribe('id', (e) => {
-                    if (!e.value || e.oldValue && e.value !== e.oldValue) res(e);
-                }));
+                if (typeof args[0] === 'function') {
+                    const lifecycleEventsHandler = args.shift();
+                    const callLifecycleEventsHandler = (e) => lifecycleEventsHandler(e, res, rej);
+
+                    // On abort
+                    this.#abortController.signal.addEventListener('abort', callLifecycleEventsHandler);
+                    gcArray.push(() => this.#abortController.signal.removeEventListener('abort', callLifecycleEventsHandler));
+
+                    // On navigate
+                    this.client.addEventListener('navigate', callLifecycleEventsHandler);
+                    gcArray.push(() => this.client.removeEventListener('navigate', callLifecycleEventsHandler));
+
+                    // On auth switch
+                    gcArray.push(this.user.subscribe('id', callLifecycleEventsHandler, { scope: 2/* global */ }));
+
+                    // On timeout
+                    if (timeout) {
+                        const id = setTimeout(() => {
+                            callLifecycleEventsHandler(new CustomEvent('timeout', { detail: { timeout } }));
+                        }, timeout);
+                        gcArray.push(() => clearTimeout(id));
+                    }
+                } else if (timeout) {
+                    const id = setTimeout(() => {
+                        res(new CustomEvent('timeout', { detail: { timeout } }));
+                    }, timeout);
+                    gcArray.push(() => clearTimeout(id));
+                }
             })]);
         }
 
@@ -155,10 +174,6 @@ export class HttpEvent111 {
 
     async waitUntilNavigate() {
         return this.waitUntil(new Promise(() => { }));
-    }
-
-    async waitUntilSignout() {
-        return this.waitUntil(new Promise(() => { }), { authBound: true });
     }
 
     async respondWith(data, ...args) {
