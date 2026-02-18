@@ -698,8 +698,21 @@ export class WebfloServer extends AppRuntime {
 
         // Range support
         const readStream = (params = {}) => {
-            if (scopeObj.fileContents) return Readable.from(scopeObj.fileContents);
-            return Fs.createReadStream(scopeObj.filename, { ...params });
+            const { start, end } = params;
+            if (scopeObj.fileContents) {
+                let data = scopeObj.fileContents;
+                // Ensure strings are handled as bytes for accurate ranging
+                if (typeof data === 'string') {
+                    data = new TextEncoder().encode(data);
+                }
+                // subarray is inclusive of start, exclusive of end (hence end + 1)
+                const source = (start !== undefined && end !== undefined)
+                    ? data.subarray(start, end + 1)
+                    : data;
+                return Readable.from(source);
+            }
+            // Fs is naturally inclusive of both start and end
+            return Fs.createReadStream(scopeObj.filename, params);
         };
         scopeObj.response = this.createStreamingResponse(httpEvent, readStream, scopeObj.stats);
         const statusCode = scopeObj.response.status;
@@ -965,7 +978,7 @@ export class WebfloServer extends AppRuntime {
                     }, { diff: true });
                 }
 
-                await new Promise(res => setTimeout(res, 300));
+                await new Promise(res => setTimeout(res, 100));
             }
 
             for (const name of ['X-Message-Port', 'X-Webflo-Dev-Mode']) {

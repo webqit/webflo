@@ -182,34 +182,39 @@ export class AppRuntime {
         const reader = stream.getReader();
         return new ReadableStream({
             async pull(controller) {
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) {
-                        controller.close();
-                        break;
-                    }
-                    let chunk = value;
-                    let chunkStart = bytesRead;
-                    let chunkEnd = bytesRead + chunk.length;
-                    if (chunkEnd <= start) {
-                        // skip entire chunk
-                        bytesRead += chunk.length;
-                        continue;
-                    }
-                    if (chunkStart > end) {
-                        // past requested range
-                        controller.close();
-                        break;
-                    }
-                    // slice relevant part
-                    let sliceStart = Math.max(start - chunkStart, 0);
-                    let sliceEnd = Math.min(end - chunkStart + 1, chunk.length);
-                    controller.enqueue(chunk.subarray(sliceStart, sliceEnd));
-                    bytesRead += chunk.length;
-                    if (chunkEnd > end) {
-                        controller.close();
-                        break;
-                    }
+                // Read one chunk at a time
+                const { done, value } = await reader.read();
+
+                if (done) {
+                    controller.close();
+                    return;
+                }
+
+                let chunk = value;
+                let chunkStart = bytesRead;
+                let chunkEnd = bytesRead + chunk.length;
+                bytesRead += chunk.length; // Correctly increment for every chunk seen
+
+                if (chunkEnd <= start) {
+                    // Not at the start yet, just return and wait for next pull
+                    return;
+                }
+                if (chunkStart > end) {
+                    // Already past the requested range
+                    controller.close();
+                    reader.releaseLock();
+                    return;
+                }
+
+                // Calculate the sub-slice of the current chunk
+                let sliceStart = Math.max(start - chunkStart, 0);
+                let sliceEnd = Math.min(end - chunkStart + 1, chunk.length);
+
+                controller.enqueue(chunk.subarray(sliceStart, sliceEnd));
+
+                if (chunkEnd > end) {
+                    controller.close();
+                    reader.releaseLock();
                 }
             },
             cancel(reason) {
@@ -219,51 +224,55 @@ export class AppRuntime {
     }
 
     streamJoin(streams, contentType, totalLength) {
-        // Single stream?
         if (streams.length === 1) {
             return streams[0];
         }
-        // Multipart!
+
         const boundary = `WEBFLO_BOUNDARY_${Math.random().toString(36).slice(2)}`;
         const encoder = new TextEncoder();
-        // Generator for multipart chunks
+        let gen; // Declare generator holder
+
+        const self = this;
         async function* generateMultipart() {
             for (const { stream, start, end } of streams) {
-                // Boundary + headers for each part
                 yield encoder.encode(`--${boundary}\r\n`);
                 yield encoder.encode(
                     `Content-Type: ${contentType}\r\n` +
                     `Content-Range: bytes ${start}-${end}/${totalLength}\r\n\r\n`
                 );
-                // Stream the sliced body
+
                 const reader = stream.getReader();
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    yield value;
+                try {
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        yield value;
+                    }
+                } finally {
+                    reader.releaseLock();
                 }
 
                 yield encoder.encode('\r\n');
             }
-            // Final boundary
             yield encoder.encode(`--${boundary}--\r\n`);
         }
-        // Create ReadableStream from async generator
+
         return {
             stream: new ReadableStream({
+                start() {
+                    // Initialize the generator ONCE when the stream starts
+                    gen = generateMultipart();
+                },
                 async pull(controller) {
-                    const gen = generateMultipart();
-                    while (true) {
-                        const { done, value } = await gen.next();
-                        if (done) {
-                            controller.close();
-                            break;
-                        }
+                    const { done, value } = await gen.next();
+                    if (done) {
+                        controller.close();
+                    } else {
                         controller.enqueue(value);
                     }
                 },
                 cancel(reason) {
-                    // Handle cancellation if needed
+                    // Logic to cancel underlying streams if necessary
                 }
             }),
             boundary,
@@ -273,19 +282,20 @@ export class AppRuntime {
     createStreamingResponse(httpEvent, readStream, stats) {
         let response;
         const requestRange = httpEvent.request.headers.get('Range', true); // Parses the Range header
-        
+
         if (requestRange.length) {
             const streams = requestRange.reduce((streams, range) => {
-                if (!streams) return;
-                const currentStart = (streams[streams.length - 1]?.end || -1) + 1;
+                if (!streams) return null;
+                const currentStart = 0; // (streams[streams.length - 1]?.end || -1) + 1;
 
-                if (!range.canResolveAgainst(currentStart, stats.size)) return; // Only after rendering()
+                if (!range.canResolveAgainst(currentStart, stats.size)) return null; // Only after rendering()
                 const [start, end] = range.resolveAgainst(stats.size); // Resolve offsets
 
                 try {
                     return streams.concat({ start, end, stream: readStream({ start, end }) });
-                } catch(e) {
-                    console.log('_______', httpEvent.request.headers.get('Range'), requestRange, stats.size, [start, end]);
+                } catch (e) {
+                    console.error('Failed to create range stream:', e);
+                    return null
                 }
             }, []);
 
@@ -299,6 +309,7 @@ export class AppRuntime {
 
             const streamJoin = this.streamJoin(streams, stats.mime, stats.size);
             response = new Response(streamJoin.stream, { status: 206, statusText: 'Partial Content' });
+
             if (streamJoin.boundary) {
                 response.headers.set('Content-Type', `multipart/byteranges; boundary=${streamJoin.boundary}`);
             } else {
@@ -311,7 +322,7 @@ export class AppRuntime {
             response.headers.set('Content-Type', stats.mime);
             response.headers.set('Content-Length', stats.size);
         }
-        
+
         return response;
     }
 }
