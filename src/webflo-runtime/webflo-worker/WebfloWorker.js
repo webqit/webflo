@@ -143,7 +143,7 @@ export class WebfloWorker extends AppRuntime {
 		// Thread
 		scopeObj.thread = HttpThread111.create({
 			context: {},
-			store: this.#keyvals.create({ path: ['thread', scopeObj.tenantID], origins, ttl: 60*60*24*30/* 30 days */ }),
+			store: this.#keyvals.create({ path: ['thread', scopeObj.tenantID], origins, ttl: 60 * 60 * 24 * 30/* 30 days */ }),
 			threadID: scopeObj.url.searchParams.get('_thread'),
 			realm: 2
 		});
@@ -190,9 +190,16 @@ export class WebfloWorker extends AppRuntime {
 		scopeObj.response = await this.dispatchNavigationEvent({
 			httpEvent: scopeObj.httpEvent,
 			crossLayerFetch: async (event) => {
-				// Was this nexted()? Tell the next layer we're in JSON mode by default
-				if (event !== scopeObj.httpEvent && !event.request.headers.has('Accept')) {
-					event.request.headers.set('Accept', 'application/json');
+				// Was this nexted()?
+				if (event !== scopeObj.httpEvent) {
+					// Tell the next layer we're in JSON mode by default
+					if (!event.request.headers.has('Accept')) {
+						event.request.headers.set('Accept', 'application/json');
+					}
+					// Advertise that we accept live responses
+					if (!event.request.headers.has('X-Accept-Live')) {
+						event.request.headers.set('X-Accept-Live', '*');
+					}
 				}
 				return await this.remoteFetch(event.request);
 			},

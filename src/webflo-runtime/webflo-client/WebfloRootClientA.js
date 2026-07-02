@@ -97,7 +97,7 @@ export class WebfloRootClientA extends WebfloClient {
 		} catch (e) { }
 		scopeObj.response = new LiveResponse(scopeObj.data, { headers: { 'Content-Type': 'application/json' } });
 
-		for (const name of ['X-Message-Port', 'X-Webflo-Dev-Mode']) {
+		for (const name of ['X-Live-Session', 'X-Webflo-Dev-Mode']) {
 			const metaElement = this.host.querySelector(`meta[name="${name}"]`);
 			if (!metaElement) continue;
 			scopeObj.response.headers.set(name, metaElement.content?.trim() || '');

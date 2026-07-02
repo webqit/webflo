@@ -29,11 +29,57 @@ import { AppRuntime } from '../AppRuntime.js';
 import { _meta } from '../../util.js';
 import 'dotenv/config';
 
+function encrypt(key, payload) {
+    const iv = crypto.randomBytes(12);
+
+    const cipher = crypto.createCipheriv(
+        'aes-256-gcm',
+        key,
+        iv
+    );
+
+    const encrypted = Buffer.concat([
+        cipher.update(payload, 'utf8'),
+        cipher.final(),
+    ]);
+
+    const tag = cipher.getAuthTag();
+
+    return Buffer.concat([
+        iv,
+        tag,
+        encrypted,
+    ]).toString('base64url');
+}
+
+function decrypt(key, token) {
+    const data = Buffer.from(token, 'base64url');
+
+    const iv = data.subarray(0, 12);
+    const tag = data.subarray(12, 28);
+    const encrypted = data.subarray(28);
+
+    const decipher = crypto.createDecipheriv(
+        'aes-256-gcm',
+        key,
+        iv
+    );
+
+    decipher.setAuthTag(tag);
+
+    return Buffer.concat([
+        decipher.update(encrypted),
+        decipher.final(),
+    ]).toString('utf8');
+}
+
 export class WebfloServer extends AppRuntime {
 
     static create(bootstrap) {
         return new this(bootstrap);
     }
+
+    #instanceID = null;
 
     #keyvals;
     get keyvals() { return this.#keyvals; }
@@ -71,11 +117,21 @@ export class WebfloServer extends AppRuntime {
         }
 
         // ----------
+        // Generate instanceID
+        if (this.env('INTERNAL_ADDR')) {
+            this.#instanceID = encrypt(
+                this.env('SIGNING_KEY'),
+                this.env('INTERNAL_ADDR')
+            );
+        }
+
+        // ----------
         // The keyvals API
         this.#keyvals = new KeyvalsFactory001({
             localDir: this.env('KEYVALS_DIR'),
             redisUrl: this.env('REDIS_URL'),
-            redisNamespace: APP_META.name
+            redisNamespace: APP_META.name,
+            instanceID: this.#instanceID
         });
 
         // ----------
@@ -291,7 +347,7 @@ export class WebfloServer extends AppRuntime {
     }
 
     identifyIncoming(request, autoGenerateID = false) {
-        const secret = this.env('SESSION_KEY');
+        const secret = this.env('SIGNING_KEY');
 
         let tenantID = request.headers.get('Cookie', true).find((c) => c.name === '__sessid')?.value;
 
@@ -453,6 +509,17 @@ export class WebfloServer extends AppRuntime {
             }
 
             if (requestURL.searchParams.get('rel') === 'background-messaging') {
+                if (requestURL.searchParams.get('iid') !== this.#instanceID) {
+                    const targetAddr = decrypt(
+                        this.env('SIGNING_KEY'),
+                        requestURL.searchParams.get('iid')
+                    );
+                    if (!targetAddr) {
+                        return reject({ body: `Invalid instanceID` });
+                    }
+                    // forward to the correct instance via proxy
+                }
+
                 const request = new RequestPlus(requestURL.href, { headers: nodeRequest.headers });
                 const tenantID = this.identifyIncoming(request);
 
@@ -832,7 +899,7 @@ export class WebfloServer extends AppRuntime {
         scopeObj.response = await this.dispatchNavigationEvent({
             httpEvent: scopeObj.httpEvent,
             crossLayerFetch: (event) => this.localFetch(event),
-            clientPortB: `socket:///${scopeObj.httpEvent.client.portID}?rel=background-messaging`
+            clientPortB: `socket:///${scopeObj.httpEvent.client.portID}?rel=background-messaging${this.#instanceID ? `&iid=${this.#instanceID}` : ''}`,
         });
 
         // Commit session - expires six months
@@ -981,7 +1048,7 @@ export class WebfloServer extends AppRuntime {
                 await new Promise(res => setTimeout(res, 100));
             }
 
-            for (const name of ['X-Message-Port', 'X-Webflo-Dev-Mode']) {
+            for (const name of ['X-Live-Session', 'X-Webflo-Dev-Mode']) {
                 document.querySelector(`meta[name="${name}"]`)?.remove();
                 if (!response.headers.get(name)) continue;
                 const metaElement = document.createElement('meta');
@@ -1053,7 +1120,7 @@ export class WebfloServer extends AppRuntime {
         if (response.headers.get('Content-Encoding')) log.push(`(${style.comment(response.headers.get('Content-Encoding'))})`);
         if (errorCode) log.push(style.err(`${errorCode} ${response.statusText}`));
         else log.push(style.val(`${_statusCode} ${response.statusText}`));
-        if (response.headers.get('X-Message-Port')) {
+        if (response.headers.get('X-Live-Session')) {
             log.push(style.keyword(`[${style.keyword('L')}]`));
         }
 

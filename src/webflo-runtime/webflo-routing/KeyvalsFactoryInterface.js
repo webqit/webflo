@@ -2,9 +2,9 @@ import { KV } from '@webqit/keyval/inmemory';
 
 export class KeyvalsFactoryInterface {
 
-    #instanceID = (0 | Math.random() * 9e6).toString(36);
-    #registry = new Map;
-    #defaultOrigins = ['*'/* requestID */];
+    #instanceID;
+    #registry;
+    #defaultOrigins;
     #kvHandle;
 
     get instanceID() { return this.#instanceID; }
@@ -12,7 +12,10 @@ export class KeyvalsFactoryInterface {
     get defaultOrigins() { return this.#defaultOrigins; }
     get kvHandle() { return this.#kvHandle; }
 
-    constructor() {
+    constructor({ instanceID = null, registry = null, defaultOrigins = null } = {}) {
+        this.#instanceID = instanceID || (0 | Math.random() * 9e6).toString(36);
+        this.#registry = registry || new Map;
+        this.#defaultOrigins = defaultOrigins || ['*'/* requestID */];
         this.#kvHandle = KV.create({ path: [], registry: this.#registry, origins: this.#defaultOrigins.concat(this.#instanceID) });
     }
 

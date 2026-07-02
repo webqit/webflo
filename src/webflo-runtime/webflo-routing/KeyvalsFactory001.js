@@ -10,8 +10,8 @@ export class KeyvalsFactory001 extends KeyvalsFactoryInterface {
     #redisUrl;
     #localDir;
 
-    constructor({ localDir = null, redisUrl = null, redisNamespace = '*', redisChannel = null, } = {}) {
-        super();
+    constructor({ localDir = null, redisUrl = null, redisNamespace = '*', redisChannel = null, instanceID = null } = {}) {
+        super({ instanceID });
         this.#localDir = localDir;
         this.#redisUrl = redisUrl;
         this.#redisNamespace = redisNamespace;

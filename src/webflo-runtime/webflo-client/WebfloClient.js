@@ -295,6 +295,7 @@ export class WebfloClient extends AppRuntime {
         request.headers.set('Accept', 'application/json');
         request.headers.set('X-Redirect-Policy', 'manual-when-cross-spa');
         request.headers.set('X-Powered-By', '@webqit/webflo');
+        request.headers.set('X-Accept-Live', '*');
         return request;
     }
 

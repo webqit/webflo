@@ -116,13 +116,13 @@ export class AppRuntime {
             }));
         }
 
-        // Send the X-Message-Port header
+        // Send the X-Live-Session header
         // This server's event lifecycle management
         if (!['waiting', 'done'].includes(httpEvent.readyState)) {
             if (this.isClientSide) {
                 LiveResponse.attachPort(response, clientPortB);
             } else {
-                response.headers.set('X-Message-Port', clientPortB);
+                response.headers.set('X-Live-Session', clientPortB);
             }
 
             // On navigation:
